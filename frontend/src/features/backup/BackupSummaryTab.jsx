@@ -5,7 +5,7 @@ import { useBackupPolling } from './useBackupPolling.js'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import StatusBadge, { VerifiedBadge } from '../../components/StatusBadge.jsx'
 import {
   IconDatabase,
@@ -344,7 +344,7 @@ export default function BackupSummaryTab({ can, onSwitchTab }) {
       </div>
 
       {/* DRAWER: Buat Cadangan Sekarang */}
-      <Drawer
+      <Modal
         open={createModalOpen}
         title="Buat Cadangan Sistem Sekarang"
         size="max-w-xl"
@@ -465,7 +465,7 @@ export default function BackupSummaryTab({ can, onSwitchTab }) {
             </form>
           )}
         </div>
-      </Drawer>
+      </Modal>
     </div>
   )
 }

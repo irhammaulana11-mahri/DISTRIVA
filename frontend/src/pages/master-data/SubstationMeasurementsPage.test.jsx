@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { SubstationReadingsImportPage } from './ImportPages.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import SubstationMeasurementsPage from './SubstationMeasurementsPage.jsx'
@@ -133,7 +134,10 @@ function renderPage(
     <AccessContext.Provider value={{ loading: false, can, canWrite: {}, isSysAdmin: false }}>
       <NotificationProvider>
         <MemoryRouter initialEntries={initialEntries}>
-          <SubstationMeasurementsPage />
+          <Routes>
+            <Route path="/master-data/substation-measurements/impor" element={<SubstationReadingsImportPage />} />
+            <Route path="*" element={<SubstationMeasurementsPage />} />
+          </Routes>
         </MemoryRouter>
       </NotificationProvider>
     </AccessContext.Provider>

@@ -6,7 +6,7 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import {
   IconCheck,
@@ -989,7 +989,7 @@ export default function RkmVersionDetailPage() {
 
       {/* DRAWER 1: Edit Proposal Lines */}
       {editingProposal && (
-        <Drawer
+        <Modal
           open={Boolean(editingProposal)}
           title={`Edit Kuantitas Usulan: ${editingProposal.ulp?.name}`}
           onClose={() => setEditingProposal(null)}
@@ -1087,11 +1087,11 @@ export default function RkmVersionDetailPage() {
               </tbody>
             </table>
           </div>
-        </Drawer>
+        </Modal>
       )}
 
       {/* DRAWER 2: Adjust Quantity (Perencanaan UP3) */}
-      <Drawer
+      <Modal
         open={adjustModalOpen}
         title="Sesuaikan Kuantitas Material KHS"
         onClose={() => setAdjustModalOpen(false)}
@@ -1149,10 +1149,10 @@ export default function RkmVersionDetailPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER 3: Submit Step Decision (UP3) */}
-      <Drawer
+      <Modal
         open={decisionModalOpen}
         title="Keputusan Langkah Validasi RKM"
         onClose={() => setDecisionModalOpen(false)}
@@ -1236,10 +1236,10 @@ export default function RkmVersionDetailPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER 4: Amend Plan */}
-      <Drawer
+      <Modal
         open={amendModalOpen}
         title="Amandemen Rencana RKM"
         onClose={() => setAmendModalOpen(false)}
@@ -1280,7 +1280,7 @@ export default function RkmVersionDetailPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
     </div>
   )
 }

@@ -8,7 +8,6 @@ import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
-import TariffBookImportModal from './TariffBookImportModal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import {
@@ -36,7 +35,6 @@ export default function TariffBooksPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
 
-  const [isImportOpen, setIsImportOpen] = useState(false)
   const [dialog, setDialog] = useState(null) // { type: 'approve' | 'retire', book }
   const [dialogError, setDialogError] = useState('')
 
@@ -125,7 +123,7 @@ export default function TariffBooksPage() {
           {canManage && (
             <button
               type="button"
-              onClick={() => setIsImportOpen(true)}
+              onClick={() => navigate('/master-data/tariff-books/impor')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconUpload size={16} />
@@ -330,15 +328,6 @@ export default function TariffBooksPage() {
           perPageOptions={[10, 25, 50, 100]}
         />
       </div>
-
-      {/* Import Drawer */}
-      <TariffBookImportModal
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onSuccess={() => {
-          loadBooks()
-        }}
-      />
 
       {/* Confirmation Dialog with Audit Reason */}
       {dialog && (

@@ -9,6 +9,8 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
+import { useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import { downloadCsv, CONSTRUCTION_TYPES_TEMPLATE, CONSTRUCTION_BOM_TEMPLATE } from '../../utils/csvTemplates.js'
 import {
@@ -36,6 +38,7 @@ const CONSTRUCTION_GROUPS = [
 ]
 
 export default function ConstructionsPage() {
+  const navigate = useNavigate()
   const { can, canWrite } = useAccess()
   const { notify } = useNotifications()
   const searchInputRef = useRef(null)
@@ -50,7 +53,6 @@ export default function ConstructionsPage() {
   // Drawer / modal
   const [detailTarget, setDetailTarget] = useState(null)
   const [approveTarget, setApproveTarget] = useState(null)
-  const [importOpen, setImportOpen] = useState(false)
 
   // Bulk approval: ids of draft versions ticked by the user (server accepts up to 500 per request).
   const BULK_MAX = 500
@@ -181,7 +183,7 @@ export default function ConstructionsPage() {
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => setImportOpen(true)}
+            onClick={() => navigate('/master-data/constructions/impor')}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
           >
             <IconUpload size={16} />
@@ -454,17 +456,6 @@ export default function ConstructionsPage() {
           onCancel={() => setBulkOpen(false)}
         />
       )}
-
-      {/* Import Drawer */}
-      {importOpen && (
-        <ConstructionImportDrawer
-          onClose={() => setImportOpen(false)}
-          onSuccess={() => {
-            setImportOpen(false)
-            loadConstructions()
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -603,7 +594,7 @@ function ConstructionDetailDrawer({ construction, onClose }) {
   )
 }
 
-function ConstructionImportDrawer({ onClose, onSuccess }) {
+export function ConstructionImportDrawer({ asPage = false, onClose, onSuccess }) {
   const [tab, setTab] = useState('types') // 'types' | 'bom'
   const [file, setFile] = useState(null)
   const [validFrom, setValidFrom] = useState(new Date().toISOString().slice(0, 10))
@@ -644,7 +635,9 @@ function ConstructionImportDrawer({ onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title="Impor Standar Konstruksi & BOM"
@@ -777,6 +770,6 @@ function ConstructionImportDrawer({ onClose, onSuccess }) {
           )}
         </form>
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }

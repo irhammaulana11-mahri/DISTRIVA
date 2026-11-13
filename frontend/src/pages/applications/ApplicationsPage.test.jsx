@@ -1,10 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { applicationApi, drawingApi } from '../../services/api.js'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import ApplicationsPage from './ApplicationsPage.jsx'
+import { ApplicationCreatePage, ApplicationDetailPage, ApplicationImportPage, EisSyncPage } from './ApplicationPages.jsx'
 
 // Mock access context to simulate a user with applications permissions
 let mockCan = {
@@ -34,6 +35,7 @@ vi.mock('../../features/admin/AccessContext.jsx', () => ({
 }))
 
 vi.mock('../../services/api.js', () => ({
+  eisSyncApi: { show: vi.fn().mockResolvedValue({ data: { settings: { eis_username: 'u', has_password: true, power_min: 0, power_max: 99999999, lookback_days: 180, auto_enabled: false, auto_time: '18:13' }, runs: [] } }), save: vi.fn(), start: vi.fn(), run: vi.fn() },
   applicationApi: {
     list: vi.fn(),
     get: vi.fn(),
@@ -64,6 +66,23 @@ vi.mock('../../services/api.js', () => ({
     authors: vi.fn().mockResolvedValue({ data: [] }),
   },
 }))
+
+// Daftar (laci hanya pratinjau) + halaman kerja: daftar baru, impor, sinkronisasi EIS, dan detail permohonan
+function renderApp(path = '/permohonan') {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <NotificationProvider>
+        <Routes>
+          <Route path="/permohonan" element={<ApplicationsPage />} />
+          <Route path="/permohonan/baru" element={<ApplicationCreatePage />} />
+          <Route path="/permohonan/impor" element={<ApplicationImportPage />} />
+          <Route path="/permohonan/sinkronisasi-eis" element={<EisSyncPage />} />
+          <Route path="/permohonan/:applicationId" element={<ApplicationDetailPage />} />
+        </Routes>
+      </NotificationProvider>
+    </MemoryRouter>
+  )
+}
 
 describe('ApplicationsPage (PB/PD Stage 1A)', () => {
   const sampleApps = [
@@ -118,13 +137,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
   })
 
   it('renders application list with standardized headers, counts and badges', async () => {
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     expect(await screen.findByText('APP-202611-0001')).toBeInTheDocument()
     expect(screen.getByText('Siti Aminah')).toBeInTheDocument()
@@ -139,13 +152,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
   })
 
   it('filters applications by search query and type', async () => {
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
 
@@ -177,13 +184,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
 
@@ -244,13 +245,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     })
     applicationApi.submit.mockResolvedValue({ data: { id: 'app-uuid-1', status: 'SUBMITTED' } })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
 
@@ -258,8 +253,10 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     const detailButtons = screen.getAllByTitle('Lihat Detail Permohonan')
     await userEvent.click(detailButtons[0])
 
-    expect(await screen.findByText('Permohonan APP-202611-0001')).toBeInTheDocument()
-    expect(screen.getByText('5145320261106001')).toBeInTheDocument()
+    expect(await screen.findByText('Permohonan APP-202611-0001')).toBeInTheDocument()   // laci: pratinjau baca-saja
+    expect(screen.queryByRole('button', { name: /Ajukan ke Survei/i })).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /Buka halaman lengkap/i }))
+    expect(await screen.findByText('5145320261106001')).toBeInTheDocument()
 
     // Click submit to survey button
     const submitBtn = screen.getByRole('button', { name: /Ajukan ke Survei/i })
@@ -273,13 +270,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
   it('cancels draft application with audit reason', async () => {
     applicationApi.cancel.mockResolvedValue({ data: { id: 'app-uuid-1', status: 'CANCELLED' } })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
 
@@ -304,13 +295,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
   })
 
   it('automatically calculates and displays power in kVA in create drawer', async () => {
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
     await userEvent.click(screen.getByRole('button', { name: /Permohonan Baru/i }))
@@ -331,20 +316,16 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     })
     applicationApi.addReference.mockResolvedValue({ data: { id: 'ref-new' } })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
     const detailButtons = screen.getAllByTitle('Lihat Detail Permohonan')
     await userEvent.click(detailButtons[0])
 
     expect(await screen.findByText('Permohonan APP-202611-0001')).toBeInTheDocument()
-    expect(screen.getByText(/Pengisian Nomor Agenda akan otomatis mengubah status/)).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Masukkan nomor referensi/i)).not.toBeInTheDocument()   // pratinjau: tanpa form tautkan referensi
+    await userEvent.click(await screen.findByRole('button', { name: /Buka halaman lengkap/i }))
+    expect(await screen.findByText(/Pengisian Nomor Agenda akan otomatis mengubah status/)).toBeInTheDocument()
 
     const refInput = screen.getByPlaceholderText(/Masukkan nomor referensi/i)
     await userEvent.type(refInput, '5145320261106099')
@@ -395,19 +376,14 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       meta: { current_page: 1, per_page: 100, total: 10, last_page: 1 },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
 
-    // Click separate header button "Impor EIS" directly
-    const importBtn = screen.getByRole('button', { name: /^Impor EIS$/i })
-    await userEvent.click(importBtn)
+    // Impor EIS satu drawer dengan Permohonan Baru: buka dulu, lalu pilih "Via Upload (Impor EIS)"
+    expect(screen.queryByRole('button', { name: /^Impor EIS$/i })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^Permohonan Baru$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Via Upload \(Impor EIS\)/i }))
 
     expect(await screen.findByText(/Impor Permohonan EIS/i)).toBeInTheDocument()
     expect(screen.getByText(/Prinsip Impor Staging Aman/i)).toBeInTheDocument()
@@ -428,28 +404,29 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     expect(screen.queryByText('Usulan Pelanggan (3 Fasa)')).not.toBeInTheDocument()
   })
 
-  it('2. "Impor EIS" dan "Permohonan Baru" terpisah dan mengikuti izin; keadaan kosong menampilkan tombol yang sesuai izin', async () => {
+  it('menu Sinkronisasi EIS ada di halaman Permohonan hanya untuk yang berizin dan membuka pengaturannya', async () => {
+    const view = renderApp()
+    await screen.findByText('APP-202611-0001')
+    expect(screen.queryByRole('button', { name: 'Sinkronisasi EIS' })).not.toBeInTheDocument()
+    view.unmount()
+
+    mockCan = { ...mockCan, 'eis_sync.manage': true }
+    renderApp()
+    await screen.findByText('APP-202611-0001')
+    await userEvent.click(screen.getByRole('button', { name: 'Sinkronisasi EIS' }))
+    expect(await screen.findByLabelText('User EIS')).toHaveValue('u')
+  })
+
+  it('2. "Permohonan Baru" mengikuti izin (impor EIS ada di halaman pendaftaran); keadaan kosong menampilkan tombol yang sesuai izin', async () => {
     // 1. Both buttons exist when user has both permissions
-    const { unmount } = render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    const { unmount } = renderApp()
     expect(screen.getByRole('button', { name: /^Permohonan Baru$/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Impor EIS$/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Impor EIS$/i })).not.toBeInTheDocument()
     unmount()
 
     // 2. Empty state displays both buttons and EIS scope explanation
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
-    const { unmount: unmountEmpty } = render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    const { unmount: unmountEmpty } = renderApp()
     expect(await screen.findByText(/Tidak ada permohonan aktif/i)).toBeInTheDocument()
 
     // Switch to "Riwayat" to see the full empty state with buttons
@@ -457,35 +434,22 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
     await userEvent.click(historyBtn)
 
-    expect(await screen.findByText(/Data sinkronisasi EIS hanya memuat pelanggan 3 fasa daya ≥ 6.600 VA/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Sinkronisasi EIS memuat pelanggan semua daya berstatus Bayar, Cetak PK, PDL Awal, dan Peremajaan/i)).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /^Permohonan Baru$/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /^Impor EIS$/i }).length).toBeGreaterThan(0)
     unmountEmpty()
 
     // 3. User with only import permission
     mockCan = { ...mockCan, 'applications.create': false }
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
-    const { unmount: unmountOnlyImport } = render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    const { unmount: unmountOnlyImport } = renderApp()
     expect(screen.queryByRole('button', { name: /^Permohonan Baru$/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Impor EIS$/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Impor EIS$/i })).not.toBeInTheDocument()
     unmountOnlyImport()
 
     // 4. User with neither permission
     mockCan = { ...mockCan, 'applications.create': false, 'applications.import': false }
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
     const allBtn = screen.getByRole('button', { name: 'Semua' })
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
     await userEvent.click(allBtn)
@@ -496,13 +460,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     applicationApi.addReference.mockResolvedValue({ data: { id: 'ref-new' } })
     applicationApi.update.mockResolvedValue({ data: { id: 'app-uuid-1' } })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
 
@@ -590,16 +548,11 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       meta: { current_page: 1, per_page: 100, total: 15, last_page: 1 },
     })
 
-    const { unmount } = render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    const { unmount } = renderApp()
 
     await screen.findByText('APP-202611-0001')
-    await userEvent.click(screen.getByRole('button', { name: /^Impor EIS$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^Permohonan Baru$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Via Upload \(Impor EIS\)/i }))
 
     const file = new File(['dummy,content'], 'bot_daftung_test.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]')
@@ -632,16 +585,11 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       meta: { current_page: 1, per_page: 100, total: 5, last_page: 1 },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
-    await userEvent.click(screen.getByRole('button', { name: /^Impor EIS$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^Permohonan Baru$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Via Upload \(Impor EIS\)/i }))
 
     const file2 = new File(['dummy,content'], 'clean.csv', { type: 'text/csv' })
     const fileInput2 = document.querySelector('input[type="file"]')
@@ -653,13 +601,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
   })
 
   it('5. Permohonan Draf/Diajukan tanpa No. Agenda: tindakan survei dan usulan nonaktif dengan alasan; setelah No. Agenda dilengkapi menjadi aktif', async () => {
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
 
@@ -668,8 +610,8 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     expect(checkbox1).toBeDisabled()
     expect(checkbox1).toHaveAttribute('title', 'Survei dan usulan dapat dimulai setelah No. Agenda terbit.')
 
-    // In detail drawer surveys tab, survey action is disabled
-    applicationApi.get.mockResolvedValueOnce({
+    // In the detail page surveys tab, survey action is disabled
+    applicationApi.get.mockResolvedValue({
       data: {
         ...sampleApps[0],
         external_references: [],
@@ -679,7 +621,9 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     await userEvent.click(detailBtns[0])
 
     await screen.findByText('Permohonan APP-202611-0001')
-    const surveysTabBtn = screen.getByRole('button', { name: /Survei & Pengukuran/i })
+    expect(screen.queryByRole('button', { name: /Survei & Pengukuran/i })).not.toBeInTheDocument()   // pratinjau hanya memuat ringkasan
+    await userEvent.click(await screen.findByRole('button', { name: /Buka halaman lengkap/i }))
+    const surveysTabBtn = await screen.findByRole('button', { name: /Survei & Pengukuran/i })
     await userEvent.click(surveysTabBtn)
 
     const startSurveyBtn = await screen.findByRole('button', { name: /Mulai Survei/ })
@@ -710,13 +654,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       meta: { current_page: 1, per_page: 10, total: 2, last_page: 1 },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     // "Bagian dari usulan {nomor}" appears and links
     const linkBadge = await screen.findByTitle('Bagian dari usulan USUL-202611-0001')
@@ -740,11 +678,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
   })
 
   it('7. Tab Gambar Teknik menampilkan pesan baru bahwa paket gambar dibuat setelah hasil survei menyatakan memerlukan gambar (docs/62 §48)', async () => {
-    applicationApi.list.mockResolvedValueOnce({
-      data: sampleApps,
-      meta: { current_page: 1, per_page: 20, total: 2 },
-    })
-    applicationApi.get.mockResolvedValueOnce({
+    applicationApi.get.mockResolvedValue({
       data: {
         ...sampleApps[0],
         surveys: [],
@@ -753,19 +687,9 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
         proposal: { id: 'p', proposal_number: '00001/USULAN-PBPD/10-11/51453/2026', issued: true, members_count: 1, is_representative: true, representative_application_id: 'APP-1' },
       },
     })
-    drawingApi.forApplication.mockResolvedValueOnce({ data: null })
+    drawingApi.forApplication.mockResolvedValue({ data: null })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
-
-    await screen.findByText('APP-202611-0001')
-    const detailButtons = screen.getAllByTitle('Lihat Detail Permohonan')
-    await userEvent.click(detailButtons[0])
+    renderApp('/permohonan/app-uuid-1')                                   // pekerjaan per tab ada di halaman permohonan
 
     expect(await screen.findByText('Permohonan APP-202611-0001')).toBeInTheDocument()
 
@@ -803,13 +727,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       meta: { current_page: 1, per_page: 20, total: 2 },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     // Check service days: 12 hari kerja and "-" for null
     expect(await screen.findByText('12 hari kerja')).toBeInTheDocument()
@@ -829,13 +747,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       meta: { current_page: 1, per_page: 20, total: 2 },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
     const filterBtn = screen.getByRole('button', { name: /Siap Pasang/i })
@@ -869,13 +781,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
     const detailBtn = screen.getByTitle('Lihat Detail Permohonan')
@@ -936,16 +842,11 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
       meta: { current_page: 1, per_page: 100, total: 10, last_page: 1 },
     })
 
-    render(
-      <MemoryRouter>
-        <NotificationProvider>
-          <ApplicationsPage />
-        </NotificationProvider>
-      </MemoryRouter>
-    )
+    renderApp()
 
     await screen.findByText('APP-202611-0001')
-    await userEvent.click(screen.getByRole('button', { name: /^Impor EIS$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^Permohonan Baru$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Via Upload \(Impor EIS\)/i }))
 
     const file = new File(['dummy'], 'test_breakdown.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]')

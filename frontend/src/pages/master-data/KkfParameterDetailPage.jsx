@@ -7,7 +7,6 @@ import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
-import KkfParameterFormDrawer from './KkfParameterFormDrawer.jsx'
 import {
   IconCheck,
   IconPencil,
@@ -32,7 +31,6 @@ export default function KkfParameterDetailPage() {
   const [error, setError] = useState('')
   const [set, setSet] = useState(null)
 
-  const [formDrawerOpen, setFormDrawerOpen] = useState(false)
   const [dialog, setDialog] = useState(null) // { type: 'approve' | 'retire' }
   const [dialogError, setDialogError] = useState('')
 
@@ -168,7 +166,7 @@ export default function KkfParameterDetailPage() {
           {isDraft && canManage && (
             <button
               type="button"
-              onClick={() => setFormDrawerOpen(true)}
+              onClick={() => navigate(`/master-data/kkf-parameters/${id}/ubah`)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs shadow-xs transition-colors cursor-pointer"
             >
               <IconPencil size={14} />
@@ -301,16 +299,6 @@ export default function KkfParameterDetailPage() {
           </div>
         )}
       </div>
-
-      {/* Edit Form Drawer */}
-      <KkfParameterFormDrawer
-        open={formDrawerOpen}
-        onClose={() => setFormDrawerOpen(false)}
-        initialData={set}
-        onSuccess={() => {
-          loadDetail()
-        }}
-      />
 
       {/* Confirmation Dialog with mandatory reason for Approve / Retire */}
       {dialog && (

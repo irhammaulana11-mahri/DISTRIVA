@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { workOrdersApi, vendorsApi, bastpApi } from '../../services/api.js'
 import VendorPicker, { VendorPreview } from '../work-orders/VendorPicker.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
 import Button from '../../components/Button.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -93,7 +93,8 @@ export default function ApplicationWorkOrdersPanel({
   const { user } = useAuth()
   const { can, isSysAdmin } = useAccess()
   const [bastpList, setBastpList] = useState([])
-  const [selectedBastpId, setSelectedBastpId] = useState(null)
+  const navigate = useNavigate()
+  const openBastp = (id) => navigate(`/bastp/${id}`)
   const [creatingBastp, setCreatingBastp] = useState(false)
 
   // Load Work Orders for Application
@@ -407,7 +408,7 @@ export default function ApplicationWorkOrdersPanel({
       const newId = res?.data?.id
       const bRes = await bastpApi.listForWorkOrder(selectedWoId)
       setBastpList(bRes?.data || [])
-      setSelectedBastpId(newId)
+      openBastp(newId)
     } catch (err) {
       setActionError(err?.response?.data?.message || err?.message || 'Gagal membuat BASTP.')
     } finally {
@@ -743,7 +744,7 @@ export default function ApplicationWorkOrdersPanel({
                       <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => setSelectedBastpId(latestBastp.id)}
+                        onClick={() => openBastp(latestBastp.id)}
                         className="bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center gap-1.5"
                       >
                         <IconFileText size={13} />
@@ -770,7 +771,7 @@ export default function ApplicationWorkOrdersPanel({
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => setSelectedBastpId(latestBastp.id)}
+                      onClick={() => openBastp(latestBastp.id)}
                       className="inline-flex items-center gap-1.5"
                     >
                       <IconFileText size={13} />
@@ -851,7 +852,7 @@ export default function ApplicationWorkOrdersPanel({
                       <Button
                         size="sm"
                         variant="primary"
-                        onClick={() => setSelectedBastpId(latestBastp.id)}
+                        onClick={() => openBastp(latestBastp.id)}
                         className="bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center gap-1.5"
                       >
                         <IconFileText size={13} />
@@ -1230,11 +1231,11 @@ export default function ApplicationWorkOrdersPanel({
       )}
 
       {/* DRAWER: Return WO (ASMAN) */}
-      <Drawer
+      <Modal
         open={returnModalOpen}
         title="Kembalikan SPK / Work Order"
         onClose={() => setReturnModalOpen(false)}
-        size="max-w-xl"
+        maxWidth="max-w-xl"
       >
         <form onSubmit={handleReturnWo} className="space-y-4 text-xs">
           <p className="text-slate-600 dark:text-slate-300">
@@ -1276,14 +1277,14 @@ export default function ApplicationWorkOrdersPanel({
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER: Submit Progress (Internal) */}
-      <Drawer
+      <Modal
         open={progressModalOpen}
         title="Laporkan Progres Fisik Pekerjaan"
         onClose={() => setProgressModalOpen(false)}
-        size="max-w-xl"
+        maxWidth="max-w-xl"
       >
         <form onSubmit={handleSubmitProgress} className="space-y-4 text-xs">
           <div>
@@ -1355,14 +1356,14 @@ export default function ApplicationWorkOrdersPanel({
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER: Return Progress */}
-      <Drawer
+      <Modal
         open={returnProgressModalOpen}
         title="Kembalikan Pengajuan Progres"
         onClose={() => setReturnProgressModalOpen(false)}
-        size="max-w-xl"
+        maxWidth="max-w-xl"
       >
         <form onSubmit={handleReturnProgress} className="space-y-4 text-xs">
           <p className="text-slate-600 dark:text-slate-300">
@@ -1404,14 +1405,14 @@ export default function ApplicationWorkOrdersPanel({
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER: Amend WO */}
-      <Drawer
+      <Modal
         open={amendModalOpen}
         title="Amandemen SPK / Work Order"
         onClose={() => setAmendModalOpen(false)}
-        size="max-w-xl"
+        maxWidth="max-w-xl"
       >
         <form onSubmit={handleAmendWo} className="space-y-4 text-xs">
           <p className="text-slate-600 dark:text-slate-300">
@@ -1452,14 +1453,14 @@ export default function ApplicationWorkOrdersPanel({
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER: Cancel WO */}
-      <Drawer
+      <Modal
         open={cancelModalOpen}
         title="Batalkan SPK / Work Order"
         onClose={() => setCancelModalOpen(false)}
-        size="max-w-xl"
+        maxWidth="max-w-xl"
       >
         <form onSubmit={handleCancelWo} className="space-y-4 text-xs">
           <p className="text-slate-600 dark:text-slate-300">
@@ -1501,19 +1502,7 @@ export default function ApplicationWorkOrdersPanel({
             </Button>
           </div>
         </form>
-      </Drawer>
-
-      {/* BASTP Detail Drawer */}
-      {selectedBastpId && (
-        <BastpDetailDrawer
-          bastpId={selectedBastpId}
-          workOrder={woDetail}
-          onClose={() => setSelectedBastpId(null)}
-          onUpdated={() => {
-            if (selectedWoId) loadWoDetail(selectedWoId)
-          }}
-        />
-      )}
+      </Modal>
     </div>
   )
 }

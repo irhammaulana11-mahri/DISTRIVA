@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { CategoryCreatePage, CategoryEditPage, UomCreatePage, UomEditPage } from './CategoryPages.jsx'
+import { MaterialEditPage } from './MaterialPages.jsx'
 import CategoriesPage from './CategoriesPage.jsx'
 import MaterialsPage from './MaterialsPage.jsx'
 import { masterDataApi } from '../../services/api.js'
@@ -113,7 +115,14 @@ function renderWithProviders(ui, { can = { 'material_categories.manage': true } 
     <MemoryRouter>
       <AccessContext.Provider value={{ loading: false, can, canWrite: {}, isSysAdmin: false }}>
         <NotificationProvider>
-          {ui}
+          <Routes>
+            <Route path="/master-data/categories/baru" element={<CategoryCreatePage />} />
+            <Route path="/master-data/categories/satuan/baru" element={<UomCreatePage />} />
+            <Route path="/master-data/categories/satuan/:id/ubah" element={<UomEditPage />} />
+            <Route path="/master-data/categories/:id/ubah" element={<CategoryEditPage />} />
+            <Route path="/master-data/materials/:id/ubah" element={<MaterialEditPage />} />
+            <Route path="*" element={ui} />
+          </Routes>
         </NotificationProvider>
       </AccessContext.Provider>
     </MemoryRouter>
@@ -261,6 +270,9 @@ describe('CategoriesPage & MaterialsPage — Two-Level Categories', () => {
       meta: { current_page: 1, per_page: 25, total: 1 },
     })
 
+    masterDataApi.material.mockResolvedValue({
+      data: { id: 'mat-10', code: '1002389', name: 'TRF DIS;;20kV/231V;1P;25kVA;;OD', unit: 'U', spec: '25 kVA 1P', category: { id: 'sub-1', code: 'TRF_1PH', name: 'Trafo 1 Fasa' }, is_active: true },
+    })
     renderWithProviders(<MaterialsPage />)
 
     // Verify row display has hierarchy: parent name above, subcategory name below

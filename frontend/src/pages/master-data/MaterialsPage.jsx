@@ -9,6 +9,8 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
+import { useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import { downloadCsv, MATERIAL_ERP_TEMPLATE } from '../../utils/csvTemplates.js'
 import {
@@ -26,6 +28,7 @@ import {
 } from '../../components/icons.jsx'
 
 export default function MaterialsPage() {
+  const navigate = useNavigate()
   const { can, canWrite } = useAccess()
   const { notify } = useNotifications()
   const searchInputRef = useRef(null)
@@ -41,9 +44,7 @@ export default function MaterialsPage() {
 
   // Drawer & Modal states
   const [detailTarget, setDetailTarget] = useState(null)
-  const [editTarget, setEditTarget] = useState(null)
   const [deactivateTarget, setDeactivateTarget] = useState(null)
-  const [importOpen, setImportOpen] = useState(false)
 
   // Keyboard shortcut: Press "/" to focus search box
   useEffect(() => {
@@ -115,17 +116,6 @@ export default function MaterialsPage() {
     loadMaterials()
   }, [loadMaterials])
 
-  const handleEditSuccess = (updated) => {
-    setEditTarget(null)
-    notify({
-      type: 'success',
-      title: 'Material Diperbarui',
-      desc: `Data material ${updated.code} - ${updated.name} berhasil diperbarui.`,
-      tag: 'Material',
-    })
-    loadMaterials()
-  }
-
   const handleDeactivateMaterial = async (reason) => {
     if (!deactivateTarget) return
     try {
@@ -171,7 +161,7 @@ export default function MaterialsPage() {
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => setImportOpen(true)}
+            onClick={() => navigate('/master-data/materials/impor')}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
           >
             <IconUpload size={16} />
@@ -380,7 +370,7 @@ export default function MaterialsPage() {
 
                           <button
                             type="button"
-                            onClick={() => setEditTarget(m)}
+                            onClick={() => navigate(`/master-data/materials/${m.id}/ubah`)}
                             aria-label="Edit"
                             title="Ubah Pemetaan Kategori & Status"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
@@ -437,18 +427,8 @@ export default function MaterialsPage() {
           onEdit={() => {
             const t = detailTarget
             setDetailTarget(null)
-            setEditTarget(t)
+            navigate(`/master-data/materials/${t.id}/ubah`)
           }}
-        />
-      )}
-
-      {/* Edit Drawer */}
-      {editTarget && (
-        <MaterialEditDrawer
-          material={editTarget}
-          categories={categories}
-          onClose={() => setEditTarget(null)}
-          onSuccess={handleEditSuccess}
         />
       )}
 
@@ -469,18 +449,6 @@ export default function MaterialsPage() {
         onConfirm={handleDeactivateMaterial}
         onCancel={() => setDeactivateTarget(null)}
       />
-
-      {/* Import Staging Drawer */}
-      {importOpen && (
-        <MaterialImportDrawer
-          categories={categories}
-          onClose={() => setImportOpen(false)}
-          onSuccess={() => {
-            setImportOpen(false)
-            loadMaterials()
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -588,7 +556,7 @@ function MaterialDetailDrawer({ material, categoryMap, onClose, onEdit }) {
   )
 }
 
-function MaterialEditDrawer({ material, categories, onClose, onSuccess }) {
+export function MaterialEditDrawer({ asPage = false, material, categories, onClose, onSuccess }) {
   const [categoryId, setCategoryId] = useState(material.category?.id || '')
   const [isActive, setIsActive] = useState(Boolean(material.is_active))
   const [reason, setReason] = useState('')
@@ -643,7 +611,9 @@ function MaterialEditDrawer({ material, categories, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title="Ubah Pemetaan Material"
@@ -736,11 +706,11 @@ function MaterialEditDrawer({ material, categories, onClose, onSuccess }) {
           />
         </div>
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }
 
-function MaterialImportDrawer({ categories = [], onClose, onSuccess }) {
+export function MaterialImportDrawer({ asPage = false, categories = [], onClose, onSuccess }) {
   const [mode, setMode] = useState('upload') // 'upload' | 'manual'
   const [file, setFile] = useState(null)
   const [manualCode, setManualCode] = useState('')
@@ -834,7 +804,9 @@ function MaterialImportDrawer({ categories = [], onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title="Impor Batch Material ERP (Two-Phase)"
@@ -1075,6 +1047,6 @@ function MaterialImportDrawer({ categories = [], onClose, onSuccess }) {
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }

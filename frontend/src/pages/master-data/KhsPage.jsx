@@ -9,6 +9,8 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
+import { useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import { downloadCsv, KHS_CATALOG_TEMPLATE } from '../../utils/csvTemplates.js'
 import {
@@ -27,6 +29,7 @@ import {
 } from '../../components/icons.jsx'
 
 export default function KhsPage() {
+  const navigate = useNavigate()
   const { can, canWrite } = useAccess()
   const { notify } = useNotifications()
   const searchInputRef = useRef(null)
@@ -39,9 +42,7 @@ export default function KhsPage() {
 
   // Drawers and Modals
   const [detailTarget, setDetailTarget] = useState(null)
-  const [editDraftTarget, setEditDraftTarget] = useState(null)
   const [approveTarget, setApproveTarget] = useState(null)
-  const [importOpen, setImportOpen] = useState(false)
 
   // Bulk approval: ids of draft versions ticked by the user (server accepts up to 1000 per request).
   const BULK_MAX = 1000
@@ -170,7 +171,7 @@ export default function KhsPage() {
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => setImportOpen(true)}
+            onClick={() => navigate('/master-data/khs/impor')}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
           >
             <IconUpload size={16} />
@@ -376,7 +377,7 @@ export default function KhsPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => setEditDraftTarget(k)}
+                                onClick={() => navigate(`/master-data/khs/${k.id}/koreksi`)}
                                 aria-label="Koreksi Draf"
                                 title="Koreksi Draf KHS"
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
@@ -432,18 +433,6 @@ export default function KhsPage() {
         />
       )}
 
-      {/* Edit Draft Drawer */}
-      {editDraftTarget && (
-        <KhsDraftEditDrawer
-          item={editDraftTarget}
-          onClose={() => setEditDraftTarget(null)}
-          onSuccess={() => {
-            setEditDraftTarget(null)
-            loadKhs()
-          }}
-        />
-      )}
-
       {/* Approval Confirmation Modal */}
       {approveTarget && (
         <ConfirmationModal
@@ -471,17 +460,6 @@ export default function KhsPage() {
           reasonPrompt="Alasan persetujuan (SK / Surat Penetapan)"
           onConfirm={handleBulkApprove}
           onCancel={() => setBulkOpen(false)}
-        />
-      )}
-
-      {/* Import Drawer */}
-      {importOpen && (
-        <KhsImportDrawer
-          onClose={() => setImportOpen(false)}
-          onSuccess={() => {
-            setImportOpen(false)
-            loadKhs()
-          }}
         />
       )}
     </div>
@@ -573,7 +551,7 @@ function KhsDetailDrawer({ item, onClose }) {
   )
 }
 
-function KhsDraftEditDrawer({ item, onClose, onSuccess }) {
+export function KhsDraftEditDrawer({ asPage = false, item, onClose, onSuccess }) {
   const draft = item.draft
   const [name, setName] = useState(draft?.name || '')
   const [unitText, setUnitText] = useState(draft?.unit_text || '')
@@ -608,7 +586,9 @@ function KhsDraftEditDrawer({ item, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title="Koreksi Draf KHS"
@@ -695,11 +675,11 @@ function KhsDraftEditDrawer({ item, onClose, onSuccess }) {
           />
         </div>
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }
 
-function KhsImportDrawer({ onClose, onSuccess }) {
+export function KhsImportDrawer({ asPage = false, onClose, onSuccess }) {
   const [file, setFile] = useState(null)
   const [validFrom, setValidFrom] = useState(new Date().toISOString().slice(0, 10))
   const [dryRun, setDryRun] = useState(true)
@@ -734,7 +714,9 @@ function KhsImportDrawer({ onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title="Impor Katalog KHS (518 Item)"
@@ -830,6 +812,6 @@ function KhsImportDrawer({ onClose, onSuccess }) {
           </div>
         )}
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }

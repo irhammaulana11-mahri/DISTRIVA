@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { reportsApi } from '../../services/api.js'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 
@@ -65,7 +65,7 @@ export default function ReportSettingsDrawer({ open, section, settings, onClose,
   const restore = () => setForm({ stock: { ...settings.defaults.stock }, vendor: { ...settings.defaults.vendor } })
 
   return (
-    <Drawer
+    <Modal
       open={open}
       onClose={onClose}
       title={section === 'stock' ? 'Pengaturan Stok Kritis' : 'Pengaturan Rapor Vendor'}
@@ -104,6 +104,6 @@ export default function ReportSettingsDrawer({ open, section, settings, onClose,
           </>
         )}
       </div>
-    </Drawer>
+    </Modal>
   )
 }

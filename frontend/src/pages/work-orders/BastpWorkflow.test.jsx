@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { BastpDetailPage } from './BastpPages.jsx'
 import { AuthContext } from '../../features/auth/AuthContext.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
@@ -56,7 +57,10 @@ function renderWithProviders(ui, { can = {}, isSysAdmin = false, user = { id: 'u
           }}
         >
           <NotificationProvider>
-            {ui}
+            <Routes>
+              <Route path="/bastp/:bastpId" element={<BastpDetailPage />} />
+              <Route path="*" element={ui} />
+            </Routes>
           </NotificationProvider>
         </AccessContext.Provider>
       </AuthContext.Provider>
@@ -213,7 +217,7 @@ describe('BASTP Workflow (docs/62 §36, docs/73 §6, docs/75 & docs/57)', () => 
 
     expect(bastpApi.create).toHaveBeenCalledWith('wo-101')
 
-    // BASTP drawer terbuka
+    // halaman BASTP terbuka (form tidak lagi di laci)
     await waitFor(() => {
       expect(screen.getByText(/BELUM DITERBITKAN \(DRAFT\)/i)).toBeInTheDocument()
     })

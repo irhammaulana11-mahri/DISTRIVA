@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { adminApi } from '../../services/api.js'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -71,6 +71,7 @@ function renderUserRoles(u) {
 }
 
 export default function UsersPage() {
+  const navigate = useNavigate()
   const { canWrite } = useAccess()
   const { notify } = useNotifications()
   const searchInputRef = useRef(null)
@@ -83,9 +84,7 @@ export default function UsersPage() {
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
 
   // Drawer & Modal Target States
-  const [createOpen, setCreateOpen] = useState(false)
   const [previewTarget, setPreviewTarget] = useState(null)
-  const [editTarget, setEditTarget] = useState(null)
   const [deactivateTarget, setDeactivateTarget] = useState(null)
 
   const load = useCallback(() => {
@@ -155,10 +154,6 @@ export default function UsersPage() {
           {canWrite['users.create'] && (
             <Link
               to="/admin/users/new"
-              onClick={(e) => {
-                e.preventDefault()
-                setCreateOpen(true)
-              }}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconPlus size={16} />
@@ -322,7 +317,7 @@ export default function UsersPage() {
                             {canWrite['users.change_status'] && (
                               <button
                                 type="button"
-                                onClick={() => setEditTarget(u)}
+                                onClick={() => navigate(`/admin/users/${u.id}`)}
                                 aria-label={`Ubah ${u.name}`}
                                 title={`Ubah data profil pengguna ${u.name}`}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer"
@@ -379,24 +374,6 @@ export default function UsersPage() {
       {/* DRAWERS: TAMBAH, PREVIEW, & EDIT PENGGUNA                                                 */}
       {/* ----------------------------------------------------------------------------------------- */}
 
-      {/* 1. Drawer Tambah Pengguna Baru */}
-      {createOpen && (
-        <UserCreateDrawer
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onSuccess={(res) => {
-            setCreateOpen(false)
-            notify({
-              type: 'success',
-              title: 'Pengguna Berhasil Ditambahkan',
-              desc: `Akun ${res.data?.name ?? 'baru'} telah didaftarkan dan undangan aktivasi disiapkan.`,
-              tag: 'Pengguna',
-            })
-            load()
-          }}
-        />
-      )}
-
       {/* 2. Drawer Preview Pengguna */}
       {previewTarget && (
         <UserPreviewDrawer
@@ -404,25 +381,7 @@ export default function UsersPage() {
           onClose={() => setPreviewTarget(null)}
           onEdit={(u) => {
             setPreviewTarget(null)
-            setEditTarget(u)
-          }}
-        />
-      )}
-
-      {/* 3. Drawer Edit Pengguna */}
-      {editTarget && (
-        <UserEditDrawer
-          user={editTarget}
-          onClose={() => setEditTarget(null)}
-          onSuccess={(updated) => {
-            setEditTarget(null)
-            notify({
-              type: 'success',
-              title: 'Data Pengguna Diperbarui',
-              desc: `Pembaruan data akun ${updated.name} berhasil disimpan.`,
-              tag: 'Pengguna',
-            })
-            load()
+            navigate(`/admin/users/${u.id}`)
           }}
         />
       )}
@@ -579,413 +538,6 @@ function UserPreviewDrawer({ user, onClose, onEdit }) {
           )}
         </div>
       </div>
-    </Drawer>
-  )
-}
-
-// -------------------------------------------------------------------------------------------------
-// Sub-component: UserEditDrawer (Kelola Status Akun & Akses Pengguna)
-// -------------------------------------------------------------------------------------------------
-function UserEditDrawer({ user, onClose, onSuccess }) {
-  const { user: currentUser } = useAuth()
-  const isSelf = currentUser && String(currentUser.id) === String(user?.id)
-  const [status, setStatus] = useState(user?.account_status ?? 'ACTIVE')
-  const [reason, setReason] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const handleSubmit = async (e) => {
-    if (e && e.preventDefault) e.preventDefault()
-    setError('')
-
-    if (isSelf) {
-      setError('Anda tidak dapat mengubah status akun sendiri (kebijakan anti-lockout DISTRIVA).')
-      return
-    }
-
-    if (!reason.trim()) {
-      setError('Alasan perubahan status akun wajib dicatat untuk kepatuhan audit.')
-      return
-    }
-
-    setBusy(true)
-    try {
-      if (status !== user.account_status) {
-        await adminApi.changeStatus(user.id, status, reason.trim())
-      }
-      onSuccess({ ...user, account_status: status })
-    } catch (err) {
-      setError(err?.message || 'Gagal memperbarui status akun.')
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Drawer
-      open={Boolean(user)}
-      onClose={onClose}
-      eyebrow="ADMINISTRASI / STATUS PENGGUNA"
-      title={`Kelola Status: ${user.name}`}
-      subtitle="Perbarui status operasional akun atau kelola penugasan peran pengguna"
-      size="max-w-xl"
-      footer={
-        <>
-          <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={busy}>
-            Tutup
-          </Button>
-          {!isSelf && (
-            <Button variant="primary" size="sm" type="button" onClick={handleSubmit} loading={busy}>
-              Simpan Perubahan Status
-            </Button>
-          )}
-        </>
-      }
-    >
-      <div className="space-y-4">
-        {error && <Alert>{error}</Alert>}
-
-        {isSelf && (
-          <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3.5 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-300">
-            <strong>Perhatian:</strong> Ini adalah akun Anda sendiri yang sedang aktif. Anda tidak dapat mengubah status atau menonaktifkan akun sendiri untuk mencegah terkunci dari sistem (<em>anti-lockout policy</em>).
-          </div>
-        )}
-
-        {/* User Identity Info Card */}
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2 text-xs">
-          <span className="font-bold text-slate-800 dark:text-slate-200 block">Identitas Akun Pegawai</span>
-          <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-300">
-            <div>
-              <span className="text-slate-400 block text-[10px]">Nama Lengkap</span>
-              <strong className="text-slate-800 dark:text-slate-100">{user.name}</strong>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px]">Email Kedinasan</span>
-              <span className="font-mono">{user.email}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px]">NIP</span>
-              <span className="font-mono">{user.nip || '—'}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px]">Telepon / WA</span>
-              <span className="font-mono">{user.phone || '—'}</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-700">
-            Identitas akun resmi terdaftar saat pembuatan akun. Untuk penyesuaian peran operasional atau unit kerja, kelola melalui menu Penugasan.
-          </p>
-        </div>
-
-        {/* Change Status Section */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Status Akun Pengguna
-          </label>
-          <select
-            disabled={isSelf}
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <option value="ACTIVE">Aktif (Operasional Normal)</option>
-            <option value="SUSPENDED">Ditangguhkan (Akses Dibekukan Sementara)</option>
-            <option value="INACTIVE">Nonaktif (Akun Diakhiri)</option>
-          </select>
-        </div>
-
-        {!isSelf && (
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Alasan Perubahan Status <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Contoh: Penonaktifan akun karena mutasi pegawai / penangguhan akses..."
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-            />
-          </div>
-        )}
-
-        {/* Direct Link to Role Assignment Page */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-          <Link
-            to={`/admin/users/${user.id}`}
-            onClick={onClose}
-            className="inline-flex items-center justify-between w-full p-2.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-          >
-            <span>Kelola Penugasan Peran & Unit di Halaman Detail</span>
-            <IconArrowRight size={14} />
-          </Link>
-        </div>
-      </div>
-    </Drawer>
-  )
-}
-
-// -------------------------------------------------------------------------------------------------
-// Sub-component: UserCreateDrawer (Form Tambah Pengguna Baru & Penugasan Awal)
-// -------------------------------------------------------------------------------------------------
-function UserCreateDrawer({ open, onClose, onSuccess }) {
-  const [roles, setRoles] = useState([])
-  const [units, setUnits] = useState([])
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    nip: '',
-    role_id: '',
-    organizational_unit_id: '',
-    valid_from: new Date().toISOString().slice(0, 10),
-    valid_until: '',
-    assignment_document: '',
-    reason: '',
-  })
-  const [errors, setErrors] = useState({})
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    adminApi.roles().then((d) => setRoles(d.data ?? [])).catch(() => setRoles([]))
-    adminApi.units({ per_page: 100 }).then((d) => setUnits((d.data ?? []).filter((u) => u.is_active))).catch(() => setUnits([]))
-  }, [])
-
-  const handleSubmit = async (e) => {
-    if (e && e.preventDefault) e.preventDefault()
-    setErrors({})
-    setMessage('')
-
-    // Client-side validation checks
-    const newErrors = {}
-    if (!form.name.trim()) newErrors.name = 'Nama lengkap wajib diisi.'
-    if (!form.email.trim()) newErrors.email = 'Email kedinasan wajib diisi.'
-    if (!form.role_id) newErrors.role_id = 'Peran (Role) wajib dipilih.'
-    if (!form.organizational_unit_id) newErrors.organizational_unit_id = 'Unit organisasi wajib dipilih.'
-    if (!form.valid_from) newErrors.valid_from = 'Tanggal berlaku mulai wajib diisi.'
-    if (!form.assignment_document.trim()) newErrors.assignment_document = 'Nomor dokumen penugasan (SK) wajib diisi.'
-    if (!form.reason.trim()) newErrors.reason = 'Alasan penugasan wajib diisi untuk catatan audit.'
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      setMessage('Mohon lengkapi semua kolom wajib bertanda bintang (*).')
-      return
-    }
-
-    setBusy(true)
-
-    try {
-      const body = {
-        name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: form.phone?.trim() || null,
-        nip: form.nip?.trim() || null,
-        role_id: Number(form.role_id) || form.role_id,
-        organizational_unit_id: form.organizational_unit_id,
-        valid_from: form.valid_from,
-        valid_until: form.valid_until || null,
-        assignment_document: form.assignment_document.trim(),
-        reason: form.reason.trim(),
-      }
-      const res = await adminApi.createUser(body)
-      onSuccess(res)
-    } catch (err) {
-      if (err.status === 422 && err.errors) {
-        setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v.join(' ')])))
-      } else {
-        setMessage(err.message || 'Gagal menambahkan pengguna baru.')
-      }
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      eyebrow="TAMBAH PENGGUNA BARU"
-      title="Pendaftaran Pengguna Baru"
-      subtitle="Akun didaftarkan dengan status Menunggu Aktivasi dan akan menerima kode OTP"
-      size="max-w-xl"
-      footer={
-        <>
-          <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={busy}>
-            Batal
-          </Button>
-          <Button variant="primary" size="sm" type="button" onClick={handleSubmit} loading={busy}>
-            Daftarkan & Kirim Undangan
-          </Button>
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        {message && <Alert>{message}</Alert>}
-
-        <div className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3.5 border border-blue-200 dark:border-blue-900/60 text-xs text-blue-800 dark:text-blue-300">
-          <strong>Kebijakan Keamanan (Doc 16):</strong> Password tidak dibuat oleh administrator. Pengguna baru akan menerima undangan via email/WhatsApp dan mengaktifkan akun secara mandiri menggunakan kode OTP.
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Nama Lengkap <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Contoh: Irham Maulana"
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-            />
-            {errors.name && <p className="text-[11px] text-red-600 mt-1">{errors.name}</p>}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Email Kedinasan <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="nama@pln.co.id"
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus-ring"
-            />
-            {errors.email && <p className="text-[11px] text-red-600 mt-1">{errors.email}</p>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Nomor Telepon / WA (Opsional)
-            </label>
-            <input
-              type="text"
-              value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              placeholder="08123456789"
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus-ring"
-            />
-            {errors.phone && <p className="text-[11px] text-red-600 mt-1">{errors.phone}</p>}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              NIP Pegawai (Opsional)
-            </label>
-            <input
-              type="text"
-              value={form.nip}
-              onChange={(e) => setForm((f) => ({ ...f, nip: e.target.value }))}
-              placeholder="Contoh: 19890101..."
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus-ring"
-            />
-            {errors.nip && <p className="text-[11px] text-red-600 mt-1">{errors.nip}</p>}
-          </div>
-        </div>
-
-        {/* Initial Assignment */}
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
-          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-            Penugasan Peran & Unit Organisasi Awal
-          </span>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Peran (Role) <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={form.role_id}
-                onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value }))}
-                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-              >
-                <option value="">Pilih peran…</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id} disabled={r.name === 'SYS_ADMIN'}>
-                    {r.name} {r.name === 'SYS_ADMIN' ? '(Khusus Konsol CLI)' : ''}
-                  </option>
-                ))}
-              </select>
-              {errors.role_id && <p className="text-[11px] text-red-600 mt-1">{errors.role_id}</p>}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Unit Organisasi <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={form.organizational_unit_id}
-                onChange={(e) => setForm((f) => ({ ...f, organizational_unit_id: e.target.value }))}
-                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-              >
-                <option value="">Pilih unit organisasi…</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>{u.code} - {u.name}</option>
-                ))}
-              </select>
-              {errors.organizational_unit_id && <p className="text-[11px] text-red-600 mt-1">{errors.organizational_unit_id}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Berlaku Mulai <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={form.valid_from}
-                onChange={(e) => setForm((f) => ({ ...f, valid_from: e.target.value }))}
-                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-              />
-              {errors.valid_from && <p className="text-[11px] text-red-600 mt-1">{errors.valid_from}</p>}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Berlaku Sampai (Opsional)
-              </label>
-              <input
-                type="date"
-                value={form.valid_until}
-                onChange={(e) => setForm((f) => ({ ...f, valid_until: e.target.value }))}
-                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-              />
-              {errors.valid_until && <p className="text-[11px] text-red-600 mt-1">{errors.valid_until}</p>}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-              Dokumen Penugasan (SK) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.assignment_document}
-              onChange={(e) => setForm((f) => ({ ...f, assignment_document: e.target.value }))}
-              placeholder="Contoh: SK-042/SDM/2026"
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-            />
-            {errors.assignment_document && <p className="text-[11px] text-red-600 mt-1">{errors.assignment_document}</p>}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Alasan Pembuatan Akun <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            rows={2}
-            value={form.reason}
-            onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-            placeholder="Alasan pendaftaran akun baru untuk pencatatan audit log…"
-            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
-          />
-          {errors.reason && <p className="text-[11px] text-red-600 mt-1">{errors.reason}</p>}
-        </div>
-      </form>
     </Drawer>
   )
 }

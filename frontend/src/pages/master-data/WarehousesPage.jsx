@@ -1181,7 +1181,7 @@ export default function WarehousesPage() {
       )}
 
       {/* UNIFIED DRAWER: Tambah Gudang Manual / Impor Gudang ERP (JSON) */}
-      <Drawer
+      <Modal
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         title="Tambah Gudang Penyimpanan"
@@ -1432,7 +1432,7 @@ export default function WarehousesPage() {
             </div>
           )}
         </div>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER 1: Warehouse Snapshots List */}
       {selectedWarehouse && (
@@ -1542,7 +1542,7 @@ export default function WarehousesPage() {
 
       {/* DRAWER 2: Import Stock Snapshot with Dry Run */}
       {selectedWarehouse && (
-        <Drawer
+        <Modal
           isOpen={importDrawerOpen}
           onClose={() => setImportDrawerOpen(false)}
           title={`Impor Cuplikan Stok: ${selectedWarehouse.name}`}
@@ -1808,7 +1808,7 @@ export default function WarehousesPage() {
               </div>
             )}
           </div>
-        </Drawer>
+        </Modal>
       )}
 
       {/* DRAWER 3: Snapshot Detail Lines */}
@@ -1994,7 +1994,7 @@ export default function WarehousesPage() {
       </Drawer>
 
       {/* DRAWER: Tarik Stok dari MIMS */}
-      <Drawer
+      <Modal
         open={mimsModalOpen}
         title="Tarik Stok dari MIMS"
         onClose={() => {
@@ -2294,7 +2294,7 @@ export default function WarehousesPage() {
             </div>
           )}
         </div>
-      </Drawer>
+      </Modal>
     </div>
   )
 }

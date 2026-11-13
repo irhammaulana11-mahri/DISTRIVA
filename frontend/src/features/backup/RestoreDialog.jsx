@@ -5,7 +5,7 @@ import { formatBytes, formatDateTime } from './backupUtils.js'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import { IconShield, IconExclamation, IconCheck, IconX } from '../../components/icons.jsx'
 
 export default function RestoreDialog({ open, backup, onClose, onSuccess }) {
@@ -214,7 +214,7 @@ export default function RestoreDialog({ open, backup, onClose, onSuccess }) {
 
   // 2. Multi-Step Confirmation Drawer
   return (
-    <Drawer
+    <Modal
       open={open}
       title={`Konfirmasi Pemulihan Data (${backup.backup_number})`}
       onClose={onClose}
@@ -333,6 +333,6 @@ export default function RestoreDialog({ open, backup, onClose, onSuccess }) {
           )}
         </div>
       </form>
-    </Drawer>
+    </Modal>
   )
 }

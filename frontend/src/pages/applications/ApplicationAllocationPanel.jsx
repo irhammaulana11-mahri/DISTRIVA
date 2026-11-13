@@ -8,7 +8,7 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import {
   IconPlus,
@@ -1042,7 +1042,7 @@ export default function ApplicationAllocationPanel({
       )}
 
       {/* DRAWER: Cancel Allocation */}
-      <Drawer
+      <Modal
         open={cancelModalOpen}
         title="Batalkan Alokasi Material"
         onClose={() => setCancelModalOpen(false)}
@@ -1092,7 +1092,7 @@ export default function ApplicationAllocationPanel({
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
     </div>
   )
 }

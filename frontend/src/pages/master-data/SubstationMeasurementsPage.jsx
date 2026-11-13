@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -10,7 +10,6 @@ import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import SubstationAnalysis, { FlagChips } from './SubstationAnalysis.jsx'
-import SubstationReadingsImportModal from './SubstationReadingsImportModal.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import { readingTime } from '../../utils/readingTime.js'
 import {
@@ -362,6 +361,7 @@ function Detail({ id, canReading, canViewFeeders, feedersList = [], onClose, onC
 /** Master Data › Pengukuran Gardu (kondisi operasional). */
 export default function SubstationMeasurementsPage() {
   const { can, isSysAdmin } = useAccess()
+  const navigate = useNavigate()
   const canReading = Boolean(can?.['substations.reading'] || isSysAdmin)
   const canSync = Boolean(can?.['substations.sync'] || can?.['substations.reading'] || can?.['substations.manage'] || can?.['substations.import'] || isSysAdmin)
   const canViewFeeders = Boolean(can?.['feeders.view'])
@@ -373,7 +373,6 @@ export default function SubstationMeasurementsPage() {
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(25)
-  const [importOpen, setImportOpen] = useState(false)
 
   // Filters
   const [q, setQ] = useState(searchParams.get('q') || '')
@@ -552,7 +551,7 @@ export default function SubstationMeasurementsPage() {
           </p>
         </div>
         {canSync && (
-          <Button icon={IconUpload} onClick={() => setImportOpen(true)}>
+          <Button icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
             Impor Pengukuran
           </Button>
         )}
@@ -871,15 +870,6 @@ export default function SubstationMeasurementsPage() {
           />
         )}
       </Drawer>
-
-      <SubstationReadingsImportModal
-        isOpen={importOpen}
-        onClose={() => setImportOpen(false)}
-        onSuccess={() => {
-          load()
-          loadSummary()
-        }}
-      />
     </div>
   )
 }

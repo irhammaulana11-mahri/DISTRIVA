@@ -6,6 +6,7 @@ import { vendorsApi, adminApi } from '../../services/api.js'
 import Button from '../../components/Button.jsx'
 import useAccountUnits from './useAccountUnits.js'
 import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
@@ -534,7 +535,7 @@ export default function VendorsPage() {
 
       {/* DRAWER: Kelola Akun Vendor */}
       {selectedVendor && (
-        <Drawer
+        <Modal
           isOpen={accountDrawerOpen}
           onClose={() => setAccountDrawerOpen(false)}
           title={`Akun Vendor: ${selectedVendor.name}`}
@@ -659,7 +660,7 @@ export default function VendorsPage() {
               </div>
             </div>
           </div>
-        </Drawer>
+        </Modal>
       )}
     </div>
   )

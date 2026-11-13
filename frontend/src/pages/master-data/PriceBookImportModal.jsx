@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { priceBookApi } from '../../services/api.js'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -16,7 +16,7 @@ import { downloadCsv, PRICE_BOOK_TEMPLATE } from '../../utils/csvTemplates.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
 
-export default function PriceBookImportModal({ isOpen, onClose, onSuccess }) {
+export default function PriceBookImportModal({ isOpen, asPage = false, onClose, onSuccess }) {
   const { user } = useAuth()
   const { notify } = useNotifications()
   const fileInputRef = useRef(null)
@@ -166,7 +166,9 @@ export default function PriceBookImportModal({ isOpen, onClose, onSuccess }) {
   const hasErrors = summary && summary.rejected_rows > 0
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={isOpen}
       onClose={handleClose}
       title={step === 'form' ? 'Impor Buku Harga Satuan Kontrak (CSV)' : 'Pratinjau Hasil Validasi (Dry Run)'}
@@ -498,6 +500,6 @@ export default function PriceBookImportModal({ isOpen, onClose, onSuccess }) {
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }

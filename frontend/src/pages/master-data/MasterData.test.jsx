@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { CategoryCreatePage, CategoryEditPage, UomCreatePage, UomEditPage } from './CategoryPages.jsx'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { masterDataApi } from '../../services/api.js'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
@@ -300,7 +301,13 @@ describe('Master Data Pages', () => {
       render(
         <MemoryRouter>
           <NotificationProvider>
-            <CategoriesPage />
+            <Routes>
+            <Route path="/master-data/categories/baru" element={<CategoryCreatePage />} />
+            <Route path="/master-data/categories/satuan/baru" element={<UomCreatePage />} />
+            <Route path="/master-data/categories/satuan/:id/ubah" element={<UomEditPage />} />
+            <Route path="/master-data/categories/:id/ubah" element={<CategoryEditPage />} />
+            <Route path="*" element={<CategoriesPage />} />
+          </Routes>
           </NotificationProvider>
         </MemoryRouter>
       )
@@ -342,7 +349,7 @@ describe('Master Data Pages', () => {
       })
 
       // 2. Switch to Units tab, open Unit Drawer via single header button and switch to Via Upload (CSV)
-      await userEvent.click(screen.getByRole('button', { name: /Satuan Pengukuran/ }))
+      await userEvent.click(await screen.findByRole('button', { name: /Satuan Pengukuran/ }))
       await userEvent.click(screen.getByRole('button', { name: /Tambah Satuan/i }))
       expect(await screen.findByText('Tambah Satuan Pengukuran (UoM)')).toBeInTheDocument()
       await userEvent.click(screen.getByRole('button', { name: /Via Upload \(CSV\)/i }))

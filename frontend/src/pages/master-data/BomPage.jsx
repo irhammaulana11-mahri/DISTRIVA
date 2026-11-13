@@ -7,9 +7,8 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
-import BomImportModal from './BomImportModal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import {
@@ -58,7 +57,6 @@ export default function BomPage() {
   const [selectedDraftIds, setSelectedDraftIds] = useState([])
 
   // Modals
-  const [importOpen, setImportOpen] = useState(false)
   const [approveModalOpen, setApproveModalOpen] = useState(false)
   const [approveTargets, setApproveTargets] = useState([]) // array of IDs
   const [approveReason, setApproveReason] = useState('')
@@ -219,7 +217,7 @@ export default function BomPage() {
           {canManage && (
             <button
               type="button"
-              onClick={() => setImportOpen(true)}
+              onClick={() => navigate('/master-data/bom/impor')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconUpload size={16} />
@@ -601,7 +599,7 @@ export default function BomPage() {
       </div>
 
       {/* Approval Reason Drawer */}
-      <Drawer
+      <Modal
         open={approveModalOpen}
         onClose={() => setApproveModalOpen(false)}
         title={`Setujui ${approveTargets.length} Versi BOM`}
@@ -650,10 +648,10 @@ export default function BomPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* Retire Drawer */}
-      <Drawer
+      <Modal
         open={Boolean(retireTarget)}
         onClose={() => setRetireTarget(null)}
         title="Nonaktifkan Versi BOM"
@@ -704,16 +702,7 @@ export default function BomPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
-
-      {/* Import Modal */}
-      <BomImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onSuccess={() => {
-          loadBoms()
-        }}
-      />
+      </Modal>
     </div>
   )
 }

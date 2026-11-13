@@ -3,10 +3,10 @@ import { workOrdersApi, bastpApi } from '../../services/api.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
-import BastpDetailDrawer from './BastpDetailDrawer.jsx'
+import { useNavigate } from 'react-router-dom'
 import TableFooter from '../../components/TableFooter.jsx'
 import { IconAlertCircle, IconPlus } from '../../components/icons.jsx'
 
@@ -18,7 +18,8 @@ export function VendorWorkOrderView({ workOrderId, isVendor, onUpdated }) {
   const [wo, setWo] = useState(null)
   const [reportTargetTask, setReportTargetTask] = useState(null)
   const [bastpList, setBastpList] = useState([])
-  const [selectedBastpId, setSelectedBastpId] = useState(null)
+  const navigate = useNavigate()
+  const openBastp = (id) => navigate(`/bastp/${id}`)
   const [creatingBastp, setCreatingBastp] = useState(false)
   const [bastpError, setBastpError] = useState('')
   const [taskPage, setTaskPage] = useState(1)
@@ -55,7 +56,7 @@ export function VendorWorkOrderView({ workOrderId, isVendor, onUpdated }) {
       const newId = res?.data?.id
       const bRes = await bastpApi.listForWorkOrder(workOrderId)
       setBastpList(bRes?.data || [])
-      setSelectedBastpId(newId)
+      openBastp(newId)
     } catch (err) {
       setBastpError(err?.response?.data?.message || err?.message || 'Gagal membuat BASTP.')
     } finally {
@@ -147,7 +148,7 @@ export function VendorWorkOrderView({ workOrderId, isVendor, onUpdated }) {
                     size="sm"
                     variant="primary"
                     loading={creatingBastp}
-                    onClick={latestBastp ? () => setSelectedBastpId(latestBastp.id) : handleCreateBastp}
+                    onClick={latestBastp ? () => openBastp(latestBastp.id) : handleCreateBastp}
                   >
                     {latestBastp ? 'Kelola BASTP' : 'Buat BASTP'}
                   </Button>
@@ -317,16 +318,6 @@ export function VendorWorkOrderView({ workOrderId, isVendor, onUpdated }) {
           onSuccess={() => { setReportTargetTask(null); loadDetail(); onUpdated?.() }}
         />
       )}
-
-      {selectedBastpId && (
-        <BastpDetailDrawer
-          bastpId={selectedBastpId}
-          workOrder={wo}
-          isVendor={isVendor}
-          onClose={() => setSelectedBastpId(null)}
-          onUpdated={() => { loadDetail(); onUpdated?.() }}
-        />
-      )}
     </>
   )
 }
@@ -364,7 +355,7 @@ function VendorProgressModal({ workOrderId, tasks, initialTaskId, onClose, onSuc
   }
 
   return (
-    <Drawer open onClose={onClose} title="Laporkan Progres Fisik Lapangan" size="max-w-md">
+    <Modal open onClose={onClose} title="Laporkan Progres Fisik Lapangan" size="max-w-md">
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         {error && <Alert kind="error">{error}</Alert>}
         <div>
@@ -387,6 +378,6 @@ function VendorProgressModal({ workOrderId, tasks, initialTaskId, onClose, onSuc
           <Button type="submit" variant="primary" loading={submitting}>Kirim Pengajuan Progres</Button>
         </div>
       </form>
-    </Drawer>
+    </Modal>
   )
 }

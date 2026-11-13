@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -9,7 +9,6 @@ import Spinner from '../../components/Spinner.jsx'
 import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
-import SubstationImportModal from './SubstationImportModal.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import {
   IconUpload,
@@ -523,6 +522,7 @@ function Detail({ id, canManage, canViewFeeders, canViewCustomers, feedersList =
 /** Master Data › Master Gardu (aset). Cakupan unit dan hak tulis ditentukan server. */
 export default function SubstationsPage() {
   const { can, isSysAdmin } = useAccess()
+  const navigate = useNavigate()
   const canImport = Boolean(can?.['substations.import'] || isSysAdmin)
   const canManage = Boolean(can?.['substations.manage'] || isSysAdmin)
   const canViewFeeders = Boolean(can?.['feeders.view'])
@@ -560,7 +560,6 @@ export default function SubstationsPage() {
   const [units, setUnits] = useState([])
   const [feedersList, setFeedersList] = useState([])
   const [openId, setOpenId] = useState(searchParams.get('open') || null)
-  const [importOpen, setImportOpen] = useState(false)
 
   // Sync openId with URL
   useEffect(() => {
@@ -684,7 +683,7 @@ export default function SubstationsPage() {
           </p>
         </div>
         {canImport && (
-          <Button icon={IconUpload} onClick={() => setImportOpen(true)}>
+          <Button icon={IconUpload} onClick={() => navigate('/master-data/substations/impor')}>
             Impor Gardu
           </Button>
         )}
@@ -1077,13 +1076,6 @@ export default function SubstationsPage() {
           />
         )}
       </Drawer>
-
-      <SubstationImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        units={units}
-        onApplied={load}
-      />
     </div>
   )
 }

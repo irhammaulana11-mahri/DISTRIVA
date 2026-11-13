@@ -8,7 +8,6 @@ import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
-import KkfParameterFormDrawer from './KkfParameterFormDrawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import {
@@ -42,8 +41,6 @@ export default function KkfParametersPage() {
   const [perPage, setPerPage] = useState(10)
 
   // Drawer / Dialog states
-  const [formDrawerOpen, setFormDrawerOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
   const [dialog, setDialog] = useState(null) // { type: 'approve' | 'retire', set }
   const [dialogError, setDialogError] = useState('')
 
@@ -134,10 +131,7 @@ export default function KkfParametersPage() {
           {canManage && (
             <button
               type="button"
-              onClick={() => {
-                setEditTarget(null)
-                setFormDrawerOpen(true)
-              }}
+              onClick={() => navigate('/master-data/kkf-parameters/baru')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconPlus size={16} />
@@ -289,10 +283,7 @@ export default function KkfParametersPage() {
                           {isDraft && canManage && (
                             <button
                               type="button"
-                              onClick={() => {
-                                setEditTarget(s)
-                                setFormDrawerOpen(true)
-                              }}
+                              onClick={() => navigate(`/master-data/kkf-parameters/${s.id}/ubah`)}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer"
                               title="Ubah Nilai Draf"
                             >
@@ -348,20 +339,6 @@ export default function KkfParametersPage() {
           perPageOptions={[10, 25, 50, 100]}
         />
       </div>
-
-      {/* Form Drawer (Create / Edit) */}
-      <KkfParameterFormDrawer
-        open={formDrawerOpen}
-        onClose={() => {
-          setFormDrawerOpen(false)
-          setEditTarget(null)
-        }}
-        initialData={editTarget}
-        defaults={defaults}
-        onSuccess={() => {
-          loadSets()
-        }}
-      />
 
       {/* Confirmation Dialog with mandatory reason for Approve / Retire */}
       {dialog && (

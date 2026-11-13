@@ -6,6 +6,7 @@ import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import TariffBooksPage from './TariffBooksPage.jsx'
 import TariffBookDetailPage from './TariffBookDetailPage.jsx'
+import { TariffBookImportPage } from './ImportPages.jsx'
 import { tariffBooksApi } from '../../services/api.js'
 
 // Mock tariffBooksApi
@@ -88,7 +89,10 @@ function renderWithContext(ui, { can = {}, canWrite = {}, initialEntries = ['/']
     <MemoryRouter initialEntries={initialEntries}>
       <AccessContext.Provider value={{ can, canWrite, loading: false }}>
         <NotificationProvider>
-          {ui}
+          <Routes>
+            <Route path="/master-data/tariff-books/impor" element={<TariffBookImportPage />} />
+            <Route path="*" element={ui} />
+          </Routes>
         </NotificationProvider>
       </AccessContext.Provider>
     </MemoryRouter>,

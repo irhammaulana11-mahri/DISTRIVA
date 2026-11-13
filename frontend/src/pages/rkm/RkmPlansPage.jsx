@@ -6,7 +6,7 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import {
   IconPlus,
   IconRefresh,
@@ -204,7 +204,7 @@ export default function RkmPlansPage() {
       </div>
 
       {/* DRAWER: Create Plan */}
-      <Drawer
+      <Modal
         open={createModalOpen}
         title="Buat Rencana RKM Baru"
         onClose={() => setCreateModalOpen(false)}
@@ -275,7 +275,7 @@ export default function RkmPlansPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
     </div>
   )
 }

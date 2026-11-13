@@ -751,7 +751,7 @@ export default function MaterialRequestsPanel({ applicationId }) {
       </Drawer>
 
       {/* DRAWER: Tandai Diserahkan */}
-      <Drawer
+      <Modal
         open={markSentModalOpen}
         title="Tandai Permintaan Material Diserahkan"
         onClose={() => setMarkSentModalOpen(false)}
@@ -806,10 +806,10 @@ export default function MaterialRequestsPanel({ applicationId }) {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER: Batalkan Permintaan */}
-      <Drawer
+      <Modal
         open={cancelModalOpen}
         title="Batalkan Permintaan Material"
         onClose={() => setCancelModalOpen(false)}
@@ -854,7 +854,7 @@ export default function MaterialRequestsPanel({ applicationId }) {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {formSequence != null && detail?.handover_form && detail.shipments?.find((x) => x.sequence === formSequence) && (
         <HandoverForm form={detail.handover_form} shipment={detail.shipments.find((x) => x.sequence === formSequence)} onClose={() => setFormSequence(null)} />

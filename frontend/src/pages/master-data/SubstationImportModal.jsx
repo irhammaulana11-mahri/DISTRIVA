@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { substationsApi } from '../../services/api.js'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import { IconUpload, IconCheck, IconDownload } from '../../components/icons.jsx'
 import { downloadCsv, SUBSTATION_MASTER_TEMPLATE } from '../../utils/csvTemplates.js'
 
@@ -18,7 +18,7 @@ const ACTION_CLS = {
  * Impor master gardu (docs/80 §5): unggah → tinjau hasil (NEW/CHANGED/UNCHANGED/REJECT) → konfirmasi. Tidak ada yang tersimpan sebelum konfirmasi;
  * "Buang" menandai batch DISCARDED. Unit dibaca dari kolom ULP_CODE / awalan SSOTNUMG; "unit bawaan" hanya untuk baris yang tidak punya keduanya.
  */
-export default function SubstationImportModal({ open, onClose, units = [], onApplied }) {
+export default function SubstationImportModal({ open, asPage = false, onClose, units = [], onApplied }) {
   const fileRef = useRef(null)
   const [file, setFile] = useState(null)
   const [unitId, setUnitId] = useState('')
@@ -108,7 +108,9 @@ export default function SubstationImportModal({ open, onClose, units = [], onApp
   const importable = (counts.NEW || 0) + (counts.CHANGED || 0) + (counts.UNCHANGED || 0)
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       isOpen={open}
       onClose={close}
       title="Impor Master Gardu"
@@ -271,6 +273,6 @@ export default function SubstationImportModal({ open, onClose, units = [], onApp
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }

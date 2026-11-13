@@ -3,7 +3,7 @@ import { bastpApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -35,6 +35,7 @@ import {
  * return workflow with rounds, and PLN output document preview/print/XLSX download.
  */
 export default function BastpDetailDrawer({
+  asPage = false,
   bastpId,
   workOrder,
   isVendor = false,
@@ -355,7 +356,9 @@ export default function BastpDetailDrawer({
   const isClosed = bastp?.status === 'CLOSED'
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title={bastp ? `BASTP: ${bastp.bastp_number || 'Draf Baru'}` : 'Detail BASTP'}
@@ -1039,6 +1042,6 @@ export default function BastpDetailDrawer({
         type="bastp"
         title={`Dokumen BASTP #${bastp?.bastp_number || ''}`}
       />
-    </Drawer>
+    </PanelShell>
   )
 }

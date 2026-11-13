@@ -6,6 +6,8 @@ import Button from '../../components/Button.jsx'
 import Card from '../../components/Card.jsx'
 import Modal from '../../components/Modal.jsx'
 import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
+import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -35,8 +37,7 @@ export default function UnitsPage() {
   const { notify } = useNotifications() // badge notification toast and bell count
 
   // Modal dialog states
-  const [createOpen, setCreateOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
+  const navigate = useNavigate()
   const [statusTarget, setStatusTarget] = useState(null)
   const [detailTarget, setDetailTarget] = useState(null)
 
@@ -334,32 +335,6 @@ export default function UnitsPage() {
     reloadAll()
   }
 
-  const handleCreateSuccess = (newUnit) => {
-    setCreateOpen(false)
-    const msg = `Unit ${newUnit.code} - ${newUnit.name} berhasil dibuat.`
-    notify({
-      type: 'success',
-      title: 'Unit Berhasil Dibuat',
-      desc: msg,
-      tag: 'Unit',
-    })
-    setChildrenByParent({})
-    reloadAll()
-  }
-
-  const handleEditSuccess = (updated) => {
-    setEditTarget(null)
-    const msg = `Data unit ${updated.code} - ${updated.name} berhasil diperbarui.`
-    notify({
-      type: 'success',
-      title: 'Unit Berhasil Diperbarui',
-      desc: msg,
-      tag: 'Unit',
-    })
-    setChildrenByParent({})
-    reloadAll()
-  }
-
   return (
     <div className="space-y-6">
       {/* Standard Page Header (Above card, matching reference layout) */}
@@ -387,7 +362,7 @@ export default function UnitsPage() {
           {access.canCreate && (
             <button
               type="button"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => navigate('/admin/units/baru')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconPlus size={16} />
@@ -636,7 +611,7 @@ export default function UnitsPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => setEditTarget(u)}
+                                onClick={() => navigate(`/admin/units/${u.id}/ubah`)}
                                 aria-label="Edit"
                                 title="Ubah Nama/Alamat Unit"
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer"
@@ -691,25 +666,6 @@ export default function UnitsPage() {
         </div>
       </div>
 
-      {/* Drawer: Tambah Unit Organisasi Baru */}
-      {createOpen && (
-        <CreateUnitDrawer
-          open={createOpen}
-          activeUp3List={activeUp3Units}
-          onClose={() => setCreateOpen(false)}
-          onSuccess={handleCreateSuccess}
-        />
-      )}
-
-      {/* Modal: Edit Unit Organisasi */}
-      {editTarget && (
-        <EditUnitDrawer
-          unit={editTarget}
-          onClose={() => setEditTarget(null)}
-          onSuccess={handleEditSuccess}
-        />
-      )}
-
       {/* Modal Konfirmasi: Nonaktifkan / Aktifkan Unit */}
       {statusTarget && (
         <ConfirmationModal
@@ -747,7 +703,7 @@ export default function UnitsPage() {
 // Sub-components: Modals for Create, Edit, and Detail/Audit Trail
 // -------------------------------------------------------------------------------------------------
 
-function CreateUnitDrawer({ open, activeUp3List, onClose, onSuccess }) {
+export function CreateUnitDrawer({ open, asPage = false, activeUp3List, onClose, onSuccess }) {
   const [form, setForm] = useState({
     unit_type: 'ULP',
     parent_id: activeUp3List.length === 1 ? activeUp3List[0].id : '',
@@ -804,7 +760,9 @@ function CreateUnitDrawer({ open, activeUp3List, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={open}
       onClose={onClose}
       eyebrow="DRAWER TAMBAH UNIT"
@@ -941,11 +899,11 @@ function CreateUnitDrawer({ open, activeUp3List, onClose, onSuccess }) {
           {fieldErrors.reason && <p className="text-[11px] text-red-600 mt-1">{fieldErrors.reason}</p>}
         </div>
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }
 
-function EditUnitDrawer({ unit, onClose, onSuccess }) {
+export function EditUnitDrawer({ unit, asPage = false, onClose, onSuccess }) {
   const [form, setForm] = useState({
     name: unit?.name ?? '',
     address: unit?.address ?? '',
@@ -1008,7 +966,9 @@ function EditUnitDrawer({ unit, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={Boolean(unit)}
       onClose={onClose}
       eyebrow="DRAWER EDIT UNIT"
@@ -1099,7 +1059,7 @@ function EditUnitDrawer({ unit, onClose, onSuccess }) {
           {fieldErrors.reason && <p className="text-[11px] text-red-600 mt-1">{fieldErrors.reason}</p>}
         </div>
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }
 

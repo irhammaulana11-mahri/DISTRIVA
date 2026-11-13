@@ -6,6 +6,7 @@ import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import PriceBooksPage from './PriceBooksPage.jsx'
 import PriceBookDetailPage from './PriceBookDetailPage.jsx'
+import { PriceBookImportPage } from './ImportPages.jsx'
 import { priceBookApi, adminApi } from '../../services/api.js'
 
 // Mock priceBookApi and adminApi
@@ -120,6 +121,7 @@ function renderPriceBooksPage(capabilities = { 'prices.manage': true, 'prices.ap
         <NotificationProvider>
           <Routes>
             <Route path="/master-data/harga" element={<PriceBooksPage />} />
+            <Route path="/master-data/harga/impor" element={<PriceBookImportPage />} />
             <Route path="/master-data/harga/:id" element={<PriceBookDetailPage />} />
           </Routes>
         </NotificationProvider>

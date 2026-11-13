@@ -5,7 +5,7 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
@@ -1157,7 +1157,7 @@ export default function KhsMaterialMapPage() {
       </div>
 
       {/* DRAWER: Impor Pemetaan CSV / Tambah Manual */}
-      <Drawer
+      <Modal
         isOpen={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         title="Impor Pasangan Pemetaan SKU↔KHS (CSV)"
@@ -1508,7 +1508,7 @@ export default function KhsMaterialMapPage() {
             </>
           )}
         </div>
-      </Drawer>
+      </Modal>
 
       {/* Exemption Reason Dialog */}
       {exemptTarget && (

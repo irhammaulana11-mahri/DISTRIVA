@@ -7,6 +7,7 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 
 import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import KrLinesEditor, { toApiLines, validateLines } from './KrLinesEditor.jsx'
@@ -460,7 +461,7 @@ export default function PoleContractsPage() {
       </div>
 
       {/* MODAL 1: Create Pole Contract */}
-      <Drawer
+      <Modal
         open={createModalOpen}
         title="Tambah Kontrak Rinci (KR) Tiang"
         onClose={() => setCreateModalOpen(false)}
@@ -530,11 +531,11 @@ export default function PoleContractsPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* MODAL 2: Update Pole Contract */}
       {selectedContract && (
-        <Drawer
+        <Modal
           open={updateModalOpen}
           title={`Ubah Kontrak Rinci: ${selectedContract.kr_number}`}
           onClose={() => setUpdateModalOpen(false)}
@@ -644,12 +645,12 @@ export default function PoleContractsPage() {
               </Button>
             </div>
           </form>
-        </Drawer>
+        </Modal>
       )}
 
       {/* MODAL 3: Close Pole Contract */}
       {selectedContract && (
-        <Drawer
+        <Modal
           open={closeModalOpen}
           title={`Tutup Kontrak Rinci: ${selectedContract.kr_number}`}
           onClose={() => setCloseModalOpen(false)}
@@ -690,7 +691,7 @@ export default function PoleContractsPage() {
               </Button>
             </div>
           </form>
-        </Drawer>
+        </Modal>
       )}
 
       {/* DRAWER: Detail & Events Audit Trail */}

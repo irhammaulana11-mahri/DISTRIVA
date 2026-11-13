@@ -6,6 +6,7 @@ import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import RestoreDialog from './RestoreDialog.jsx'
@@ -559,7 +560,7 @@ export default function BackupHistoryTab({ can, onReloadSummary }) {
       </Drawer>
 
       {/* DRAWER 2: Hasil Uji Verifikasi */}
-      <Drawer
+      <Modal
         open={Boolean(verifyResultModal)}
         title={`Hasil Uji Verifikasi #${verifyResultModal?.backup?.backup_number || ''}`}
         onClose={() => setVerifyResultModal(null)}
@@ -614,10 +615,10 @@ export default function BackupHistoryTab({ can, onReloadSummary }) {
             </div>
           )}
         </div>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER 3: Pilihan Unduh Berkas */}
-      <Drawer
+      <Modal
         open={Boolean(downloadModalBackup)}
         title={`Unduh Berkas Cadangan #${downloadModalBackup?.backup_number || ''}`}
         onClose={() => setDownloadModalBackup(null)}
@@ -680,10 +681,10 @@ export default function BackupHistoryTab({ can, onReloadSummary }) {
             )}
           </div>
         </div>
-      </Drawer>
+      </Modal>
 
       {/* DRAWER 4: Hapus Berkas Cadangan */}
-      <Drawer
+      <Modal
         open={Boolean(removeModalBackup)}
         title={`Hapus Berkas Cadangan #${removeModalBackup?.backup_number || ''}`}
         onClose={() => setRemoveModalBackup(null)}
@@ -725,7 +726,7 @@ export default function BackupHistoryTab({ can, onReloadSummary }) {
             />
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* MODAL 5: Restore Dialog (Critical Multi-Step) */}
       <RestoreDialog

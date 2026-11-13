@@ -8,7 +8,6 @@ import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
-import PriceBookImportModal from './PriceBookImportModal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import {
@@ -36,7 +35,6 @@ export default function PriceBooksPage() {
   const [books, setBooks] = useState([])
   const [statusFilter, setStatusFilter] = useState('ALL') // 'ALL' | 'DRAFT' | 'APPROVED' | 'INACTIVE'
 
-  const [isImportOpen, setIsImportOpen] = useState(false)
   const [dialog, setDialog] = useState(null) // { type: 'approve' | 'retire', book }
   const [dialogError, setDialogError] = useState('')
 
@@ -125,7 +123,7 @@ export default function PriceBooksPage() {
           {canManage && (
             <button
               type="button"
-              onClick={() => setIsImportOpen(true)}
+              onClick={() => navigate('/master-data/harga/impor')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconUpload size={16} />
@@ -255,7 +253,7 @@ export default function PriceBooksPage() {
                   type="button"
                   variant="primary"
                   size="sm"
-                  onClick={() => setIsImportOpen(true)}
+                  onClick={() => navigate('/master-data/harga/impor')}
                 >
                   <IconUpload size={14} />
                   <span>Impor Buku Harga Baru</span>
@@ -391,16 +389,6 @@ export default function PriceBooksPage() {
           perPageOptions={[10, 25, 50, 100]}
         />
       </div>
-
-      {/* Import Modal */}
-      <PriceBookImportModal
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onSuccess={() => {
-          setIsImportOpen(false)
-          loadBooks()
-        }}
-      />
 
       {/* Approve / Retire Reason Dialog */}
       {dialog && (

@@ -7,7 +7,7 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import Modal from '../../components/Modal.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
@@ -674,7 +674,7 @@ export default function BomDetailPage() {
       )}
 
       {/* APPROVE DRAWER */}
-      <Drawer
+      <Modal
         open={approveOpen}
         onClose={() => setApproveOpen(false)}
         title={`Setujui Versi BOM ${bom.group} v${bom.version_number}`}
@@ -722,10 +722,10 @@ export default function BomDetailPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* RETIRE DRAWER */}
-      <Drawer
+      <Modal
         open={retireOpen}
         onClose={() => setRetireOpen(false)}
         title="Nonaktifkan Versi BOM"
@@ -776,10 +776,10 @@ export default function BomDetailPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
 
       {/* EDIT DRAFT DRAWER */}
-      <Drawer
+      <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         title="Ubah Informasi Draf BOM"
@@ -863,7 +863,7 @@ export default function BomDetailPage() {
             </Button>
           </div>
         </form>
-      </Drawer>
+      </Modal>
     </div>
   )
 }

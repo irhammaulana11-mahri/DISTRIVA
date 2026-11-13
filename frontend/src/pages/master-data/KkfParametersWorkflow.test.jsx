@@ -6,6 +6,7 @@ import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import KkfParametersPage from './KkfParametersPage.jsx'
 import KkfParameterDetailPage from './KkfParameterDetailPage.jsx'
+import { KkfParameterCreatePage, KkfParameterEditPage } from './MoreFormPages.jsx'
 import { kkfParametersApi } from '../../services/api.js'
 import {
   fractionToPercent,
@@ -91,6 +92,9 @@ function renderKkfPage(capabilities = { 'kkf_params.manage': true, 'kkf_params.a
         <NotificationProvider>
           <Routes>
             <Route path="/master-data/kkf-parameters" element={<KkfParametersPage />} />
+            <Route path="/master-data/kkf-parameters/baru" element={<KkfParameterCreatePage />} />
+            <Route path="/master-data/kkf-parameters/:id/ubah" element={<KkfParameterEditPage />} />
+            <Route path="/master-data/kkf-parameters/:id/ubah" element={<KkfParameterEditPage />} />
             <Route path="/master-data/kkf-parameters/:id" element={<KkfParameterDetailPage />} />
           </Routes>
         </NotificationProvider>
@@ -200,7 +204,7 @@ describe('Parameter KKF Workflow (docs/68)', () => {
 
     // Open Drawer
     await user.click(screen.getByRole('button', { name: /Buat Draf Parameter/i }))
-    expect(screen.getByText('Buat Draf Parameter KKF')).toBeInTheDocument()
+    expect(await screen.findByText('Buat Draf Parameter KKF')).toBeInTheDocument()
 
     // Fill form
     const nameInput = screen.getByLabelText(/Nama Set Parameter/i)
@@ -235,10 +239,10 @@ describe('Parameter KKF Workflow (docs/68)', () => {
     const editBtns = screen.getAllByRole('button', { name: /Ubah/i })
     await user.click(editBtns[0])
 
-    expect(screen.getByText('Ubah Draf Parameter KKF')).toBeInTheDocument()
+    expect(await screen.findByText('Ubah Draf Parameter KKF')).toBeInTheDocument()
 
     // Change BPP field
-    const bppInput = screen.getByDisplayValue('552')
+    const bppInput = await screen.findByDisplayValue('552')
     await user.clear(bppInput)
     await user.type(bppInput, '600')
 

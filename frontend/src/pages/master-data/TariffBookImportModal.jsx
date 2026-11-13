@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { tariffBooksApi } from '../../services/api.js'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -16,7 +16,7 @@ import { downloadCsv, TARIFF_BOOK_TEMPLATE } from '../../utils/csvTemplates.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
 
-export default function TariffBookImportModal({ isOpen, onClose, onSuccess }) {
+export default function TariffBookImportModal({ isOpen, asPage = false, onClose, onSuccess }) {
   const { user } = useAuth()
   const { notify } = useNotifications()
   const fileInputRef = useRef(null)
@@ -149,7 +149,9 @@ export default function TariffBookImportModal({ isOpen, onClose, onSuccess }) {
   if (!isOpen) return null
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       isOpen={isOpen}
       onClose={handleClose}
       title="Impor Buku Tarif Listrik"
@@ -514,6 +516,6 @@ export default function TariffBookImportModal({ isOpen, onClose, onSuccess }) {
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }

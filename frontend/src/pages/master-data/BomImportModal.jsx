@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -13,7 +13,7 @@ import {
 } from '../../components/icons.jsx'
 import { bomApi } from '../../services/api.js'
 
-export default function BomImportModal({ open, onClose, onSuccess }) {
+export default function BomImportModal({ open, asPage = false, onClose, onSuccess }) {
   const { user } = useAuth()
   const { notify } = useNotifications()
   const fileInputRef = useRef(null)
@@ -139,7 +139,9 @@ export default function BomImportModal({ open, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={open}
       onClose={handleClose}
       title="Impor Bill of Materials (BOM)"
@@ -344,6 +346,6 @@ export default function BomImportModal({ open, onClose, onSuccess }) {
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }

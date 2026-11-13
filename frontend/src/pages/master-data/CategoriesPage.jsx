@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { masterDataApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -11,7 +12,7 @@ import Spinner from '../../components/Spinner.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import {
@@ -95,6 +96,7 @@ function parseCsvContent(rawText) {
 }
 
 export default function CategoriesPage() {
+  const navigate = useNavigate()
   const { can, loading: accessLoading } = useAccess()
   const { notify } = useNotifications()
   const [tab, setTab] = useState('categories') // 'categories' | 'units'
@@ -124,13 +126,8 @@ export default function CategoriesPage() {
   const [unitPerPage, setUnitPerPage] = useState(10)
 
   // Unified Create/Import & Edit Drawers
-  const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
-  const [createSubcategoryParent, setCreateSubcategoryParent] = useState(null)
-  const [editCategoryTarget, setEditCategoryTarget] = useState(null)
   const [deactivateCategoryTarget, setDeactivateCategoryTarget] = useState(null)
 
-  const [createUnitOpen, setCreateUnitOpen] = useState(false)
-  const [editUnitTarget, setEditUnitTarget] = useState(null)
   const [deactivateUnitTarget, setDeactivateUnitTarget] = useState(null)
 
   const loadData = useCallback(() => {
@@ -335,7 +332,7 @@ export default function CategoriesPage() {
             canManage && (
               <button
                 type="button"
-                onClick={() => setCreateCategoryOpen(true)}
+                onClick={() => navigate('/master-data/categories/baru')}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
               >
                 <IconPlus size={16} />
@@ -345,7 +342,7 @@ export default function CategoriesPage() {
           ) : (
             <button
               type="button"
-              onClick={() => setCreateUnitOpen(true)}
+              onClick={() => navigate('/master-data/categories/satuan/baru')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconPlus size={16} />
@@ -523,8 +520,8 @@ export default function CategoriesPage() {
                               totalMaterials={totalMaterials}
                               canManage={canManage}
                               onToggle={() => toggleParentCollapse(parent.id)}
-                              onAddSubcategory={() => setCreateSubcategoryParent(parent)}
-                              onEdit={(item) => setEditCategoryTarget(item)}
+                              onAddSubcategory={() => navigate(`/master-data/categories/baru?induk=${parent.id}`)}
+                              onEdit={(item) => navigate(`/master-data/categories/${item.id}/ubah`)}
                               onDeactivate={(item) => setDeactivateCategoryTarget(item)}
                             />
                           )
@@ -582,7 +579,7 @@ export default function CategoriesPage() {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setEditUnitTarget(u)}
+                                onClick={() => navigate(`/master-data/categories/satuan/${u.id}/ubah`)}
                                 aria-label="Edit Satuan"
                                 title="Ubah Nama & Simbol Satuan"
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
@@ -626,58 +623,6 @@ export default function CategoriesPage() {
         </>
       )}
 
-      {/* Unified Create / Import Category Drawer (Root) */}
-      {createCategoryOpen && (
-        <CreateCategoryDrawer
-          parentCategory={null}
-          existingCategories={categories}
-          onClose={() => setCreateCategoryOpen(false)}
-          onSuccess={(summaryDesc) => {
-            setCreateCategoryOpen(false)
-            loadData()
-            notify({
-              type: 'success',
-              title: summaryDesc ? 'Impor Kategori Berhasil' : 'Kategori Dibuat',
-              desc: summaryDesc || 'Kategori baru berhasil ditambahkan.',
-              tag: 'KATEGORI',
-            })
-          }}
-        />
-      )}
-
-      {/* Create Subcategory Drawer */}
-      {createSubcategoryParent && (
-        <CreateCategoryDrawer
-          parentCategory={createSubcategoryParent}
-          existingCategories={categories}
-          onClose={() => setCreateSubcategoryParent(null)}
-          onSuccess={() => {
-            setCreateSubcategoryParent(null)
-            loadData()
-            notify({
-              type: 'success',
-              title: 'Subkategori Dibuat',
-              desc: `Subkategori berhasil ditambahkan di bawah ${createSubcategoryParent.name}.`,
-              tag: 'KATEGORI',
-            })
-          }}
-        />
-      )}
-
-      {/* Edit Category Drawer */}
-      {editCategoryTarget && (
-        <EditCategoryDrawer
-          category={editCategoryTarget}
-          categoryMap={categoryMap}
-          onClose={() => setEditCategoryTarget(null)}
-          onSuccess={() => {
-            setEditCategoryTarget(null)
-            loadData()
-            notify({ type: 'success', title: 'Kategori Diperbarui', desc: 'Data kategori berhasil disimpan.', tag: 'KATEGORI' })
-          }}
-        />
-      )}
-
       {/* Deactivate Category Modal */}
       <ConfirmationModal
         open={Boolean(deactivateCategoryTarget)}
@@ -688,37 +633,6 @@ export default function CategoriesPage() {
         onConfirm={handleDeactivateCategory}
         onCancel={() => setDeactivateCategoryTarget(null)}
       />
-
-      {/* Unified Create / Import Unit Drawer */}
-      {createUnitOpen && (
-        <CreateUnitDrawer
-          existingUnits={units}
-          onClose={() => setCreateUnitOpen(false)}
-          onSuccess={(summaryDesc) => {
-            setCreateUnitOpen(false)
-            loadData()
-            notify({
-              type: 'success',
-              title: summaryDesc ? 'Impor Satuan Berhasil' : 'Satuan Dibuat',
-              desc: summaryDesc || 'Satuan pengukuran baru berhasil ditambahkan.',
-              tag: 'SATUAN',
-            })
-          }}
-        />
-      )}
-
-      {/* Edit Unit Drawer */}
-      {editUnitTarget && (
-        <EditUnitDrawer
-          unit={editUnitTarget}
-          onClose={() => setEditUnitTarget(null)}
-          onSuccess={() => {
-            setEditUnitTarget(null)
-            loadData()
-            notify({ type: 'success', title: 'Satuan Diperbarui', desc: 'Data satuan pengukuran berhasil disimpan.', tag: 'SATUAN' })
-          }}
-        />
-      )}
 
       {/* Deactivate Unit Modal */}
       <ConfirmationModal
@@ -920,7 +834,7 @@ function ParentCategoryRows({
   )
 }
 
-function CreateCategoryDrawer({ parentCategory, existingCategories, onClose, onSuccess }) {
+export function CreateCategoryDrawer({ asPage = false, parentCategory, existingCategories, onClose, onSuccess }) {
   const { notify } = useNotifications()
   const isSubcategory = Boolean(parentCategory)
 
@@ -1138,7 +1052,9 @@ function CreateCategoryDrawer({ parentCategory, existingCategories, onClose, onS
     : 'Tambahkan kategori secara manual atau unggah berkas CSV dengan pratinjau validasi.'
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title={drawerTitle}
@@ -1493,11 +1409,11 @@ function CreateCategoryDrawer({ parentCategory, existingCategories, onClose, onS
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }
 
-function EditCategoryDrawer({ category, categoryMap, onClose, onSuccess }) {
+export function EditCategoryDrawer({ asPage = false, category, categoryMap, onClose, onSuccess }) {
   const { notify } = useNotifications()
   const [name, setName] = useState(category.name || '')
   const [description, setDescription] = useState(category.description || '')
@@ -1529,7 +1445,9 @@ function EditCategoryDrawer({ category, categoryMap, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title={isSubcategory ? 'Ubah Subkategori Material' : 'Ubah Kategori Material'}
@@ -1605,11 +1523,11 @@ function EditCategoryDrawer({ category, categoryMap, onClose, onSuccess }) {
           </label>
         </div>
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }
 
-function CreateUnitDrawer({ existingUnits, onClose, onSuccess }) {
+export function CreateUnitDrawer({ asPage = false, existingUnits, onClose, onSuccess }) {
   const { notify } = useNotifications()
   const [mode, setMode] = useState('manual') // 'manual' | 'upload'
 
@@ -1808,7 +1726,9 @@ function CreateUnitDrawer({ existingUnits, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title="Tambah Satuan Pengukuran (UoM)"
@@ -2143,11 +2063,11 @@ function CreateUnitDrawer({ existingUnits, onClose, onSuccess }) {
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }
 
-function EditUnitDrawer({ unit, onClose, onSuccess }) {
+export function EditUnitDrawer({ asPage = false, unit, onClose, onSuccess }) {
   const { notify } = useNotifications()
   const [name, setName] = useState(unit.name || '')
   const [symbol, setSymbol] = useState(unit.symbol || '')
@@ -2176,7 +2096,9 @@ function EditUnitDrawer({ unit, onClose, onSuccess }) {
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={true}
       onClose={onClose}
       title="Ubah Satuan Pengukuran"
@@ -2236,6 +2158,6 @@ function EditUnitDrawer({ unit, onClose, onSuccess }) {
           </label>
         </div>
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }

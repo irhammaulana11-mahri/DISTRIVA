@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -16,6 +16,7 @@ import { useAuth } from '../../features/auth/AuthContext.jsx'
 
 export default function KkfParameterFormDrawer({
   open,
+  asPage = false,
   onClose,
   initialData = null,
   defaults = null,
@@ -201,7 +202,9 @@ export default function KkfParameterFormDrawer({
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={open}
       onClose={onClose}
       title={isEdit ? 'Ubah Draf Parameter KKF' : 'Buat Draf Parameter KKF'}
@@ -370,6 +373,6 @@ export default function KkfParameterFormDrawer({
           </div>
         )}
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }

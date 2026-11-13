@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { eisSyncApi } from '../../services/api.js'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 
@@ -24,7 +24,7 @@ function Field({ label, hint, children }) {
 }
 
 /** Sinkronisasi EIS dari DISTRIVA: akun EIS, rentang daya, jadwal otomatis, tombol sinkronkan, dan riwayat. */
-export default function EisSyncDrawer({ open, onClose, onSynced }) {
+export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced }) {
   const [settings, setSettings] = useState(null)
   const [form, setForm] = useState(null)
   const [runs, setRuns] = useState([])
@@ -117,7 +117,7 @@ export default function EisSyncDrawer({ open, onClose, onSynced }) {
   const ready = Boolean(settings?.eis_username && settings?.has_password)
 
   return (
-    <Drawer open={open} onClose={onClose} title="Sinkronisasi EIS" subtitle="Tarik permohonan dari EIS langsung dari DISTRIVA" size="max-w-2xl">
+    <PanelShell asPage={asPage} onBack={onClose} open={open} onClose={onClose} title="Sinkronisasi EIS" subtitle="Tarik permohonan dari EIS langsung dari DISTRIVA" size="max-w-2xl">
       {!form ? (
         <p className="text-xs text-slate-500">Memuat…</p>
       ) : (
@@ -203,6 +203,6 @@ export default function EisSyncDrawer({ open, onClose, onSynced }) {
           </section>
         </div>
       )}
-    </Drawer>
+    </PanelShell>
   )
 }

@@ -28,3 +28,4 @@ MASTER RAB & KKF.xlsx
 *.xlsm
 *.mdb
 *.accdb
+.fuse_hidden*

@@ -478,7 +478,7 @@ describe('admin UI', () => {
     expect(await screen.findByText('UP3-A')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /Tambah Unit/ }))
-    const modal = screen.getByRole('dialog')
+    const modal = (await screen.findByRole('heading', { name: 'Tambah Unit Organisasi Baru' })).closest('div.space-y-4')   // halaman tambah unit (bukan laci)
     expect(within(modal).getByText('Tambah Unit Organisasi Baru')).toBeInTheDocument()
 
     await userEvent.type(within(modal).getByLabelText(/Kode Unit/), 'ULP-1')
@@ -506,6 +506,7 @@ describe('admin UI', () => {
         data: [{ id: 'u1', code: 'UP3-A', name: 'UP3 A', unit_type: 'UP3', address: 'Jl. Pemuda', is_active: true }],
         meta: { current_page: 1, per_page: 15, total: 1, last_page: 1 },
       },
+      'GET /admin/organizational-units/u1': { data: { id: 'u1', code: 'UP3-A', name: 'UP3 A', unit_type: 'UP3', address: 'Jl. Pemuda', is_active: true } },
       'POST /admin/organizational-units/u1': {
         data: { id: 'u1', code: 'UP3-A', name: 'UP3 Mojokerto Baru', unit_type: 'UP3', address: 'Jl. Baru No. 1', is_active: true },
       },
@@ -514,7 +515,7 @@ describe('admin UI', () => {
     expect(await screen.findByText('UP3-A')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    const modal = screen.getByRole('dialog')
+    const modal = (await screen.findByRole('heading', { name: /Ubah Data Unit: UP3-A/ })).closest('div.space-y-4')   // halaman ubah unit (bukan laci)
     expect(within(modal).getByText(/Ubah Data Unit: UP3-A/)).toBeInTheDocument()
     expect(within(modal).getByText(/Kode unit, tipe, dan unit induk bersifat permanen/)).toBeInTheDocument()
 

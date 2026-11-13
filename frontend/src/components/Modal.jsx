@@ -3,6 +3,7 @@ import { IconX } from './icons.jsx'
 
 export default function Modal({
   title,
+  subtitle,
   onClose,
   onCancel,
   open,
@@ -43,9 +44,12 @@ export default function Modal({
         className={`w-full ${panelWidth} max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-2xl my-auto`}
       >
         <div className="mb-3 flex items-start justify-between gap-3 shrink-0">
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-snug break-words">
-            {title}
-          </h3>
+          <div className="min-w-0">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-snug break-words">
+              {title}
+            </h3>
+            {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">{subtitle}</p>}
+          </div>
           {handleClose && (
             <button
               type="button"

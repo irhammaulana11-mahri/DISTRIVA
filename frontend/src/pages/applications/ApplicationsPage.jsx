@@ -9,8 +9,7 @@ import Button from '../../components/Button.jsx'
 import StatusBadge, { formatStatusLabel } from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
-import Drawer from '../../components/Drawer.jsx'
-import EisSyncDrawer from './EisSyncDrawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
 import SurveyDetailView from '../surveys/SurveyDetailView.jsx'
 import DrawingDetailView from '../drawings/DrawingDetailView.jsx'
@@ -98,6 +97,7 @@ export default function ApplicationsPage() {
   const { notify } = useNotifications()
   const searchInputRef = useRef(null)
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   // Table & Filters State
   const [page, setPage] = useState(1)
@@ -112,9 +112,6 @@ export default function ApplicationsPage() {
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
 
   // Drawer & Modal States
-  const [createOpen, setCreateOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [eisSyncOpen, setEisSyncOpen] = useState(false)
   const [detailTarget, setDetailTarget] = useState(null)
   const [cancelTarget, setCancelTarget] = useState(null)
   const [completeTarget, setCompleteTarget] = useState(null)
@@ -240,7 +237,7 @@ export default function ApplicationsPage() {
             <button
               type="button"
               aria-label="Permohonan Baru"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => navigate('/permohonan/baru')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconPlus size={16} />
@@ -251,22 +248,11 @@ export default function ApplicationsPage() {
             <button
               type="button"
               aria-label="Sinkronisasi EIS"
-              onClick={() => setEisSyncOpen(true)}
+              onClick={() => navigate('/permohonan/sinkronisasi-eis')}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconRefresh size={16} />
               <span>Sinkronisasi EIS</span>
-            </button>
-          )}
-          {can['applications.import'] && (
-            <button
-              type="button"
-              aria-label="Impor EIS"
-              onClick={() => setImportOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-            >
-              <IconUpload size={16} />
-              <span>Impor EIS</span>
             </button>
           )}
         </div>
@@ -454,7 +440,7 @@ export default function ApplicationsPage() {
               description={
                 lifecycleFilter === 'active'
                   ? 'Lihat tab Riwayat untuk permohonan yang sudah selesai atau dibatalkan.'
-                  : 'Belum ada agenda permohonan penyambungan (PB/PD) terdaftar di ULP Anda. Data sinkronisasi EIS hanya memuat pelanggan 3 fasa daya ≥ 6.600 VA.'
+                  : 'Belum ada agenda permohonan penyambungan (PB/PD) terdaftar di ULP Anda. Sinkronisasi EIS memuat pelanggan semua daya berstatus Bayar, Cetak PK, PDL Awal, dan Peremajaan.'
               }
               action={
                 lifecycleFilter !== 'active' && (can['applications.create'] || can['applications.import']) ? (
@@ -462,21 +448,11 @@ export default function ApplicationsPage() {
                     {can['applications.create'] && (
                       <button
                         type="button"
-                        onClick={() => setCreateOpen(true)}
+                        onClick={() => navigate('/permohonan/baru')}
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
                       >
                         <IconPlus size={14} />
                         <span>Permohonan Baru</span>
-                      </button>
-                    )}
-                    {can['applications.import'] && (
-                      <button
-                        type="button"
-                        onClick={() => setImportOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-xs cursor-pointer"
-                      >
-                        <IconUpload size={14} />
-                        <span>Impor EIS</span>
                       </button>
                     )}
                   </div>
@@ -853,63 +829,12 @@ export default function ApplicationsPage() {
       </>
 
       {/* Drawer: Formulir Permohonan Baru */}
-      {createOpen && (
-        <ApplicationCreateDrawer
-          open={createOpen}
-          createUnits={createUnits}
-          canImport={Boolean(can['applications.import'])}
-          onSwitchToImport={() => {
-            setCreateOpen(false)
-            setImportOpen(true)
-          }}
-          onClose={() => setCreateOpen(false)}
-          onSuccess={(created) => {
-            setCreateOpen(false)
-            notify({
-              type: 'success',
-              title: 'Permohonan Didaftarkan',
-              desc: `Agenda permohonan ${created.application_number} berhasil dibuat sebagai Draf.`,
-              tag: 'PB/PD',
-            })
-            loadApplications()
-          }}
-        />
-      )}
-
-      {/* Drawer: Detail Permohonan */}
+      {/* Laci: pratinjau Permohonan (baca-saja); pekerjaan yang mengubah data ada di halaman /permohonan/:id */}
       {detailTarget && (
         <ApplicationDetailDrawer
+          preview
           applicationId={detailTarget.id}
-          canSubmit={can['applications.submit']}
-          canCancel={can['applications.cancel']}
-          canAddRef={can['applications.update']}
-          canExecuteSurvey={Boolean(can['surveys.execute'] || isSysAdmin)}
-          canIssueProposal={Boolean(can['proposals.manage'] || isSysAdmin)}
-          canViewSurvey={Boolean(can['surveys.view'] || isSysAdmin)}
-          canAssignDrawing={Boolean(can['drawings.assign'] || isSysAdmin)}
-          canExecuteDrawing={Boolean(can['drawings.execute'] || isSysAdmin)}
-          canViewDrawing={Boolean(can['drawings.view'] || isSysAdmin)}
-          canRunKkf={Boolean(can['kkf.run'] || isSysAdmin)}
-          canViewKkf={Boolean(can['kkf.view'] || isSysAdmin)}
-          canViewKko={Boolean(can['kko.view'] || isSysAdmin)}
-          canRecordKko={Boolean(can['kko.record'] || isSysAdmin)}
-          canDecideKko={Boolean(can['kko.decide'] || isSysAdmin)}
-          canManageMaterials={Boolean(can['allocations.manage'] || isSysAdmin)}
-          canManagePoles={Boolean(can['allocations.poles'] || isSysAdmin)}
-          canManageAllocations={Boolean(can['allocations.manage'] || isSysAdmin)}
-          canViewAllocations={Boolean(can['allocations.view'] || can['allocations.manage'] || can['allocations.poles'] || isSysAdmin)}
-          canWoView={Boolean(can['wo.view'] || can['vendor.portal'] || isSysAdmin)}
-          canWoCreate={Boolean(can['wo.create'] || isSysAdmin)}
-          canWoIssue={Boolean(can['wo.issue'] || isSysAdmin)}
-          canWoSubmitProgress={false}
-          canWoVerifyProgress={Boolean(can['wo.progress_verify'] || isSysAdmin)}
-          canWoComplete={Boolean(can['wo.complete'] || isSysAdmin)}
-          initialTab={searchParams.get('drawer_tab') || 'detail'}
-          onSubmit={handleSubmitApplication}
           onSelectApplication={(id) => setDetailTarget({ id })}
-          onCancel={(app) => {
-            setCancelTarget(app)
-          }}
           onClose={() => {
             setDetailTarget(null)
             const newParams = new URLSearchParams(searchParams)
@@ -918,8 +843,6 @@ export default function ApplicationsPage() {
             newParams.delete('drawer_tab')
             setSearchParams(newParams, { replace: true })
           }}
-          onReload={loadApplications}
-          onCompleteData={(app, field) => setCompleteTarget({ app, field })}
         />
       )}
 
@@ -972,20 +895,6 @@ export default function ApplicationsPage() {
           }}
         />
       )}
-
-      <EisSyncDrawer open={eisSyncOpen} onClose={() => setEisSyncOpen(false)} onSynced={() => loadApplications()} />
-
-      {/* Drawer: Impor EIS (Two-Phase Staging) */}
-      <EisImportDrawer
-        open={importOpen}
-        canCreate={Boolean(can['applications.create'])}
-        onSwitchToCreate={() => {
-          setImportOpen(false)
-          setCreateOpen(true)
-        }}
-        onClose={() => setImportOpen(false)}
-        onSuccess={loadApplications}
-      />
     </div>
   )
 }
@@ -993,7 +902,7 @@ export default function ApplicationsPage() {
 /**
  * Modal Lengkapi Data Singkat: No. Agenda, No. Register, IDPEL
  */
-function CompleteDataModal({ target, onClose, onSuccess }) {
+export function CompleteDataModal({ target, onClose, onSuccess }) {
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -1117,7 +1026,7 @@ function CompleteDataModal({ target, onClose, onSuccess }) {
 /**
  * Drawer: Formulir Pendaftaran Permohonan PB/PD Baru (docs/24, docs/57 §3c, docs/62)
  */
-function ApplicationCreateDrawer({ open, createUnits = [], canImport = false, onSwitchToImport, onClose, onSuccess }) {
+export function ApplicationCreateDrawer({ open, asPage = false, createUnits = [], canImport = false, onSwitchToImport, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -1219,7 +1128,9 @@ function ApplicationCreateDrawer({ open, createUnits = [], canImport = false, on
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={open}
       title="Pendaftaran Permohonan PB/PD"
       subtitle="Formulir agenda penyambungan pelanggan baru atau perubahan daya listrik."
@@ -1597,7 +1508,7 @@ function ApplicationCreateDrawer({ open, createUnits = [], canImport = false, on
           </div>
         </div>
       </form>
-    </Drawer>
+    </PanelShell>
   )
 }
 
@@ -1606,6 +1517,8 @@ function ApplicationCreateDrawer({ open, createUnits = [], canImport = false, on
  */
 export function ApplicationDetailDrawer({
   applicationId,
+  preview = false,
+  asPage = false,
   initialTab = 'detail',
   canSubmit,
   canCancel,
@@ -1683,7 +1596,7 @@ export function ApplicationDetailDrawer({
   }
 
   // Tab Navigation: 'detail' | 'surveys' | 'drawings' | 'documents'
-  const [activeTab, setActiveTab] = useState(initialTab || 'detail')
+  const [activeTab, setActiveTab] = useState(preview ? 'detail' : initialTab || 'detail')
 
   useEffect(() => {
     if (initialTab && initialTab !== 'detail') {
@@ -1908,7 +1821,9 @@ export function ApplicationDetailDrawer({
   }
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={onClose}
       open={Boolean(applicationId)}
       title={app ? `Permohonan ${app.application_number}` : 'Detail Permohonan'}
       subtitle={app ? `${app.application_type} · ${app.transaction_type}` : 'Memuat data...'}
@@ -1928,8 +1843,13 @@ export function ApplicationDetailDrawer({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onClose}>
-              Tutup
+              {asPage ? 'Kembali' : 'Tutup'}
             </Button>
+            {preview && app && (
+              <Button variant="primary" size="sm" onClick={() => navigate(`/permohonan/${app.id}`)}>
+                Buka halaman lengkap
+              </Button>
+            )}
             {app?.status === 'DRAFT' && canSubmit && (
               <Button
                 variant="primary"
@@ -1948,7 +1868,8 @@ export function ApplicationDetailDrawer({
 
       {app && !loading && (
         <div className="space-y-6">
-          {/* Navigation Tabs */}
+          {/* Navigation Tabs (pratinjau hanya memuat ringkasan) */}
+          {!preview && (
           <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-2">
             <button
               type="button"
@@ -2066,6 +1987,7 @@ export function ApplicationDetailDrawer({
               </button>
             )}
           </div>
+          )}
 
           {/* Survei disetujui dengan hasil perlu perluasan: Teknik ULP membuat usulan */}
           {needsProposal && (
@@ -2822,14 +2744,14 @@ export function ApplicationDetailDrawer({
           )}
         </div>
       )}
-    </Drawer>
+    </PanelShell>
   )
 }
 
 /**
  * Drawer: Impor Permohonan EIS / Daftung (Stage 1B/1C - Two-Phase Staging)
  */
-function EisImportDrawer({ open, canCreate = false, onSwitchToCreate, onClose, onSuccess }) {
+export function EisImportDrawer({ open, asPage = false, canCreate = false, onSwitchToCreate, onClose, onSuccess }) {
   const { notify } = useNotifications()
   const [phase, setPhase] = useState('upload') // 'upload' | 'preview'
   const [file, setFile] = useState(null)
@@ -2974,7 +2896,9 @@ function EisImportDrawer({ open, canCreate = false, onSwitchToCreate, onClose, o
   const totalValid = countNew + countMatched + countUnchanged
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
+      onBack={phase === 'preview' ? handleDiscard : onClose}
       open={open}
       title="Impor Permohonan EIS (Two-Phase Staging)"
       subtitle="Sinkronisasi agenda Pasang Baru & Perubahan Daya dari sistem EIS / Daftung"
@@ -3336,6 +3260,6 @@ function EisImportDrawer({ open, canCreate = false, onSwitchToCreate, onClose, o
           </div>
         </div>
       )}
-    </Drawer>
+    </PanelShell>
   )
 }
