@@ -1,0 +1,5 @@
+# Prompt siap tempel — stok, tiang/KR, alokasi, RKM (agen frontend)
+
+Anda adalah agen frontend DISTRIVA (React/Vite di `frontend/`). Bangun: (1) master data **gudang, cuplikan stok (impor CSV dry run → terapkan), posisi stok, Kontrak Rinci tiang**; (2) **alokasi material + tiang (dengan nomor KR)** pada halaman permohonan; (3) modul **RKM** (rencana per periode, usulan per ULP, validasi ganda, keputusan, amandemen, kebutuhan bersih). Baca dulu `docs/71-FRONTEND-HANDOFF-STOCK-POLES-ALLOCATION-RKM.md` dan bagian "Stok, Kontrak Rinci tiang, alokasi" serta "RKM" di `docs/57-API-CONTRACT.md`; ikuti pola halaman master data yang sudah ada (buku harga/tarif/parameter).
+
+Aturan: hak akses ditentukan backend; UI hanya menampilkan/menyembunyikan menurut izin efektif (fail-closed). Pesan 403/404/409/422 ditampilkan apa adanya. Jangan mengubah backend. Endpoint aktif setelah pemilik menerapkan migrasi; kembangkan terhadap mock/tes dan uji ke backend setelahnya. Sertakan tes Vitest sesuai docs/71 §4 dan laporkan hanya hasil tes yang benar-benar dijalankan.

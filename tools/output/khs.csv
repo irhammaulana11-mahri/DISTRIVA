@@ -1,0 +1,521 @@
+code,name,unit,category
+68,Commisioning test GD,Loks,
+69,Commisioning test Jaringan JTM,Loks,
+70,Commisioning test Jaringan Kabel JTM,Loks,
+71,Commisioning test JTR,Loks,
+72,Commisioning test LBS / Recloser,Loks,
+153,Galian  & pengurugan kembali Beton Bertulang,M3,
+154,Galian Aspal & pengurugan kembali Aspal (tebal Aspal 30 cm + dipadatkan),M3,
+155,Galian Floor Beton & pengurugan kembali Floor Beton,M3,
+156,Galian tanah & pengurugan kembali,M3,
+157,Galian tanah & pengurugan kembali di bawah PV blok/ tembok/ plesteran,M3,
+158,"Galian Tanah ( 0,7 x 0,4 x 1 )",M3,
+381,"Pondasi u/Gaspijp 3""",Ls,
+391,Safety Cost K3L,Ls,
+183,Klem kabel/ Cable suport  (508/U/2009),B,
+366,Plastic Strap,B,
+498,Timah solder + pasta,S,
+515,Wire Clip M8   (Ø 22mm),S,
+223,Link - HDG,B,
+437,Stoping Buckle non magnetic,B,
+83,Conductor Clamp + Bolt & Nut MCA,S,
+511,"Washer 45 x 45 x 3,5 - HDG",B,
+435,"Square Washer - (l=50mm, p=50mm, t=2,5mm)",B,
+171,"Guy Wire Timble (t=2,5mm)",B,
+244,Mountage kWH  5/20 A,B,
+396,Service wedge clamp 2/4 x 6/10 mm,B,
+512,Wire Clip M10 (Ø 35mm),S,
+513,Wire Clip M12 (Ø 70mm),S,
+397,Service wedge clamp 4/4 x 10/16 mm,B,
+50,"Bolt & Nut 3/16 x 0,5""",S,
+96,"Cousen/Thimble - (t=2,5mm)",B,
+176,Iron Wire 6 mm,M,
+514,Wire Clip M16 (Ø 95mm),S,
+62,Bracket Protection Device / Fitting Clamp MCA,S,
+152,"Fixing Collar 1.5 """,B,
+56,Bolt & Nut M.16 x 50    - HDG,S,
+395,Service Dead End Fitting + Bot&Nut M14x25mm,S,
+51,Bolt & Nut M.14x 25  - HDG,S,
+58,Bolt M.12 x 30 + Washer  Cu,S,
+436,Stainless Steel Strip non magnetic,M,
+57,Bolt & Nut M.16 x 75    - HDG,S,
+440,Strainhook & clamp  u/. Gaspijp - 1.5',S,
+88,Connector press AL/AL type 35-16mm2 & Cover+tanda phasa,S,
+52,Bolt & Nut M.16 x 120  - HDG,S,
+218,Line Tap Connector Al 16-35/16-35mm+Heatshrink,S,
+53,Bolt & Nut M.16 x 140  - HDG,S,
+456,Terminal Lug   35 mm - Cu  1 Hole,B,
+447,Tanda Bahaya Kecil,B,
+92,Connector Type G  - 70 mm,B,
+95,Connector Type H  - 70 mm,B,
+82,Concrete Slove,B,
+84,Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vinil masive,S,
+306,"Ornament Cabel Band 9/10."" - 3/4""",B,
+281,"Ornament Cabel Band 3"" - 0,5"" + baut u/ Clamp MVTIC (l=30 mm, t=3 mm)",S,
+386,Preformed Termination 22 mm  (542/U/2009),B,
+19,Baut mata,S,
+151,Extension for GW type B - (Acc.MVTIC),B,
+462,Terminal Lug   50 mm - Cu  1 Hole,B,
+34,"Begel klem 3/4"" u/ kabel",B,
+451,Tension  Bracket ( Load 600 kg ),B,
+37,"Besi siku L 50x50x3,5 mm x   260 mm - topang pagar depan",B,
+89,Connector press AL/AL type 70-35mm2 & Cover+tanda phasa,S,
+21,"Begel   2"" U - ( (t =  6 mm x 42 mm) HDG TM",B,
+150,Extension for GW type A - (Acc.MVTIC),B,
+221,Line Tap Connector Type  70 - 150 mm - Al,B,
+65,C Clamp Cu 50 mm,B,
+394,Separator Clamp for Netral - (Acc.MVTIC),B,
+80,Compresion Joint Sleeve Non Tension   70  mm - Al,S,
+445,Suspension Clamp For MV,B,
+374,"Pole Bracket 3-6""",B,
+217,Line Tap Connector Al 150 - 50 mm  type G,B,
+222,Line Tap Connector Type 150 - 150 mm - Al,B,
+22,"Begel   3"" U - ( (t =  6 mm x 42 mm) HDG TM",B,
+93,Connector Type H  - 150 mm,B,
+214,Line Tap Connector 150-150 mm2 Type G + Heat Shrink,S,
+102,"Cross Arm Clevis  - TM - (l=42mm, t=6mm, p=35mm) - HDG",B,
+23,"Begel   4"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+90,Connector Type G  - 150 mm,B,
+199,"L Bow PVC 2""",B,
+510,"U - Strap - TM - (l=42mm, t=6mm)",S,
+259,NYY 4 x 4 mm u/ Wirring Panel,M,
+375,"Pole Bracket 6"" - 8""",B,
+305,"Ornament Cabel Band 6""",B,
+24,"Begel   5"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+185,Kotak Box Terminal ( persiapan SLO ),S,
+336,"Pipa  Galvanized  3/4"" - 1 mtr (tebal= 1,6 mm)",B,
+179,Kanal NP6-60 cm + Bolt&nut,S,
+25,"Begel   6"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+38,"Besi siku L 50x50x3,5 mm x   465 mm - pagar samping",B,
+413,"Single Guy Wire Band    3"" - (t =  6 mm x 42 mm) HDG TM",B,
+431,"Sock Draad Pipa Galvanized 1""",B,
+173,Insulated Tension Joint 70 mm,B,
+91,Connector Type G  - 240 mm,B,
+94,Connector Type H  - 240 mm,B,
+164,"Ground Wire Clamp Type A - TM - (l=50mm, t=6mm, p=300mm)",B,
+165,"Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",B,
+26,"Begel   7"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+182,Klem C 50 mm,B,
+387,Preformed Termination 35 mm  (542/U/2009),B,
+54,Bolt & Nut M.16 x 350  (besi as) Double Arm  - HDG,S,
+414,"Single Guy Wire Band    4"" - (t =  6 mm x 42 mm) HDG TM",B,
+260,NYY 4 x 6 mm u/ Wirring Panel,M,
+27,"Begel   8"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+17,"Arm Tie Type 750 - 3/4"" - (t=2,3 mm)",B,
+10,"Arm Tie Band 3""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+415,"Single Guy Wire Band    5""   - (t =  6 mm x 35 mm) HDG TR",B,
+167,Guy Insulator LV    (TR) - belimbing,B,
+464,Terminal Lug   70  mm - Al / Cu  1 Hole,B,
+28,"Begel   9"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+11,"Arm Tie Band 4""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+55,Bolt & Nut M.16 x 400  (besi as) Double Arm - HDG,S,
+416,"Single Guy Wire Band    5"" - (t =  6 mm x 42 mm) HDG TM",B,
+417,"Single Guy Wire Band    6""   - (t =  6 mm x 35 mm) HDG TR",B,
+63,Bundled End Assembly ( BEA ) - komplit,S,
+18,"Arm Tie Type 900 - 3/4"" - (t=2,3 mm)",B,
+29,"Begel 10"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+442,"Strut Arm TR - (l=50mm, t=5mm, tgg=100mm) NP 10 - 25 cm",B,
+470,Terminal Lug 150 mm - Al  1 Hole,B,
+418,"Single Guy Wire Band    6"" - (t =  6 mm x 42 mm) HDG TM",B,
+286,"Ornament Cabel Band 3"" x 3"" - TM",B,
+388,Preformed Termination 70 mm  (542/U/2009),B,
+12,"Arm Tie Band 6""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+419,"Single Guy Wire Band    7""   - (t =  6 mm x 35 mm) HDG TR",B,
+81,Compresion Joint Sleeve Non Tension 150  mm - Al,S,
+16,"Arm tie siku 50x50x3,5 mm x 750 mm",B,
+294,"Ornament Cabel Band 4"" - 3  u/ Ferlengk  - (l=42mm, t=6mm)",B,
+166,"Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",B,
+466,Terminal Lug   70  mm - Cu  1 Hole,B,
+441,"Strut Arm TM - (l=50mm, t=5mm, tgg=100mm) NP 10  - 30 cm",B,
+30,"Begel 11"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+421,"Single Guy Wire Band    8""   - (t =  6 mm x 35 mm) HDG TR",B,
+271,"Ornament Cabel Band 2"" x 3"" - TM",B,
+256,NYAF 35 sqmm u/ bawah Arrester ( SPLN ),M,
+298,"Ornament Cabel Band 4"" x 3"" - TM",B,
+373,"Pole Block Band 12"" - TM (557/U/2009)",B,
+446,"Tanda Bahaya Besar - (l=400mm, tgg=450mm)",B,
+420,"Single Guy Wire Band    7"" - (t =  6 mm x 42 mm) HDG TM",B,
+132,Dead End Tubes / Bundled End Protection + komplit,S,
+398,"Single Arm Band   4""   (t =  6 mm x 42 mm) HDG TM",B,
+110,"Cross Arm UNP 100 -   250 mm - (l=50mm, t=5mm, tgg=100mm) - TR",B,
+287,"Ornament Cabel Band 3"" x 4"" - TM",B,
+429,"Sock Draad Pipa Galvanized  2""",B,
+13,"Arm Tie Band 7""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+103,"Cross Arm UNP  65 -    500 mm  - (l=42mm, t=3,2mm, tgg=65mm)",B,
+422,"Single Guy Wire Band    8"" - (t =  6 mm x 42 mm) HDG TM",B,
+359,"Pipa Air PVC 2"" - 1 meter ( AW )",B,
+254,NYA 35 sqmm ( SPLN ),M,
+423,"Single Guy Wire Band    9""  - (t =  6 mm x 35 mm) HDG TR",B,
+31,"Begel 12"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+73,Compresion Joint Bimetal 70/70 mm - Al/Cu,S,
+14,"Arm Tie Band 8""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+255,NYA 50 sqmm ( SPLN ),M,
+299,"Ornament Cabel Band 4"" x 4"" - TM",B,
+400,"Single Arm Band   5"" (t =  6 mm x 35 mm) HDG TR",B,
+402,"Single Arm Band   6"" (t =  6 mm x 35 mm) HDG TR",B,
+509,U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut,S,
+168,Guy Insulator MV (TM) - belimbing,B,
+337,"Pipa  Galvanized  3/4"" - 2 mtr  (tebal= 1,6 mm) u/Pipa  Pelindung",B,
+32,"Begel 13"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+399,"Single Arm Band   5""   (t =  6 mm x 42 mm) HDG TM",B,
+288,"Ornament Cabel Band 3"" x 5"" - TM",B,
+403,"Single Arm Band   7"" (t =  6 mm x 35 mm) HDG TR",B,
+428,Small Angle Assembly ( SAA ) + komplit,S,
+338,"Pipa  Galvanized  3/4"" - 2 mtr (tebal= 1,6 mm)",B,
+111,"Cross Arm UNP 100 -   300 mm - (l=50mm, t=5mm, tgg=100mm) -TM",B,
+74,Compresion Joint Sleeve   70 mm - Al,S,
+424,"Single Guy Wire Band    9"" - (t =  6 mm x 42 mm) HDG TM",B,
+425,"Single Guy Wire Band  10""  -  (t =  6 mm x 35 mm) HDG TR",B,
+194,"L bouw 3 "" PVC",B,
+200,"L Bow PVC 3""",B,
+401,"Single Arm Band   6""   (t =  6 mm x 42 mm) HDG TM",B,
+360,"Pipa Air PVC 2"" - 3 meter ( AW )",B,
+300,"Ornament Cabel Band 4"" x 5"" - TM",B,
+35,"Besi siku L 50x50x3,5 mm x   100 cm - Tempat kabel",B,
+33,"Begel 14"" U  - ( (t =  6 mm x 42 mm) HDG TM",B,
+36,"Besi siku L 50x50x3,5 mm x   100 cm - tiang pengaman",B,
+404,"Single Arm Band   7"" (t =  6 mm x 42 mm) HDG TM",B,
+405,"Single Arm Band   8"" (t =  6 mm x 35 mm) HDG TR",B,
+365,"Pipa PVC 4"" & Tutup jumperan",S,
+76,Compresion Joint Sleeve   95 mm - CU/CU,S,
+121,"Cross Arm UNP 80 -   500 (l=42mm,t=3,5mm,tgg=80mm)",B,
+39,"Besi siku L 50x50x3,5 mm x   900 mm - dudukan Jointing",B,
+289,"Ornament Cabel Band 3"" x 6"" - TM",B,
+426,"Single Guy Wire Band  10"" - (t =  6 mm x 42 mm) HDG TM",B,
+143,"Double Guy Wire Band   7 "" (t =  6 mm x 33 mm) HDG TR",B,
+20,BC 50 MM (Bare Conductor),M,
+438,Strain Clamp   70 - 150 mm - 2 nut,S,
+406,"Single Arm Band   8"" (t =  6 mm x 42 mm) HDG TM",B,
+15,"Arm Tie Band 9""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+476,Terminal Lug 240 mm - Al  1 Hole,B,
+301,"Ornament Cabel Band 4"" x 6"" - TM",B,
+309,Patok Tanda Kabel  (Rute Kabel),B,
+427,"Single Guy Wire Band  11"" - (t =  6 mm x 42 mm) HDG TM",B,
+310,"Penghalang panjat   5"" HDG (l=35mm, t=3,2mm, besi 10mm)",S,
+9,"Arm Tie Band 11""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+432,"Sock Draad Pipa Galvanized 4""",B,
+290,"Ornament Cabel Band 3"" x 7"" - TM",B,
+144,"Double Guy Wire Band   8 "" (t =  6 mm x 42 mm) HDG TM",S,
+272,"Ornament Cabel Band 2"" x 4"" - TM",B,
+104,"Cross Arm UNP  65 -    750 mm  - (l=42mm, t=3,2mm, tgg=65mm)",B,
+8,"Arm Tie Band 10""( TM ) (t = 6 mm x 42 mm) HDG TM",B,
+311,"Penghalang panjat   6"" HDG (l=35mm, t=3,2mm, besi 10mm)",S,
+412,"Single Arm Band 12"" (t =  6 mm x 42 mm) HDG TM",B,
+407,"Single Arm Band   9"" (t =  6 mm x 35 mm) HDG TR",B,
+409,"Single Arm Band 10"" (t =  6 mm x 35 mm) HDG TR",B,
+302,"Ornament Cabel Band 4"" x 7"" - TM",B,
+430,"Sock Draad Pipa Galvanized  3""",B,
+506,"Turn Buckle TR   5/8"" (4000 kg) -  TR - (l=33mm, t=6mm)",S,
+291,"Ornament Cabel Band 3"" x 8"" - TM",B,
+312,"Penghalang panjat   7"" HDG (l=35mm, t=3,2mm, besi 10mm)",S,
+303,"Ornament Cabel Band 4"" x 8"" - TM",B,
+313,"Penghalang panjat   8"" HDG (l=35mm, t=3,2mm, besi 10mm)",S,
+273,"Ornament Cabel Band 2"" x 5"" - TM",B,
+131,Dead End Assembly ( DEA ) - komplit,S,
+40,"Besi siku L 50x50x3,5 mm x 1100 mm - pagar tegak",B,
+292,"Ornament Cabel Band 3"" x 9"" - TM",B,
+122,"Cross Arm UNP 80 -   750 (l=42mm,t=3,5mm,tgg=80mm)",B,
+135,"Double Arm Band   4"" (t = 6 mm x 42 mm) HDG TM",B,
+169,"Guy Wire Rod 5/8"" ( 15 mm ) - 1.800 mm  - TR",B,
+264,"OA Kast type VI ,Kecil cat powder coating",S,
+304,"Ornament Cabel Band 4"" x 9"" - TM",B,
+314,"Penghalang panjat   9"" HDG (l=35mm, t=3,2mm, besi 10mm)",S,
+408,"Single Arm Band  9"" (t =  6 mm x 42 mm) HDG TM",B,
+136,"Double Arm Band   5"" (t = 6 mm x 42 mm) HDG TM",B,
+274,"Ornament Cabel Band 2"" x 6"" - TM",B,
+282,"Ornament Cabel Band 3"" x 10"" - TM",B,
+472,Terminal Lug 150 mm - Al / Cu  1 Hole,B,
+137,"Double Arm Band   6"" (t = 6 mm x 42 mm) HDG TM",S,
+293,"Ornament Cabel Band 4"" - 10"" - (l=42mm, t=6mm)",B,
+112,"Cross Arm UNP 100 -   500 mm - (l=50mm, t=5mm, tgg=100mm)",B,
+410,"Single Arm Band 10"" (t =  6 mm x 42 mm) HDG TM",B,
+369,Plat Tembaga  20 X 2 mm,M,
+138,"Double Arm Band   7 "" (t =  6 mm x 42 mm) HDG TM",B,
+315,"Penghalang panjat 10"" HDG (l=35mm, t=3,2mm, besi 10mm)",S,
+295,"Ornament Cabel Band 4"" x 10"" - TM",B,
+339,"Pipa  Galvanized  3/4"" - 3 mtr (tebal= 1,6 mm)",B,
+172,heatshrink,B,
+275,"Ornament Cabel Band 2"" x 7"" - TM",B,
+283,"Ornament Cabel Band 3"" x 11"" - TM",B,
+139,"Double Arm Band   8 "" (t =  6 mm x 42 mm) HDG TM",S,
+474,Terminal Lug 150 mm - Cu  1 Hole,B,
+411,"Single Arm Band 11"" (t =  6 mm x 42 mm) HDG TM",B,
+505,"Turn Buckle TM  3/4"" (7000 kg) - TM - (l=42mm, t=6mm)",S,
+201,Large Angle Assembly ( LAA ) + komplit,S,
+296,"Ornament Cabel Band 4"" x 11"" - TM",B,
+319,"Pipa  Galvanized  2"" -  1 meter (tebal= 2,3 mm)",B,
+340,"Pipa  Galvanized  3/4"" - 4 mtr (tebal= 1,6 mm)",B,
+123,"Cross Arm UNP 80 - 1000 (l=42mm,t=3,5mm,tgg=80mm)",B,
+278,"Ornament Cabel Band 2,5"" x 5"" - TM",B,
+105,"Cross Arm UNP  65 -  1000 mm  - (l=42mm, t=3,2mm, tgg=65mm)",B,
+316,"Penghalang panjat 11"" HDG (l=35mm, t=3,2mm, besi 10mm)",S,
+276,"Ornament Cabel Band 2"" x 8"" - TM",B,
+284,"Ornament Cabel Band 3"" x 12"" - TM",B,
+77,Compresion Joint Sleeve 150 mm - Al,S,
+297,"Ornament Cabel Band 4"" x 12"" - TM",B,
+279,"Ornament Cabel Band 2,5"" x 6"" - TM",B,
+433,"Sock Draad Pipa Galvanized 5""",B,
+140,"Double Arm Band   9 "" (t =  6 mm x 42 mm) HDG TM",S,
+280,"Ornament Cabel Band 2,5"" x 8"" - TM",B,
+195,"L Bow 2"" besi + sock draad dalam",S,
+197,"L Bow Besi 2""",B,
+170,"Guy Wire Rod 5/8"" ( 15 mm ) - 2.500 mm  - TM",B,
+141,"Double Arm Band 10 "" (t =  6 mm x 42 mm) HDG TM",B,
+263,OA Kast type III lengkap cat powder coating,S,
+285,"Ornament Cabel Band 3"" x 13"" - TM",B,
+163,"Ground Pipe 3/4"" - 2,75 m + Clamp",S,
+267,"Ornament Cabel Band 2"" x 10"" - TM",B,
+266,"Ornament Cabel Band  4"" x 13"" - TM",B,
+142,"Double Arm Band 11"" (t = 6 mm x 42 mm) HDG TM",B,
+41,"Besi siku L 50x50x3,5 mm x 1650 mm - pagar miring",B,
+473,Terminal Lug 150 mm - Al / Cu  2 Hole,B,
+478,Terminal Lug 240 mm - Al / Cu  1 Hole,B,
+439,Strain Clamp 150 - 240 mm - 3 nut,S,
+443,"Strut Tie 2000 - pipe 2"" - 1,5 meter, Tebal 2,0 mm - TR",B,
+47,Beton Block 400 x 400 x 100 - kotak,B,
+148,"Earthing Rod 16 mm - 1,5 m+clamp - TR- besi As, Electroplatting tembaga 35 micron",S,
+42,"Besi siku L 50x50x3,5 mm x 1750 mm - penghalang depan",B,
+113,"Cross Arm UNP 100 -   750 mm - (l=50mm, t=5mm, tgg=100mm)",B,
+78,Compresion Joint Sleeve 240 mm - Al,S,
+106,"Cross Arm UNP  65 -  1500 mm  - (l=42mm, t=3,2mm, tgg=65mm)",B,
+277,"Ornament Cabel Band 2"" x 9"" - TM",B,
+361,"Pipa Galvanized  3/4"" -  6 mtr (tebal= 1,6 mm)",B,
+44,"Besi siku L 50x50x3,5 mm x 2000 mm - dudukan bordes",B,
+43,"Besi siku L 50x50x3,5 mm x 1850 mm - penghalang belakang",B,
+124,"Cross Arm UNP 80 - 1500 (l=42mm,t=3,5mm,tgg=80mm)",B,
+184,"Knee + sook 3""  besi",S,
+268,"Ornament Cabel Band 2"" x 11"" - TM",B,
+97,Cover Konduktor,B,
+480,Terminal Lug 240 mm - Cu  1 Hole,B,
+444,"Strut Tie 2000 - pipe 2"" - 2,0 meter, Tebal 2,0 mm - TM",S,
+269,"Ornament Cabel Band 2"" x 12"" - TM",B,
+196,"L Bow 3"" besi + sock draad dalam",S,
+198,"L Bow Besi 3""",B,
+270,"Ornament Cabel Band 2"" x 13"" - TM",B,
+320,"Pipa  Galvanized  2"" -  2 meter (tebal= 2,3 mm)",B,
+147,"Earthing Rod - Arding Pipe 1,5"" - 2,5 mtr",S,
+149,"Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron",S,
+368,Plat Cooper 4 x 40 mm,M,
+479,Terminal Lug 240 mm - Al / Cu  2 Hole,B,
+45,"Besi Siku L 50x50x3,5 mm x 2500 mm",B,
+224,Live Line Connector   50-150 mm,B,
+325,"Pipa  Galvanized  3"" -  1 meter (tebal= 2,5 mm)",B,
+125,"Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",B,
+434,"Sock Draad Pipa Galvanized 6""",B,
+226,Live Line Connector 150 - 240 mm,B,
+341,"Pipa  Galvanized  4"" - 1 meter (tebal= 3,2 mm)",B,
+114,"Cross Arm UNP 100 - 1200 mm - (l=50mm, t=5mm, tgg=100mm)",B,
+107,"Cross Arm UNP  65 -  2500 mm  - (l=42mm, t=3,2mm, tgg=65mm)",B,
+321,"Pipa  Galvanized  2"" -  3 meter (tebal= 2,3 mm)",B,
+126,"Cross Arm UNP 80 - 2500 (l=42mm,t=3,5mm,tgg=80mm)",B,
+115,"Cross Arm UNP 100 - 1500 mm - (l=50mm, t=5mm, tgg=100mm)",B,
+328,"Pipa  Galvanized  3"" - 2 meter ( medium 2,5mm ) + Plat GW Clamp Type B",S,
+331,"Pipa  Galvanized  3"" - 3 meter ( medium 2,5mm ) + Plat GW Clamp Type B",S,
+334,"Pipa  Galvanized  3"" - 4 meter ( medium 2,5mm ) + Plat GW Clamp Type B",S,
+108,"Cross Arm UNP  65 -  3000 mm  - (l=42mm, t=3,2mm, tgg=65mm)",B,
+327,"Pipa  Galvanized  3"" - 2 meter ( medium 2,5mm ) + Plat GW Clamp Type A",S,
+330,"Pipa  Galvanized  3"" - 3 meter ( medium 2,5mm ) + Plat GW Clamp Type A",S,
+333,"Pipa  Galvanized  3"" - 4 meter ( medium 2,5mm ) + Plat GW Clamp Type A",S,
+308,Pasir urug,M3,
+371,Plat Tembaga Uk.600 x 50 x 5 (untuk jumper Termination),M,
+329,"Pipa  Galvanized  3"" - 2 meter ( medium 2,5mm ) + Plat GW Clamp Type C",S,
+332,"Pipa  Galvanized  3"" - 3 meter ( medium 2,5mm ) + Plat GW Clamp Type C",S,
+335,"Pipa  Galvanized  3"" - 4 meter ( medium 2,5mm ) + Plat GW Clamp Type C",S,
+378,Pondasi type A ( 1 tiang )  (91/U/2009),Ls,
+370,Plat Tembaga Uk.400 x 80 x 5 (untuk jumper Termination),M,
+127,"Cross Arm UNP 80 - 3000 (l=45mm,t=3,5mm,tgg=80mm)",B,
+322,"Pipa  Galvanized  2"" -  4 meter (tebal= 2,3 mm)",B,
+116,"Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",B,
+117,"Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",B,
+367,"Plat Brodes Uk. Min. 2,2 mm + rangka besi siku L 30 x 40 mm (dicat anti karat)",S,
+380,Pondasi Type I ukuran 300x300x600,Ls,
+323,"Pipa  Galvanized  2"" -  5 meter (tebal= 2,3 mm)",B,
+342,"Pipa  Galvanized  4"" - 2 meter (medium  3,2 mm) + plat GW Clamp type A",S,
+46,"Besi Siku L 50x50x3,5 mm x 6000 mm",B,
+118,"Cross Arm UNP 100 - 2500 mm - (l=50mm, t=5mm, tgg=100mm)",B,
+343,"Pipa  Galvanized  4"" - 2 meter (medium  3,2 mm) + plat GW Clamp type B",S,
+248,"Name Plate Key Point (Recloser,LBSM,3Way)",B,
+324,"Pipa  Galvanized  2"" -  6 meter (tebal= 2,3 mm)",B,
+344,"Pipa  Galvanized  4"" - 2 meter (medium  3,2 mm) + plat GW Clamp type C",S,
+119,"Cross Arm UNP 100 - 3000 mm - (l=50mm, t=5mm, tgg=100mm)",B,
+109,"Cross Arm UNP  65 -  6000 mm  - (l=42mm, t=3,2mm, tgg=65mm)",B,
+379,Pondasi type D ( 2 Tiang )  (91/U/2009),Ls,
+128,"Cross Arm UNP 80 - 6000 (l=45mm,t=3,5mm,tgg=80mm)",B,
+245,Mountage SLM 250 kva keatas,Ls,
+346,"Pipa  Galvanized  4"" - 3 meter (medium  3,2 mm) + plat GW Clamp type B",S,
+345,"Pipa  Galvanized  4"" - 3 meter (medium  3,2 mm) + plat GW Clamp type A",S,
+354,"Pipa  Galvanized  5"" - 4 meter (tebal= 4,0 mm)",B,
+347,"Pipa  Galvanized  4"" - 3 meter (medium  3,2 mm) + plat GW Clamp type C",S,
+357,"Pipa Air   3"" - 6 mtr tbl 2,5 mm ( medium )",B,
+59,Borring untuk Kabel tanah,S,
+355,"Pipa  Galvanized  5"" - 5 meter (tebal= 4,0 mm)",B,
+326,"Pipa  Galvanized  3"" -  6 meter (tebal= 2,5 mm)",B,
+351,"Pipa  Galvanized  4"" - 4 meter (tebal= 3,2 mm)",B,
+120,"Cross Arm UNP 100 - 6000 mm - (l=50mm, t=5mm, tgg=100mm)",B,
+349,"Pipa  Galvanized  4"" - 4 meter (medium  3,2 mm) + plat GW Clamp type B",S,
+348,"Pipa  Galvanized  4"" - 4 meter (medium  3,2 mm) + plat GW Clamp type A",S,
+358,"Pipa Air  4"" - 6 mtr (555/U/2009)",B,
+350,"Pipa  Galvanized  4"" - 4 meter (medium  3,2 mm) + plat GW Clamp type C",S,
+257,NYFGBY 4 x  95 mm2,M,
+352,"Pipa  Galvanized  4"" - 5 meter (tebal= 3,2 mm)",B,
+353,"Pipa  Galvanized  4"" - 6 meter (tebal= 3,2 mm)",B,
+48,Beton Cor K-300,B,
+265,OA Kast type VI cat powder coating,S,
+356,"Pipa  Galvanized  5"" - 6 meter (tebal= 4,0 mm)",B,
+262,OA Kast type I C1 Sistim Press cat powder coating,S,
+362,"Pipa Galvanized  6"" - 4 meter (tebal= 5,0 mm)",B,
+363,"Pipa Galvanized  6"" - 5 meter (tebal= 5,0 mm)",B,
+364,"Pipa Galvanized  6"" - 6 meter (tebal= 5,0 mm)",B,
+145,"Dudukan : Trafo Cantol, Pipa Kabel, PHB-TR & Dudukan Arrester",S,
+178,Jointing Termination 24 Kv - uk. 150  mm - 3 Core/XLPE,S,
+177,Jointing CU-CU 95 + Scooth/Heatshrink,S,
+146,"Dudukan : Trafo Portal, Pipa Kabel, PHB-TR & Dudukan Arrester",S,
+49,Bimetal Connector Al/Cu -150/50 mm,B,DPT
+75,Compresion Joint Sleeve   95 mm - Al,B,DPT
+79,Compresion Joint Sleeve Non Tenion     95  mm - Al,B,DPT
+87,Connection Clamp For Netral + Bolt M12 x 25 - (Acc.MVTIC),S,DPT
+159,Galvanized Steel Wire 22 mm - HDG,M,DPT
+160,Galvanized Steel Wire 35 mm - HDG,M,DPT
+161,Galvanized Steel Wire 70 mm - HDG,M,DPT
+181,Klem C - 25/25 mm - Cu,B,DPT
+212,Line Tap Connector ( type press ) 35-70 / 35-70 mm + scoth,S,DPT
+213,Line Tap Connector ( type press ) 6-25 / 35-70 mm + heatshrink,S,DPT
+215,Line Tap Connector 50-70 mm  type G,B,DPT
+216,Line Tap Connector Al -   35 mm - tipe C,B,DPT
+219,Line Tap Connector Cu -   25 mm / Klem C,B,DPT
+220,Line Tap Connector Cu -   50 mm / Klem C,B,DPT
+225,Live Line Connector   70-150 mm,B,DPT
+318,Pierching Tap Connector 70/70 mm - Al/Al,B,DPT
+384,Preformed Side Tie 150mm (Semi Cond/non metalic/Composite),B,DPT
+385,Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite),B,DPT
+389,Preformed Top Tie 150mm (Semi Cond/non metalic/Composite),B,DPT
+452,Terminal Lug   35 mm - Al  1 Hole,B,DPT
+453,Terminal Lug   35 mm - Al  2 Hole,B,DPT
+454,Terminal Lug   35 mm - Al / Cu  1 Hole,B,DPT
+455,Terminal Lug   35 mm - Al / Cu  2 Hole,B,DPT
+457,Terminal Lug   35 mm - Cu  2 Hole,B,DPT
+458,Terminal Lug   50 mm - Al  1 Hole,B,DPT
+459,Terminal Lug   50 mm - Al  2 Hole,B,DPT
+460,Terminal Lug   50 mm - Al / Cu  1 Hole,B,DPT
+461,Terminal Lug   50 mm - Al / Cu  2Hole,B,DPT
+463,Terminal Lug   50 mm - Cu  2 Hole,B,DPT
+465,Terminal Lug   70  mm - Al / Cu  2 Hole,B,DPT
+467,Terminal Lug   70  mm - Cu  2 Hole,B,DPT
+468,Terminal Lug   70 mm - Al  1 Hole,B,DPT
+469,Terminal Lug   70 mm - Al  2 Hole,B,DPT
+471,Terminal Lug 150 mm - Al  2 Hole,B,DPT
+475,Terminal Lug 150 mm - Cu  2 Hole,B,DPT
+477,Terminal Lug 240 mm - Al  2 Hole,B,DPT
+481,Terminal Lug 240 mm - Cu  2 Hole,B,DPT
+85,Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil masive,B,
+86,Conn.press Al 35-50 mm + cover vinil untuk kumisan,B,
+517,Jointing Termination 24 Kv - uk. 150  mm - 1 Core/MVTIC,S,PLN
+518,Jointing Termination 24 Kv - uk. 240  mm - 3 Core/XLPE,S,PLN
+392,Semi Cond. Preformed Side Tie,B,
+393,Semi Cond. Preformed Side Tie Double,B,
+1,AAAC -  70 sqmm,M,MDU
+2,AAAC - 150 sqmm,M,MDU
+3,AAAC - 240 sqmm,M,MDU
+4,AAAC - S  70 sqmm,M,MDU
+5,AAAC - S 150 sqmm,M,MDU
+6,AAAC - S 240 sqmm,M,MDU
+7,ACO TM,M,MDU
+60,Box APP Pengukuran Langsung tanpa MCCB Aluminium,S,MDU
+61,"Box berisi RTU protocol DNP 3, IEC (siap komunikasi GSM )",S,MDU
+64,C Clamp Cu 25 mm,B,DPT
+66,Cable Power ; NFA2X ; 4 x 16 mm²,M,MDU
+67,Cable Power ; NFA2X ; 4 x 35 mm²,M,MDU
+98,Cover Silicon Bushing Trafo,B,PLN
+99,Cover Silicon Fuse Cut Out (Atas),B,PLN
+100,Cover Silicon Fuse Cut Out (Bawah),B,PLN
+101,Cover Silicon Lightning Arrester,B,PLN
+129,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10",B,MDU
+130,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10 Rasio CT single primer 25/5-5A s/d 75/5-5A.",B,MDU
+133,"Disconnecting Switch  25,8 kV - 800 A out door (3 phasa)",S,PLN
+134,"Disconnecting Switch 20 kV - … A  In Door - 25,8 kV (3 phasa)",S,PLN
+162,Gembok Electronic,S,MDU
+174,"Insulator - Pin Post Insulator 20 Kv;12,5 kN  - Porcelain (Tumpu)",B,MDU
+175,Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik),B,MDU
+180,Kawat Segel @ 15 cm,M,PLN
+186,"Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus
+1250 A ) digunakan daya > 20 MVA s/d 30 MVA",S,MDU
+187,"Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus
+630 A ) maks digunakan s/d Daya 20 MVA",S,MDU
+188,"Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 1250 A) digunakan daya > 20 MVA s/d 30 MVA",S,MDU
+189,"Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A) maks digunakan s/d Daya 20 MVA",S,MDU
+190,KWh meter 3 phs. 220/380 V - 20/60 A ST Clas 1 Elektronik,S,MDU
+191,KWh meter 3 phs. Elektronik lengkap dengan Modem,S,MDU
+192,"KWh meter Electronic Anti Temper 1 Phasa 2 kawat 50 Hz, 5(20) klass 1 lengkap MCB",S,MDU
+193,"kWh Meter TM Kelas 0,5s dilengkapi fasilitas AMR",S,MDU
+202,LBS Motorized + RTU + Kabel Data,S,MDU
+203,Lemari APP Pengukuran Tidak Langsung  Montage 100A Aluminium,S,MDU
+204,Lemari APP Pengukuran Tidak Langsung  Montage 125A Aluminium,S,MDU
+205,Lemari APP Pengukuran Tidak Langsung  Montage 160A Aluminium,S,MDU
+206,Lemari APP Pengukuran Tidak Langsung  Montage 200A Aluminium,S,MDU
+207,Lemari APP Pengukuran Tidak Langsung  Montage 225A Aluminium,S,MDU
+208,Lemari APP Pengukuran Tidak Langsung  Montage 250A Aluminium,S,MDU
+209,Lemari APP Pengukuran Tidak Langsung  Montage 300A Aluminium,S,MDU
+210,Lemari APP Pengukuran Tidak Langsung  Montage 80A Aluminium,S,MDU
+211,Lightning Arrester 24 kV - 10 kA,S,MDU
+227,Load Break Switch  24 kV - 630 A Manual,S,MDU
+228,Load Segel Kabel Tanah (identifikasi Kabel),S,PLN
+229,LV Insulator A1,B,MDU
+230,"LVSB ; LV Panel 250A, 2 Jurusan (SPLN D3.016-1 : 2010)-LBS",S,MDU
+231,"LVSB ; LV Panel 400A, 4 Jurusan (SPLN D3.016-1 : 2010)-LBS",S,MDU
+232,MCB 230 V - 2 A s/d 35 A - 1 Phasa,B,MDU
+233,MCB 3 phs. 230 V - 25 A s/d 50 A,B,MDU
+234,"MCCB 100 A , 18 kA, 3 Phs (Fixed)",B,MDU
+235,"MCCB 125 A , 18 kA, 3 Phs (Fixed)",B,MDU
+236,"MCCB 160 A , 18 kA, 3 Phs (Fixed)",B,MDU
+237,"MCCB 200 A , 18 kA, 3 Phs (Fixed)",B,MDU
+238,"MCCB 225 A , 18 kA, 3 Phs (Fixed)",B,MDU
+239,"MCCB 250 A , 18 kA, 3 Phs (Fixed)",B,MDU
+240,"MCCB 300 A , 36 kA, 3 Phs (Fixed)",B,MDU
+241,"MCCB 63 A , 25 kA, 3 Phs (Adj)",B,MDU
+242,"MCCB 80 A , 18 kA, 3 Phs (Fixed)",B,MDU
+243,"Meter Elektronik (ME) 3 ph - 4 W , teg: 57,7/100V; Arus :5A. Class: 0,5",S,MDU
+246,NA2XSEYBY  3 x 150 mm2;20KV;UG,M,MDU
+247,NA2XSEYBY  3 x 240 mm2;20KV;UG,M,MDU
+249,NFA2X 4x10mm,M,MDU
+250,NFA2X 4x25mm,M,MDU
+251,NFA2XSEY-T  3 x 150 + 1 x 95 mm2 - CWS,M,MDU
+252,NFA2XSEY-T  3 x 240 + 1 x 95 mm2 - CWS,M,MDU
+253,NFA2X-T;3x70 + 1x70 mm2,M,MDU
+258,NYY 1 x 150 sqmm - Input ( SPLN ),M,MDU
+261,NYY 4 x 70 sqmm - Output ( SPLN ),M,MDU
+307,Panel APP TM,S,MDU
+317,PHB - TR 2 Jurusan 400 A - SPLN D5.016.1 : 2010,S,MDU
+372,PMCB Out Door 24 kV lengkap,S,MDU
+376,Polymer Arrester 24 kV - 10 kA,S,MDU
+377,Polymer Cut Out Switch 24 kV + Fuse,S,MDU
+382,Potensial Trafo (PT) 20 kV - Outdoor,S,MDU
+383,"Potential Transformer kelas maks 0,2 Burden minimal 30 VA",S,MDU
+390,"Recloser 24 kV-630 A Motorized 12,5 kA c/w PTCC",B,MDU
+448,TC 3 x 50 + 1 x 35 sqmm ( SPLN ),M,MDU
+449,TC 35 mm - 50 cm untuk kumisan,S,MDU
+450,Tekep (MV Cover),B,PLN
+482,Terminasi Elastimold Single Core 95-300 mm2,S,PLN
+483,Terminasi Elastimold Three Core 95-300 mm2,S,PLN
+484,Termination ID 24 kV - uk. 150  mm - 1 Core/MVTIC,S,PLN
+485,Termination ID 3 X 150 MM2 u/XLPE,S,PLN
+486,Termination OD 3 X 150 MM2 u/XLPE,S,PLN
+487,Termination Out Door  3 X 150 + 1 x 95 mm u/MVTIC,S,PLN
+488,Termination Outdoor 24 kV - uk. 150  mm - 1 Core/MVTIC,S,PLN
+489,Tiang Beton 11m - 200 daN,B,MDU
+490,Tiang Beton 12m - 200 daN,B,MDU
+491,Tiang Beton 12m - 350 daN,B,MDU
+492,Tiang Beton 13m - 350 daN,B,MDU
+493,Tiang Beton 13m - 500 daN,B,MDU
+494,Tiang Beton 14m - 350 daN,B,MDU
+495,Tiang Beton 9m - 200 daN,B,MDU
+496,Tiang Beton 9m - 500 daN,B,MDU
+497,Timah Segel,B,PLN
+499,Trafo Distribusi 20 kV 3 PH   50 KVA Yzn5 ( D3 ),S,MDU
+500,Trafo Distribusi 20 kV 3 PH 100 KVA Yzn5  ( D3 ),S,MDU
+501,Trafo Distribusi 20 kV 3 PH 160 KVA Yzn5  ( D3 ),S,MDU
+502,Trafo Distribusi 20 kV 3 PH 200 KVA Dyn5  ( D3 ),S,MDU
+503,Trafo Distribusi 20 kV 3 PH 250 KVA Dyn5  ( D3 ),S,MDU
+504,"Tree Way Load Break Switch 24 kV-630 A Motorized 12,5 kA c/w PTCC",S,MDU
+507,Twisted Cable  2 x 10 mm² - Al,M,MDU
+508,Type Box App sesuai SPLN No.D3.051-1:2011,S,MDU
+516,ZCT 50/5 - 100/5 A,B,MDU

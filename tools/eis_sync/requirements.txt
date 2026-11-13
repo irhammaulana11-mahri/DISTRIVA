@@ -1,0 +1,8 @@
+playwright
+requests
+python-dotenv
+beautifulsoup4
+pandas
+pymongo
+apscheduler
+chromium

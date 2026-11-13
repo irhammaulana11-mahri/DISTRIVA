@@ -1,0 +1,68 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Survey of "no extension" is accepted by the ULP manager alone (owner 2026-11-14, docs/82): the version guard now also allows SUBMITTED -> ACCEPTED, and only when the version really is a
+ * no-extension one (requires_network_extension = false, no drawing, no feasibility study) - the rule is enforced here as well as in SurveyService. The columns added with the KKO (no_extension_reason,
+ * kko_id, kko_snapshot) freeze with the rest of the content once the version leaves DRAFT.
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        $this->install(true);
+    }
+
+    public function down(): void
+    {
+        $this->install(false);
+    }
+
+    private function install(bool $short): void
+    {
+        $extraNew = $short ? ', NEW.no_extension_reason, NEW.kko_id, NEW.kko_snapshot' : '';
+        $extraOld = $short ? ', OLD.no_extension_reason, OLD.kko_id, OLD.kko_snapshot' : '';
+        $transition = $short
+            ? "OR (OLD.status = 'SUBMITTED' AND NEW.status = 'ACCEPTED' AND NEW.requires_network_extension IS FALSE AND NEW.requires_drawing IS NOT TRUE AND NEW.requires_feasibility_study IS NOT TRUE)"
+            : '';
+        DB::unprepared(<<<SQL
+            CREATE OR REPLACE FUNCTION distriva_guard_survey_version()
+            RETURNS trigger LANGUAGE plpgsql AS \$\$
+            BEGIN
+                IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'Survey versions cannot be deleted'; END IF;
+                IF (NEW.survey_id, NEW.version_number) IS DISTINCT FROM (OLD.survey_id, OLD.version_number) THEN
+                    RAISE EXCEPTION 'Survey version identity is immutable';
+                END IF;
+                IF OLD.status <> 'DRAFT' AND NEW.surveyor_id IS DISTINCT FROM OLD.surveyor_id THEN
+                    RAISE EXCEPTION 'The surveyor of a submitted version cannot change';
+                END IF;
+                IF OLD.status <> 'DRAFT' AND (
+                    NEW.survey_date, NEW.findings, NEW.technical_recommendation, NEW.requires_drawing, NEW.requires_network_extension, NEW.requires_feasibility_study,
+                    NEW.latitude, NEW.longitude, NEW.network_distance_m, NEW.network_type, NEW.transformer_capacity_kva, NEW.network_condition, NEW.notes, NEW.measurements{$extraNew}
+                ) IS DISTINCT FROM (
+                    OLD.survey_date, OLD.findings, OLD.technical_recommendation, OLD.requires_drawing, OLD.requires_network_extension, OLD.requires_feasibility_study,
+                    OLD.latitude, OLD.longitude, OLD.network_distance_m, OLD.network_type, OLD.transformer_capacity_kva, OLD.network_condition, OLD.notes, OLD.measurements{$extraOld}
+                ) THEN
+                    RAISE EXCEPTION 'Survey version content is frozen once submitted';
+                END IF;
+                IF NEW.status IS DISTINCT FROM OLD.status AND NOT (
+                    (OLD.status = 'DRAFT' AND NEW.status = 'SUBMITTED')
+                    OR (OLD.status = 'SUBMITTED' AND NEW.status IN ('UNDER_REVIEW','RETURNED'))
+                    OR (OLD.status = 'UNDER_REVIEW' AND NEW.status IN ('ACCEPTED','RETURNED'))
+                    {$transition}
+                ) THEN
+                    RAISE EXCEPTION 'Invalid survey version status transition % -> %', OLD.status, NEW.status;
+                END IF;
+                IF OLD.status = 'UNDER_REVIEW' AND NEW.status = 'UNDER_REVIEW' AND NEW.stage IS DISTINCT FROM OLD.stage AND NOT (
+                    (OLD.stage = 'UP3_REVIEW' AND NEW.stage = 'ASMAN') OR (OLD.stage = 'ASMAN' AND NEW.stage = 'UP3_MANAGER')
+                ) THEN
+                    RAISE EXCEPTION 'Invalid survey stage transition % -> %', OLD.stage, NEW.stage;
+                END IF;
+                RETURN NEW;
+            END;
+            \$\$;
+            SQL);
+    }
+};

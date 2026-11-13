@@ -1,0 +1,5 @@
+# Prompt siap tempel — halaman Parameter KKF (agen frontend)
+
+Anda adalah agen frontend DISTRIVA (React/Vite di `frontend/`). Bangun halaman **Parameter KKF** di bawah master data: daftar set parameter, form buat/ubah draf, detail dengan riwayat, serta tombol setujui dan nonaktifkan. Baca dulu `docs/68-FRONTEND-HANDOFF-KKF-PARAMETERS.md` dan bagian "Parameter KKF" di `docs/57-API-CONTRACT.md`; ikuti pola halaman buku harga (`docs/67`) untuk daftar/detail/status.
+
+Aturan: hak akses ditentukan backend; UI hanya menampilkan/menyembunyikan menurut `can[...]` dari `GET /master-data/access` (`kkf_params.manage`, `kkf_params.approve`; fail-closed). Tarif ditampilkan sebagai persen tetapi dikirim sebagai pecahan (7,78 % = 0.0778). Pesan galat 403/409/422 ditampilkan apa adanya. Jangan mengubah backend. Set awal belum ada di `distriva_db` dan endpoint baru aktif setelah pemilik menerapkan migrasi; kembangkan terhadap tes/mocks, lalu uji ke backend setelah diterapkan. Sertakan tes Vitest sesuai docs/68 §3 dan laporkan hanya hasil tes yang benar-benar dijalankan.

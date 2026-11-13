@@ -1,0 +1,2875 @@
+{
+ "group": "GTT_KHUSUS",
+ "source": "MASTER RAB & KKF.xlsx / sheet GTT KHUSUS",
+ "inputs": [
+  {
+   "cell": "AA25",
+   "group": "GTT_KHUSUS",
+   "label": "Tibet 13 / 350",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB25",
+   "group": "GTT_KHUSUS",
+   "label": "Tibet 13 / 350",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA26",
+   "group": "GTT_KHUSUS",
+   "label": "TM 1",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB26",
+   "group": "GTT_KHUSUS",
+   "label": "TM 1",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA27",
+   "group": "GTT_KHUSUS",
+   "label": "TM 12",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB27",
+   "group": "GTT_KHUSUS",
+   "label": "TM 12",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA28",
+   "group": "GTT_KHUSUS",
+   "label": "TM 13",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB28",
+   "group": "GTT_KHUSUS",
+   "label": "TM 13",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA29",
+   "group": "GTT_KHUSUS",
+   "label": "TM 14",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB29",
+   "group": "GTT_KHUSUS",
+   "label": "TM 14",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA30",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 100 kVA",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB30",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 100 kVA",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA31",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 160 kVA",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB31",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 160 kVA",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA32",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 200 kVA",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB32",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 200 kVA",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA33",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 250 kVA",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB33",
+   "group": "GTT_KHUSUS",
+   "label": "Trf. 250 kVA",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA34",
+   "group": "GTT_KHUSUS",
+   "label": "Pnd Tipe A TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB34",
+   "group": "GTT_KHUSUS",
+   "label": "Pnd Tipe A TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA35",
+   "group": "GTT_KHUSUS",
+   "label": "Pnd Tipe D TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB35",
+   "group": "GTT_KHUSUS",
+   "label": "Pnd Tipe D TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA36",
+   "group": "GTT_KHUSUS",
+   "label": "GW TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB36",
+   "group": "GTT_KHUSUS",
+   "label": "GW TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA37",
+   "group": "GTT_KHUSUS",
+   "label": "HGW TR",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB37",
+   "group": "GTT_KHUSUS",
+   "label": "HGW TR",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA38",
+   "group": "GTT_KHUSUS",
+   "label": "GW Baj. TR",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB38",
+   "group": "GTT_KHUSUS",
+   "label": "GW Baj. TR",
+   "kind": "BKR"
+  },
+  {
+   "cell": "AA39",
+   "group": "GTT_KHUSUS",
+   "label": "SP TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "AB39",
+   "group": "GTT_KHUSUS",
+   "label": "SP TM",
+   "kind": "BKR"
+  }
+ ],
+ "lines": [
+  {
+   "sequence": 11,
+   "khs_code": 500,
+   "description": "Trafo Distribusi 20 kV 3 PH 100 KVA Yzn5 ( D3 )",
+   "H": "+I11",
+   "I": "+GAMBAR!AA30",
+   "J": "+GAMBAR!AB30",
+   "K": "+J11",
+   "source": "GTT KHUSUS!B11",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 12,
+   "khs_code": 501,
+   "description": "Trafo Distribusi 20 kV 3 PH 160 KVA Yzn5 ( D3 )",
+   "H": "+I12",
+   "I": "+GAMBAR!AA31",
+   "J": "+GAMBAR!AB31",
+   "K": "+J12",
+   "source": "GTT KHUSUS!B12",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 13,
+   "khs_code": 502,
+   "description": "Trafo Distribusi 20 kV 3 PH 200 KVA Dyn5 ( D3 )",
+   "H": "+I13",
+   "I": "+GAMBAR!AA32",
+   "J": "+GAMBAR!AB32",
+   "K": "+J13",
+   "source": "GTT KHUSUS!B13",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 14,
+   "khs_code": 503,
+   "description": "Trafo Distribusi 20 kV 3 PH 250 KVA Dyn5 ( D3 )",
+   "H": "+I14",
+   "I": "+GAMBAR!AA33",
+   "J": "+GAMBAR!AB33",
+   "K": "+J14",
+   "source": "GTT KHUSUS!B14",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 15,
+   "khs_code": 492,
+   "description": "Tiang Beton 13m - 350 daN",
+   "H": "+I15",
+   "I": "+GAMBAR!AA25",
+   "J": "+GAMBAR!AB25",
+   "K": "+J15",
+   "source": "GTT KHUSUS!B15",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 16,
+   "khs_code": 489,
+   "description": "Tiang Beton 11m - 200 daN",
+   "H": "+I16",
+   "I": "+I146+I130",
+   "J": "+J146+J130",
+   "K": "+J16",
+   "source": "GTT KHUSUS!B16",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 17,
+   "khs_code": 378,
+   "description": "Pondasi type A ( 1 tiang ) (91/U/2009)",
+   "H": "+I17",
+   "I": "+GAMBAR!AA34",
+   "J": "+GAMBAR!AB34",
+   "K": "+J17",
+   "source": "GTT KHUSUS!B17",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 18,
+   "khs_code": 379,
+   "description": "Pondasi type D ( 2 Tiang ) (91/U/2009)",
+   "H": "+I18",
+   "I": "GAMBAR!AA35",
+   "J": "+GAMBAR!AB35",
+   "K": "+J18",
+   "source": "GTT KHUSUS!B18",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 19,
+   "khs_code": 315,
+   "description": "Penghalang panjat 10\" HDG (l=35mm, t=3,2mm, besi 10mm)",
+   "H": "+I19",
+   "I": "+I15",
+   "J": "+J15",
+   "K": "+J19",
+   "source": "GTT KHUSUS!B19",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 20,
+   "khs_code": 446,
+   "description": "Tanda Bahaya Besar - (l=400mm, tgg=450mm)",
+   "H": "+I20",
+   "I": "+SUM(I11:I14)",
+   "J": "+SUM(J11:J14)",
+   "K": "+J20",
+   "source": "GTT KHUSUS!B20",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 21,
+   "khs_code": 447,
+   "description": "Tanda Bahaya Kecil",
+   "H": "+I21",
+   "I": "+I19",
+   "J": "+J19",
+   "K": "+J21",
+   "source": "GTT KHUSUS!B21",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 22,
+   "khs_code": 436,
+   "description": "Stainless Steel Strip non magnetic",
+   "H": "+I22",
+   "I": "+I21",
+   "J": "+J21",
+   "K": "+J22",
+   "source": "GTT KHUSUS!B22",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 23,
+   "khs_code": 51,
+   "description": "Bolt & Nut M.14x 25 - HDG",
+   "H": "+I23",
+   "I": "+I22*2",
+   "J": "+J22*2",
+   "K": "+J23",
+   "source": "GTT KHUSUS!B23",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 25,
+   "khs_code": null,
+   "description": "Konduktor dan Accessories",
+   "H": "+I25",
+   "I": "+SUM(I11:I14)",
+   "J": "+SUM(J11:J14)",
+   "K": "+J25",
+   "source": "GTT KHUSUS!B25",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 26,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "+I26",
+   "I": "+I25*8",
+   "J": "+J25*8",
+   "K": "+J26",
+   "source": "GTT KHUSUS!B26",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 27,
+   "khs_code": 217,
+   "description": "Line Tap Connector Al 150 - 50 mm type G",
+   "H": "+I27",
+   "I": "+I25*3",
+   "J": "+J25*3",
+   "K": "+J27",
+   "source": "GTT KHUSUS!B27",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 28,
+   "khs_code": 255,
+   "description": "NYA 50 sqmm ( SPLN )",
+   "H": "+I28",
+   "I": "+I25*12",
+   "J": "+J25*12",
+   "K": "+J28",
+   "source": "GTT KHUSUS!B28",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 29,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I29",
+   "I": "+I25*3",
+   "J": "+J25*3",
+   "K": "+J29",
+   "source": "GTT KHUSUS!B29",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 30,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I30",
+   "I": "+I25*12",
+   "J": "+J25*12",
+   "K": "+J30",
+   "source": "GTT KHUSUS!B30",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 31,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I31",
+   "I": "+I25*6",
+   "J": "+J25*6",
+   "K": "+J31",
+   "source": "GTT KHUSUS!B31",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 32,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I32",
+   "I": "+I25*3",
+   "J": "+J25*3",
+   "K": "+J32",
+   "source": "GTT KHUSUS!B32",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 33,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I33",
+   "I": "+I25*3",
+   "J": "+J25*3",
+   "K": "+J33",
+   "source": "GTT KHUSUS!B33",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 34,
+   "khs_code": 98,
+   "description": "Cover Silicon Bushing Trafo",
+   "H": "+I34",
+   "I": "+I25*3",
+   "J": "+J25*3",
+   "K": "+J34",
+   "source": "GTT KHUSUS!B34",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 35,
+   "khs_code": 99,
+   "description": "Cover Silicon Fuse Cut Out (Atas)",
+   "H": "+I35",
+   "I": "+I33",
+   "J": "+J33",
+   "K": "+J35",
+   "source": "GTT KHUSUS!B35",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 36,
+   "khs_code": 100,
+   "description": "Cover Silicon Fuse Cut Out (Bawah)",
+   "H": "+I36",
+   "I": "+I33",
+   "J": "+J33",
+   "K": "+J36",
+   "source": "GTT KHUSUS!B36",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 37,
+   "khs_code": 101,
+   "description": "Cover Silicon Lightning Arrester",
+   "H": "+I37",
+   "I": "+I32",
+   "J": "+J32",
+   "K": "+J37",
+   "source": "GTT KHUSUS!B37",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 40,
+   "khs_code": 145,
+   "description": "Dudukan : Trafo Cantol, Pipa Kabel, PHB-TR & Dudukan Arrester",
+   "H": "+I40",
+   "K": "+J40",
+   "source": "GTT KHUSUS!B40",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 41,
+   "khs_code": 146,
+   "description": "Dudukan : Trafo Portal, Pipa Kabel, PHB-TR & Dudukan Arrester",
+   "H": "+I41",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J41",
+   "source": "GTT KHUSUS!B41",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 44,
+   "khs_code": null,
+   "description": "Konstruksi TM 1",
+   "H": "+I44",
+   "I": "+GAMBAR!AA26",
+   "J": "+GAMBAR!AB26",
+   "K": "+J44",
+   "source": "GTT KHUSUS!B44",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 45,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I45",
+   "I": "+I44",
+   "J": "+J44",
+   "K": "+J45",
+   "source": "GTT KHUSUS!B45",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 46,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I46",
+   "I": "+I45",
+   "J": "+J45",
+   "K": "+J46",
+   "source": "GTT KHUSUS!B46",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 47,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I47",
+   "I": "+I44*2",
+   "J": "+J44*2",
+   "K": "+J47",
+   "source": "GTT KHUSUS!B47",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 48,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I48",
+   "I": "+I44",
+   "J": "+J44",
+   "K": "+J48",
+   "source": "GTT KHUSUS!B48",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 49,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I49",
+   "I": "+I44*6",
+   "J": "+J44*6",
+   "K": "+J49",
+   "source": "GTT KHUSUS!B49",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 50,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I50",
+   "I": "+I44*3",
+   "J": "+J44*3",
+   "K": "+J50",
+   "source": "GTT KHUSUS!B50",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 51,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I51",
+   "I": "+I50",
+   "J": "+J50",
+   "K": "+J51",
+   "source": "GTT KHUSUS!B51",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 52,
+   "khs_code": 164,
+   "description": "Ground Wire Clamp Type A - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I52",
+   "I": "+I44",
+   "J": "+J44",
+   "K": "+J52",
+   "source": "GTT KHUSUS!B52",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 53,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I53",
+   "I": "+I52*2",
+   "J": "+J52*2",
+   "K": "+J53",
+   "source": "GTT KHUSUS!B53",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 55,
+   "khs_code": null,
+   "description": "Konstruksi TM 12",
+   "H": "+I55",
+   "I": "+GAMBAR!AA27",
+   "J": "+GAMBAR!AB27",
+   "K": "+J55",
+   "source": "GTT KHUSUS!B55",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 56,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I56",
+   "I": "+I55*3",
+   "J": "+J55*3",
+   "K": "+J56",
+   "source": "GTT KHUSUS!B56",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 57,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I57",
+   "I": "+I56",
+   "J": "+J56",
+   "K": "+J57",
+   "source": "GTT KHUSUS!B57",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 58,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I58",
+   "I": "+I55",
+   "J": "+J55",
+   "K": "+J58",
+   "source": "GTT KHUSUS!B58",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 59,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I59",
+   "I": "+I55*6",
+   "J": "+J55*6",
+   "K": "+J59",
+   "source": "GTT KHUSUS!B59",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 60,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I60",
+   "I": "+I55",
+   "J": "+J55",
+   "K": "+J60",
+   "source": "GTT KHUSUS!B60",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 61,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I61",
+   "I": "+I55*(6+12)",
+   "J": "+J55*(6+12)",
+   "K": "+J61",
+   "source": "GTT KHUSUS!B61",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 62,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I62",
+   "I": "+I55*6",
+   "J": "+J55*6",
+   "K": "+J62",
+   "source": "GTT KHUSUS!B62",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 63,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I63",
+   "I": "+I55*3",
+   "J": "+J55*3",
+   "K": "+J63",
+   "source": "GTT KHUSUS!B63",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 64,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I64",
+   "I": "+I62",
+   "J": "+J62",
+   "K": "+J64",
+   "source": "GTT KHUSUS!B64",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 65,
+   "khs_code": 164,
+   "description": "Ground Wire Clamp Type A - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I65",
+   "I": "+I55",
+   "J": "+J55",
+   "K": "+J65",
+   "source": "GTT KHUSUS!B65",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 66,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I66",
+   "I": "+I55",
+   "J": "+J55",
+   "K": "+J66",
+   "source": "GTT KHUSUS!B66",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 67,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I67",
+   "I": "+I65*2",
+   "J": "+J65*2",
+   "K": "+J67",
+   "source": "GTT KHUSUS!B67",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 68,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I68",
+   "I": "+I66",
+   "J": "+J66",
+   "K": "+J68",
+   "source": "GTT KHUSUS!B68",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 69,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I69",
+   "I": "+I68",
+   "J": "+J68",
+   "K": "+J69",
+   "source": "GTT KHUSUS!B69",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 71,
+   "khs_code": null,
+   "description": "Konstruksi TM 13",
+   "H": "+I71",
+   "I": "+GAMBAR!AA28",
+   "J": "+GAMBAR!AB28",
+   "K": "+J71",
+   "source": "GTT KHUSUS!B71",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 72,
+   "khs_code": 118,
+   "description": "Cross Arm UNP 100 - 2500 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I72",
+   "I": "+I71*2",
+   "J": "+J71*2",
+   "K": "+J72",
+   "source": "GTT KHUSUS!B72",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 73,
+   "khs_code": 126,
+   "description": "Cross Arm UNP 80 - 2500 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I73",
+   "I": "+I71",
+   "J": "+J71",
+   "K": "+J73",
+   "source": "GTT KHUSUS!B73",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 74,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I74",
+   "I": "+I71*2",
+   "J": "+J71*2",
+   "K": "+J74",
+   "source": "GTT KHUSUS!B74",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 75,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I75",
+   "I": "+I71*2",
+   "J": "+J71*2",
+   "K": "+J75",
+   "source": "GTT KHUSUS!B75",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 76,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I76",
+   "I": "+I71*2",
+   "J": "+J71*2",
+   "K": "+J76",
+   "source": "GTT KHUSUS!B76",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 77,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I77",
+   "I": "+I71*20",
+   "J": "+J71*20",
+   "K": "+J77",
+   "source": "GTT KHUSUS!B77",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 78,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I78",
+   "I": "+I71*3",
+   "J": "+J71*3",
+   "K": "+J78",
+   "source": "GTT KHUSUS!B78",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 79,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I79",
+   "I": "+I71",
+   "J": "+J71",
+   "K": "+J79",
+   "source": "GTT KHUSUS!B79",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 80,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I80",
+   "I": "+I79",
+   "J": "+J79",
+   "K": "+J80",
+   "source": "GTT KHUSUS!B80",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 81,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I81",
+   "I": "+I80",
+   "J": "+J80",
+   "K": "+J81",
+   "source": "GTT KHUSUS!B81",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 83,
+   "khs_code": null,
+   "description": "Konstruksi TM 14",
+   "H": "+I83",
+   "I": "+GAMBAR!AA29",
+   "J": "+GAMBAR!AB29",
+   "K": "+J83",
+   "source": "GTT KHUSUS!B83",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 84,
+   "khs_code": 118,
+   "description": "Cross Arm UNP 100 - 2500 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I84",
+   "I": "+I83",
+   "J": "+J83",
+   "K": "+J84",
+   "source": "GTT KHUSUS!B84",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 85,
+   "khs_code": 126,
+   "description": "Cross Arm UNP 80 - 2500 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I85",
+   "I": "+I83",
+   "J": "+J83",
+   "K": "+J85",
+   "source": "GTT KHUSUS!B85",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 86,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I86",
+   "I": "+I83*4",
+   "J": "+J83*4",
+   "K": "+J86",
+   "source": "GTT KHUSUS!B86",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 87,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I87",
+   "I": "+I83*8",
+   "J": "+J83*8",
+   "K": "+J87",
+   "source": "GTT KHUSUS!B87",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 88,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I88",
+   "I": "+I83*3",
+   "J": "+J83*3",
+   "K": "+J88",
+   "source": "GTT KHUSUS!B88",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 89,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I89",
+   "I": "+I88",
+   "J": "+J88",
+   "K": "+J89",
+   "source": "GTT KHUSUS!B89",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 90,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I90",
+   "I": "+I83",
+   "J": "+J83",
+   "K": "+J90",
+   "source": "GTT KHUSUS!B90",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 91,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I91",
+   "I": "+I90*2",
+   "J": "+J90*2",
+   "K": "+J91",
+   "source": "GTT KHUSUS!B91",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 92,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I92",
+   "I": "+I91",
+   "J": "+J91",
+   "K": "+J92",
+   "source": "GTT KHUSUS!B92",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 95,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire",
+   "H": "+I95",
+   "I": "+GAMBAR!AA36",
+   "J": "+GAMBAR!AB36",
+   "K": "+J95",
+   "source": "GTT KHUSUS!B95",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 96,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I96",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J96",
+   "source": "GTT KHUSUS!B96",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 97,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I97",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J97",
+   "source": "GTT KHUSUS!B97",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 98,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I98",
+   "I": "+I95*2",
+   "J": "+J95*2",
+   "K": "+J98",
+   "source": "GTT KHUSUS!B98",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 99,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I99",
+   "I": "+I95*2",
+   "J": "+J95*2",
+   "K": "+J99",
+   "source": "GTT KHUSUS!B99",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 100,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I100",
+   "I": "+I98*2+I99*2",
+   "J": "+J98*2+J99*2",
+   "K": "+J100",
+   "source": "GTT KHUSUS!B100",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 101,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I101",
+   "I": "+I95*4",
+   "J": "+J95*4",
+   "K": "+J101",
+   "source": "GTT KHUSUS!B101",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 102,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I102",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J102",
+   "source": "GTT KHUSUS!B102",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 103,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I103",
+   "I": "+I95*12",
+   "J": "+J95*12",
+   "K": "+J103",
+   "source": "GTT KHUSUS!B103",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 104,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I104",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J104",
+   "source": "GTT KHUSUS!B104",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 105,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I105",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J105",
+   "source": "GTT KHUSUS!B105",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 106,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I106",
+   "I": "+I95*2",
+   "J": "+J95*2",
+   "K": "+J106",
+   "source": "GTT KHUSUS!B106",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 107,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I107",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J107",
+   "source": "GTT KHUSUS!B107",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 108,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I108",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J108",
+   "source": "GTT KHUSUS!B108",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 109,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I109",
+   "I": "+I95",
+   "J": "+J95",
+   "K": "+J109",
+   "source": "GTT KHUSUS!B109",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 111,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire Bajong",
+   "H": "+I111",
+   "I": "+GAMBAR!AA38",
+   "J": "+GAMBAR!AB38",
+   "K": "+J111",
+   "source": "GTT KHUSUS!B111",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 112,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I112",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J112",
+   "source": "GTT KHUSUS!B112",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 113,
+   "khs_code": 424,
+   "description": "Single Guy Wire Band 9\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I113",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J113",
+   "source": "GTT KHUSUS!B113",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 114,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I114",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J114",
+   "source": "GTT KHUSUS!B114",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 115,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I115",
+   "I": "+I111*4",
+   "J": "+J111*4",
+   "K": "+J115",
+   "source": "GTT KHUSUS!B115",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 116,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I116",
+   "I": "+I111*2",
+   "J": "+J111*2",
+   "K": "+J116",
+   "source": "GTT KHUSUS!B116",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 117,
+   "khs_code": 52,
+   "description": "Bolt & Nut M.16 x 120 - HDG",
+   "H": "+I117",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J117",
+   "source": "GTT KHUSUS!B117",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 118,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I118",
+   "I": "+I115*2+I116*2+I117*2",
+   "J": "+J115*2+J116*2+J117*2",
+   "K": "+J118",
+   "source": "GTT KHUSUS!B118",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 119,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I119",
+   "I": "+I111*6",
+   "J": "+J111*6",
+   "K": "+J119",
+   "source": "GTT KHUSUS!B119",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 120,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I120",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J120",
+   "source": "GTT KHUSUS!B120",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 121,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I121",
+   "I": "+I111*12",
+   "J": "+J111*12",
+   "K": "+J121",
+   "source": "GTT KHUSUS!B121",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 122,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I122",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J122",
+   "source": "GTT KHUSUS!B122",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 123,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I123",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J123",
+   "source": "GTT KHUSUS!B123",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 124,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I124",
+   "I": "+I111*4",
+   "J": "+J111*4",
+   "K": "+J124",
+   "source": "GTT KHUSUS!B124",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 125,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I125",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J125",
+   "source": "GTT KHUSUS!B125",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 126,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I126",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J126",
+   "source": "GTT KHUSUS!B126",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 127,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I127",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J127",
+   "source": "GTT KHUSUS!B127",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 128,
+   "khs_code": 444,
+   "description": "Strut Tie 2000 - pipe 2\" - 2,0 meter, Tebal 2,0 mm - TM",
+   "H": "+I128",
+   "I": "+I111",
+   "J": "+J111",
+   "K": "+J128",
+   "source": "GTT KHUSUS!B128",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 130,
+   "khs_code": null,
+   "description": "Konstruksi Horizontal Guy Wire",
+   "H": "+I130",
+   "I": "+GAMBAR!AA37",
+   "J": "+GAMBAR!AB37",
+   "K": "+J130",
+   "source": "GTT KHUSUS!B130",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 131,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I131",
+   "I": "+I130*2",
+   "J": "+J130*2",
+   "K": "+J131",
+   "source": "GTT KHUSUS!B131",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 132,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I132",
+   "I": "+I130*2",
+   "J": "+J130*2",
+   "K": "+J132",
+   "source": "GTT KHUSUS!B132",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 133,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I133",
+   "I": "+I130*4",
+   "J": "+J130*4",
+   "K": "+J133",
+   "source": "GTT KHUSUS!B133",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 134,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I134",
+   "I": "+I130*4",
+   "J": "+J130*4",
+   "K": "+J134",
+   "source": "GTT KHUSUS!B134",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 135,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I135",
+   "I": "+I133*2+I134*2",
+   "J": "+J133*2+J134*2",
+   "K": "+J135",
+   "source": "GTT KHUSUS!B135",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 136,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I136",
+   "I": "+I130*6",
+   "J": "+J130*6",
+   "K": "+J136",
+   "source": "GTT KHUSUS!B136",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 137,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I137",
+   "I": "+I130",
+   "J": "+J130",
+   "K": "+J137",
+   "source": "GTT KHUSUS!B137",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 138,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I138",
+   "I": "+I130*30",
+   "J": "+J130*30",
+   "K": "+J138",
+   "source": "GTT KHUSUS!B138",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 139,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I139",
+   "I": "+I130",
+   "J": "+J130",
+   "K": "+J139",
+   "source": "GTT KHUSUS!B139",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 140,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I140",
+   "I": "+I130",
+   "J": "+J130",
+   "K": "+J140",
+   "source": "GTT KHUSUS!B140",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 141,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I141",
+   "I": "+I130*4",
+   "J": "+J130*4",
+   "K": "+J141",
+   "source": "GTT KHUSUS!B141",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 142,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I142",
+   "I": "+I130",
+   "J": "+J130",
+   "K": "+J142",
+   "source": "GTT KHUSUS!B142",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 143,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I143",
+   "I": "+I130",
+   "J": "+J130",
+   "K": "+J143",
+   "source": "GTT KHUSUS!B143",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 144,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I144",
+   "I": "+I130",
+   "J": "+J130",
+   "K": "+J144",
+   "source": "GTT KHUSUS!B144",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 146,
+   "khs_code": null,
+   "description": "Konstruksi Strut Pole",
+   "H": "+I146",
+   "I": "+GAMBAR!AA39",
+   "J": "+GAMBAR!AB39",
+   "K": "+J146",
+   "source": "GTT KHUSUS!B146",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 147,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I147",
+   "I": "+I146",
+   "J": "+J146",
+   "K": "+J147",
+   "source": "GTT KHUSUS!B147",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 148,
+   "khs_code": 441,
+   "description": "Strut Arm TM - (l=50mm, t=5mm, tgg=100mm) NP 10 - 30 cm",
+   "H": "+I148",
+   "I": "+I146",
+   "J": "+J146",
+   "K": "+J148",
+   "source": "GTT KHUSUS!B148",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 149,
+   "khs_code": 444,
+   "description": "Strut Tie 2000 - pipe 2\" - 2,0 meter, Tebal 2,0 mm - TM",
+   "H": "+I149",
+   "I": "+I146",
+   "J": "+J146",
+   "K": "+J149",
+   "source": "GTT KHUSUS!B149",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 150,
+   "khs_code": 426,
+   "description": "Single Guy Wire Band 10\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I150",
+   "I": "+I146*2",
+   "J": "+J146*2",
+   "K": "+J150",
+   "source": "GTT KHUSUS!B150",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 151,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I151",
+   "I": "+I146*2",
+   "J": "+J146*2",
+   "K": "+J151",
+   "source": "GTT KHUSUS!B151",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 152,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I152",
+   "I": "+I146*8",
+   "J": "+J146*8",
+   "K": "+J152",
+   "source": "GTT KHUSUS!B152",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 153,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I153",
+   "I": "+I146",
+   "J": "+J146",
+   "K": "+J153",
+   "source": "GTT KHUSUS!B153",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 154,
+   "khs_code": 52,
+   "description": "Bolt & Nut M.16 x 120 - HDG",
+   "H": "+I154",
+   "I": "+I146*2",
+   "J": "+J146*2",
+   "K": "+J154",
+   "source": "GTT KHUSUS!B154",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 155,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I155",
+   "I": "+I147*2+I152*2+I153*2+I154*2",
+   "J": "+J147*2+J152*2+J153*2+J154*2",
+   "K": "+J155",
+   "source": "GTT KHUSUS!B155",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 158,
+   "khs_code": null,
+   "description": "Grounding Arrester",
+   "H": "+I158",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J158",
+   "source": "GTT KHUSUS!B158",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 159,
+   "khs_code": 149,
+   "description": "Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron",
+   "H": "+I159",
+   "I": "+I158",
+   "J": "+J158",
+   "K": "+J159",
+   "source": "GTT KHUSUS!B159",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 160,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I160",
+   "I": "+I158*11",
+   "J": "+J158*11",
+   "K": "+J160",
+   "source": "GTT KHUSUS!B160",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 161,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I161",
+   "I": "+I158*2",
+   "J": "+J158*2",
+   "K": "+J161",
+   "source": "GTT KHUSUS!B161",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 162,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I162",
+   "I": "+I158*2",
+   "J": "+J158*2",
+   "K": "+J162",
+   "source": "GTT KHUSUS!B162",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 163,
+   "khs_code": 436,
+   "description": "Stainless Steel Strip non magnetic",
+   "H": "+I163",
+   "I": "+I158*4",
+   "J": "+J158*4",
+   "K": "+J163",
+   "source": "GTT KHUSUS!B163",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 164,
+   "khs_code": 437,
+   "description": "Stoping Buckle non magnetic",
+   "H": "+I164",
+   "I": "+I158*5",
+   "J": "+J158*5",
+   "K": "+J164",
+   "source": "GTT KHUSUS!B164",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 165,
+   "khs_code": 223,
+   "description": "Link - HDG",
+   "H": "+I165",
+   "I": "+I158*2",
+   "J": "+J158*2",
+   "K": "+J165",
+   "source": "GTT KHUSUS!B165",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 166,
+   "khs_code": 361,
+   "description": "Pipa Galvanized 3/4\" - 6 mtr (tebal= 1,6 mm)",
+   "H": "+I166",
+   "I": "+I158",
+   "J": "+J158",
+   "K": "+J166",
+   "source": "GTT KHUSUS!B166",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 168,
+   "khs_code": null,
+   "description": "Grounding Trafo (Netral + Body)",
+   "H": "+I168",
+   "I": "+I158",
+   "J": "+J158",
+   "K": "+J168",
+   "source": "GTT KHUSUS!B168",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 169,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I169",
+   "I": "+I168*3",
+   "J": "+J168*3",
+   "K": "+J169",
+   "source": "GTT KHUSUS!B169",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 170,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I170",
+   "I": "+I168*2",
+   "J": "+J168*4",
+   "K": "+J170",
+   "source": "GTT KHUSUS!B170",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 171,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I171",
+   "I": "+I168*4",
+   "J": "+J168*4",
+   "K": "+J171",
+   "source": "GTT KHUSUS!B171",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 173,
+   "khs_code": null,
+   "description": "Grounding Panel (Netral + Body)",
+   "H": "H158",
+   "I": "+I168",
+   "J": "+J168",
+   "K": "+J173",
+   "source": "GTT KHUSUS!B173",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 174,
+   "khs_code": 149,
+   "description": "Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron",
+   "H": "H159",
+   "I": "+I173*2",
+   "J": "+J173*2",
+   "K": "+J174",
+   "source": "GTT KHUSUS!B174",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 175,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "H160",
+   "I": "+I173*4",
+   "J": "+J173*4",
+   "K": "+J175",
+   "source": "GTT KHUSUS!B175",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 176,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "H161",
+   "I": "+I173*2",
+   "J": "+J173*2",
+   "K": "+J176",
+   "source": "GTT KHUSUS!B176",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 177,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "H162",
+   "I": "+I173*4",
+   "J": "+J173*4",
+   "K": "+J177",
+   "source": "GTT KHUSUS!B177",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 178,
+   "khs_code": 436,
+   "description": "Stainless Steel Strip non magnetic",
+   "H": "H163",
+   "I": "+I173*2",
+   "J": "+J173*2",
+   "K": "+J178",
+   "source": "GTT KHUSUS!B178",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 179,
+   "khs_code": 437,
+   "description": "Stoping Buckle non magnetic",
+   "H": "H164",
+   "I": "+I173*2",
+   "J": "+J173*2",
+   "K": "+J179",
+   "source": "GTT KHUSUS!B179",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 180,
+   "khs_code": 223,
+   "description": "Link - HDG",
+   "H": "H165",
+   "I": "+I173*2",
+   "J": "+J173*2",
+   "K": "+J180",
+   "source": "GTT KHUSUS!B180",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 181,
+   "khs_code": 336,
+   "description": "Pipa Galvanized 3/4\" - 1 mtr (tebal= 1,6 mm)",
+   "H": "H166",
+   "I": "+I173*2",
+   "J": "+J173*2",
+   "K": "+J181",
+   "source": "GTT KHUSUS!B181",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 184,
+   "khs_code": null,
+   "description": "LV Panel",
+   "H": "+I184",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J184",
+   "source": "GTT KHUSUS!B184",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 185,
+   "khs_code": 258,
+   "description": "NYY 1 x 150 sqmm - Input ( SPLN )",
+   "H": "+I185",
+   "I": "+I184*36",
+   "J": "+J184*36",
+   "K": "+J185",
+   "source": "GTT KHUSUS!B185",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 186,
+   "khs_code": 474,
+   "description": "Terminal Lug 150 mm - Cu 1 Hole",
+   "H": "+I186",
+   "I": "+I184*8",
+   "J": "+J184*8",
+   "K": "+J186",
+   "source": "GTT KHUSUS!B186",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 187,
+   "khs_code": 326,
+   "description": "Pipa Galvanized 3\" - 6 meter (tebal= 2,5 mm)",
+   "H": "+I187",
+   "I": "+I184",
+   "J": "+J184",
+   "K": "+J187",
+   "source": "GTT KHUSUS!B187",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 188,
+   "khs_code": 194,
+   "description": "L bouw 3 \" PVC",
+   "H": "+I188",
+   "I": "+I184*2",
+   "J": "+J184*2",
+   "K": "+J188",
+   "source": "GTT KHUSUS!B188",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 189,
+   "khs_code": 196,
+   "description": "L Bow 3\" besi + sock draad dalam",
+   "H": "+I189",
+   "I": "+I184*2",
+   "J": "+J184*2",
+   "K": "+J189",
+   "source": "GTT KHUSUS!B189",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 192,
+   "khs_code": 68,
+   "description": "Commisioning test GD",
+   "H": "+GAMBAR!AA24",
+   "source": "GTT KHUSUS!B192",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 195,
+   "khs_code": 391,
+   "description": "Safety Cost K3L",
+   "H": "+H192",
+   "source": "GTT KHUSUS!B195",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 198,
+   "khs_code": 500,
+   "description": "Trafo Distribusi 20 kV 3 PH 100 KVA Yzn5 ( D3 )",
+   "H": "SUMIF($B$9:$B$196,B198,$H$9:$H$196)",
+   "source": "GTT KHUSUS!B198",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 199,
+   "khs_code": 501,
+   "description": "Trafo Distribusi 20 kV 3 PH 160 KVA Yzn5 ( D3 )",
+   "H": "SUMIF($B$9:$B$196,B199,$H$9:$H$196)",
+   "source": "GTT KHUSUS!B199",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 200,
+   "khs_code": 502,
+   "description": "Trafo Distribusi 20 kV 3 PH 200 KVA Dyn5 ( D3 )",
+   "H": "SUMIF($B$9:$B$196,B200,$H$9:$H$196)",
+   "source": "GTT KHUSUS!B200",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 201,
+   "khs_code": 503,
+   "description": "Trafo Distribusi 20 kV 3 PH 250 KVA Dyn5 ( D3 )",
+   "H": "SUMIF($B$9:$B$196,B201,$H$9:$H$196)",
+   "source": "GTT KHUSUS!B201",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 202,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "SUMIF($B$9:$B$196,B202,$H$9:$H$196)",
+   "source": "GTT KHUSUS!B202",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 203,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "SUMIF($B$9:$B$196,B203,$H$9:$H$196)",
+   "source": "GTT KHUSUS!B203",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 204,
+   "khs_code": 258,
+   "description": "NYY 1 x 150 sqmm - Input ( SPLN )",
+   "H": "SUMIF($B$9:$B$196,B204,$H$9:$H$196)",
+   "source": "GTT KHUSUS!B204",
+   "expected": {
+    "H": 0
+   }
+  }
+ ],
+ "input_values": {
+  "AA25": 0,
+  "AB25": 0,
+  "AA26": 0,
+  "AB26": 0,
+  "AA27": 0,
+  "AB27": 0,
+  "AA28": 0,
+  "AB28": 0,
+  "AA29": 0,
+  "AB29": 0,
+  "AA30": 0,
+  "AB30": 0,
+  "AA31": 0,
+  "AB31": 0,
+  "AA32": 0,
+  "AB32": 0,
+  "AA33": 0,
+  "AB33": 0,
+  "AA34": 0,
+  "AB34": 0,
+  "AA35": 0,
+  "AB35": 0,
+  "AA36": 0,
+  "AB36": 0,
+  "AA37": 0,
+  "AB37": 0,
+  "AA38": 0,
+  "AB38": 0,
+  "AA39": 0,
+  "AB39": 0
+ },
+ "params": [
+  {
+   "cell": "AA24",
+   "name": "COMMISSIONING:GTT_KHUSUS",
+   "default": 0,
+   "description": "Volume Commisioning test GD (GAMBAR!AA24); diisi dari halaman gambar"
+  }
+ ],
+ "review": []
+}

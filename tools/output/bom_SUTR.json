@@ -1,0 +1,2338 @@
+{
+ "group": "SUTR",
+ "source": "MASTER RAB & KKF.xlsx / sheet SUTR",
+ "inputs": [
+  {
+   "cell": "X36",
+   "group": "SUTR",
+   "label": "SUTR (NFA2X-T;4X70)",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y36",
+   "group": "SUTR",
+   "label": "SUTR (NFA2X-T;4X70)",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X37",
+   "group": "SUTR",
+   "label": "Tibet 9 / 200",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y37",
+   "group": "SUTR",
+   "label": "Tibet 9 / 200",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X38",
+   "group": "SUTR",
+   "label": "TR 1",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y38",
+   "group": "SUTR",
+   "label": "TR 1",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X39",
+   "group": "SUTR",
+   "label": "TR 2",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y39",
+   "group": "SUTR",
+   "label": "TR 2",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X40",
+   "group": "SUTR",
+   "label": "TR 3",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y40",
+   "group": "SUTR",
+   "label": "TR 3",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X41",
+   "group": "SUTR",
+   "label": "TR 3A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y41",
+   "group": "SUTR",
+   "label": "TR 3A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X42",
+   "group": "SUTR",
+   "label": "TR 4",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y42",
+   "group": "SUTR",
+   "label": "TR 4",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X43",
+   "group": "SUTR",
+   "label": "TR 4A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y43",
+   "group": "SUTR",
+   "label": "TR 4A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X44",
+   "group": "SUTR",
+   "label": "TR 4B",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y44",
+   "group": "SUTR",
+   "label": "TR 4B",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X45",
+   "group": "SUTR",
+   "label": "TR 5",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y45",
+   "group": "SUTR",
+   "label": "TR 5",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X46",
+   "group": "SUTR",
+   "label": "TR 6",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y46",
+   "group": "SUTR",
+   "label": "TR 6",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X47",
+   "group": "SUTR",
+   "label": "TR 6A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y47",
+   "group": "SUTR",
+   "label": "TR 6A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X48",
+   "group": "SUTR",
+   "label": "TR 7",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y48",
+   "group": "SUTR",
+   "label": "TR 7",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X49",
+   "group": "SUTR",
+   "label": "GW TR",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y49",
+   "group": "SUTR",
+   "label": "GW TR",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X50",
+   "group": "SUTR",
+   "label": "HGW TR",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y50",
+   "group": "SUTR",
+   "label": "HGW TR",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X51",
+   "group": "SUTR",
+   "label": "GW Baj. TR",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y51",
+   "group": "SUTR",
+   "label": "GW Baj. TR",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X52",
+   "group": "SUTR",
+   "label": "SP TR",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y52",
+   "group": "SUTR",
+   "label": "SP TR",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X53",
+   "group": "SUTR",
+   "label": "Pnd Tipe A TR",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y53",
+   "group": "SUTR",
+   "label": "Pnd Tipe A TR",
+   "kind": "BKR"
+  }
+ ],
+ "lines": [
+  {
+   "sequence": 11,
+   "khs_code": null,
+   "description": "Panjang SUTR",
+   "H": "+I11",
+   "I": "+GAMBAR!X36",
+   "J": "+GAMBAR!Y36",
+   "K": "+J11",
+   "source": "SUTR!B11",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 12,
+   "khs_code": 253,
+   "description": "NFA2X-T;3x70 + 1x70 mm2",
+   "H": "+I12",
+   "I": "TRUNC((I11*1.01)/1)*1",
+   "J": "TRUNC((J11*1.01)/1)*1",
+   "K": "+J12",
+   "source": "SUTR!B12",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 13,
+   "khs_code": 74,
+   "description": "Compresion Joint Sleeve 70 mm - Al",
+   "H": "+I13",
+   "I": "TRUNC((I12/1000)/1)*1",
+   "J": "TRUNC((J12/1000)/1)*1",
+   "K": "+J13",
+   "source": "SUTR!B13",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 16,
+   "khs_code": 495,
+   "description": "Tiang Beton 9m - 200 daN",
+   "H": "+I16",
+   "I": "+GAMBAR!X37+I136+I152",
+   "J": "+GAMBAR!Y37+J136+J152",
+   "K": "+J16",
+   "source": "SUTR!B16",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 17,
+   "khs_code": 378,
+   "description": "Pondasi type A ( 1 tiang ) (91/U/2009)",
+   "H": "+I17",
+   "I": "+GAMBAR!X53",
+   "J": "+GAMBAR!Y53",
+   "K": "+J17",
+   "source": "SUTR!B17",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 20,
+   "khs_code": null,
+   "description": "Grounding Dalam",
+   "H": "+I20",
+   "K": "+J20",
+   "source": "SUTR!B20",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 21,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I21",
+   "I": "+I20*1",
+   "J": "+J20*1",
+   "K": "+J21",
+   "source": "SUTR!B21",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 22,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I22",
+   "I": "+I20",
+   "J": "+J20",
+   "K": "+J22",
+   "source": "SUTR!B22",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 23,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I23",
+   "I": "+I20",
+   "J": "+J20",
+   "K": "+J23",
+   "source": "SUTR!B23",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 24,
+   "khs_code": 73,
+   "description": "Compresion Joint Bimetal 70/70 mm - Al/Cu",
+   "H": "+I24",
+   "I": "+I20",
+   "J": "+J20",
+   "K": "+J24",
+   "source": "SUTR!B24",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 26,
+   "khs_code": null,
+   "description": "Grounding Luar",
+   "H": "+I26",
+   "I": "+I48",
+   "J": "+J48",
+   "K": "+J26",
+   "source": "SUTR!B26",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 27,
+   "khs_code": 148,
+   "description": "Earthing Rod 16 mm - 1,5 m+clamp - TR- besi As, Electroplatting tembaga 35 micron",
+   "H": "+I27",
+   "I": "+I26",
+   "J": "+J26",
+   "K": "+J27",
+   "source": "SUTR!B27",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 28,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I28",
+   "I": "+I26*8",
+   "J": "+J26*8",
+   "K": "+J28",
+   "source": "SUTR!B28",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 29,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I29",
+   "I": "+I26",
+   "J": "+J26",
+   "K": "+J29",
+   "source": "SUTR!B29",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 30,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I30",
+   "I": "+I26",
+   "J": "+J26",
+   "K": "+J30",
+   "source": "SUTR!B30",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 31,
+   "khs_code": 73,
+   "description": "Compresion Joint Bimetal 70/70 mm - Al/Cu",
+   "H": "+I31",
+   "I": "+I26",
+   "J": "+J26",
+   "K": "+J31",
+   "source": "SUTR!B31",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 32,
+   "khs_code": 436,
+   "description": "Stainless Steel Strip non magnetic",
+   "H": "+I32",
+   "I": "+I26*3",
+   "J": "+J26*3",
+   "K": "+J32",
+   "source": "SUTR!B32",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 33,
+   "khs_code": 437,
+   "description": "Stoping Buckle non magnetic",
+   "H": "+I33",
+   "I": "+I26*4",
+   "J": "+J26*4",
+   "K": "+J33",
+   "source": "SUTR!B33",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 34,
+   "khs_code": 223,
+   "description": "Link - HDG",
+   "H": "+I34",
+   "I": "+I26*2",
+   "J": "+J26*2",
+   "K": "+J34",
+   "source": "SUTR!B34",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 35,
+   "khs_code": 340,
+   "description": "Pipa Galvanized 3/4\" - 4 mtr (tebal= 1,6 mm)",
+   "H": "+I35",
+   "I": "+I26",
+   "J": "+J26",
+   "K": "+J35",
+   "source": "SUTR!B35",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 38,
+   "khs_code": null,
+   "description": "Konstruksi TR 1",
+   "H": "+I38",
+   "I": "+GAMBAR!X38",
+   "J": "+GAMBAR!Y38",
+   "K": "+J38",
+   "source": "SUTR!B38",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 39,
+   "khs_code": 428,
+   "description": "Small Angle Assembly ( SAA ) + komplit",
+   "H": "+I39",
+   "I": "+I38",
+   "J": "+J38",
+   "K": "+J39",
+   "source": "SUTR!B39",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 40,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I40",
+   "I": "+I38*2",
+   "J": "+J38*2",
+   "K": "+J40",
+   "source": "SUTR!B40",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 41,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I41",
+   "I": "+I38*4",
+   "J": "+J38*4",
+   "K": "+J41",
+   "source": "SUTR!B41",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 43,
+   "khs_code": null,
+   "description": "Konstruksi TR 2",
+   "H": "+I43",
+   "I": "+GAMBAR!X39",
+   "J": "+GAMBAR!Y39",
+   "K": "+J43",
+   "source": "SUTR!B43",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 44,
+   "khs_code": 201,
+   "description": "Large Angle Assembly ( LAA ) + komplit",
+   "H": "+I44",
+   "I": "+I43",
+   "J": "+J43",
+   "K": "+J44",
+   "source": "SUTR!B44",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 45,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I45",
+   "I": "+I43*2",
+   "J": "+J43*2",
+   "K": "+J45",
+   "source": "SUTR!B45",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 46,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I46",
+   "I": "+I43*4",
+   "J": "+J43*4",
+   "K": "+J46",
+   "source": "SUTR!B46",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 48,
+   "khs_code": null,
+   "description": "Konstruksi TR 3",
+   "H": "+I48",
+   "I": "+GAMBAR!X40",
+   "J": "+GAMBAR!Y40",
+   "K": "+J48",
+   "source": "SUTR!B48",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 49,
+   "khs_code": 131,
+   "description": "Dead End Assembly ( DEA ) - komplit",
+   "H": "+I49",
+   "I": "+I48",
+   "J": "+J48",
+   "K": "+J49",
+   "source": "SUTR!B49",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 50,
+   "khs_code": 63,
+   "description": "Bundled End Assembly ( BEA ) - komplit",
+   "H": "+I50",
+   "I": "+I48",
+   "J": "+J48",
+   "K": "+J50",
+   "source": "SUTR!B50",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 51,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I51",
+   "I": "+I48*2",
+   "J": "+J48*2",
+   "K": "+J51",
+   "source": "SUTR!B51",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 52,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I52",
+   "I": "+I48*4",
+   "J": "+J48*4",
+   "K": "+J52",
+   "source": "SUTR!B52",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 54,
+   "khs_code": null,
+   "description": "Konstruksi TR 3A",
+   "H": "+I54",
+   "I": "+GAMBAR!X41",
+   "J": "+GAMBAR!Y41",
+   "K": "+J54",
+   "source": "SUTR!B54",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 55,
+   "khs_code": 131,
+   "description": "Dead End Assembly ( DEA ) - komplit",
+   "H": "+I55",
+   "I": "+I54",
+   "J": "+J54",
+   "K": "+J55",
+   "source": "SUTR!B55",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 56,
+   "khs_code": 73,
+   "description": "Compresion Joint Bimetal 70/70 mm - Al/Cu",
+   "H": "+I56",
+   "I": "+I54*4",
+   "J": "+J54*4",
+   "K": "+J56",
+   "source": "SUTR!B56",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 57,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I57",
+   "I": "+I54*2",
+   "J": "+J54*2",
+   "K": "+J57",
+   "source": "SUTR!B57",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 58,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I58",
+   "I": "+I54*4",
+   "J": "+J54*4",
+   "K": "+J58",
+   "source": "SUTR!B58",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 60,
+   "khs_code": null,
+   "description": "Konstruksi TR 4",
+   "H": "+I60",
+   "I": "+GAMBAR!X42",
+   "J": "+GAMBAR!Y42",
+   "K": "+J60",
+   "source": "SUTR!B60",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 61,
+   "khs_code": 428,
+   "description": "Small Angle Assembly ( SAA ) + komplit",
+   "H": "+I61",
+   "I": "+I60*2",
+   "J": "+J60*2",
+   "K": "+J61",
+   "source": "SUTR!B61",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 62,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I62",
+   "I": "+I60*2",
+   "J": "+J60*2",
+   "K": "+J62",
+   "source": "SUTR!B62",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 63,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I63",
+   "I": "+I60*4",
+   "J": "+J60*4",
+   "K": "+J63",
+   "source": "SUTR!B63",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 64,
+   "khs_code": 92,
+   "description": "Connector Type G - 70 mm",
+   "H": "+I64",
+   "I": "+I60*4",
+   "J": "+J60*4",
+   "K": "+J64",
+   "source": "SUTR!B64",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 66,
+   "khs_code": null,
+   "description": "Konstruksi TR 4A",
+   "H": "+I66",
+   "I": "+GAMBAR!X43",
+   "J": "+GAMBAR!Y43",
+   "K": "+J66",
+   "source": "SUTR!B66",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 67,
+   "khs_code": 428,
+   "description": "Small Angle Assembly ( SAA ) + komplit",
+   "H": "+I67",
+   "I": "+I66",
+   "J": "+J66",
+   "K": "+J67",
+   "source": "SUTR!B67",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 68,
+   "khs_code": 201,
+   "description": "Large Angle Assembly ( LAA ) + komplit",
+   "H": "+I68",
+   "I": "+I66",
+   "J": "+J66",
+   "K": "+J68",
+   "source": "SUTR!B68",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 69,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I69",
+   "I": "+I66*2",
+   "J": "+J66*2",
+   "K": "+J69",
+   "source": "SUTR!B69",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 70,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I70",
+   "I": "+I66*4",
+   "J": "+J66*4",
+   "K": "+J70",
+   "source": "SUTR!B70",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 71,
+   "khs_code": 92,
+   "description": "Connector Type G - 70 mm",
+   "H": "+I71",
+   "I": "+I66*4",
+   "J": "+J66*4",
+   "K": "+J71",
+   "source": "SUTR!B71",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 73,
+   "khs_code": null,
+   "description": "Konstruksi TR 4B",
+   "H": "+I73",
+   "I": "+GAMBAR!X44",
+   "J": "+GAMBAR!Y44",
+   "K": "+J73",
+   "source": "SUTR!B73",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 74,
+   "khs_code": 201,
+   "description": "Large Angle Assembly ( LAA ) + komplit",
+   "H": "+I74",
+   "I": "+I73*2",
+   "J": "+J73*2",
+   "K": "+J74",
+   "source": "SUTR!B74",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 75,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I75",
+   "I": "+I73*2",
+   "J": "+J73*2",
+   "K": "+J75",
+   "source": "SUTR!B75",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 76,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I76",
+   "I": "+I73*4",
+   "J": "+J73*4",
+   "K": "+J76",
+   "source": "SUTR!B76",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 77,
+   "khs_code": 92,
+   "description": "Connector Type G - 70 mm",
+   "H": "+I77",
+   "I": "+I73*4",
+   "J": "+J73*4",
+   "K": "+J77",
+   "source": "SUTR!B77",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 79,
+   "khs_code": null,
+   "description": "Konstruksi TR 5",
+   "H": "+I79",
+   "I": "+GAMBAR!X45",
+   "J": "+GAMBAR!Y45",
+   "K": "+J79",
+   "source": "SUTR!B79",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 80,
+   "khs_code": 131,
+   "description": "Dead End Assembly ( DEA ) - komplit",
+   "H": "+I80",
+   "I": "+I79*2",
+   "J": "+J79*2",
+   "K": "+J80",
+   "source": "SUTR!B80",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 81,
+   "khs_code": 449,
+   "description": "TC 35 mm - 50 cm untuk kumisan",
+   "H": "+I81",
+   "I": "+I79*2",
+   "J": "+J79*2",
+   "K": "+J81",
+   "source": "SUTR!B81",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 82,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I82",
+   "I": "+I79*4",
+   "J": "+J79*4",
+   "K": "+J82",
+   "source": "SUTR!B82",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 84,
+   "khs_code": null,
+   "description": "Konstruksi TR 6",
+   "H": "+I84",
+   "I": "+GAMBAR!X46",
+   "J": "+GAMBAR!Y46",
+   "K": "+J84",
+   "source": "SUTR!B84",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 85,
+   "khs_code": 428,
+   "description": "Small Angle Assembly ( SAA ) + komplit",
+   "H": "+I85",
+   "I": "+I84",
+   "J": "+J84",
+   "K": "+J85",
+   "source": "SUTR!B85",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 86,
+   "khs_code": 131,
+   "description": "Dead End Assembly ( DEA ) - komplit",
+   "H": "+I86",
+   "I": "+I84",
+   "J": "+J84",
+   "K": "+J86",
+   "source": "SUTR!B86",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 87,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I87",
+   "I": "+I84*4",
+   "J": "+J84*4",
+   "K": "+J87",
+   "source": "SUTR!B87",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 88,
+   "khs_code": 92,
+   "description": "Connector Type G - 70 mm",
+   "H": "+I88",
+   "I": "+I84*4",
+   "J": "+J84*4",
+   "K": "+J88",
+   "source": "SUTR!B88",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 90,
+   "khs_code": null,
+   "description": "Konstruksi TR 6A",
+   "H": "+I90",
+   "I": "+GAMBAR!X47",
+   "J": "+GAMBAR!Y47",
+   "K": "+J90",
+   "source": "SUTR!B90",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 91,
+   "khs_code": 201,
+   "description": "Large Angle Assembly ( LAA ) + komplit",
+   "H": "+I91",
+   "I": "+I90",
+   "J": "+J90",
+   "K": "+J91",
+   "source": "SUTR!B91",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 92,
+   "khs_code": 131,
+   "description": "Dead End Assembly ( DEA ) - komplit",
+   "H": "+I92",
+   "I": "+I90",
+   "J": "+J90",
+   "K": "+J92",
+   "source": "SUTR!B92",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 93,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I93",
+   "I": "+I90*4",
+   "J": "+J90*4",
+   "K": "+J93",
+   "source": "SUTR!B93",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 94,
+   "khs_code": 92,
+   "description": "Connector Type G - 70 mm",
+   "H": "+I94",
+   "I": "+I90*4",
+   "J": "+J90*4",
+   "K": "+J94",
+   "source": "SUTR!B94",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 96,
+   "khs_code": null,
+   "description": "Konstruksi TR 7",
+   "H": "+I96",
+   "I": "+GAMBAR!X48",
+   "J": "+GAMBAR!Y48",
+   "K": "+J96",
+   "source": "SUTR!B96",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 97,
+   "khs_code": 131,
+   "description": "Dead End Assembly ( DEA ) - komplit",
+   "H": "+I97",
+   "I": "+I96",
+   "J": "+J96",
+   "K": "+J97",
+   "source": "SUTR!B97",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 98,
+   "khs_code": 89,
+   "description": "Connector press AL/AL type 70-35mm2 & Cover+tanda phasa",
+   "H": "+I98",
+   "I": "+I96*4",
+   "J": "+J96*4",
+   "K": "+J98",
+   "source": "SUTR!B98",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 99,
+   "khs_code": 92,
+   "description": "Connector Type G - 70 mm",
+   "H": "+I99",
+   "I": "+I96*4",
+   "J": "+J96*4",
+   "K": "+J99",
+   "source": "SUTR!B99",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 102,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire",
+   "H": "+I102",
+   "I": "+GAMBAR!X49",
+   "J": "+GAMBAR!Y49",
+   "K": "+J102",
+   "source": "SUTR!B102",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 103,
+   "khs_code": 421,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I103",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J103",
+   "source": "SUTR!B103",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 104,
+   "khs_code": 506,
+   "description": "Turn Buckle TR 5/8\" (4000 kg) - TR - (l=33mm, t=6mm)",
+   "H": "+I104",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J104",
+   "source": "SUTR!B104",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 105,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I105",
+   "I": "+I102*4",
+   "J": "+J102*4",
+   "K": "+J105",
+   "source": "SUTR!B105",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 106,
+   "khs_code": 167,
+   "description": "Guy Insulator LV (TR) - belimbing",
+   "H": "+I106",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J106",
+   "source": "SUTR!B106",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 107,
+   "khs_code": 160,
+   "description": "Galvanized Steel Wire 35 mm - HDG",
+   "H": "+I107",
+   "I": "+I102*9",
+   "J": "+J102*9",
+   "K": "+J107",
+   "source": "SUTR!B107",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 108,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I108",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J108",
+   "source": "SUTR!B108",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 109,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I109",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J109",
+   "source": "SUTR!B109",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 110,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I110",
+   "I": "+I102*2",
+   "J": "+J102*2",
+   "K": "+J110",
+   "source": "SUTR!B110",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 111,
+   "khs_code": 169,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 1.800 mm - TR",
+   "H": "+I111",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J111",
+   "source": "SUTR!B111",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 112,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I112",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J112",
+   "source": "SUTR!B112",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 113,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I113",
+   "I": "+I102",
+   "J": "+J102",
+   "K": "+J113",
+   "source": "SUTR!B113",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 114,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I114",
+   "I": "+I103*2",
+   "J": "+J103*2",
+   "K": "+J114",
+   "source": "SUTR!B114",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 115,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I115",
+   "I": "+I104*2",
+   "J": "+J104*2",
+   "K": "+J115",
+   "source": "SUTR!B115",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 116,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I116",
+   "I": "+I114*2+I115*2",
+   "J": "+J114*2+J115*2",
+   "K": "+J116",
+   "source": "SUTR!B116",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 118,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire Bajong",
+   "H": "+I118",
+   "I": "+GAMBAR!X51",
+   "J": "+GAMBAR!Y51",
+   "K": "+J118",
+   "source": "SUTR!B118",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 119,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I119",
+   "I": "+I118*2",
+   "J": "+J118*2",
+   "K": "+J119",
+   "source": "SUTR!B119",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 120,
+   "khs_code": 506,
+   "description": "Turn Buckle TR 5/8\" (4000 kg) - TR - (l=33mm, t=6mm)",
+   "H": "+I120",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J120",
+   "source": "SUTR!B120",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 121,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I121",
+   "I": "+I118*6",
+   "J": "+J118*6",
+   "K": "+J121",
+   "source": "SUTR!B121",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 122,
+   "khs_code": 167,
+   "description": "Guy Insulator LV (TR) - belimbing",
+   "H": "+I122",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J122",
+   "source": "SUTR!B122",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 123,
+   "khs_code": 160,
+   "description": "Galvanized Steel Wire 35 mm - HDG",
+   "H": "+I123",
+   "I": "+I118*9",
+   "J": "+J118*9",
+   "K": "+J123",
+   "source": "SUTR!B123",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 124,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I124",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J124",
+   "source": "SUTR!B124",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 125,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I125",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J125",
+   "source": "SUTR!B125",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 126,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I126",
+   "I": "+I118*4",
+   "J": "+J118*4",
+   "K": "+J126",
+   "source": "SUTR!B126",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 127,
+   "khs_code": 169,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 1.800 mm - TR",
+   "H": "+I127",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J127",
+   "source": "SUTR!B127",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 128,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I128",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J128",
+   "source": "SUTR!B128",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 129,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I129",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J129",
+   "source": "SUTR!B129",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 130,
+   "khs_code": 443,
+   "description": "Strut Tie 2000 - pipe 2\" - 1,5 meter, Tebal 2,0 mm - TR",
+   "H": "+I130",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J130",
+   "source": "SUTR!B130",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 131,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I131",
+   "I": "+I118*4",
+   "J": "+J118*4",
+   "K": "+J131",
+   "source": "SUTR!B131",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 132,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I132",
+   "I": "+I118*2",
+   "J": "+J118*2",
+   "K": "+J132",
+   "source": "SUTR!B132",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 133,
+   "khs_code": 52,
+   "description": "Bolt & Nut M.16 x 120 - HDG",
+   "H": "+I133",
+   "I": "+I118",
+   "J": "+J118",
+   "K": "+J133",
+   "source": "SUTR!B133",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 134,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I134",
+   "I": "+I131*2+I132*2+I133*2",
+   "J": "+J131*2+J132*2+J133*2",
+   "K": "+J134",
+   "source": "SUTR!B134",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 136,
+   "khs_code": null,
+   "description": "Konstruksi Horizontal Guy Wire",
+   "H": "+I136",
+   "I": "+GAMBAR!X50",
+   "J": "+GAMBAR!Y50",
+   "K": "+J136",
+   "source": "SUTR!B136",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 137,
+   "khs_code": 421,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I137",
+   "I": "+I136*2",
+   "J": "+J136*2",
+   "K": "+J137",
+   "source": "SUTR!B137",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 138,
+   "khs_code": 506,
+   "description": "Turn Buckle TR 5/8\" (4000 kg) - TR - (l=33mm, t=6mm)",
+   "H": "+I138",
+   "I": "+I136*2",
+   "J": "+J136*2",
+   "K": "+J138",
+   "source": "SUTR!B138",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 139,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I139",
+   "I": "+I136*6",
+   "J": "+J136*6",
+   "K": "+J139",
+   "source": "SUTR!B139",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 140,
+   "khs_code": 167,
+   "description": "Guy Insulator LV (TR) - belimbing",
+   "H": "+I140",
+   "I": "+I136",
+   "J": "+J136",
+   "K": "+J140",
+   "source": "SUTR!B140",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 141,
+   "khs_code": 160,
+   "description": "Galvanized Steel Wire 35 mm - HDG",
+   "H": "+I141",
+   "I": "+I136*28",
+   "J": "+J136*28",
+   "K": "+J141",
+   "source": "SUTR!B141",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 142,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I142",
+   "I": "+I136",
+   "J": "+J136",
+   "K": "+J142",
+   "source": "SUTR!B142",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 143,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I143",
+   "I": "+I136",
+   "J": "+J136",
+   "K": "+J143",
+   "source": "SUTR!B143",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 144,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I144",
+   "I": "+I136*4",
+   "J": "+J136*4",
+   "K": "+J144",
+   "source": "SUTR!B144",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 145,
+   "khs_code": 169,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 1.800 mm - TR",
+   "H": "+I145",
+   "I": "+I136",
+   "J": "+J136",
+   "K": "+J145",
+   "source": "SUTR!B145",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 146,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I146",
+   "I": "+I136",
+   "J": "+J136",
+   "K": "+J146",
+   "source": "SUTR!B146",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 147,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I147",
+   "I": "+I136",
+   "J": "+J136",
+   "K": "+J147",
+   "source": "SUTR!B147",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 148,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I148",
+   "I": "+I136*4",
+   "J": "+J136*4",
+   "K": "+J148",
+   "source": "SUTR!B148",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 149,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I149",
+   "I": "+I136*4",
+   "J": "+J136*4",
+   "K": "+J149",
+   "source": "SUTR!B149",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 150,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I150",
+   "I": "+I148*2+I149*2",
+   "J": "+J148*2+J149*2",
+   "K": "+J150",
+   "source": "SUTR!B150",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 152,
+   "khs_code": null,
+   "description": "Konstruksi Strut Pole",
+   "H": "+I152",
+   "I": "+GAMBAR!X52",
+   "J": "+GAMBAR!Y52",
+   "K": "+J152",
+   "source": "SUTR!B152",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 153,
+   "khs_code": 405,
+   "description": "Single Arm Band 8\" (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I153",
+   "I": "+I152*2",
+   "J": "+J152*2",
+   "K": "+J153",
+   "source": "SUTR!B153",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 154,
+   "khs_code": 442,
+   "description": "Strut Arm TR - (l=50mm, t=5mm, tgg=100mm) NP 10 - 25 cm",
+   "H": "+I154",
+   "I": "+I152",
+   "J": "+J152",
+   "K": "+J154",
+   "source": "SUTR!B154",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 155,
+   "khs_code": 443,
+   "description": "Strut Tie 2000 - pipe 2\" - 1,5 meter, Tebal 2,0 mm - TR",
+   "H": "+I155",
+   "I": "+I152",
+   "J": "+J152",
+   "K": "+J155",
+   "source": "SUTR!B155",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 156,
+   "khs_code": 423,
+   "description": "Single Guy Wire Band 9\" - (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I156",
+   "I": "+I152*2",
+   "J": "+J152*2",
+   "K": "+J156",
+   "source": "SUTR!B156",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 157,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I157",
+   "I": "+I152*8",
+   "J": "+J152*8",
+   "K": "+J157",
+   "source": "SUTR!B157",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 158,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I158",
+   "I": "+I152",
+   "J": "+J152",
+   "K": "+J158",
+   "source": "SUTR!B158",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 159,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I159",
+   "I": "+I152*2",
+   "J": "+J152*2",
+   "K": "+J159",
+   "source": "SUTR!B159",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 160,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I160",
+   "I": "+I153*2+I157*2+I158*2+I159*2",
+   "J": "+J153*2+J157*2+J158*2+J159*2",
+   "K": "+J160",
+   "source": "SUTR!B160",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 163,
+   "khs_code": 71,
+   "description": "Commisioning test JTR",
+   "H": "+H96+(IF(H54=1,1,ROUND(H54/2,0)))",
+   "source": "SUTR!B163",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 166,
+   "khs_code": 391,
+   "description": "Safety Cost K3L",
+   "H": "+H163",
+   "source": "SUTR!B166",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 169,
+   "khs_code": 253,
+   "description": "NFA2X-T;3x70 + 1x70 mm2",
+   "H": "SUMIF($B$9:$B$113,B169,$H$9:$H$113)",
+   "source": "SUTR!B169",
+   "expected": {
+    "H": 0
+   }
+  }
+ ],
+ "input_values": {
+  "X36": 0,
+  "Y36": 0,
+  "X37": 0,
+  "Y37": 0,
+  "X38": 0,
+  "Y38": 0,
+  "X39": 0,
+  "Y39": 0,
+  "X40": 0,
+  "Y40": 0,
+  "X41": 0,
+  "Y41": 0,
+  "X42": 0,
+  "Y42": 0,
+  "X43": 0,
+  "Y43": 0,
+  "X44": 0,
+  "Y44": 0,
+  "X45": 0,
+  "Y45": 0,
+  "X46": 0,
+  "Y46": 0,
+  "X47": 0,
+  "Y47": 0,
+  "X48": 0,
+  "Y48": 0,
+  "X49": 0,
+  "Y49": 0,
+  "X50": 0,
+  "Y50": 0,
+  "X51": 0,
+  "Y51": 0,
+  "X52": 0,
+  "Y52": 0,
+  "X53": 0,
+  "Y53": 0
+ },
+ "params": [],
+ "review": []
+}

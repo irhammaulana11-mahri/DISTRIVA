@@ -1,0 +1,401 @@
+{
+ "group": "KUBIKEL",
+ "source": "MASTER RAB & KKF.xlsx / sheet KUBIKEL",
+ "inputs": [
+  {
+   "cell": "X55",
+   "group": "KUBIKEL",
+   "label": "Kubikel 1 Inc",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y55",
+   "group": "KUBIKEL",
+   "label": "Kubikel 1 Inc",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X56",
+   "group": "KUBIKEL",
+   "label": "Kubikel 2 Inc",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y56",
+   "group": "KUBIKEL",
+   "label": "Kubikel 2 Inc",
+   "kind": "BKR"
+  }
+ ],
+ "lines": [
+  {
+   "sequence": 10,
+   "khs_code": null,
+   "description": "Grounding Kubikel",
+   "H": "H16+H21",
+   "I": "I16+I21",
+   "J": "J16+J21",
+   "source": "KUBIKEL!B10",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0
+   }
+  },
+  {
+   "sequence": 11,
+   "khs_code": 149,
+   "description": "Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron",
+   "H": "1*H10",
+   "I": "1*I10",
+   "J": "1*J10",
+   "source": "KUBIKEL!B11",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0
+   }
+  },
+  {
+   "sequence": 12,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "10*H10",
+   "I": "10*I10",
+   "J": "10*J10",
+   "source": "KUBIKEL!B12",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0
+   }
+  },
+  {
+   "sequence": 13,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "4*H10",
+   "I": "4*I10",
+   "J": "4*J10",
+   "source": "KUBIKEL!B13",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0
+   }
+  },
+  {
+   "sequence": 14,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "3*H10",
+   "I": "3*I10",
+   "J": "3*J10",
+   "source": "KUBIKEL!B14",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0
+   }
+  },
+  {
+   "sequence": 16,
+   "khs_code": null,
+   "description": "Kubikel & Accessories",
+   "H": "+I16",
+   "I": "+I17+I18",
+   "J": "+J17+J18",
+   "K": "+J16",
+   "source": "KUBIKEL!B16",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 17,
+   "khs_code": 187,
+   "description": "Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A ) maks digunakan s/d Daya 20 MVA",
+   "H": "H16",
+   "I": "+GAMBAR!X55",
+   "J": "+GAMBAR!Y55",
+   "K": "+J17",
+   "source": "KUBIKEL!B17",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 18,
+   "khs_code": 189,
+   "description": "Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A) maks digunakan s/d Daya 20 MVA",
+   "H": "H17",
+   "I": "+GAMBAR!X56",
+   "J": "+GAMBAR!Y56",
+   "K": "+J18",
+   "source": "KUBIKEL!B18",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 19,
+   "khs_code": 7,
+   "description": "ACO TM",
+   "H": "H18",
+   "K": "+J19",
+   "source": "KUBIKEL!B19",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 20,
+   "khs_code": 129,
+   "description": "Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10",
+   "H": "H18",
+   "K": "+J20",
+   "source": "KUBIKEL!B20",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 21,
+   "khs_code": 485,
+   "description": "Termination ID 3 X 150 MM2 u/XLPE",
+   "H": "H20",
+   "K": "+J21",
+   "source": "KUBIKEL!B21",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 22,
+   "khs_code": 368,
+   "description": "Plat Cooper 4 x 40 mm",
+   "H": "H21",
+   "I": "+I16*17",
+   "J": "+J16*17",
+   "K": "+J22",
+   "source": "KUBIKEL!B22",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 23,
+   "khs_code": 162,
+   "description": "Gembok Electronic",
+   "H": "H22",
+   "I": "+I16",
+   "J": "+J16",
+   "K": "+J23",
+   "source": "KUBIKEL!B23",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 25,
+   "khs_code": null,
+   "description": "APP & Accessories",
+   "H": "+H16",
+   "I": "+I16",
+   "J": "+J16",
+   "K": "+K16",
+   "source": "KUBIKEL!B25",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 26,
+   "khs_code": 265,
+   "description": "OA Kast type VI cat powder coating",
+   "H": "+I26",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J26",
+   "source": "KUBIKEL!B26",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 27,
+   "khs_code": 193,
+   "description": "kWh Meter TM Kelas 0,5s dilengkapi fasilitas AMR",
+   "H": "+I27",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J27",
+   "source": "KUBIKEL!B27",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 28,
+   "khs_code": 245,
+   "description": "Mountage SLM 250 kva keatas",
+   "H": "+I28",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J28",
+   "source": "KUBIKEL!B28",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 29,
+   "khs_code": 259,
+   "description": "NYY 4 x 4 mm u/ Wirring Panel",
+   "H": "+I29",
+   "I": "+I25*10",
+   "J": "+J25*10",
+   "K": "+J29",
+   "source": "KUBIKEL!B29",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 30,
+   "khs_code": 260,
+   "description": "NYY 4 x 6 mm u/ Wirring Panel",
+   "H": "+I30",
+   "I": "+I25*10",
+   "J": "+J25*10",
+   "K": "+J30",
+   "source": "KUBIKEL!B30",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 31,
+   "khs_code": 446,
+   "description": "Tanda Bahaya Besar - (l=400mm, tgg=450mm)",
+   "H": "+I31",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J31",
+   "source": "KUBIKEL!B31",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 32,
+   "khs_code": 162,
+   "description": "Gembok Electronic",
+   "H": "+I32",
+   "I": "+I25",
+   "J": "+J25",
+   "K": "+J32",
+   "source": "KUBIKEL!B32",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 35,
+   "khs_code": 68,
+   "description": "Commisioning test GD",
+   "H": "+GAMBAR!X54",
+   "source": "KUBIKEL!B35",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 38,
+   "khs_code": 391,
+   "description": "Safety Cost K3L",
+   "H": "+H35",
+   "source": "KUBIKEL!B38",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 41,
+   "khs_code": 187,
+   "description": "Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A ) maks digunakan s/d Daya 20 MVA",
+   "H": "SUMIF($B$9:$B$39,B41,$H$9:$H$39)",
+   "source": "KUBIKEL!B41",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 42,
+   "khs_code": 189,
+   "description": "Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A) maks digunakan s/d Daya 20 MVA",
+   "H": "SUMIF($B$9:$B$39,B42,$H$9:$H$39)",
+   "source": "KUBIKEL!B42",
+   "expected": {
+    "H": 0
+   }
+  }
+ ],
+ "input_values": {
+  "X55": 0,
+  "Y55": 0,
+  "X56": 0,
+  "Y56": 0
+ },
+ "params": [
+  {
+   "cell": "X54",
+   "name": "COMMISSIONING:KUBIKEL",
+   "default": 0,
+   "description": "Volume Commisioning test GD (GAMBAR!X54); diisi dari halaman gambar"
+  }
+ ],
+ "review": []
+}

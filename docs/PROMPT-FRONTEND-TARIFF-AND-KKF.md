@@ -1,0 +1,5 @@
+# Prompt siap tempel — buku tarif dan panel KKF (agen frontend)
+
+Anda adalah agen frontend DISTRIVA (React/Vite di `frontend/`). Bangun (1) halaman **buku tarif** di master data (daftar, impor CSV dry run → terapkan, detail dengan baris dan riwayat, setujui/nonaktifkan) dan (2) **panel KKF** pada halaman permohonan (hitung dry run, simpan run, hasil dan arus kas, riwayat run). Baca dulu `docs/69-FRONTEND-HANDOFF-TARIFF-AND-KKF.md`, bagian "Buku tarif" dan "Run KKF" di `docs/57-API-CONTRACT.md`; ikuti pola halaman buku harga (`docs/67`) dan parameter KKF (`docs/68`).
+
+Aturan: hak akses ditentukan backend; UI hanya menampilkan/menyembunyikan menurut `can[...]` dari `GET /master-data/access` (`tariffs.manage`, `tariffs.approve`) dan izin `kkf.run` / `kkf.view` untuk panel KKF (fail-closed). Jangan mengubah `extended_approval` gambar dari panel KKF. Pesan galat 403/404/409/422 ditampilkan apa adanya. Jangan mengubah backend. Endpoint baru aktif setelah pemilik menerapkan migrasi; kembangkan terhadap mock/tes lalu uji ke backend setelah diterapkan. Sertakan tes Vitest sesuai docs/69 §3 dan laporkan hanya hasil tes yang benar-benar dijalankan.

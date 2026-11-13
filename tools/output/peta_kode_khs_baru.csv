@@ -1,0 +1,133 @@
+kode_lama,nama_lama,kode_baru,nama_baru,mdu,sumber_harga_marjono,cara,asal
+1,AAAC - 70 sqmm,JTMR736,AAAC - 70 sqmm,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+2,AAAC - 150 sqmm,JTMR531,Kabel AAAC - 150 mm2,,,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+3,AAAC - 240 sqmm,JTMR532,Kabel AAAC - 240 mm2,47900.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+4,AAAC - S 70 sqmm,JTMR538,Kabel AAAC - S 70 mm2,19795.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+5,AAAC - S 150 sqmm,JTMR536,Kabel AAAC - S 150 mm2,36427.9279279279,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+6,AAAC - S 240 sqmm,JTMR537,Kabel AAAC - S 240 mm2,56000.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+7,ACO TM,A631,ACO TM,211800000.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+49,Bimetal Connector Al/Cu -150/50 mm,A632,Bimetal Connector Al/Cu -150/50 mm,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+60,Box APP Pengukuran Langsung tanpa MCCB Aluminium,A413,Box APP Pengukuran Langsung tanpa MCCB Aluminium,1800000.0,Market place,NAMA SAMA,MARJONO
+61,"Box berisi RTU protocol DNP 3, IEC (siap komunikasi GSM )",JTMR544,"Box berisi RTU protocol DNP 3, IEC (siap komunikasi GSM)",,,NAMA SAMA,MARJONO
+64,C Clamp Cu 25 mm,2230535,C Clamp Cu 25 mm,,,NAMA SAMA,MARJONO
+66,Cable Power ; NFA2X ; 4 x 16 mm²,JTMR737,Cable Power ; NFA2X ; 4 x 16 mm²,12220.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+67,Cable Power ; NFA2X ; 4 x 35 mm²,JTMR738,Cable Power ; NFA2X ; 4 x 35 mm²,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+75,Compresion Joint Sleeve 95 mm - Al,3060216,Compresion Joint Sleeve Tension 95 mm - Al,39782.8828828829,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+79,Compresion Joint Sleeve Non Tenion 95 mm - Al,3060347,Compresion Joint Sleeve Non Tension 95 mm - Al,,,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+87,Connection Clamp For Netral + Bolt M12 x 25 - (Acc.MVTIC),JTMR447,Connection Clamp For Netral + Bolt M12 x 25 - (Acc. MVTIC),37387.2,KHS Material 2026,NAMA SAMA,MARJONO
+98,Cover Silicon Bushing Trafo,A427,Cover Silicon Bushing Trafo,84251.2,KHS Material 2026,NAMA SAMA,MARJONO
+99,Cover Silicon Fuse Cut Out (Atas),A428,Cover Silicon Fuse Cut Out (Atas),105094.4,KHS Material 2026,NAMA SAMA,MARJONO
+100,Cover Silicon Fuse Cut Out (Bawah),A429,Cover Silicon Fuse Cut Out (Bawah),104093.6,KHS Material 2026,NAMA SAMA,MARJONO
+101,Cover Silicon Lightning Arrester,A430,Cover Silicon Lightning Arrester,55116.0,KHS Material 2026,NAMA SAMA,MARJONO
+129,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10",A633,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10",2218000.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+130,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10 Rasio CT single primer 25/5-5A s/d 75/5-5A.",A634,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10 Rasio CT single primer 25/5-5A s/d 75/5-5A.",2218000.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+133,"Disconnecting Switch 25,8 kV - 800 A out door (3 phasa)",JTMR551,"Disconnecting Switch 25,8 kV - 800 A Outdoor (3 Phasa)",3278536.36363636,SAP,NAMA SAMA,MARJONO
+134,"Disconnecting Switch 20 kV - … A In Door - 25,8 kV (3 phasa)",JTMR550,"Disconnecting Switch 20 kV - Indoor - 25,8 kV (3 Phasa)",,,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+159,Galvanized Steel Wire 22 mm - HDG,A635,Galvanized Steel Wire 22 mm - HDG,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+160,Galvanized Steel Wire 35 mm - HDG,A636,Galvanized Steel Wire 35 mm - HDG,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+161,Galvanized Steel Wire 70 mm - HDG,A637,Galvanized Steel Wire 70 mm - HDG,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+162,Gembok Electronic,A466,Gembok Electronic,,,NAMA SAMA,MARJONO
+174,"Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",A472,"Insulator - Pin Post Insulator 20 kV;12,5 kN - Tumpu",254003.0,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+175,Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik),A473,Insulator - Strain Insulator 20 kV Lengkap - Tarik,568830.0,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+180,Kawat Segel @ 15 cm,A638,Kawat Segel @ 15 cm,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+181,Klem C - 25/25 mm - Cu,A639,Klem C - 25/25 mm - Cu,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+186,"Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 1250 A ) digunakan daya > 20 MVA s/d 30 MVA",JTMR555,"Kubikel (1 LBS Incoming, Kubikel Ming dan Kubikel Outgoing (Draw Out) Minimal Rating Arus 1250 A) Digunakan Daya > 20 MVA s/d 30 MVA",73116000.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+187,"Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A ) maks digunakan s/d Daya 20 MVA",JTMR556,"Kubikel (1 LBS Incoming, Kubikel Ming dan Kubikel Outgoing (Draw Out) Minimal Rating Arus 630 A) Maks Digunakan s/d Daya 20 MVA",54950000.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+188,"Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 1250 A) digunakan daya > 20 MVA s/d 30 MVA",JTMR558,"Kubikel (2 LBS Incoming Dilengkapi Motorized, Kubikel Ming dan Kubikel Outgoing (Draw Out) Minimal Rating Arus 1250 A) Digunakan Daya > 20 MVA s/d 30 MVA",299189000.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+189,"Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A) maks digunakan s/d Daya 20 MVA",JTMR557,"Kubikel (2 LBS Incoming Dilengkapi Motorized, Kubikel Ming dan Kubikel Out Going (Draw Out) Minimal Rating Arus 630A) Digunakan Daya s/d 20 MVA",75000000.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+190,KWh meter 3 phs. 220/380 V - 20/60 A ST Clas 1 Elektronik,A640,KWh meter 3 phs. 220/380 V - 20/60 A ST Clas 1 Elektronik,1287010.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+191,KWh meter 3 phs. Elektronik lengkap dengan Modem,A641,KWh meter 3 phs. Elektronik lengkap dengan Modem,1341010.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+192,"KWh meter Electronic Anti Temper 1 Phasa 2 kawat 50 Hz, 5(20) klass 1 lengkap MCB",A642,"KWh meter Electronic Anti Temper 1 Phasa 2 kawat 50 Hz, 5(20) klass 1 lengkap MCB",,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+193,"kWh Meter TM Kelas 0,5s dilengkapi fasilitas AMR",A643,"kWh Meter TM Kelas 0,5s dilengkapi fasilitas AMR",1430010.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+202,LBS Motorized + RTU + Kabel Data,JTMR739,LBS Motorized + RTU + Kabel Data,81159000.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+203,Lemari APP Pengukuran Tidak Langsung Montage 100A Aluminium,A489,Lemari APP Pengukuran Tidak Langsung Montage 100 A Aluminium,16748000.0,Market place,NAMA SAMA,MARJONO
+204,Lemari APP Pengukuran Tidak Langsung Montage 125A Aluminium,A490,Lemari APP Pengukuran Tidak Langsung Montage 125 A Aluminium,17333000.0,Market place,NAMA SAMA,MARJONO
+205,Lemari APP Pengukuran Tidak Langsung Montage 160A Aluminium,A491,Lemari APP Pengukuran Tidak Langsung Montage 160 A Aluminium,17662000.0,Market place,NAMA SAMA,MARJONO
+206,Lemari APP Pengukuran Tidak Langsung Montage 200A Aluminium,A492,Lemari APP Pengukuran Tidak Langsung Montage 200 A Aluminium,16675076.5765766,SAP,NAMA SAMA,MARJONO
+207,Lemari APP Pengukuran Tidak Langsung Montage 225A Aluminium,A493,Lemari APP Pengukuran Tidak Langsung Montage 225 A Aluminium,17799000.0,Market place,NAMA SAMA,MARJONO
+208,Lemari APP Pengukuran Tidak Langsung Montage 250A Aluminium,A494,Lemari APP Pengukuran Tidak Langsung Montage 250 A Aluminium,17800000.0,Market place,NAMA SAMA,MARJONO
+209,Lemari APP Pengukuran Tidak Langsung Montage 300A Aluminium,A495,Lemari APP Pengukuran Tidak Langsung Montage 300 A Aluminium,20430000.0,Market place,NAMA SAMA,MARJONO
+210,Lemari APP Pengukuran Tidak Langsung Montage 80A Aluminium,A496,Lemari APP Pengukuran Tidak Langsung Montage 80 A Aluminium,16748000.0,Market place,NAMA SAMA,MARJONO
+211,Lightning Arrester 24 kV - 10 kA,A644,Lightning Arrester 24 kV - 10 kA,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+212,Line Tap Connector ( type press ) 35-70 / 35-70 mm + scoth,JTMR47,Line Tap Connector (Type Press) 35 - 70/35 - 70 mm + Scoth,,,NAMA SAMA,MARJONO
+213,Line Tap Connector ( type press ) 6-25 / 35-70 mm + heatshrink,A645,Line Tap Connector ( type press ) 6-25 / 35-70 mm + heatshrink,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+215,Line Tap Connector 50-70 mm type G,JTMR685,Line Tap Connector 70-70 mm Type C,22500.0,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+216,Line Tap Connector Al - 35 mm - tipe C,A646,Line Tap Connector Al - 35 mm - tipe C,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+219,Line Tap Connector Cu - 25 mm / Klem C,A647,Line Tap Connector Cu - 25 mm / Klem C,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+220,Line Tap Connector Cu - 50 mm / Klem C,A648,Line Tap Connector Cu - 50 mm / Klem C,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+225,Live Line Connector 70-150 mm,A649,Live Line Connector 70-150 mm,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+227,Load Break Switch 24 kV - 630 A Manual,A507,Load Break Switch 24 kV - 630 A Manual,102800127.272727,SAP,NAMA SAMA,MARJONO
+228,Load Segel Kabel Tanah (identifikasi Kabel),JTMR740,Load Segel Kabel Tanah (identifikasi Kabel),,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+229,LV Insulator A1,A650,LV Insulator A1,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+230,"LVSB ; LV Panel 250A, 2 Jurusan (SPLN D3.016-1 : 2010)-LBS",A510,"LVSB ; LV Panel 250 A, 2 Jurusan (SPLN D3.016-1 : 2010) - LBS",14118900.0,SAP,NAMA SAMA,MARJONO
+231,"LVSB ; LV Panel 400A, 4 Jurusan (SPLN D3.016-1 : 2010)-LBS",A511,"LVSB ; LV Panel 400 A, 4 Jurusan (SPLN D3.016-1 : 2010) - LBS",20425891.8918919,SAP,NAMA SAMA,MARJONO
+232,MCB 230 V - 2 A s/d 35 A - 1 Phasa,A651,MCB 230 V - 2 A s/d 35 A - 1 Phasa,30680.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+233,MCB 3 phs. 230 V - 25 A s/d 50 A,A513,MCB 3 phs. 230 V - 25 A s/d 50 A,178785.585585586,SAP,NAMA SAMA,MARJONO
+234,"MCCB 100 A , 18 kA, 3 Phs (Fixed)",JTMR582,"MCCB 100 A, 18 kA, 3 Phasa (Fixed)",1948800.0,,NAMA SAMA,MARJONO
+235,"MCCB 125 A , 18 kA, 3 Phs (Fixed)",JTMR583,"MCCB 125 A, 18 kA, 3 Phasa (Fixed)",2039060.36036036,SAP,NAMA SAMA,MARJONO
+236,"MCCB 160 A , 18 kA, 3 Phs (Fixed)",JTMR584,"MCCB 160 A, 18 kA, 3 Phasa (Fixed)",2168672.07207207,SAP,NAMA SAMA,MARJONO
+237,"MCCB 200 A , 18 kA, 3 Phs (Fixed)",JTMR585,"MCCB 200 A, 18 kA, 3 Phasa (Fixed)",2236390.90909091,,NAMA SAMA,MARJONO
+238,"MCCB 225 A , 18 kA, 3 Phs (Fixed)",JTMR586,"MCCB 225 A, 18 kA, 3 Phasa (Fixed)",2433900.0,SAP,NAMA SAMA,MARJONO
+239,"MCCB 250 A , 18 kA, 3 Phs (Fixed)",JTMR587,"MCCB 250 A, 18 kA, 3 Phasa (Fixed)",2433900.0,SAP,NAMA SAMA,MARJONO
+240,"MCCB 300 A , 36 kA, 3 Phs (Fixed)",JTMR588,"MCCB 300 A, 36 kA, 3 Phasa (Fixed)",,,NAMA SAMA,MARJONO
+241,"MCCB 63 A , 25 kA, 3 Phs (Adj)",JTMR589,"MCCB 63 A, 25 kA, 3 Phasa (Adj)",1290293.69369369,SAP,NAMA SAMA,MARJONO
+242,"MCCB 80 A , 18 kA, 3 Phs (Fixed)",JTMR590,"MCCB 80 A, 18 kA, 3 Phasa (Fixed)",1397600.0,SAP,NAMA SAMA,MARJONO
+243,"Meter Elektronik (ME) 3 ph - 4 W , teg: 57,7/100V; Arus :5A. Class: 0,5",A652,"Meter Elektronik (ME) 3 ph - 4 W , teg: 57,7/100V; Arus :5A. Class: 0,5",,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+246,NA2XSEYBY 3 x 150 mm2;20KV;UG,JTMR592,Kabel NA2XSEYBY 3 x 150 mm2 ;20 kV; UG,443789.090909091,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+247,NA2XSEYBY 3 x 240 mm2;20KV;UG,JTMR593,Kabel NA2XSEYBY 3 x 240 mm2; 20 kV; UG,640910.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+249,NFA2X 4x10mm,JTMR741,NFA2X 4x10mm,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+250,NFA2X 4x25mm,JTMR742,NFA2X 4x25mm,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+251,NFA2XSEY-T 3 x 150 + 1 x 95 mm2 - CWS,JTMR596,Kabel NFA2XSEY - T 3 x 150 + 1 x 95 mm2 - CWS,409948.181818182,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+252,NFA2XSEY-T 3 x 240 + 1 x 95 mm2 - CWS,JTMR597,Kabel NFA2XSEY - T 3 x 240 + 1 x 95 mm2 - CWS,516180.0,Market place,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+253,NFA2X-T;3x70 + 1x70 mm2,JTMR743,NFA2X-T;3x70 + 1x70 mm2,53945.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+258,NYY 1 x 150 sqmm - Input ( SPLN ),JTMR744,NYY 1 x 150 sqmm - Input ( SPLN ),196590.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+261,NYY 4 x 70 sqmm - Output ( SPLN ),JTMR745,NYY 4 x 70 sqmm - Output ( SPLN ),,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+307,Panel APP TM,A534,Panel APP TM,,,NAMA SAMA,MARJONO
+317,PHB - TR 2 Jurusan 400 A - SPLN D5.016.1 : 2010,A536,PHB - TR 2 Jurusan 400 A - SPLND5.016.1 : 2010,,,NAMA SAMA,MARJONO
+318,Pierching Tap Connector 70/70 mm - Al/Al,3280091,Pierching Tap Connector 70/70 mm - Al/Al,,,NAMA SAMA,MARJONO
+372,PMCB Out Door 24 kV lengkap,A653,PMCB Out Door 24 kV lengkap,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+376,Polymer Arrester 24 kV - 10 kA,A654,Polymer Arrester 24 kV - 10 kA,676300.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+377,Polymer Cut Out Switch 24 kV + Fuse,A655,Polymer Cut Out Switch 24 kV + Fuse,853350.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+382,Potensial Trafo (PT) 20 kV - Outdoor,A555,Potensial Trafo (PT) 20 kV -Outdoor,7939050.45045045,SAP,NAMA SAMA,MARJONO
+383,"Potential Transformer kelas maks 0,2 Burden minimal 30 VA",A656,"Potential Transformer kelas maks 0,2 Burden minimal 30 VA",,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+384,Preformed Side Tie 150mm (Semi Cond/non metalic/Composite),JTMR511,Preformed Side Tie 150 mm (Semi Cond / Non Metalic / Composite),76682.4,KHS Material 2026,NAMA SAMA,MARJONO
+385,Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite),JTMR512,Preformed Side Tie Double 150 mm (Semi Cond / Non Metalic / Composite),149973.6,KHS Material 2026,NAMA SAMA,MARJONO
+389,Preformed Top Tie 150mm (Semi Cond/non metalic/Composite),JTMR513,Preformed Top Tie 150 mm (Semi Cond / Non Metalic / Composite),77989.6,KHS Material 2026,NAMA SAMA,MARJONO
+390,"Recloser 24 kV-630 A Motorized 12,5 kA c/w PTCC",A657,"Recloser 24 kV-630 A Motorized 12,5 kA c/w PTCC",158300576.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+448,TC 3 x 50 + 1 x 35 sqmm ( SPLN ),JTMR746,TC 3 x 50 + 1 x 35 sqmm ( SPLN ),,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+449,TC 35 mm - 50 cm untuk kumisan,JTMR747,TC 35 mm - 50 cm untuk kumisan,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+450,Tekep (MV Cover),A658,Tekep (MV Cover),,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+452,Terminal Lug 35 mm - Al 1 Hole,A659,Terminal Lug 35 mm - Al 1 Hole,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+453,Terminal Lug 35 mm - Al 2 Hole,3120214,Terminal Lug 35 mm - Al 2 Hole,13282.0,SAP,NAMA SAMA,MARJONO
+454,Terminal Lug 35 mm - Al / Cu 1 Hole,A660,Terminal Lug 35 mm - Al / Cu 1 Hole,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+455,Terminal Lug 35 mm - Al / Cu 2 Hole,JTMR57,Terminal Lug 35 mm - Al/Cu 2 Hole,,,NAMA SAMA,MARJONO
+457,Terminal Lug 35 mm - Cu 2 Hole,3120265,Terminal Lug 35 mm - Cu 2 Hole,44236.0,SAP,NAMA SAMA,MARJONO
+458,Terminal Lug 50 mm - Al 1 Hole,A661,Terminal Lug 50 mm - Al 1 Hole,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+459,Terminal Lug 50 mm - Al 2 Hole,3120215,Terminal Lug 50 mm - Al 2 Hole,,,NAMA SAMA,MARJONO
+460,Terminal Lug 50 mm - Al / Cu 1 Hole,A662,Terminal Lug 50 mm - Al / Cu 1 Hole,,,"NON-MDU DI MARJONO (tetap PLN, data DISTRIVA)",DISTRIVA
+461,Terminal Lug 50 mm - Al / Cu 2Hole,JTMR60,Terminal Lug 50 mm - Al/Cu 2 Hole,,,NAMA SAMA,MARJONO
+463,Terminal Lug 50 mm - Cu 2 Hole,3120266,Terminal Lug 50 mm - Cu 2 Hole,,,NAMA SAMA,MARJONO
+465,Terminal Lug 70 mm - Al / Cu 2 Hole,JTMR490,Terminal Lug 70 mm - Al/Cu 2 Hole,85000.0,SAP,NAMA SAMA,MARJONO
+467,Terminal Lug 70 mm - Cu 2 Hole,JTMR490,Terminal Lug 70 mm - Al/Cu 2 Hole,85000.0,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+468,Terminal Lug 70 mm - Al 1 Hole,3120192,Terminal Lug 70 mm - Al 1 Hole,28500.0,Price list,NAMA SAMA,MARJONO
+469,Terminal Lug 70 mm - Al 2 Hole,3120216,Terminal Lug 70 mm - Al 2 Hole,,,NAMA SAMA,MARJONO
+471,Terminal Lug 150 mm - Al 2 Hole,3120219,Terminal Lug 150 mm - Al 2 Hole,64835.0,SAP,NAMA SAMA,MARJONO
+475,Terminal Lug 150 mm - Cu 2 Hole,3120270,Terminal Lug 150 mm - Cu 2 Hole,170273.873873874,SAP,NAMA SAMA,MARJONO
+477,Terminal Lug 240 mm - Al 2 Hole,3120221,Terminal Lug 240 mm - Al 2 Hole,,,NAMA SAMA,MARJONO
+481,Terminal Lug 240 mm - Cu 2 Hole,3120272,Terminal Lug 240 mm - Cu 2 Hole,,,NAMA SAMA,MARJONO
+482,Terminasi Elastimold Single Core 95-300 mm2,A663,Terminasi Elastimold Single Core 95-300 mm2,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+483,Terminasi Elastimold Three Core 95-300 mm2,A664,Terminasi Elastimold Three Core 95-300 mm2,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+484,Termination ID 24 kV - uk. 150 mm - 1 Core/MVTIC,A665,Termination ID 24 kV - uk. 150 mm - 1 Core/MVTIC,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+486,Termination OD 3 X 150 MM2 u/XLPE,A666,Termination OD 3 X 150 MM2 u/XLPE,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+487,Termination Out Door 3 X 150 + 1 x 95 mm u/MVTIC,A667,Termination Out Door 3 X 150 + 1 x 95 mm u/MVTIC,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+488,Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC,A668,Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+497,Timah Segel,DJTY0421,Timah Segel,,,NAMA SAMA,MARJONO
+499,Trafo Distribusi 20 kV 3 PH 50 KVA Yzn5 ( D3 ),JTMR627,Trafo Distribusi 20 KV 3 Phasa 50 KVA,,,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+500,Trafo Distribusi 20 kV 3 PH 100 KVA Yzn5 ( D3 ),JTMR628,Trafo Distribusi 20 KV 3 Phasa 100 KVA,40852069.3693694,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+501,Trafo Distribusi 20 kV 3 PH 160 KVA Yzn5 ( D3 ),JTMR625,Trafo Distribusi 20 KV 3 Phasa 160 KVA,59342649.5495495,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+502,Trafo Distribusi 20 kV 3 PH 200 KVA Dyn5 ( D3 ),JTMR629,Trafo Distribusi 20 KV 3 Phasa 200 KVA,68946270.0,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+503,Trafo Distribusi 20 kV 3 PH 250 KVA Dyn5 ( D3 ),JTMR630,Trafo Distribusi 20 KV 3 Phasa 250 KVA,71137886.4864865,SAP,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+504,"Tree Way Load Break Switch 24 kV-630 A Motorized 12,5 kA c/w PTCC",A669,"Tree Way Load Break Switch 24 kV-630 A Motorized 12,5 kA c/w PTCC",327000000.00,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+507,Twisted Cable 2 x 10 mm² - Al,JTMR748,Twisted Cable 2 x 10 mm² - Al,,,"TIDAK ADA DI MARJONO (data DISTRIVA, kode baru)",DISTRIVA
+508,Type Box App sesuai SPLN No.D3.051-1:2011,JTMR650,Box App sesuai SPLN No. D3.015-1:2011,,,"NAMA MIRIP, SPESIFIKASI SAMA (tinjau)",MARJONO
+516,ZCT 50/5 - 100/5 A,A630,ZCT 50/5 - 100/5 A,,,NAMA SAMA,MARJONO

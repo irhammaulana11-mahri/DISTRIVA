@@ -1,0 +1,43 @@
+baris_lembar,uraian_lembar,satuan,rumus_volume,harga_lembar,rumus_jasa,cara,kode_khs_sekarang,kandidat_khs,kandidat_erp
+27,Jasa Kegiatan,B,=G11,,=110000*F27,,,[],[]
+28,"Pole Bracket 3-6""",B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*1)",38000,,NAMA SAMA,374,[],"[[3120066, ""CABLE PWR ACC;POLE BRACKET""], [3120338, ""CABLE PWR ACC;POLE BRACKET 3\"" 3WAY""]]"
+29,Service wedge clamp 2/4 x 6/10 mm,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*2)",5900,,NAMA SAMA,396,[],"[[3120142, ""CABLE PWR ACC;WEDGE CLAMP 2x(6-16)mm""], [3120105, ""CABLE PWR ACC;WEDGE CLAMP 4X16mm""]]"
+30,Strainhook / ekor babi,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*1)",11000,,,,[],"[[3120330, ""CABLE PWR ACC;STRAIN HOOK EKOR BABI 1.5\""""]]"
+31,Cable suport (508/U/2009),B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*3)",1450,,,,"[[""183"", ""Klem kabel/ Cable suport (508/U/2009)"", 0.81]]","[[3110086, ""CABLE PWR;MVTIC;3X150+1X95;20kV;OH""], [3120356, ""CABLE PWR ACC;CABLE SUPPORT""]]"
+32,Conn. press AL/AL type 10-16 mm2 / 50-70 mm2 + Scoot + Cover,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*2)",20000,,,,"[[""84"", ""Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vini"", 0.73], [""85"", ""Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil"", 0.69]]","[[3280087, ""CONN;1kV;PIER;AL;6-25/35-70mm2;BOLT;WP""], [3280182, ""CONN;20kV;PG;AL-AL;70-150/70-150mm2;3B;""]]"
+34,Bundl.Cond.3x50 + 1x35 mm - 50 cm ( kumis ),B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*2)",7000,,,,[],[]
+35,Line Tap Connector ( type press ) 35-70 / 35-70 mm + scoth,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*2)",20000,,NAMA SAMA,212,[],"[[3280084, ""CONN;1kV;PIER;AL;35-70/35-70mm2;BOLT;WP""]]"
+36,Line Tap Connector ( type press ) 16-25 / 35-70 mm + heatshrink,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*2)",20000,,,,"[[""213"", ""Line Tap Connector ( type press ) 6-25 / 35-70 mm "", 0.99], [""212"", ""Line Tap Connector ( type press ) 35-70 / 35-70 mm"", 0.78]]",[]
+38,Jasa Kegiatan,B,=G12,,,,,[],[]
+39,Service wedge clamp 2/4 x 6/10 mm,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*2)",5900,,NAMA SAMA,396,[],"[[3120142, ""CABLE PWR ACC;WEDGE CLAMP 2x(6-16)mm""], [3120105, ""CABLE PWR ACC;WEDGE CLAMP 4X16mm""]]"
+40,Strainhook / ekor babi,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*1)",11000,,,,[],"[[3120330, ""CABLE PWR ACC;STRAIN HOOK EKOR BABI 1.5\""""]]"
+41,Cable suport (508/U/2009),B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*3)",1450,,,,"[[""183"", ""Klem kabel/ Cable suport (508/U/2009)"", 0.81]]","[[3110086, ""CABLE PWR;MVTIC;3X150+1X95;20kV;OH""], [3120356, ""CABLE PWR ACC;CABLE SUPPORT""]]"
+42,Conn. press AL/AL type 10-16 mm2 / 10-16 mm2 + Scoot + Cover,B,"=IF(SUM($G$11:$G$12)=""0"",""0"",SUM($G$11:$G$12)*2)",9650,,,,"[[""85"", ""Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil"", 0.69], [""84"", ""Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vini"", 0.68]]",[]
+45,kWh Meter Electronic 1 Phs (Pasca/Prabayar),S,=SUM(G11:G16),262394,,,,[],[]
+46,MCB 230 V - 2 A s/d 35 A - 1 Phasa,B,=SUM(G11:G16),53350,,NAMA SAMA,232,[],"[[2190195, ""MTR;kWH ECOM;;1P;230V;20-60A-35A;1;ST;2W""], [3250011, ""MCB;220/250V;1P;25A;50Hz;""]]"
+47,Twisted Cable 2 x 10 mm² - Al,M,=SUM(G11:G12)*30,4120,,NAMA SAMA,507,[],"[[3110011, ""CABLE PWR;N2XSY;1X50mm2;20kV;UG""], [3110012, ""CABLE PWR;N2XSY;1X70mm2;20kV;UG""]]"
+49,Angkutan Material,Ton/M3,=SUM(C26:C42)/1000,,,,,[],[]
+50,Segel Plastik,B,=F44,770,,,,[],"[[2200030, ""MTR ACC;KAWAT SEGEL U/ SEGEL PLASTIK""], [2200004, ""MTR ACC;SEGEL PLASTIC""]]"
+51,Paku Beton,B,=F44*2,165,,,,[],[]
+54,Jasa Kegiatan,B,=G13,,=87900*F54,,,[],[]
+56,Jasa Kegiatan,B,=G14,,,,,[],[]
+57,Service wedge clamp 2/4 x 6/10 mm,B,=F56*2,5900,,NAMA SAMA,396,[],"[[3120142, ""CABLE PWR ACC;WEDGE CLAMP 2x(6-16)mm""], [3120105, ""CABLE PWR ACC;WEDGE CLAMP 4X16mm""]]"
+58,Twisted Cable 2 x 10 mm² - Al,M,=F56*30,4120,,NAMA SAMA,507,[],"[[3110011, ""CABLE PWR;N2XSY;1X50mm2;20kV;UG""], [3110012, ""CABLE PWR;N2XSY;1X70mm2;20kV;UG""]]"
+59,Conn. press AL/AL type 10-16 mm2 / 10-16 mm2 + Scoot + Cover,B,=F56*2,9650,,,,"[[""85"", ""Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil"", 0.69], [""84"", ""Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vini"", 0.68]]",[]
+61,Jasa Kegiatan,B,=G15,,=85000*F61,,,[],[]
+63,Jasa Kegiatan,B,=G16,,=100000*F63,,,[],[]
+65,Jasa Kegiatan,B,=G16,,=40000*F65,,,[],[]
+67,Jasa Kegiatan,B,=G18,,=22000*F67,,,[],[]
+69,Jasa Kegiatan,B,=G19,,=88500*F69,,,[],[]
+70,Twisted Cable 2 x 10 mm² - Al,M,=30*F69,4120,,NAMA SAMA,507,[],"[[3110011, ""CABLE PWR;N2XSY;1X50mm2;20kV;UG""], [3110012, ""CABLE PWR;N2XSY;1X70mm2;20kV;UG""]]"
+71,Service wedge clamp 2/4 x 6/10 mm,B,=F69*2,5900,,NAMA SAMA,396,[],"[[3120142, ""CABLE PWR ACC;WEDGE CLAMP 2x(6-16)mm""], [3120105, ""CABLE PWR ACC;WEDGE CLAMP 4X16mm""]]"
+72,Strainhook / ekor babi,B,=F69,11000,,,,[],"[[3120330, ""CABLE PWR ACC;STRAIN HOOK EKOR BABI 1.5\""""]]"
+73,Cable suport (508/U/2009),B,=F69*5,1450,,,,"[[""183"", ""Klem kabel/ Cable suport (508/U/2009)"", 0.81]]","[[3110086, ""CABLE PWR;MVTIC;3X150+1X95;20kV;OH""], [3120356, ""CABLE PWR ACC;CABLE SUPPORT""]]"
+74,Conn. press AL/AL type 10-16 mm2 / 50-70 mm2 + Scoot + Cover,B,=F69*2,20000,,,,"[[""84"", ""Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vini"", 0.73], [""85"", ""Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil"", 0.69]]","[[3280087, ""CONN;1kV;PIER;AL;6-25/35-70mm2;BOLT;WP""], [3280182, ""CONN;20kV;PG;AL-AL;70-150/70-150mm2;3B;""]]"
+75,Conn. press AL/AL type 10-16 mm2 / 10-16 mm2 + Scoot + Cover,B,=F69*2,9650,,,,"[[""85"", ""Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil"", 0.69], [""84"", ""Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vini"", 0.68]]",[]
+77,Jasa Kegiatan,B,=G20,,,,,[],[]
+78,Service wedge clamp 2/4 x 6/10 mm,B,=F77*2,5900,,NAMA SAMA,396,[],"[[3120142, ""CABLE PWR ACC;WEDGE CLAMP 2x(6-16)mm""], [3120105, ""CABLE PWR ACC;WEDGE CLAMP 4X16mm""]]"
+79,Strainhook / ekor babi,B,=F77,11000,,,,[],"[[3120330, ""CABLE PWR ACC;STRAIN HOOK EKOR BABI 1.5\""""]]"
+80,Cable suport (508/U/2009),B,=F77*5,1450,,,,"[[""183"", ""Klem kabel/ Cable suport (508/U/2009)"", 0.81]]","[[3110086, ""CABLE PWR;MVTIC;3X150+1X95;20kV;OH""], [3120356, ""CABLE PWR ACC;CABLE SUPPORT""]]"
+81,Conn. press AL/AL type 10-16 mm2 / 50-70 mm2 + Scoot + Cover,B,=F77*2,20000,,,,"[[""84"", ""Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vini"", 0.73], [""85"", ""Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil"", 0.69]]","[[3280087, ""CONN;1kV;PIER;AL;6-25/35-70mm2;BOLT;WP""], [3280182, ""CONN;20kV;PG;AL-AL;70-150/70-150mm2;3B;""]]"
+82,Conn. press AL/AL type 10-16 mm2 / 10-16 mm2 + Scoot + Cover,B,=F77*2,9650,,,,"[[""85"", ""Conn. press AL/AL type 6-25 mm2 / 6-25 mm2 + vinil"", 0.69], [""84"", ""Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vini"", 0.68]]",[]

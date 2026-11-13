@@ -1,0 +1,1170 @@
+
+● Penandaan PLN dan vendor dari sheet JASA sudah dipakai DISTRIVA. Saya cek
+  langsung ke data, dan tidak perlu mengubah kode.
+
+  Cara penandaan masuk ke DISTRIVA
+  - Kolom harga material di sheet JASA berisi tulisan PLN atau sebuah angka
+    harga. Skrip impor (tools/extract_price_csv.py) menerjemahkannya menjadi
+    status PLN atau PRICED di buku harga.
+  - Alokasi membaca status itu: PLN diambil dari gudang, PRICED dianggap
+    disediakan vendor. Karena itu yang saya kerjakan tadi memang mengikuti
+    plotting di sheet.
+
+  Hasil pengecekan terhadap berkas "MASTER RAB & KKF"
+  - Buku harga aktif ("Kontrak jasa dan material 2026-11-11") berisi 523
+    material: 144 PLN dan 379 PRICED.
+  - 450 material yang namanya ada di sheet JASA: status di DISTRIVA sama dengan
+    sheet untuk semuanya, tidak ada yang berbeda.
+  - Material pada tangkapan layar Anda (A129 Baut mata, A130 BC 50 mm, A200 Guy
+    Insulator, A333, A368, A410–A412) berstatus PRICED di sheet, jadi vendor
+    yang menyediakan. Material yang benar-benar PLN pada paket itu, misalnya
+    3040331, tetap bisa dialokasikan dari gudang.
+  - Soal "tidak ada di buku harga": saya cek juga, dan tidak ada material MTO
+    yang tidak punya baris di buku harga saat ini. Kasus yang saya khawatirkan
+    itu belum terjadi.
+
+  Yang perlu dicek pemilik data
+  - Ada 73 material di buku harga yang namanya tidak ditemukan di sheet JASA,
+    misalnya Tiang Beton 14m, MCCB, Trafo Distribusi, Lemari APP, dan Kubikel.
+    Statusnya di luar JASA: 66 PLN dan 7 PRICED. Yang PRICED, misalnya
+    "Strainhook / ekor babi", datanya tidak berasal dari plotting sheet.
+  - Kalau Anda punya sumber plotting untuk ke-73 material itu, mohon dicek.
+    Kalau tidak sesuai, buku harga perlu diperbaiki, dan alokasi akan otomatis
+    mengikutinya.
+
+❯ Ada 73 material di buku harga yang namanya tidak ditemukan di sheet JASA,
+  misalnya Tiang Beton 14m, MCCB, Trafo Distribusi, Lemari APP, dan Kubikel.
+  Statusnya di luar JASA: 66 PLN dan 7 PRICED. Yang PRICED, misalnya
+  "Strainhook / ekor babi", datanya tidak berasal dari plotting sheet.
+
+  66 PLN = berarti disediakan oleh PLN dan harusnya memang ada harga juga,
+  kedepan untuk harga dibiarkan bisa diedit saja
+  7 Priced = bisa jadi disediakn oleh vendor pelaksana
+  ⎿  Referenced file ../frontend/src/pages/drawings/DrawingWorkflow.test.jsx
+  ⎿  Referenced file ../frontend/src/pages/proposals/ProposalsWorkflow.test.jsx
+  ⎿  Referenced file ../frontend/src/pages/proposals/ProposalDetailPage.jsx
+  ⎿  Read ../frontend/src/pages/proposals/ProposalApprovalChain.jsx (25 lines)
+  ⎿  Referenced file ../frontend/src/pages/drawings/DrawingApprovalChain.jsx
+
+● Task "until ! pgrep -f "artisan test" >/dev/null; do sleep 5; done; python3 -
+  <<'EOF' import json t=open('/tmp/claude-1000/-media-data-PROJECT-DISTRIVA/043c
+  cf63-5fd5-41e4-99e5-a3268448647e/scratchpad/full.l… [+32 chars]" still running
+  in background
+  ⎿  Skills restored (run)
+
+● Compacted using a summary written while you were away · turn off with
+  "idleCompaction": false in settings.json
+
+● Saya cek dulu dua hal: apakah 66 material PLN itu sudah punya nilai harga
+  (MDU), dan apakah harga di buku harga sudah bisa diedit.
+
+  Listed 1 directory, ran 2 shell commands (ctrl+o to expand)
+
+● Alokasi tidak terpengaruh oleh temuan ini, karena pemisahan PLN dan vendor
+  hanya membaca status, bukan harga. Namun data harga PLN di buku harga aktif
+  belum lengkap.
+
+  Kondisi harga di buku harga aktif (523 material)
+
+  ┌────────┬────────┬─────────────────┬──────────────────────┐
+  │ Status │ Jumlah │ Tanpa nilai MDU │ Tanpa harga material │
+  ├────────┼────────┼─────────────────┼──────────────────────┤
+  │ PLN    │ 144    │ 53              │ 144 (semua)          │
+  ├────────┼────────┼─────────────────┼──────────────────────┤
+  │ PRICED │ 379    │ 379 (wajar)     │ 15                   │
+  └────────┴────────┴─────────────────┴──────────────────────┘
+
+  - Material PLN: hanya punya nilai MDU (nilai asuransi) dan tidak punya harga
+    material. Dari 144, ada 53 yang MDU-nya juga kosong. Menurut Anda material
+    PLN seharusnya punya harga, jadi 53 itu perlu dilengkapi.
+  - Material PRICED: ada 15 yang harganya kosong atau 0. Ini mungkin vendor
+    pelaksana yang harganya belum diisi.
+  - 7 material PRICED di luar sheet JASA: saya perlakukan sebagai material
+    vendor pelaksana, sesuai penjelasan Anda. Saya tidak mengubah apa pun untuk
+    ini.
+  - Edit harga: belum bisa. Rute buku harga hanya punya impor, persetujuan,
+    zona, dan pensiun, tanpa edit per material. Perubahan harga sekarang hanya
+    lewat impor ulang.
+
+  Saya belum mengubah kode. Untuk "harga bisa diedit", ada satu keputusan yang
+  perlu Anda pilih, dan saya sarankan opsi 1:
+
+  1. Edit hanya di buku harga berstatus draf. Harga material dan MDU bisa diubah
+     per baris. Setelah disetujui, buku harga terkunci dan semua perubahan
+     tercatat. Ini konsisten dengan RAB lama yang tetap memakai harga saat
+     dihitung.
+  2. Edit langsung di buku harga yang sudah disetujui. Lebih cepat, tetapi RAB
+     yang sudah dihitung bisa tidak cocok lagi dengan harga baru, dan jejak
+     auditnya lemah.
+
+  Mau pakai opsi yang mana? Pemegang izin untuk mengedit juga perlu ditentukan.
+  Kalau tidak ada preferensi, saya pakai izin yang sama dengan impor buku harga.
+
+❯ brarti baiknya upload ulang semua daftar harga?
+
+● Ya, impor ulang masuk akal untuk perbaikan massal. Ada satu syarat: file yang
+  diunggah harus berisi harga untuk material PLN.
+
+  - Alasan impor ulang cocok: impor membuat buku harga baru, lalu disetujui. RAB
+    lama tetap memakai harga lama, jadi tidak ada yang bergeser diam-diam. Ini
+    juga sesuai opsi 1 yang saya sarankan, yaitu perubahan lewat buku harga baru
+    yang bisa dilacak.
+  - Kendalanya: di sheet JASA, kolom harga material untuk item PLN hanya berisi
+    tulisan "PLN", bukan angka. Kalau file yang sama diunggah lagi, 144 material
+    PLN tetap tanpa harga, dan 53 di antaranya tetap tanpa MDU.
+  - Yang dibutuhkan: daftar harga yang memuat angka untuk material PLN (nilai
+    MDU, dan harga material kalau ada), serta harga 15 material vendor yang
+    masih kosong.
+  - Belum saya cek: apakah pengimpor sekarang bisa menerima baris PLN yang punya
+    harga angka. Dari pembacaan kode, aturannya "PLN → status PLN, hanya MDU".
+    Kalau ternyata tidak bisa, pengimpor perlu disesuaikan sebelum Anda
+    mengunggah ulang. Kalau memang perlu, perubahannya kecil.
+  - Kapan edit per baris tetap berguna: untuk koreksi kecil dan sesekali, supaya
+    tidak perlu mengunggah ulang seluruh daftar. Ini bisa menyusul belakangan.
+
+  Langkah yang saya sarankan: kirimkan atau tunjukkan file yang memuat harga PLN
+  itu. Saya cek dulu apakah pengimpor menerimanya dan siapkan penyesuaiannya.
+  Setelah itu Anda tinggal unggah ulang dan menyetujuinya.
+
+[Image #29]
+
+❯ baik, saya ikuti dengan import ulang saja. tetapi nanti saja untuk importnya
+  karena belum ada update harga terkait material tsb
+  untuk alokasi tiang masuk di role perencanaan, bisa dilakukan penyesuaian
+  roleh lain diluar sys_admin hanya sebagai viewer
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+● Penyebabnya ada di halaman usulan, yang masih meneruskan izin canManage ke
+  panel sehingga peran Konstruksi ikut melihat bagian tiang bisa diedit. Saya
+  memperbaikinya sekarang. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Bagian tiang kini hanya bisa diedit oleh Perencanaan dan sys_admin. Peran lain
+  hanya melihat.
+
+  Aturan di backend (sudah benar, tidak saya ubah):
+  - Mengubah dan mengonfirmasi tiang membutuhkan izin allocations.poles, yang
+    dipegang PERENCANAAN dan SYS_ADMIN.
+  - Mengubah material membutuhkan izin allocations.manage, yang dipegang
+    KONSTRUKSI_UP3 dan SYS_ADMIN.
+  - Peran lain (Asman, Manager, Teknik, Engineering, dan sebagainya) hanya punya
+    izin lihat.
+
+  Yang saya perbaiki di tampilan:
+  - Halaman usulan meneruskan izin material ke panel sebagai izin "kelola
+    semua". Akibatnya Konstruksi melihat tombol Tambah Tiang, Simpan Tiang, dan
+    Konfirmasi Tiang, padahal backend akan menolaknya (403).
+  - Sekarang panel menerima izin material dan izin tiang secara terpisah.
+    Konstruksi hanya melihat bagian material, Perencanaan hanya bagian tiang,
+    dan peran lain keduanya sebagai viewer.
+  - Tes frontend yang terkait lulus (140 dari 140). Saya belum menambah tes
+    khusus untuk kasus Konstruksi tidak lagi melihat tombol tiang.
+
+  Satu hal yang perlu Anda putuskan: Perencanaan belum bisa membuka alokasi
+  baru. Sesuai keputusan sebelumnya, alokasi dibuat oleh Konstruksi UP3, lalu
+  Perencanaan melengkapi bagian tiang. Kalau Konstruksi belum membuat alokasi,
+  Perencanaan tidak punya bagian tiang untuk diisi. Apakah Perencanaan juga
+  boleh membuka alokasi, atau urutan ini sudah sesuai alur kerja?
+
+  Impor ulang harga saya tunda sampai Anda siap dengan daftar harganya.
+
+❯ buka alokasi bisa juga oleh perencanaan tetapi hanya bisa mengisi alokasi
+  tiang saja
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Label tombol dan tes lama perlu disesuaikan.
+
+  Searched for 1 pattern, ran 4 shell commands (ctrl+o to expand)
+
+● Sekarang tes backend: ubah tes "Perencanaan membuat alokasi → 403" jika ada,
+  dan pastikan sebuah tes membuktikan Perencanaan bisa membuat.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Tes backend MtoTest sedang berjalan di latar belakang. Saya menunggu hasilnya.
+
+● Monitor(Wait for MtoTest finish)
+  ⎿  Monitor started · task b4jvqnjwz · timeout 600s
+
+● Perencanaan sekarang bisa membuka alokasi, tetapi hanya mengisi bagian tiang.
+  Tes backend MtoTest masih berjalan, jadi sisi backend belum terverifikasi.
+
+  Backend
+  - Membuka alokasi kini boleh dilakukan pemegang izin material (Konstruksi UP3)
+    atau izin tiang (Perencanaan), pada unit permohonan itu.
+  - Mengisi material tetap hanya untuk Konstruksi dan sys_admin. Mengisi dan
+    mengonfirmasi tiang tetap hanya untuk Perencanaan dan sys_admin. Peran lain
+    tetap viewer.
+  - Satu permohonan tetap hanya boleh punya satu alokasi yang berjalan.
+
+  Frontend
+  - Perencanaan melihat tombol Buat Alokasi. Konstruksi tetap melihat Buat
+    Alokasi Material. Keduanya terkunci sampai MTO disetujui.
+  - Teks petunjuk "menunggu Konstruksi UP3" sudah saya ganti.
+  - Tes 4f saya tulis ulang menjadi: Perencanaan melihat tombol buat alokasi,
+    terkunci sampai MTO disetujui. Tes frontend terkait lulus (140 dari 140).
+
+  Backend
+  - Di MtoTest, tes yang dulu menyatakan Perencanaan ditolak saat membuat
+    alokasi saya ubah. Sekarang Perencanaan lolos otorisasi dan baru ditolak 409
+    karena alokasi sudah berjalan.
+  - Hasilnya akan saya laporkan begitu MtoTest selesai.
+
+● Background command "python3 - <<'EOF' p='tests/Feature/MtoTest.php'
+s=open(p).read() s=s.replace("""->assertCreated()->json('data.id'); // only the
+materials role opens it; UP3 roles act on the child ULP application
+$this->as($this->perencanaan)->postJson($url, [])->assertForbidden(); //
+Perencanaan only fills the poles part""","""->assertCreated()->json('data.id');
+// UP3 roles act on the child ULP application $this- ... [218 characters
+truncated] ... s) EOF (timeout 500 php artisan test --filter=MtoTest >
+/tmp/claude-1000/-media-data-PROJECT-DISTRIVA/043ccf63-5fd5-41e4-99e5-a326844864
+7e/scratchpad/mto.log 2>&1; tail -15 /tmp/claude-1000/-media-data-PROJECT-DISTRI
+VA/043ccf63-5fd5-41e4-99e5-a3268448647e/scratchpad/mto.log)" completed (exit
+code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● MtoTest lulus: 51 dari 51 tes. Itu mencakup tes yang saya ubah, yaitu
+  Perencanaan boleh membuka alokasi dan baru ditolak 409 kalau alokasi sudah
+  berjalan.
+
+  Saya belum menjalankan seluruh tes backend setelah perubahan terbaru (pemasok
+  PLN/vendor dan aturan buka alokasi). Itu perlu sekitar 10 menit. Mau saya
+  jalankan sekarang?
+
+● Monitor event: "Wait for MtoTest finish"
+  [Monitor expired after 10m with no events delivered. Re-arm it if you still
+  need the watch — and widen the filter if silence was unexpected.]
+
+● Pemantau itu sudah tidak diperlukan, karena hasil MtoTest sudah saya baca.
+  Statusnya tidak berubah: MtoTest lulus 51 dari 51, dan seluruh tes backend
+  belum dijalankan ulang setelah perubahan terbaru.
+
+  Mau saya jalankan seluruh tes backend sekarang? Perlu sekitar 10 menit.
+
+[Image #30]
+❯ material sebenarnya masih ada yang belum lengkap, apabila dikonfirmasi apakah
+  kedepanya ketika material datang perlu buat alokasi baru lagi?
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Dengan aturan sekarang, ya, tapi caranya tidak enak. Setelah dikonfirmasi,
+  bagian material terkunci. Untuk menambah material yang datang belakangan,
+  alokasi v1 harus dibatalkan dulu, lalu dibuat v2 dari awal.
+
+  - Pembatalan melepas reservasi stok. Semua baris v1, termasuk yang sudah
+    benar, dilepas dan harus diisi ulang di v2.
+  - Tombol "Buat Alokasi Material" di tangkapan layar menyesatkan. Tombol itu
+    tampil padahal v1 masih CONFIRMED, dan kalau diklik akan ditolak dengan
+    pesan "sudah memiliki alokasi yang berjalan".
+  - Konfirmasi tidak mensyaratkan kebutuhan terpenuhi penuh. Yang diperiksa
+    hanya stok dan ketersediaan, sehingga alokasi yang sebagian kosong, seperti
+    pada kasus Anda, bisa dikonfirmasi.
+
+  Saran saya adalah alokasi tambahan, bukan alokasi baru dari nol:
+  - Alokasi yang sudah dikonfirmasi tetap berlaku, dan reservasinya tidak
+    dilepas.
+  - Konstruksi bisa membuka tambahan yang hanya menampilkan sisa kebutuhan
+    (kebutuhan MTO dikurangi yang sudah dialokasikan). Isinya diisi otomatis
+    dari stok yang kini tersedia, dengan aturan yang sama seperti sekarang.
+  - Setelah tambahan dikonfirmasi, material baru ikut mereservasi stok. Riwayat
+    v1 dan tambahannya tetap terlihat.
+  - Tombol berubah menjadi Tambah Alokasi hanya selama masih ada sisa kebutuhan
+    material PLN. Kalau semua sudah terpenuhi, tombol tidak tampil.
+  - Untuk tiang berlaku sama: Perencanaan menambah baris tiang selama sisa saldo
+    Kontrak Rinci masih ada.
+
+  Alternatif yang lebih sederhana: bagian material dibuka lagi (revisi) selama
+  alokasi belum selesai, tanpa membuat versi baru. Kekurangannya, jejak
+  perubahan lebih lemah dibanding tambahan yang terpisah.
+
+  Mau saya kerjakan alokasi tambahan seperti saran di atas? Kalau ya, saya juga
+  langsung menyembunyikan tombol yang menyesatkan itu.
+
+❯ iya bisa dibuatkan alokasi tambahan
+  dan untuk penerbitan wo apakah harus menunggu semua material lengkap?
+
+● Saya cek dulu aturan penerbitan WO di kode, lalu mengerjakan alokasi tambahan.
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+● Backend alokasi tambahan sudah dibuat dan migrasinya terpasang. Sekarang saya
+  menulis tesnya.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● As suspected, the first line in the package is a concrete pole, which the
+  suggestions exclude. I'll pick a non-pole line in the test.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Backend lulus. Sekarang tampilan: tombol dan pemilih versi di panel.
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Tambahkan peringatan di modal pembatalan dan notifikasi/catatan yang sesuai,
+  lalu tes frontend.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Tes frontend lulus. Sekarang saya cek syarat penerbitan WO untuk menjawab
+  pertanyaan Anda.
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+● Alokasi tambahan sudah jadi di backend dan frontend. Penerbitan WO tidak
+  menunggu material lengkap, karena kode tidak mensyaratkan alokasi sama sekali.
+
+  Penerbitan WO
+
+  Syarat membuat dan menerbitkan WO yang saya temukan di WorkOrderService:
+  - Paket MTO sudah disetujui, dan sudah ada run RAB.
+  - Vendor sudah dipilih, dan WO sudah punya tugas.
+  - Penerbit bukan orang yang mengajukan WO.
+  - Belum ada WO lain yang berjalan untuk permohonan itu.
+
+  Alokasi hanya dipakai untuk mengisi nomor SKU dan gudang asal pada dokumen
+  permintaan material di WO. Kalau alokasi belum ada atau belum lengkap, dokumen
+  itu terbit dengan kolom alokasi kosong untuk material tersebut.
+
+  Dengan alokasi tambahan, dokumen permintaan material kini menggabungkan
+  alokasi dasar dan semua tambahannya.
+
+  Alokasi tambahan
+
+  - Alokasi dasar tetap berlaku: alokasi yang sudah CONFIRMED tidak dibatalkan,
+    dan reservasi stok serta saldo Kontrak Rinci-nya tetap.
+  - Tombol: pada alokasi yang sudah CONFIRMED, tombolnya menjadi Tambah Alokasi.
+    Tombol ini hanya muncul kalau belum ada draf yang berjalan. Siapa pun yang
+    boleh membuka alokasi (Konstruksi atau Perencanaan) bisa memakainya.
+  - Isi otomatis: tambahan menghitung sisa kebutuhan, yaitu kebutuhan MTO
+    dikurangi yang sudah dialokasikan oleh alokasi dasar dan tambahan
+    sebelumnya. Aturan isi otomatis sama: penuh kalau stok cukup, 0 kalau
+    kurang.
+  - Batas jumlah: total alokasi dasar ditambah tambahan tidak boleh melebihi
+    kebutuhan MTO.
+  - Peran: Konstruksi mengisi material dan Perencanaan mengisi tiang, sama
+    seperti alokasi dasar. Tambahan boleh dibuat berkali-kali, tetapi hanya satu
+    draf pada satu waktu.
+  - Membatalkan alokasi dasar ikut membatalkan tambahannya, dan modal pembatalan
+    memberi peringatan soal itu. Membatalkan satu tambahan tidak memengaruhi
+    yang lain.
+  - Tampilan: pemilih versi menampilkan "Tambahan v2", dan judulnya "Alokasi
+    Tambahan #2".
+
+  Ada perubahan database: kolom parent_allocation_id dan dua indeks baru lewat
+  migrasi 2026_11_20_100000_allocation_additions. Migrasi itu sudah saya
+  jalankan di database lokal.
+
+  Verifikasi
+
+  - Tes backend baru untuk alur tambahan lulus: alokasi dasar sebagian, lalu
+    tambahan, lalu stok tereservasi untuk keduanya, lalu pembatalan dasar. Tes
+    MtoTest yang lain belum saya jalankan ulang setelah perubahan ini.
+  - Tes frontend src/pages lulus (299 dari 299), termasuk dua tes baru.
+  - Seluruh tes backend belum dijalankan ulang. Mau saya jalankan sekarang?
+    Perlu sekitar 10 menit.
+  - Dokumen docs/82 §19 belum memuat pemisahan PLN/vendor dan alokasi tambahan.
+    Saya tambahkan setelah Anda setuju dengan perilakunya.
+
+[Image #31]
+
+❯ notifikasi layak sebeaikny dibuat warna hijau, tidak layak wana merah dan
+  lainnya bisa disesuaikan
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+● Penyebabnya: status LAYAK dan TIDAK_LAYAK belum terdaftar di komponen badge,
+  jadi tampil abu-abu. Saya tambahkan, dan sekalian perbaiki tanda "% %" ganda
+  di kolom IRR.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Badge LAYAK sekarang hijau dan TIDAK LAYAK merah. Seluruh tes frontend lulus
+  (403 dari 403). Saya belum melihat tampilannya di browser.
+
+  Warna badge (components/StatusBadge.jsx)
+  - Sebelumnya status LAYAK dan TIDAK_LAYAK belum terdaftar di komponen,
+    sehingga jatuh ke warna abu-abu bawaan.
+  - Sekarang LAYAK hijau, TIDAK LAYAK merah, dengan titik indikator dan mode
+    gelap yang sesuai.
+  - Teks tampil sebagai "Layak" dan "Tidak Layak". Sebelumnya "TIDAK_LAYAK"
+    muncul dengan garis bawah.
+  - Badge ini dipakai di semua tempat yang memakai StatusBadge, termasuk hasil
+    kalkulasi KKF di halaman usulan dan KKO.
+
+  Kolom IRR
+  - Tampilan "30,7103 % %" kini menjadi "30,7103 %". Fungsi format sudah
+    menambahkan "%", lalu kode menambahkannya lagi.
+  - Saya perbaiki di tiga tempat di panel KKF usulan: tabel riwayat, kartu hasil
+    IRR, dan teks "Target".
+
+  Dua hal kecil yang saya lihat tapi belum diubah:
+  - Kolom NPV memakai hijau untuk nilai positif dan merah untuk negatif. Kolom
+    IRR dan PBP belum diwarnai. Kalau mau, IRR bisa hijau saat di atas target
+    diskonto dan merah saat di bawahnya.
+  - Kolom PBP run #1 menampilkan "-". Itu data run lama (NPV Rp 71,9 miliar, IRR
+    27.132%), tampaknya hasil run awal sebelum perhitungan diperbaiki. Saya
+    tidak menyentuhnya.
+
+[Image #32]
+
+❯ Kolom NPV memakai hijau untuk nilai positif dan merah untuk negatif. Kolom
+  IRR dan PBP belum diwarnai. Kalau mau, IRR bisa hijau saat di atas target
+  diskonto dan merah saat di bawahnya.
+  bisa dilakukan perbaikan
+
+  untuk tambah vendor sebaiknya jangan hanya kode vendor dan nama saja tetapi
+  dibuat profile lengkap vendor
+
+  Searched for 2 patterns, ran 3 shell commands (ctrl+o to expand)
+
+● Backend profil vendor sudah dibuat. Sekarang saya menulis tes backend
+  untuknya, lalu mengerjakan formulir di frontend.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Sekarang tes frontend untuk profil vendor (tambah lengkap dan ubah), lalu
+  pewarnaan IRR/PBP.
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+● Saya sedang mewarnai kartu IRR dan PBP pada hasil kalkulasi, sama seperti di
+  tabel riwayat. Setelah itu saya jalankan tes.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● IRR, PBP, dan profil vendor sudah dikerjakan. Tes yang terkait lulus: frontend
+  404 dari 404, serta tes backend baru untuk vendor dan tes KKF. Seluruh tes
+  backend belum saya jalankan ulang, dan saya belum melihat tampilannya di
+  browser.
+
+  Warna IRR dan PBP
+
+  - IRR hijau kalau lebih tinggi dari tingkat diskonto run itu, merah kalau
+    tidak.
+  - PBP hijau kalau tidak melebihi batas payback, merah kalau melebihi.
+  - Warna ini berlaku di tabel riwayat run KKF usulan dan di kartu IRR dan PBP
+    pada hasil kalkulasi.
+  - Backend daftar run sekarang mengirim discount_rate_percent dan
+    payback_limit_months dari data masing-masing run.
+  - Kalau targetnya tidak diketahui, angka tampil abu-abu seperti biasa. Run PBP
+    kosong (misalnya #1) juga tetap abu-abu.
+
+  Profil lengkap vendor
+
+  Semua kolom opsional, kecuali kode dan nama:
+
+  - Identitas: NPWP (divalidasi 15 atau 16 digit) dan NIB.
+  - Alamat dan kontak perusahaan: alamat, kota, provinsi, kode pos, telepon,
+    email, situs web.
+  - Penanggung jawab (PIC): nama, jabatan, telepon atau WhatsApp, email.
+  - Kualifikasi usaha (SBU): bidang atau klasifikasi, nomor, berlaku sampai.
+  - Kontrak atau SPK: nomor, berlaku mulai, berlaku sampai. Tanggal akhir tidak
+    boleh sebelum tanggal mulai.
+  - Rekening: bank, nomor, atas nama.
+  - Catatan internal.
+
+  Perubahan di backend dan tampilan:
+  - Ada migrasi 2026_11_21_100000_vendor_company_profile yang menambah kolom
+    tersebut. Migrasi sudah saya jalankan di database lokal.
+  - Ada endpoint baru PUT /master-data/vendors/{id} untuk mengubah nama dan
+    profil. Kode vendor dan status tidak berubah lewat endpoint ini. Izinnya
+    sama dengan menambah vendor (vendors.manage).
+  - Formulir tambah vendor sekarang dibagi per bagian di laci yang lebih lebar.
+    Tabel vendor punya tombol Profil untuk mengubah data, dengan kode terkunci.
+  - Tabel vendor punya kolom baru "Kontak (PIC) & Kontrak". Badge masa berlaku
+    kontrak hijau kalau masih berlaku dan merah kalau sudah lewat. Vendor lama
+    tanpa profil menampilkan "Profil belum dilengkapi".
+
+  Saya memilih sendiri kolom di atas karena Anda belum menyebutkannya. Kalau ada
+  yang kurang atau berlebih, bilang saja. Untuk vendor yang sudah ada, profil
+  bisa dilengkapi lewat tombol Profil.
+
+[Image #33]
+
+❯ dengan data sebainyak diatas sebaiknya dibuatkan drawing page, sedangkang
+  drawer preview hanya untuk preview data saja
+  tombol aksil ditable juga bisa disesuaikan
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+● Halaman formulir sudah dibuat. Sekarang saya mengubah daftar vendor: laci
+  hanya untuk pratinjau, tombol aksi dirapikan, lalu rute dan judul halaman.
+
+  Ran 1 shell command (ctrl+o to expand)
+  ⎿  Error: No such tool available: bash. Tool names are case-sensitive: call
+     Bash instead.
+  Ran 3 shell commands (ctrl+o to expand)
+
+● The test only needs an exact match for the drawer's text button.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Tambah dan ubah vendor sekarang punya halaman sendiri, dan laci hanya untuk
+  pratinjau. Tes frontend lulus (407 dari 407). Saya belum melihat tampilannya
+  di browser.
+
+  Halaman formulir
+  - Halaman baru /master-data/vendors/new untuk tambah dan
+    /master-data/vendors/:id/edit untuk ubah, dengan izin vendors.manage seperti
+    halaman daftar.
+  - Isinya sama dengan formulir sebelumnya. Tiap bagian (identitas, alamat dan
+    kontak, PIC, SBU, kontrak, rekening, catatan) kini berupa kartu dengan tiga
+    kolom di layar lebar. Bar Batal dan Simpan menempel di bawah supaya selalu
+    terlihat.
+  - Saat mengubah, kode vendor terkunci. Setelah disimpan, Anda kembali ke
+    daftar.
+  - Menu samping tetap aktif di Administrasi, dan judul halaman menunjukkan
+    "Mitra & Vendor / Profil".
+
+  Drawer pratinjau
+  - Drawer sekarang hanya baca, dengan bagian yang sama dengan formulir. Kolom
+    kosong tampil "-".
+  - Masa berlaku kontrak dan SBU diberi tanda hijau "Masih berlaku" atau merah
+    "Sudah berakhir".
+  - Tombol Ubah Profil di bawah drawer langsung membuka halaman ubah.
+
+  Tombol aksi di tabel
+  - Tombol berlabel teks kini berupa empat ikon, dan namanya muncul sebagai
+    tooltip: Lihat profil, Ubah profil, Kelola akun, dan Tangguhkan atau
+    Aktifkan (merah atau hijau).
+  - Ubah profil dan Tangguhkan hanya tampil untuk pemegang izin kelola. Lihat
+    profil dan Kelola akun tampil untuk semua yang bisa membuka halaman ini.
+
+  Tes lama untuk formulir di laci saya ganti dengan tes halaman formulir baru
+  (tambah, ubah, vendor tidak ditemukan) dan tes pratinjau.
+
+  Saya belum menjalankan seluruh tes backend setelah semua perubahan hari ini,
+  dan docs/82 §19 belum diperbarui. Mau saya kerjakan keduanya sekarang? Tes
+  lengkap memakan sekitar 10 menit.
+
+❯ iya bisa dikerjakan
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Background command "until ! pgrep -f "artisan test" >/dev/null; do sleep 5;
+done; python3 - <<'EOF' import json t=open('/tmp/claude-1000/-media-data-PROJECT
+-DISTRIVA/043ccf63-5fd5-41e4-99e5-a3268448647e/scratchpad/full.log').read()
+print(t[-2500:]) EOF" failed with exit code 144
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Tidak ada tes yang berjalan. Saya mulai tes lengkap di latar belakang, lalu
+  memperbarui dokumen.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Dokumen sudah diperbarui. Sekarang saya menunggu tes backend lengkap selesai.
+
+● Monitor(Wait for full backend suite)
+  ⎿  Monitor started · task b0k2eafs0 · timeout 900s
+
+● docs/82 sudah diperbarui. Tes backend lengkap sedang berjalan di latar
+  belakang, jadi hasilnya belum ada.
+
+  Perubahan di dokumen:
+  - Butir 2 (peran alokasi): saya koreksi. Perencanaan sekarang boleh membuka
+    alokasi, bukan lagi ditolak 403.
+  - Butir 8: penandaan PLN dan vendor mengikuti sheet JASA, hasil pengecekan 450
+    dan 73 material, serta catatan harga PLN yang belum terisi.
+  - Butir 9: alokasi tambahan.
+  - Butir 10: penerbitan WO tidak menunggu alokasi lengkap.
+  - Butir 11: profil vendor dan halaman formulirnya.
+
+  Saya akan melaporkan hasil tes setelah selesai.
+
+❯ untuk pemilihan WO baiknya di proses mana?
+  karena sebenarnya juga ada WO khsus tiang
+  sebelum alokasi material atau setelah alokasi material?
+
+● Saran saya: WO diterbitkan setelah alokasi terkonfirmasi, tetapi tidak harus
+  menunggu semua material lengkap. Di kode sekarang WO belum terhubung ke
+  alokasi, jadi ini perubahan aturan, bukan penyesuaian kecil.
+
+  WO pemasangan (material selain tiang)
+  - Kalau WO terbit sebelum alokasi, dokumen permintaan material untuk vendor
+    tidak memuat gudang asal dan SKU. Vendor tidak tahu harus mengambil material
+    PLN dari mana.
+  - Karena itu syaratnya cukup bagian material alokasi terkonfirmasi, boleh
+    sebagian. Material yang datang menyusul masuk lewat alokasi tambahan, dan
+    dokumen permintaan material WO sudah menggabungkan alokasi dasar dan
+    tambahannya.
+  - Untuk alokasi yang belum lengkap, sebaiknya peringatan saja, bukan blokir.
+    Pekerjaan lapangan tidak perlu menunggu material terakhir. Peringatan itu
+    bisa menyebut daftar material yang belum teralokasi.
+  - Material vendor tidak terpengaruh, karena vendor menyediakannya sendiri.
+
+  WO khusus tiang
+  - Tiang baru bisa ditulis di dokumen kalau bagian tiang alokasi terkonfirmasi,
+    karena dokumennya memuat nomor Kontrak Rinci, jenis TM atau TR, dan jumlah.
+  - Syarat WO tiang sebaiknya lebih ketat daripada WO material: bagian tiang
+    wajib terkonfirmasi, tanpa opsi peringatan saja.
+  - Dengan begitu WO material dan WO tiang berjalan sendiri-sendiri. Konstruksi
+    tidak menunggu Perencanaan, dan sebaliknya.
+
+  Saya belum memeriksa bagaimana WO tiang dimodelkan sekarang, apakah dokumen
+  terpisah atau bagian dari WO yang sama. Ada tiga hal yang menentukan
+  rancangannya:
+  1. Apakah WO tiang punya vendor atau pelaksana sendiri, atau vendor yang sama
+     dengan WO pemasangan?
+  2. Apakah satu permohonan boleh punya dua WO berjalan sekaligus (pemasangan
+     dan tiang)? Sekarang aturannya satu WO berjalan per permohonan.
+  3. Untuk WO pemasangan, apakah peringatan material belum lengkap sudah cukup,
+     atau Anda mau blokir sampai semua material PLN teralokasi?
+
+  Setelah Anda jawab, saya rancang perubahannya.
+
+● Monitor event: "Wait for full backend suite"
+  [Monitor expired after 15m with no events delivered. Re-arm it if you still
+  need the watch — and widen the filter if silence was unexpected.]
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Tes lengkap sebelumnya hanya gagal di satu tes lama, yang sudah saya perbaiki.
+  Saya jalankan ulang seluruhnya untuk memastikan.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Monitor(Wait for full suite rerun)
+  ⎿  Monitor started · task bk19xj258 · timeout 600s
+
+● Tes backend lengkap tadi gagal di satu tes lama, dan sekarang sudah saya
+  perbaiki. Saya sedang menjalankannya ulang untuk memastikan semua lulus.
+
+  Penyebab kegagalan: tes alokasi lama menyatakan alokasi CONFIRMED menolak
+  alokasi kedua dengan 409. Sekarang alokasi kedua itu menjadi alokasi tambahan,
+  jadi hasilnya 201. Tes saya sesuaikan: alokasi tambahan berhasil dibuat, draf
+  kedua ditolak 409, dan pembatalan alokasi dasar ikut membatalkan tambahannya.
+  Nomor versi berikutnya menjadi 3, bukan 2.
+
+  Perilaku aplikasinya sudah benar. Yang salah hanya harapan di tes. Tes itu
+  sendiri lulus setelah diperbaiki.
+
+  Saya akan melaporkan hasil tes lengkap begitu selesai. Untuk pertanyaan WO,
+  saya masih menunggu jawaban Anda atas tiga hal di pesan sebelumnya:
+  1. Apakah WO tiang punya pelaksana sendiri?
+  2. Apakah satu permohonan boleh punya dua WO berjalan?
+  3. Apakah WO pemasangan cukup diberi peringatan material belum lengkap, atau
+     diblokir?
+
+❯ Apakah WO tiang punya vendor atau pelaksana sendiri, atau vendor yang sama
+  dengan WO pemasangan? wo tiang punya vendor tersendiri berbeda dari vendor
+  material
+
+  Apakah satu permohonan boleh punya dua WO berjalan sekaligus (pemasangan dan
+  tiang)? Sekarang aturannya satu WO berjalan per permohonan. baiknya dibuat
+  seperti apa? karena yang berjalan saat ini ada 2 wo berbeda, wo pekerjaan
+  jaringan dan wo tiang (untuk wo tiang permintaan melalui surat dan 1 surat
+  bisa berisi  permintaan untuk beberapa lokasi)
+
+  Untuk WO pemasangan, apakah peringatan material belum lengkap sudah cukup,
+  atau Anda mau blokir sampai semua material PLN teralokasi? iya cukup
+  peringatan kalau material belum lengkap saja
+
+● Saran saya: pisahkan WO menjadi dua jenis dengan alur sendiri. WO tiang
+  berbasis surat yang bisa memuat banyak lokasi, dan aturan "satu WO berjalan"
+  tetap berlaku per jenis. Ini belum saya bangun.
+
+  Dua jenis WO
+  - WO Jaringan (pemasangan): per permohonan, seperti sekarang. Satu WO berjalan
+    per permohonan, dengan vendor pekerjaan jaringan.
+  - WO Tiang: per surat permintaan, dengan vendor tiang sendiri. Satu permohonan
+    boleh punya satu WO Jaringan dan satu WO Tiang berjalan sekaligus. Keduanya
+    tidak saling menunggu.
+
+  Bentuk WO Tiang
+  - Kepala surat: nomor surat, tanggal, vendor tiang, dan catatan.
+  - Baris per lokasi: tiap baris menunjuk satu permohonan, lalu nomor Kontrak
+    Rinci, jenis TM atau TR, dan jumlah. Semuanya diambil dari bagian tiang
+    alokasi permohonan itu, jadi tidak diketik ulang.
+  - Satu surat, banyak lokasi: Anda memilih beberapa permohonan sekaligus, dan
+    surat memuat semuanya.
+  - Syarat: bagian tiang alokasi tiap permohonan di surat itu harus sudah
+    terkonfirmasi. Ini blokir, bukan peringatan, karena surat memuat nomor KR
+    dan jumlahnya.
+  - Vendor tiang: memakai daftar perusahaan vendor yang sama dengan penanda
+    jenis (jaringan atau tiang), agar pilihan vendor di tiap WO tidak tercampur.
+
+  Aturan WO Jaringan
+  - Tidak ada blokir karena alokasi. Kalau material PLN belum teralokasi penuh,
+    WO tetap bisa diajukan dan diterbitkan dengan peringatan berisi daftar
+    material yang belum teralokasi.
+  - Dokumen permintaan material mengambil alokasi dasar ditambah semua tambahan.
+
+  Empat hal ini menentukan seberapa besar pekerjaannya. Kalau tidak ada
+  preferensi, saya pakai nilai bawaan yang saya sebut:
+  1. Lingkup vendor tiang: hanya mengirim tiang, atau juga memasang? Kalau hanya
+     mengirim, WO Tiang cukup tercatat sampai tiang diterima, tanpa progres per
+     tugas dan BASTP. Kalau juga memasang, alurnya perlu progres dan BASTP
+     seperti WO Jaringan. Nilai bawaan: hanya mengirim, selesai saat tiang
+     diterima.
+  2. Nomor surat: diketik manual dari surat fisik, atau dibuat otomatis? Nilai
+     bawaan: diketik manual, wajib unik.
+  3. Lampiran: apakah scan surat permintaan perlu diunggah ke WO Tiang? Nilai
+     bawaan: opsional.
+  4. Siapa yang menerbitkan WO Tiang: peran Perencanaan, atau yang menerbitkan
+     WO Jaringan? Nilai bawaan: Perencanaan, karena merekalah yang mengisi
+     alokasi tiang.
+
+  Tes backend lengkap masih berjalan, dan hasilnya akan saya laporkan begitu
+  selesai.
+
+❯ Empat hal ini menentukan seberapa besar pekerjaannya. Kalau tidak ada
+  preferensi, saya pakai nilai bawaan yang saya sebut:
+
+  Lingkup vendor tiang: hanya mengirim tiang, atau juga memasang? Kalau hanya
+  mengirim, WO Tiang cukup tercatat sampai tiang diterima, tanpa progres per
+  tugas dan BASTP. Kalau juga memasang, alurnya perlu progres dan BASTP seperti
+  WO Jaringan. Nilai bawaan: hanya mengirim, selesai saat tiang diterima.
+  vendor tiang juga harus melaksanakan pemasangan tiang dan melaporkan kapan
+  pekerjaan selesai, sebaiknya tetap dilengkapi BASTP
+
+  Nomor surat: diketik manual dari surat fisik, atau dibuat otomatis? Nilai
+  bawaan: diketik manual, wajib unik.
+  Lampiran: apakah scan surat permintaan perlu diunggah ke WO Tiang? Nilai
+  bawaan: opsional. nomor surat berasal dari aplikasi AMS internal, untuk surat
+  opsional saja bisa diunggah atau tidak
+
+  Siapa yang menerbitkan WO Tiang: peran Perencanaan, atau yang menerbitkan WO
+  Jaringan? Nilai bawaan: Perencanaan, karena merekalah yang mengisi alokasi
+  tiang. perencanaan yang menerbitkan wo tiang
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Seluruh tes backend lulus: 623 dari 623. Sekarang saya pelajari model WO yang
+  ada supaya WO Tiang bisa dibangun di atasnya.
+
+  Searched for 2 patterns, ran 6 shell commands (ctrl+o to expand)
+
+● Monitor event: "Wait for full suite rerun"
+  [Monitor expired after 10m with no events delivered. Re-arm it if you still
+  need the watch — and widen the filter if silence was unexpected.]
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Saya mulai dari migrasi dan konfigurasi izin WO Tiang.
+
+  Searched for 2 patterns, read 2 files, ran 7 shell commands (ctrl+o to expand)
+
+● Backend WO Tiang lulus. Sekarang peringatan material belum lengkap untuk WO
+  Jaringan, di backend dulu.
+
+  Searched for 1 pattern, ran 5 shell commands (ctrl+o to expand)
+
+● Saya sekarang membangun frontend WO Tiang: API, tiga halaman (daftar,
+  formulir, detail), rute, dan menu.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Sekarang tiga halamannya.
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Sekarang peringatan material di WO Jaringan, pilihan lingkup di formulir
+  vendor, dan tes frontend.
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Un script saya tadi menimpa VendorsPage.jsx dengan isi formulir. Saya tulis
+  ulang halaman daftar vendor lengkap sesuai desain terakhir.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Halaman vendor pulih dan seluruh tes frontend lulus (412 dari 412). Sekarang
+  tes backend lengkap di latar belakang, sambil saya menulis dokumen.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Monitor(Wait for full backend suite)
+  ⎿  Monitor started · task brz0dxep1 · timeout 600s
+
+● WO Tiang sudah dibangun dari surat sampai BASTP, dan peringatan material pada
+  WO Jaringan sudah ada. Tes backend lengkap masih berjalan, jadi hasil akhirnya
+  belum ada. Yang sudah lulus: tes baru alur WO Tiang, tes MtoTest untuk
+  peringatan material, dan frontend 412 dari 412.
+
+  WO Tiang
+
+  - Satu surat, banyak lokasi: nomor surat diketik dari AMS dan wajib unik. Scan
+    surat boleh diunggah atau tidak. Satu surat hanya untuk satu UP3.
+  - Isi baris: diambil otomatis dari bagian tiang alokasi (nomor Kontrak Rinci,
+    TM atau TR, jumlah). Baris hanya bisa dipilih kalau bagian tiangnya sudah
+    terkonfirmasi, alokasinya tidak dibatalkan, dan barisnya belum ada di WO
+    Tiang lain.
+  - Vendor tiang terpisah: vendor kini punya "Lingkup pekerjaan" (Jaringan,
+    Tiang, atau Keduanya). Vendor khusus jaringan ditolak di WO Tiang, dan
+    vendor khusus tiang ditolak di WO Jaringan. Vendor yang sudah ada diatur ke
+    "Keduanya".
+  - Alur:
+    - Penerbitan: Perencanaan membuat draf lalu menerbitkannya.
+    - Progres: vendor tiang melaporkan progres kumulatif per lokasi beserta
+      tanggal laporan. Pada 100% tanggal itu menjadi tanggal selesai.
+      Perencanaan memverifikasi, dan tidak boleh oleh orang yang sama dengan
+      pengajunya.
+    - BASTP: Perencanaan membuat BASTP setelah semua lokasi 100% (nomor BASTP
+      diketik). Asman Perencanaan menutup atau mengembalikannya, dan penutupan
+      itu menyelesaikan WO.
+  - Aturan satu WO berjalan: sekarang per jenis. Satu permohonan boleh punya
+    satu WO Jaringan dan satu WO Tiang berjalan sekaligus.
+  - Tampilan: menu WO Tiang berisi daftar, halaman buat atau ubah (lokasi
+    dipilih per permohonan dengan kotak centang), dan halaman detail (progres,
+    BASTP, riwayat). Vendor melihat WO miliknya yang sudah diterbitkan dan hanya
+    bisa melaporkan progres.
+
+  WO Jaringan
+
+  Material PLN yang belum teralokasi muncul sebagai peringatan di detail WO,
+  dengan daftar material dan kekurangannya. WO tidak diblokir.
+
+  Insiden dan hal yang belum ada
+
+  - Insiden: saat menambah pilihan lingkup di formulir vendor, satu skrip saya
+    menimpa VendorsPage.jsx dengan isi formulir. Saya tulis ulang halaman itu
+    berdasarkan versi sebelumnya, dan seluruh tes frontend lulus. Karena tidak
+    ada riwayat git, tolong lihat sekilas halaman daftar vendor: ikon aksi,
+    pratinjau, dan kelola akun.
+  - Belum ada:
+    - notifikasi alur kerja untuk WO Tiang;
+    - amandemen WO Tiang (cara perbaikan sekarang membatalkan lalu membuat
+      baru).
+  - Dokumen: docs/82 sudah diperbarui (butir 12 dan 13).
+
+  Hasil tes backend lengkap akan saya laporkan begitu selesai.
+
+● Monitor event: "Wait for full backend suite"
+  [Monitor expired after 10m with no events delivered. Re-arm it if you still
+  need the watch — and widen the filter if silence was unexpected.]
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Seluruh tes backend lulus: 624 dari 624. Tes frontend juga lulus (412 dari
+  412).
+
+  Perubahan hari ini yang sudah teruji penuh:
+  - alokasi tambahan
+  - penanda PLN dan vendor
+  - profil vendor
+  - WO Tiang
+  - peringatan material pada WO Jaringan
+
+  Dua hal belum dikerjakan:
+  - Notifikasi alur kerja untuk WO Tiang. Perencanaan dan Asman belum diberi
+    tahu otomatis saat ada progres atau BASTP menunggu.
+  - Amandemen WO Tiang. Perbaikannya sekarang membatalkan WO lalu membuat yang
+    baru.
+
+  Satu hal perlu Anda lihat sendiri: halaman daftar vendor di browser. Saya
+  menulis ulang halaman itu setelah tertimpa skrip, dan tes lulus, tetapi
+  tampilannya belum saya lihat.
+
+  Mau saya kerjakan notifikasi WO Tiang sekarang?
+
+[Image #34]
+  ⎿  [Image #35]
+
+❯ Belum ada:
+  notifikasi alur kerja untuk WO Tiang; bisa dibuatkan
+  amandemen WO Tiang (cara perbaikan sekarang membatalkan lalu membuat baru).
+  akan banyak kontrak rinci, seperti pada gambar 1 dan saat ini alokasi seperti
+  pada gambar 2
+
+● Notifikasi WO Tiang bisa saya kerjakan sekarang. Amandemen saya bahas
+  setelahnya, karena dua gambar itu mengubah rancangannya. Saya lihat dulu pola
+  notifikasi yang sudah ada.
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+● Notifikasi WO Tiang sudah jadi dan lulus tes. Amandemen belum saya bangun,
+  karena dua gambar itu menunjukkan aturan yang berbeda dari yang saya asumsikan
+  dan perlu keputusan Anda dulu.
+
+  Notifikasi (selesai)
+
+  ┌──────────────────────────────────┬──────────────────────────────────────┐
+  │             Kejadian             │        Siapa yang diberi tahu        │
+  ├──────────────────────────────────┼──────────────────────────────────────┤
+  │ WO Tiang diterbitkan             │ Pengguna vendor tiang dan pembuat WO │
+  ├──────────────────────────────────┼──────────────────────────────────────┤
+  │ Progres dilaporkan               │ Perencanaan, diminta memverifikasi   │
+  ├──────────────────────────────────┼──────────────────────────────────────┤
+  │ Progres diverifikasi atau        │ Pelapor, disertai alasan kalau       │
+  │ dikembalikan                     │ dikembalikan                         │
+  ├──────────────────────────────────┼──────────────────────────────────────┤
+  │ BASTP diajukan                   │ Asman Perencanaan, diminta menutup   │
+  ├──────────────────────────────────┼──────────────────────────────────────┤
+  │ BASTP ditutup (WO selesai)       │ Pembuat WO, Perencanaan, dan vendor  │
+  ├──────────────────────────────────┼──────────────────────────────────────┤
+  │ BASTP dikembalikan               │ Penyusun BASTP, disertai alasan      │
+  ├──────────────────────────────────┼──────────────────────────────────────┤
+  │ WO dibatalkan                    │ Pembuat WO, vendor, dan Perencanaan  │
+  └──────────────────────────────────┴──────────────────────────────────────┘
+
+  Tes alur WO Tiang diperluas dan lulus. Saya hanya menjalankan tes itu, belum
+  seluruh tes backend setelah perubahan ini.
+
+  Amandemen: yang saya lihat di kedua gambar
+
+  Ini pembacaan saya atas gambar, mohon dikoreksi kalau keliru.
+  - Gambar 1 (Rekap Kontrak Rinci): setiap KR punya satu vendor, kuota, jumlah
+    yang sudah di-WO-kan, dan saldo. Saldo bisa negatif ("utang kerja" atau
+    "hutang kerja"). KR yang lebih baru kemudian menutupnya dengan keterangan
+    "bayar utang".
+  - Gambar 2 (rekap harian): satu batch berisi banyak pelanggan dengan satu kode
+    vendor, satu tanggal, dan satu nomor KR. Kolom keterangan berisi hal
+    seperti "limpahan dari Madiun", "minta dari SBB", "relokasi", dan "pakai
+    tiang bekas".
+
+  Dampaknya ke DISTRIVA:
+  1. Vendor mengikuti KR. Sekarang vendor dipilih manual di WO Tiang. Kalau
+     vendor melekat pada KR, vendor terisi otomatis dan satu surat tidak bisa
+     mencampur KR milik vendor berbeda.
+  2. Saldo negatif ditolak. Sekarang konfirmasi alokasi tiang diblokir kalau
+     melebihi sisa KR. Praktik Anda memperbolehkannya sebagai utang kerja.
+  3. Keterangan per baris belum ada. Tiang baru, bekas, atau relokasi, serta
+     asal tiang (limpahan atau minta dari unit lain), belum bisa dicatat.
+
+  Empat hal yang perlu Anda putuskan, dengan nilai bawaan yang saya sarankan:
+  1. Vendor pada KR: apakah setiap KR memang milik satu vendor? Nilai bawaan:
+     ya. Kolom vendor ditambahkan di Kontrak Rinci, dan WO Tiang mengikutinya.
+  2. Utang kerja: apakah alokasi tiang boleh melebihi sisa KR? Nilai bawaan:
+     boleh, dengan penanda "utang kerja" yang terlihat jelas, dan saldo negatif
+     tampil di halaman Kontrak Rinci. Pelunasan dicatat dengan menunjuk KR baru
+     sebagai "bayar utang". Kalau tidak boleh, aturan sekarang tetap dan
+     amandemen cukup menukar KR.
+  3. Amandemen WO Tiang: nilai bawaan saya:
+     - Hanya untuk WO yang sudah diterbitkan dan belum selesai, dengan alasan
+       wajib.
+     - Membuat versi baru yang menyalin baris dan progres terverifikasi. Versi
+       lama menjadi SUPERSEDED saat versi baru diterbitkan.
+     - Boleh menambah atau menghapus lokasi, mengubah jumlah, atau menukar KR.
+       Baris yang sudah punya progres terverifikasi tidak boleh dihapus atau
+       dikurangi di bawah progres itu.
+     - Apakah setiap revisi memakai nomor surat AMS baru, atau nomor yang sama
+       dengan penanda revisi? Nilai bawaan: nomor baru, wajib unik.
+  4. Keterangan per baris: apakah saya tambahkan kolom kondisi tiang (baru,
+     bekas, relokasi) dan catatan asal? Nilai bawaan: ya, opsional.
+
+  Kalau jawabannya mengikuti nilai bawaan, kabari dengan singkat. Poin 1 dan 2
+  mengubah aturan Kontrak Rinci dan konfirmasi alokasi tiang, jadi saya tidak
+  mengerjakannya sebelum Anda setuju.
+
+❯ 1. ya
+  2. iya, atau bisa mengambil kontrak rinci dari up3 lain
+
+● Poin 1 dan 2 saya kerjakan. Poin 3 dan 4 belum Anda jawab, jadi amandemen dan
+  kolom keterangan per baris saya tahan. Saya periksa dulu bagaimana Kontrak
+  Rinci dimodelkan, terutama soal kepemilikan UP3.
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Saya mulai dari backend: kolom vendor dan UP3 pemilik pada Kontrak Rinci, lalu
+  utang kerja pada konfirmasi tiang.
+
+  Searched for 1 pattern, ran 10 shell commands (ctrl+o to expand)
+
+● Saya sedang menambah pilihan vendor dan UP3 pemilik di formulir Kontrak Rinci,
+  penanda utang kerja di tabelnya, dan persetujuan utang saat konfirmasi tiang.
+
+  Ran 8 shell commands (ctrl+o to expand)
+
+● Frontend lulus (414 dari 414). Sekarang dokumen dan tes backend lengkap.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Monitor(Wait for full backend suite)
+  ⎿  Monitor started · task b384cbc54 · timeout 600s
+
+● Notifikasi WO Tiang, vendor pada Kontrak Rinci, dan utang kerja sudah
+  dibangun. Tes backend lengkap masih berjalan, jadi hasil akhirnya belum ada.
+  Tes frontend lulus (414 dari 414), dan tes backend baru untuk bagian ini
+  lulus.
+
+  Vendor pada Kontrak Rinci (poin 1)
+  - Setiap KR bisa diberi vendor tiang di formulir Kontrak Rinci, dan nama
+    vendor tampil di tabel.
+  - Di WO Tiang, vendor terisi otomatis dari KR yang dipilih. Kalau lokasi yang
+    dipilih berasal dari KR milik vendor berbeda, formulir menolaknya dan
+    menyuruh memisahkan surat.
+  - KR lama tanpa vendor tetap bisa dipakai, dengan memilih vendor manual.
+    Silakan isi vendor di KR yang sudah ada.
+
+  Utang kerja dan KR dari UP3 lain (poin 2)
+  - Alokasi tiang boleh melebihi sisa KR, tetapi tidak diam-diam. Panel alokasi
+    menampilkan kelebihannya, misalnya "KR-1 tiang TM: alokasi 3, sisa 2,
+    kelebihan 1". Tombol konfirmasi baru aktif setelah Perencanaan mencentang
+    persetujuan utang kerja, dan backend menolak konfirmasi tanpa persetujuan
+    itu.
+  - KR yang berutang diberi tanda Utang kerja, dan saldonya tampil negatif di
+    halaman Kontrak Rinci.
+  - Kontrak Rinci pada dasarnya sudah global, jadi UP3 mana pun sudah bisa
+    memakai KR UP3 lain. Saya menambah kolom "UP3 pemilik KR" (opsional). Kalau
+    terisi dan berbeda dari UP3 permohonan, baris di WO Tiang diberi tanda
+    Limpahan dari UP3 ….
+  - Pelunasan utang belum dicatat khusus. Sekarang yang terjadi: KR baru dipakai
+    untuk alokasi berikutnya. Kalau Anda ingin pelunasan tercatat, misalnya "KR
+    ini membayar utang KR itu", itu perlu dirancang tersendiri.
+
+  Yang masih menunggu keputusan Anda (poin 3 dan 4)
+  - Amandemen WO Tiang: versi baru yang menyalin lokasi dan progres
+    terverifikasi. Pertanyaan yang belum dijawab: apakah setiap revisi memakai
+    nomor surat AMS baru?
+  - Kolom keterangan per baris: kondisi tiang (baru, bekas, relokasi) dan asal
+    tiang, seperti "limpahan dari Madiun" dan "pakai tiang bekas" di rekap
+    harian Anda.
+
+  docs/82 sudah diperbarui (butir 12 dan 14). Hasil tes backend lengkap akan
+  saya laporkan begitu selesai.
+
+● Monitor event: "Wait for full backend suite"
+  [Monitor expired after 10m with no events delivered. Re-arm it if you still
+  need the watch — and widen the filter if silence was unexpected.]
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Seluruh tes backend lulus: 625 dari 625. Tes frontend juga lulus (414 dari
+  414).
+
+  Dengan ini semua yang kita kerjakan hari ini sudah teruji penuh: alokasi
+  tambahan, penanda PLN dan vendor, profil vendor, WO Tiang beserta
+  notifikasinya, vendor pada Kontrak Rinci, dan utang kerja.
+
+  Masih menunggu jawaban Anda:
+  1. Amandemen WO Tiang: apakah tiap revisi memakai nomor surat AMS baru?
+  2. Kolom keterangan per baris: apakah ditambahkan, yaitu kondisi tiang (baru,
+     bekas, relokasi) dan catatan asal tiang?
+
+  Dua hal yang perlu Anda cek sendiri di browser: halaman daftar vendor yang
+  saya tulis ulang, dan halaman Kontrak Rinci setelah penambahan kolom vendor
+  dan UP3 pemilik.
+
+❯ Amandemen WO Tiang: apakah tiap revisi memakai nomor surat AMS baru?
+  amandemen yang dimaksud ini seperti apa?
+  Kolom keterangan per baris: apakah ditambahkan, yaitu kondisi tiang (baru,
+  bekas, relokasi) dan catatan asal tiang? iya bisa
+
+● Kolom keterangan per baris saya tambahkan sekarang. Soal amandemen,
+  penjelasannya ada di akhir.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Kolom keterangan per baris sudah ditambahkan. Tes terkait lulus: tiga tes
+  backend WO Tiang dan Kontrak Rinci, serta frontend 415 dari 415. Saya belum
+  menjalankan seluruh tes backend setelah perubahan ini.
+
+  Keterangan per baris
+  - Setiap lokasi yang dicentang di formulir WO Tiang punya pilihan Baru, Bekas,
+    atau Relokasi, ditambah kolom Asal / catatan (misalnya "limpahan dari
+    Madiun" atau "pakai tiang bekas Handal").
+  - Keterangan ini tampil di halaman detail, dan tetap terbawa saat WO
+    diterbitkan.
+  - Isinya hanya bisa diubah selagi WO masih draf. Setelah terbit, perubahan
+    harus lewat amandemen.
+
+  Amandemen: maksudnya apa
+
+  Amandemen adalah cara mengubah WO Tiang yang sudah terbit, tanpa
+  membatalkannya.
+
+  Sekarang WO Tiang yang sudah terbit tidak bisa diubah sama sekali. Kalau ada
+  perubahan, satu-satunya jalan adalah membatalkan WO lalu membuat yang baru.
+  Itu merepotkan karena progres yang sudah diverifikasi ikut hilang dan lokasi
+  harus dipilih ulang.
+
+  Contoh dari rekap Anda yang mungkin memerlukannya:
+  - Satu pelanggan dalam surat dipindah ke KR lain karena KR pertama sudah
+    habis.
+  - Jumlah tiang di satu lokasi berubah (misalnya 3 menjadi 4).
+  - Satu lokasi ditambahkan atau dicoret dari surat yang sudah jalan.
+  - Tiang baru diganti tiang bekas, atau lokasinya menjadi relokasi.
+
+  Dengan amandemen, perubahan itu dicatat sebagai revisi dari WO yang sama:
+  - Lokasi dan progres yang sudah terverifikasi tetap terbawa.
+  - Lokasi yang sudah ada progres terverifikasinya tidak bisa dihapus, dan
+    jumlahnya tidak bisa dikurangi di bawah progres itu.
+  - Alasan perubahan wajib diisi dan tercatat di riwayat.
+  - Versi lama berstatus "digantikan" begitu revisi diterbitkan. Seluruh riwayat
+    tetap ada.
+
+  Yang perlu Anda putuskan adalah soal nomor surat: kalau revisi ini muncul
+  bersama surat AMS baru (misalnya surat perubahan atau surat tambahan), nomor
+  baru itu dicatat di revisi. Kalau perubahannya hanya kesepakatan internal
+  tanpa surat baru, nomor surat tetap sama dan revisi hanya ditandai "revisi 1,
+  2, ...".
+
+  Mana yang lebih sesuai dengan praktik Anda sekarang? Apakah perubahan seperti
+  contoh di atas selalu disertai surat AMS baru, atau tidak selalu? Kalau tidak
+  selalu, saya buat nomor surat revisi sebagai isian opsional.
+
+❯ Yang perlu Anda putuskan adalah soal nomor surat: kalau revisi ini muncul
+  bersama surat AMS baru (misalnya surat perubahan atau surat tambahan), nomor
+  baru itu dicatat di revisi. Kalau perubahannya hanya kesepakatan internal
+  tanpa surat baru, nomor surat tetap sama dan revisi hanya ditandai "revisi 1,
+  2, ...".
+
+  nomor surat tetap sama hanya rincian yang dikirimkan ke vendor tiang yang
+  dilakukan perubahan
+
+● Jawaban Anda jelas: nomor surat tetap sama, dan yang berubah hanya rincian
+  lokasi yang dikirim ke vendor tiang. Saya bangun amandemen sebagai revisi pada
+  WO yang sama, ditandai "revisi 1, 2, …". Backend dulu.
+
+  Read 1 file, ran 5 shell commands (ctrl+o to expand)
+
+● Amandemen sudah dibuat di backend dan frontend. Saya memperbarui dokumen lalu
+  menjalankan seluruh tes backend.
+  Ran 1 shell command (ctrl+o to expand)
+
+● Monitor(Wait for full backend suite)
+  ⎿  Monitor started · task be5xbael9 · timeout 600s
+
+● Amandemen WO Tiang sudah jadi sebagai revisi pada WO yang sama, dengan nomor
+  surat tetap. Tes lengkap backend masih berjalan, jadi hasil akhirnya belum
+  ada. Yang sudah lulus: tes alur WO Tiang (73 pernyataan) dan frontend 417 dari
+  417.
+
+  Cara kerjanya
+  - WO yang sudah diterbitkan dan masih berjalan punya tombol Revisi (hanya
+    untuk Perencanaan). Tombolnya tidak muncul kalau BASTP sedang menunggu
+    keputusan.
+  - Halaman revisi mengunci nomor surat dan tanggal surat, serta mewajibkan
+    alasan revisi.
+  - Perencanaan bisa menambah lokasi, mencoret lokasi, atau mengubah kondisi dan
+    asal tiang pada lokasi yang ada.
+  - Lokasi yang sudah ada laporan progresnya terkunci dan tidak bisa dicoret.
+    Vendor dan UP3 juga tidak bisa diganti lewat revisi.
+  - Revisi tanpa perubahan ditolak.
+  - Setiap revisi menaikkan penanda Revisi 1, 2, … pada WO yang sama. Alasan dan
+    rincian sebelum revisi tersimpan, dan tampil di bagian "Riwayat revisi".
+  - Pengguna vendor dan Perencanaan mendapat notifikasi "WO Tiang … direvisi
+    (revisi n)" beserta alasannya.
+
+  Batasan yang perlu Anda ketahui
+  - Jumlah tiang per lokasi mengikuti alokasi tiang dan tidak bisa diketik ulang
+    di revisi. Kalau jumlah satu pelanggan berubah (misalnya 3 menjadi 4),
+    caranya adalah alokasi tambahan untuk tiang itu, lalu lokasi tambahannya
+    ditambahkan lewat revisi.
+  - Memindahkan pelanggan ke KR lain: alokasi lamanya dibatalkan, alokasi baru
+    dengan KR lain dibuat dan dikonfirmasi, lalu lokasi lama dicoret dan yang
+    baru ditambahkan lewat revisi. Kalau lokasi lama sudah punya progres, ia
+    tidak bisa dicoret.
+
+  docs/82 sudah diperbarui. Hasil tes backend lengkap akan saya laporkan begitu
+  selesai.
+
+● Monitor event: "Wait for full backend suite"
+  [Monitor expired after 10m with no events delivered. Re-arm it if you still
+  need the watch — and widen the filter if silence was unexpected.]
+
+  Ran 11 shell commands (ctrl+o to expand)
+
+● 6 background shell command tasks didn't finish before the previous session
+ended. Task ids: b4jvqnjwz, b0k2eafs0, bk19xj258, brz0dxep1, b384cbc54,
+be5xbael9.
+
+❯ /autocompact
+  ⎿  Auto-compact window for Sonnet 5.5: 1m tokens (default for this model)
+     Auto-compact summarizes the conversation when context usage approaches this limit. The actual threshold is the minimum of this setting and your model's maximum context window.
+     The auto setting picks a window tuned for your model and is strongly recommended for the best cost and performance.

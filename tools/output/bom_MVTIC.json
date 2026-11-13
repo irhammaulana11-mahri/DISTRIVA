@@ -1,0 +1,7617 @@
+{
+ "group": "MVTIC",
+ "source": "MASTER RAB & KKF.xlsx / sheet MVTIC",
+ "inputs": [
+  {
+   "cell": "X6",
+   "group": "MVTIC",
+   "label": "MVTIC 150",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y6",
+   "group": "MVTIC",
+   "label": "MVTIC 150",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X7",
+   "group": "MVTIC",
+   "label": "Tibet 11 / 200",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y7",
+   "group": "MVTIC",
+   "label": "Tibet 11 / 200",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X8",
+   "group": "MVTIC",
+   "label": "Tibet 13 / 350",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y8",
+   "group": "MVTIC",
+   "label": "Tibet 13 / 350",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X9",
+   "group": "MVTIC",
+   "label": "Tibet 14 / 350",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y9",
+   "group": "MVTIC",
+   "label": "Tibet 14 / 350",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X10",
+   "group": "MVTIC",
+   "label": "MVTIC 1",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y10",
+   "group": "MVTIC",
+   "label": "MVTIC 1",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X11",
+   "group": "MVTIC",
+   "label": "MVTIC 2",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y11",
+   "group": "MVTIC",
+   "label": "MVTIC 2",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X12",
+   "group": "MVTIC",
+   "label": "MVTIC 4",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y12",
+   "group": "MVTIC",
+   "label": "MVTIC 4",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X13",
+   "group": "MVTIC",
+   "label": "MVTIC 5",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y13",
+   "group": "MVTIC",
+   "label": "MVTIC 5",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X14",
+   "group": "MVTIC",
+   "label": "MVTIC 5A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y14",
+   "group": "MVTIC",
+   "label": "MVTIC 5A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X15",
+   "group": "MVTIC",
+   "label": "MVTIC 5B",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y15",
+   "group": "MVTIC",
+   "label": "MVTIC 5B",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X16",
+   "group": "MVTIC",
+   "label": "MVTIC 8",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y16",
+   "group": "MVTIC",
+   "label": "MVTIC 8",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X17",
+   "group": "MVTIC",
+   "label": "MVTIC 10",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y17",
+   "group": "MVTIC",
+   "label": "MVTIC 10",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X18",
+   "group": "MVTIC",
+   "label": "MVTIC TM Pole",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y18",
+   "group": "MVTIC",
+   "label": "MVTIC TM Pole",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X19",
+   "group": "MVTIC",
+   "label": "MVTIC 4 - DS",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y19",
+   "group": "MVTIC",
+   "label": "MVTIC 4 - DS",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X20",
+   "group": "MVTIC",
+   "label": "2 MVTIC 1",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y20",
+   "group": "MVTIC",
+   "label": "2 MVTIC 1",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X21",
+   "group": "MVTIC",
+   "label": "2 MVTIC 2",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y21",
+   "group": "MVTIC",
+   "label": "2 MVTIC 2",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X22",
+   "group": "MVTIC",
+   "label": "2 MVTIC 4",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y22",
+   "group": "MVTIC",
+   "label": "2 MVTIC 4",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X23",
+   "group": "MVTIC",
+   "label": "2 MVTIC 5",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y23",
+   "group": "MVTIC",
+   "label": "2 MVTIC 5",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X24",
+   "group": "MVTIC",
+   "label": "2 MVTIC 5A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y24",
+   "group": "MVTIC",
+   "label": "2 MVTIC 5A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X25",
+   "group": "MVTIC",
+   "label": "2 MVTIC 5B",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y25",
+   "group": "MVTIC",
+   "label": "2 MVTIC 5B",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X26",
+   "group": "MVTIC",
+   "label": "2 MVTIC 10",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y26",
+   "group": "MVTIC",
+   "label": "2 MVTIC 10",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X27",
+   "group": "MVTIC",
+   "label": "2 MVTIC TM Pole",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y27",
+   "group": "MVTIC",
+   "label": "2 MVTIC TM Pole",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X28",
+   "group": "MVTIC",
+   "label": "2 MVTIC 4 - DS",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y28",
+   "group": "MVTIC",
+   "label": "2 MVTIC 4 - DS",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X29",
+   "group": "MVTIC",
+   "label": "GW TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y29",
+   "group": "MVTIC",
+   "label": "GW TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X30",
+   "group": "MVTIC",
+   "label": "HGW TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y30",
+   "group": "MVTIC",
+   "label": "HGW TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X31",
+   "group": "MVTIC",
+   "label": "GW Baj. TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y31",
+   "group": "MVTIC",
+   "label": "GW Baj. TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X32",
+   "group": "MVTIC",
+   "label": "SP TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y32",
+   "group": "MVTIC",
+   "label": "SP TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X33",
+   "group": "MVTIC",
+   "label": "Pnd Tipe A TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y33",
+   "group": "MVTIC",
+   "label": "Pnd Tipe A TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "X34",
+   "group": "MVTIC",
+   "label": "Pnd Tipe D TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "Y34",
+   "group": "MVTIC",
+   "label": "Pnd Tipe D TM",
+   "kind": "BKR"
+  }
+ ],
+ "lines": [
+  {
+   "sequence": 11,
+   "khs_code": null,
+   "description": "Panjang SKUTM",
+   "H": "+I11",
+   "I": "+GAMBAR!X6",
+   "J": "+GAMBAR!Y6",
+   "K": "+J11",
+   "source": "MVTIC!B11",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 12,
+   "khs_code": 251,
+   "description": "NFA2XSEY-T 3 x 150 + 1 x 95 mm2 - CWS",
+   "H": "+I12",
+   "I": "TRUNC(((I11*1.01)+(I58*3)+(I76*6)+(I103*6)+(I123*6)+(I145*9)+(I170*1)+(I194*3)+(I256*6)+(I279*12)+(I309*12)+(I330*12)+(I352*2)+(I386*6))/1)*1",
+   "J": "TRUNC(((J11*1.01)+(J58*3)+(J76*6)+(J103*6)+(J123*6)+(J145*9)+(J170*1)+(J194*3)+(J256*6)+(J279*12)+(J309*12)+(J330*12)+(J352*2)+(J386*6))/1)*1",
+   "K": "+J12",
+   "source": "MVTIC!B12",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 13,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "+I13",
+   "K": "+J13",
+   "source": "MVTIC!B13",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 14,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I14",
+   "I": "TRUNC((I11*1.01)/1)*1",
+   "J": "TRUNC((J11*1.01)/1)*1",
+   "K": "+J14",
+   "source": "MVTIC!B14",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 15,
+   "khs_code": 87,
+   "description": "Connection Clamp For Netral + Bolt M12 x 25 - (Acc.MVTIC)",
+   "H": "+I15",
+   "I": "I14-((I38+I47+I58+I76+I103+I123+I145+I170+I182+I194+I228+I240+I256+I279+I309+I330+I352+I368+I386))*2",
+   "J": "J14-((J38+J47+J58+J76+J103+J123+J145+J170+J182+J194+J228+J240+J256+J279+J309+J330+J352+J368+J386))*2",
+   "K": "+J15",
+   "source": "MVTIC!B15",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 18,
+   "khs_code": 489,
+   "description": "Tiang Beton 11m - 200 daN",
+   "H": "+I18",
+   "I": "+I462+I478",
+   "J": "+J462+J478",
+   "K": "+J18",
+   "source": "MVTIC!B18",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 19,
+   "khs_code": 492,
+   "description": "Tiang Beton 13m - 350 daN",
+   "H": "+I19",
+   "I": "+GAMBAR!X8",
+   "J": "+GAMBAR!Y8",
+   "K": "+J19",
+   "source": "MVTIC!B19",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 20,
+   "khs_code": 494,
+   "description": "Tiang Beton 14m - 350 daN",
+   "H": "+I20",
+   "I": "+GAMBAR!X9",
+   "J": "+GAMBAR!Y9",
+   "K": "+J20",
+   "source": "MVTIC!B20",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 21,
+   "khs_code": 378,
+   "description": "Pondasi type A ( 1 tiang ) (91/U/2009)",
+   "H": "+I21",
+   "I": "+GAMBAR!X33",
+   "J": "+GAMBAR!Y33",
+   "K": "+J21",
+   "source": "MVTIC!B21",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 22,
+   "khs_code": 379,
+   "description": "Pondasi type D ( 2 Tiang ) (91/U/2009)",
+   "H": "+I22",
+   "I": "+GAMBAR!X34",
+   "J": "+GAMBAR!Y34",
+   "K": "+J22",
+   "source": "MVTIC!B22",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 23,
+   "khs_code": 315,
+   "description": "Penghalang panjat 10\" HDG (l=35mm, t=3,2mm, besi 10mm)",
+   "H": "+I23",
+   "I": "+SUM(I19:I20)",
+   "J": "+SUM(J19:J20)",
+   "K": "+J23",
+   "source": "MVTIC!B23",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 24,
+   "khs_code": 447,
+   "description": "Tanda Bahaya Kecil",
+   "H": "+I24",
+   "I": "+I23",
+   "J": "+J23",
+   "K": "+J24",
+   "source": "MVTIC!B24",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 27,
+   "khs_code": null,
+   "description": "Grounding Luar (LA & MVTIC)",
+   "H": "+I27",
+   "I": "+GAMBAR!X12+GAMBAR!X13+GAMBAR!X16+GAMBAR!X19+GAMBAR!X22*2+GAMBAR!X23*2+GAMBAR!X28*2",
+   "J": "+GAMBAR!Y12+GAMBAR!Y13+GAMBAR!Y16+GAMBAR!Y19+GAMBAR!Y22*2+GAMBAR!Y23*2+GAMBAR!Y28*2",
+   "K": "+J27",
+   "source": "MVTIC!B27",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 28,
+   "khs_code": 149,
+   "description": "Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron",
+   "H": "+I28",
+   "I": "+I27*2",
+   "J": "+J27*2",
+   "K": "+J28",
+   "source": "MVTIC!B28",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 29,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I29",
+   "I": "+I27*22",
+   "J": "+J27*22",
+   "K": "+J29",
+   "source": "MVTIC!B29",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 30,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I30",
+   "I": "+I28*2",
+   "J": "+J28*2",
+   "K": "+J30",
+   "source": "MVTIC!B30",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 31,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I31",
+   "I": "+I28*2",
+   "J": "+J28*2",
+   "K": "+J31",
+   "source": "MVTIC!B31",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 32,
+   "khs_code": 436,
+   "description": "Stainless Steel Strip non magnetic",
+   "H": "+I32",
+   "I": "+I27*8",
+   "J": "+J27*8",
+   "K": "+J32",
+   "source": "MVTIC!B32",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 33,
+   "khs_code": 437,
+   "description": "Stoping Buckle non magnetic",
+   "H": "+I33",
+   "I": "+I27*10",
+   "J": "+J27*10",
+   "K": "+J33",
+   "source": "MVTIC!B33",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 34,
+   "khs_code": 223,
+   "description": "Link - HDG",
+   "H": "+I34",
+   "I": "+I27*4",
+   "J": "+J27*4",
+   "K": "+J34",
+   "source": "MVTIC!B34",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 35,
+   "khs_code": 361,
+   "description": "Pipa Galvanized 3/4\" - 6 mtr (tebal= 1,6 mm)",
+   "H": "+I35",
+   "I": "+I27*2",
+   "J": "+J27*2",
+   "K": "+J35",
+   "source": "MVTIC!B35",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 38,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 1",
+   "H": "+I38",
+   "I": "GAMBAR!X10",
+   "J": "GAMBAR!Y10",
+   "K": "+J38",
+   "source": "MVTIC!B38",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 39,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I39",
+   "I": "I38*2",
+   "J": "J38*2",
+   "K": "+J39",
+   "source": "MVTIC!B39",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 40,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I40",
+   "I": "I38*4",
+   "J": "J38*4",
+   "K": "+J40",
+   "source": "MVTIC!B40",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 41,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I41",
+   "I": "I38*4",
+   "J": "J38*4",
+   "K": "+J41",
+   "source": "MVTIC!B41",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 42,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I42",
+   "I": "I38*12",
+   "J": "J38*12",
+   "K": "+J42",
+   "source": "MVTIC!B42",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 43,
+   "khs_code": 150,
+   "description": "Extension for GW type A - (Acc.MVTIC)",
+   "H": "+I43",
+   "I": "I38",
+   "J": "J38",
+   "K": "+J43",
+   "source": "MVTIC!B43",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 44,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I44",
+   "I": "I38*2",
+   "J": "J38*2",
+   "K": "+J44",
+   "source": "MVTIC!B44",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 45,
+   "khs_code": 394,
+   "description": "Separator Clamp for Netral - (Acc.MVTIC)",
+   "H": "+I45",
+   "I": "I38",
+   "J": "J38",
+   "K": "+J45",
+   "source": "MVTIC!B45",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 47,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 2",
+   "H": "+I47",
+   "I": "GAMBAR!X11",
+   "J": "GAMBAR!Y11",
+   "K": "+J47",
+   "source": "MVTIC!B47",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 48,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I48",
+   "I": "I47*2",
+   "J": "J47*2",
+   "K": "+J48",
+   "source": "MVTIC!B48",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 49,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I49",
+   "I": "I47*4",
+   "J": "J47*4",
+   "K": "+J49",
+   "source": "MVTIC!B49",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 50,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I50",
+   "I": "I47*6",
+   "J": "J47*6",
+   "K": "+J50",
+   "source": "MVTIC!B50",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 51,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I51",
+   "I": "I47*16",
+   "J": "J47*16",
+   "K": "+J51",
+   "source": "MVTIC!B51",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 52,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I52",
+   "I": "I47",
+   "J": "J47",
+   "K": "+J52",
+   "source": "MVTIC!B52",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 53,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I53",
+   "I": "I47*2",
+   "J": "J47*2",
+   "K": "+J53",
+   "source": "MVTIC!B53",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 54,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I54",
+   "I": "I47*2",
+   "J": "J47*2",
+   "K": "+J54",
+   "source": "MVTIC!B54",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 55,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I55",
+   "I": "I53",
+   "J": "J53",
+   "K": "+J55",
+   "source": "MVTIC!B55",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 56,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I56",
+   "I": "I47*2",
+   "J": "J47*2",
+   "K": "+J56",
+   "source": "MVTIC!B56",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 58,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 4",
+   "H": "+I58",
+   "I": "GAMBAR!X12",
+   "J": "GAMBAR!Y12",
+   "K": "+J58",
+   "source": "MVTIC!B58",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 59,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I59",
+   "I": "I58*2",
+   "J": "J58*2",
+   "K": "+J59",
+   "source": "MVTIC!B59",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 60,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I60",
+   "I": "I58*7",
+   "J": "J58*7",
+   "K": "+J60",
+   "source": "MVTIC!B60",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 61,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I61",
+   "I": "I58*5",
+   "J": "J58*5",
+   "K": "+J61",
+   "source": "MVTIC!B61",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 62,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I62",
+   "I": "I58*22",
+   "J": "J58*22",
+   "K": "+J62",
+   "source": "MVTIC!B62",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 63,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I63",
+   "I": "I58",
+   "J": "J58",
+   "K": "+J63",
+   "source": "MVTIC!B63",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 64,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I64",
+   "I": "I58",
+   "J": "J58",
+   "K": "+J64",
+   "source": "MVTIC!B64",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 65,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I65",
+   "I": "I64",
+   "J": "J64",
+   "K": "+J65",
+   "source": "MVTIC!B65",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 66,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I66",
+   "I": "I58",
+   "J": "J58",
+   "K": "+J66",
+   "source": "MVTIC!B66",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 67,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I67",
+   "I": "I58",
+   "J": "J58",
+   "K": "+J67",
+   "source": "MVTIC!B67",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 68,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I68",
+   "I": "I58*3",
+   "J": "J58*3",
+   "K": "+J68",
+   "source": "MVTIC!B68",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 69,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I69",
+   "I": "I58*3",
+   "J": "J58*3",
+   "K": "+J69",
+   "source": "MVTIC!B69",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 70,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I70",
+   "I": "I58*3",
+   "J": "J58*3",
+   "K": "+J70",
+   "source": "MVTIC!B70",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 71,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I71",
+   "I": "I58*9",
+   "J": "J58*9",
+   "K": "+J71",
+   "source": "MVTIC!B71",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 72,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I72",
+   "I": "I58*6",
+   "J": "J58*6",
+   "K": "+J72",
+   "source": "MVTIC!B72",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 73,
+   "khs_code": 292,
+   "description": "Ornament Cabel Band 3\" x 9\" - TM",
+   "H": "+I73",
+   "I": "I58",
+   "J": "J58",
+   "K": "+J73",
+   "source": "MVTIC!B73",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 74,
+   "khs_code": 488,
+   "description": "Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+I74",
+   "I": "I58",
+   "J": "J58",
+   "K": "+J74",
+   "source": "MVTIC!B74",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 76,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 5",
+   "H": "+I76",
+   "I": "GAMBAR!X13",
+   "J": "GAMBAR!Y13",
+   "K": "+J76",
+   "source": "MVTIC!B76",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 77,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I77",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J77",
+   "source": "MVTIC!B77",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 78,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I78",
+   "I": "I76*28",
+   "J": "J76*28",
+   "K": "+J78",
+   "source": "MVTIC!B78",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 79,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I79",
+   "I": "I76*6",
+   "J": "J76*6",
+   "K": "+J79",
+   "source": "MVTIC!B79",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 80,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I80",
+   "I": "+I76*78",
+   "J": "+J76*78",
+   "K": "+J80",
+   "source": "MVTIC!B80",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 81,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I81",
+   "I": "I76",
+   "J": "J76",
+   "K": "+J81",
+   "source": "MVTIC!B81",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 82,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I82",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J82",
+   "source": "MVTIC!B82",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 83,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I83",
+   "I": "I82",
+   "J": "J82",
+   "K": "+J83",
+   "source": "MVTIC!B83",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 84,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I84",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J84",
+   "source": "MVTIC!B84",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 85,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I85",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J85",
+   "source": "MVTIC!B85",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 86,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I86",
+   "I": "I76*3",
+   "J": "J76*3",
+   "K": "+J86",
+   "source": "MVTIC!B86",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 87,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I87",
+   "I": "I76*3",
+   "J": "J76*3",
+   "K": "+J87",
+   "source": "MVTIC!B87",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 88,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I88",
+   "I": "I76*3",
+   "J": "J76*3",
+   "K": "+J88",
+   "source": "MVTIC!B88",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 89,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I89",
+   "I": "I76*9",
+   "J": "J76*9",
+   "K": "+J89",
+   "source": "MVTIC!B89",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 90,
+   "khs_code": 125,
+   "description": "Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I90",
+   "I": "I76*3",
+   "J": "J76*3",
+   "K": "+J90",
+   "source": "MVTIC!B90",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 91,
+   "khs_code": 124,
+   "description": "Cross Arm UNP 80 - 1500 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I91",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J91",
+   "source": "MVTIC!B91",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 92,
+   "khs_code": 34,
+   "description": "Begel klem 3/4\" u/ kabel",
+   "H": "+I92",
+   "I": "I76*6",
+   "J": "J76*6",
+   "K": "+J92",
+   "source": "MVTIC!B92",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 93,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I93",
+   "I": "I76*6",
+   "J": "J76*6",
+   "K": "+J93",
+   "source": "MVTIC!B93",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 94,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I94",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J94",
+   "source": "MVTIC!B94",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 95,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I95",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J95",
+   "source": "MVTIC!B95",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 96,
+   "khs_code": 385,
+   "description": "Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I96",
+   "I": "I76*3",
+   "J": "J76*3",
+   "K": "+J96",
+   "source": "MVTIC!B96",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 97,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I97",
+   "I": "I76",
+   "J": "J76",
+   "K": "+J97",
+   "source": "MVTIC!B97",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 98,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I98",
+   "I": "I76*4",
+   "J": "J76*4",
+   "K": "+J98",
+   "source": "MVTIC!B98",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 99,
+   "khs_code": 292,
+   "description": "Ornament Cabel Band 3\" x 9\" - TM",
+   "H": "+I99",
+   "I": "I76*4",
+   "J": "J76*4",
+   "K": "+J99",
+   "source": "MVTIC!B99",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 100,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I100",
+   "I": "I76*12",
+   "J": "J76*12",
+   "K": "+J100",
+   "source": "MVTIC!B100",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 101,
+   "khs_code": 488,
+   "description": "Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+I101",
+   "I": "I76*2",
+   "J": "J76*2",
+   "K": "+J101",
+   "source": "MVTIC!B101",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 103,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 5A",
+   "H": "+I103",
+   "I": "GAMBAR!X14",
+   "J": "GAMBAR!Y14",
+   "K": "+J103",
+   "source": "MVTIC!B103",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 104,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I104",
+   "I": "I103*2",
+   "J": "J103*2",
+   "K": "+J104",
+   "source": "MVTIC!B104",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 105,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I105",
+   "I": "I103*10",
+   "J": "J103*10",
+   "K": "+J105",
+   "source": "MVTIC!B105",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 106,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I106",
+   "I": "I103*8",
+   "J": "J103*8",
+   "K": "+J106",
+   "source": "MVTIC!B106",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 107,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I107",
+   "I": "I103*(6+4+24+8)",
+   "J": "J103*(6+4+24+8)",
+   "K": "+J107",
+   "source": "MVTIC!B107",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 108,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I108",
+   "I": "I103",
+   "J": "J103",
+   "K": "+J108",
+   "source": "MVTIC!B108",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 109,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I109",
+   "I": "I103*2",
+   "J": "J103*2",
+   "K": "+J109",
+   "source": "MVTIC!B109",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 110,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I110",
+   "I": "I109",
+   "J": "J109",
+   "K": "+J110",
+   "source": "MVTIC!B110",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 111,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I111",
+   "I": "I103*2",
+   "J": "J103*2",
+   "K": "+J111",
+   "source": "MVTIC!B111",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 112,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I112",
+   "I": "I103*2",
+   "J": "J103*2",
+   "K": "+J112",
+   "source": "MVTIC!B112",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 113,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I113",
+   "I": "I103*4",
+   "J": "J103*4",
+   "K": "+J113",
+   "source": "MVTIC!B113",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 114,
+   "khs_code": 39,
+   "description": "Besi siku L 50x50x3,5 mm x 900 mm - dudukan Jointing",
+   "H": "+I114",
+   "I": "I103*2",
+   "J": "J103*2",
+   "K": "+J114",
+   "source": "MVTIC!B114",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 115,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I115",
+   "I": "I103",
+   "J": "J103",
+   "K": "+J115",
+   "source": "MVTIC!B115",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 116,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I116",
+   "I": "I103",
+   "J": "J103",
+   "K": "+J116",
+   "source": "MVTIC!B116",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 117,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I117",
+   "I": "I103",
+   "J": "J103",
+   "K": "+J117",
+   "source": "MVTIC!B117",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 118,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I118",
+   "I": "I103*2",
+   "J": "J103*2",
+   "K": "+J118",
+   "source": "MVTIC!B118",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 119,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I119",
+   "I": "I103*3",
+   "J": "J103*3",
+   "K": "+J119",
+   "source": "MVTIC!B119",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 120,
+   "khs_code": 366,
+   "description": "Plastic Strap",
+   "H": "+I120",
+   "I": "I103*3",
+   "J": "J103*3",
+   "K": "+J120",
+   "source": "MVTIC!B120",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 121,
+   "khs_code": 517,
+   "description": "Jointing Termination 24 Kv - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+H103",
+   "I": "+I103",
+   "J": "+J103",
+   "K": "+K103",
+   "source": "MVTIC!B121",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 123,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 5B",
+   "H": "+I123",
+   "I": "GAMBAR!X15",
+   "J": "GAMBAR!Y15",
+   "K": "+J123",
+   "source": "MVTIC!B123",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 124,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I124",
+   "I": "I123*2",
+   "J": "J123*2",
+   "K": "+J124",
+   "source": "MVTIC!B124",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 125,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I125",
+   "I": "I123*10",
+   "J": "J123*10",
+   "K": "+J125",
+   "source": "MVTIC!B125",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 126,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I126",
+   "I": "I123*8",
+   "J": "J123*8",
+   "K": "+J126",
+   "source": "MVTIC!B126",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 127,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I127",
+   "I": "I123*(6+4+24+8)",
+   "J": "J123*(6+4+24+8)",
+   "K": "+J127",
+   "source": "MVTIC!B127",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 128,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I128",
+   "I": "I123",
+   "J": "J123",
+   "K": "+J128",
+   "source": "MVTIC!B128",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 129,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I129",
+   "I": "I123*2",
+   "J": "J123*2",
+   "K": "+J129",
+   "source": "MVTIC!B129",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 130,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I130",
+   "I": "I129",
+   "J": "J129",
+   "K": "+J130",
+   "source": "MVTIC!B130",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 131,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I131",
+   "I": "I123*2",
+   "J": "J123*2",
+   "K": "+J131",
+   "source": "MVTIC!B131",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 132,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I132",
+   "I": "I123*2",
+   "J": "J123*2",
+   "K": "+J132",
+   "source": "MVTIC!B132",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 133,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I133",
+   "I": "I123*4",
+   "J": "J123*4",
+   "K": "+J133",
+   "source": "MVTIC!B133",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 134,
+   "khs_code": 39,
+   "description": "Besi siku L 50x50x3,5 mm x 900 mm - dudukan Jointing",
+   "H": "+I134",
+   "I": "I123*2",
+   "J": "J123*2",
+   "K": "+J134",
+   "source": "MVTIC!B134",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 135,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I135",
+   "I": "I123",
+   "J": "J123",
+   "K": "+J135",
+   "source": "MVTIC!B135",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 136,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I136",
+   "I": "I123",
+   "J": "J123",
+   "K": "+J136",
+   "source": "MVTIC!B136",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 137,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I137",
+   "I": "I123",
+   "J": "J123",
+   "K": "+J137",
+   "source": "MVTIC!B137",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 138,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I138",
+   "I": "I123*2",
+   "J": "J123*2",
+   "K": "+J138",
+   "source": "MVTIC!B138",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 139,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I139",
+   "I": "I123*3",
+   "J": "J123*3",
+   "K": "+J139",
+   "source": "MVTIC!B139",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 140,
+   "khs_code": 366,
+   "description": "Plastic Strap",
+   "H": "+I140",
+   "I": "I123*3",
+   "J": "J123*3",
+   "K": "+J140",
+   "source": "MVTIC!B140",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 141,
+   "khs_code": 281,
+   "description": "Ornament Cabel Band 3\" - 0,5\" + baut u/ Clamp MVTIC (l=30 mm, t=3 mm)",
+   "H": "+I141",
+   "I": "I123*4",
+   "J": "J123*4",
+   "K": "+J141",
+   "source": "MVTIC!B141",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 142,
+   "khs_code": 517,
+   "description": "Jointing Termination 24 Kv - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+H123",
+   "I": "+I123",
+   "J": "+J123",
+   "K": "+K123",
+   "source": "MVTIC!B142",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 145,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 8",
+   "H": "+I145",
+   "I": "GAMBAR!X16",
+   "J": "GAMBAR!Y16",
+   "K": "+J145",
+   "source": "MVTIC!B145",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 146,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I146",
+   "I": "I145*4",
+   "J": "J145*4",
+   "K": "+J146",
+   "source": "MVTIC!B146",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 147,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I147",
+   "I": "I145*20",
+   "J": "J145*20",
+   "K": "+J147",
+   "source": "MVTIC!B147",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 148,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I148",
+   "I": "I145*11",
+   "J": "J145*11",
+   "K": "+J148",
+   "source": "MVTIC!B148",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 149,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I149",
+   "I": "I145*(12+22+8+24)",
+   "J": "J145*(12+22+8+24)",
+   "K": "+J149",
+   "source": "MVTIC!B149",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 150,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I150",
+   "I": "I145*2",
+   "J": "J145*2",
+   "K": "+J150",
+   "source": "MVTIC!B150",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 151,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I151",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J151",
+   "source": "MVTIC!B151",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 152,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I152",
+   "I": "I151",
+   "J": "J151",
+   "K": "+J152",
+   "source": "MVTIC!B152",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 153,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I153",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J153",
+   "source": "MVTIC!B153",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 154,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I154",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J154",
+   "source": "MVTIC!B154",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 155,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I155",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J155",
+   "source": "MVTIC!B155",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 156,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I156",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J156",
+   "source": "MVTIC!B156",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 157,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I157",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J157",
+   "source": "MVTIC!B157",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 158,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I158",
+   "I": "I145*9",
+   "J": "J145*9",
+   "K": "+J158",
+   "source": "MVTIC!B158",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 159,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I159",
+   "I": "I145*2",
+   "J": "J145*2",
+   "K": "+J159",
+   "source": "MVTIC!B159",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 160,
+   "khs_code": 39,
+   "description": "Besi siku L 50x50x3,5 mm x 900 mm - dudukan Jointing",
+   "H": "+I160",
+   "I": "I145*6",
+   "J": "J145*6",
+   "K": "+J160",
+   "source": "MVTIC!B160",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 161,
+   "khs_code": 21,
+   "description": "Begel 2\" U - ( (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I161",
+   "I": "I145*12",
+   "J": "J145*12",
+   "K": "+J161",
+   "source": "MVTIC!B161",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 162,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I162",
+   "I": "I145*2",
+   "J": "J145*2",
+   "K": "+J162",
+   "source": "MVTIC!B162",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 163,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I163",
+   "I": "I145*4",
+   "J": "J145*4",
+   "K": "+J163",
+   "source": "MVTIC!B163",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 164,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I164",
+   "I": "I145*9",
+   "J": "J145*9",
+   "K": "+J164",
+   "source": "MVTIC!B164",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 165,
+   "khs_code": 371,
+   "description": "Plat Tembaga Uk.600 x 50 x 5 (untuk jumper Termination)",
+   "H": "+I165",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J165",
+   "source": "MVTIC!B165",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 166,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I166",
+   "I": "I145*18",
+   "J": "J145*18",
+   "K": "+J166",
+   "source": "MVTIC!B166",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 167,
+   "khs_code": 292,
+   "description": "Ornament Cabel Band 3\" x 9\" - TM",
+   "H": "+I167",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J167",
+   "source": "MVTIC!B167",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 168,
+   "khs_code": 488,
+   "description": "Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+I168",
+   "I": "I145*3",
+   "J": "J145*3",
+   "K": "+J168",
+   "source": "MVTIC!B168",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 170,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 10",
+   "H": "+I170",
+   "I": "GAMBAR!X17",
+   "J": "GAMBAR!Y17",
+   "K": "+J170",
+   "source": "MVTIC!B170",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 171,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I171",
+   "I": "I170*4",
+   "J": "J170*4",
+   "K": "+J171",
+   "source": "MVTIC!B171",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 172,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I172",
+   "I": "I171*2",
+   "J": "J171*2",
+   "K": "+J172",
+   "source": "MVTIC!B172",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 173,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I173",
+   "I": "+I170*8",
+   "J": "+J170*8",
+   "K": "+J173",
+   "source": "MVTIC!B173",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 174,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I174",
+   "I": "+I170*28",
+   "J": "+J170*28",
+   "K": "+J174",
+   "source": "MVTIC!B174",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 175,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I175",
+   "I": "I170*2",
+   "J": "J170*2",
+   "K": "+J175",
+   "source": "MVTIC!B175",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 176,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I176",
+   "I": "I170*2",
+   "J": "J170*2",
+   "K": "+J176",
+   "source": "MVTIC!B176",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 177,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I177",
+   "I": "I170*2",
+   "J": "J170*2",
+   "K": "+J177",
+   "source": "MVTIC!B177",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 178,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I178",
+   "I": "I176",
+   "J": "J176",
+   "K": "+J178",
+   "source": "MVTIC!B178",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 179,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I179",
+   "I": "I170*2",
+   "J": "J170*2",
+   "K": "+J179",
+   "source": "MVTIC!B179",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 180,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I180",
+   "I": "+I170*2",
+   "J": "+J170*2",
+   "K": "+J180",
+   "source": "MVTIC!B180",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 182,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC TM Pole",
+   "H": "+I182",
+   "I": "GAMBAR!X18",
+   "J": "GAMBAR!Y18",
+   "K": "+J182",
+   "source": "MVTIC!B182",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 183,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I183",
+   "I": "I182*2",
+   "J": "J182*2",
+   "K": "+J183",
+   "source": "MVTIC!B183",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 184,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I184",
+   "I": "I182*4",
+   "J": "J182*4",
+   "K": "+J184",
+   "source": "MVTIC!B184",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 185,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I185",
+   "I": "I182*4",
+   "J": "J182*4",
+   "K": "+J185",
+   "source": "MVTIC!B185",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 186,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I186",
+   "I": "I182*16",
+   "J": "J182*16",
+   "K": "+J186",
+   "source": "MVTIC!B186",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 187,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I187",
+   "I": "I182",
+   "J": "J182",
+   "K": "+J187",
+   "source": "MVTIC!B187",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 188,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I188",
+   "I": "I182*2",
+   "J": "J182*2",
+   "K": "+J188",
+   "source": "MVTIC!B188",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 189,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I189",
+   "I": "I182*2",
+   "J": "J182*2",
+   "K": "+J189",
+   "source": "MVTIC!B189",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 190,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I190",
+   "I": "I188",
+   "J": "J188",
+   "K": "+J190",
+   "source": "MVTIC!B190",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 191,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I191",
+   "I": "I182*2",
+   "J": "J182*2",
+   "K": "+J191",
+   "source": "MVTIC!B191",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 192,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I192",
+   "I": "+I182*2",
+   "J": "+J182*2",
+   "K": "+J192",
+   "source": "MVTIC!B192",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 194,
+   "khs_code": null,
+   "description": "Konstruksi MVTIC 4 - DS",
+   "H": "+I194",
+   "I": "GAMBAR!X19",
+   "J": "GAMBAR!Y19",
+   "K": "+J194",
+   "source": "MVTIC!B194",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 195,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I195",
+   "I": "+I194*2",
+   "J": "+J194*2",
+   "K": "+J195",
+   "source": "MVTIC!B195",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 196,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I196",
+   "I": "I194*(10+12+4)",
+   "J": "J194*(10+12+4)",
+   "K": "+J196",
+   "source": "MVTIC!B196",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 197,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I197",
+   "I": "+I194*3",
+   "J": "+J194*3",
+   "K": "+J197",
+   "source": "MVTIC!B197",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 198,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I198",
+   "I": "+I194*(12+44+4+10)",
+   "J": "+J194*(12+44+4+10)",
+   "K": "+J198",
+   "source": "MVTIC!B198",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 199,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I199",
+   "I": "+I194*1",
+   "J": "+J194*1",
+   "K": "+J199",
+   "source": "MVTIC!B199",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 200,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I200",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J200",
+   "source": "MVTIC!B200",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 201,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I201",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J201",
+   "source": "MVTIC!B201",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 202,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I202",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J202",
+   "source": "MVTIC!B202",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 203,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I203",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J203",
+   "source": "MVTIC!B203",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 204,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I204",
+   "I": "+I194*2",
+   "J": "+J194*2",
+   "K": "+J204",
+   "source": "MVTIC!B204",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 205,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I205",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J205",
+   "source": "MVTIC!B205",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 206,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I206",
+   "I": "+I194*4",
+   "J": "+J194*4",
+   "K": "+J206",
+   "source": "MVTIC!B206",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 207,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I207",
+   "I": "+I194*6",
+   "J": "+J194*6",
+   "K": "+J207",
+   "source": "MVTIC!B207",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 208,
+   "khs_code": 385,
+   "description": "Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I208",
+   "I": "+I194*3",
+   "J": "+J194*3",
+   "K": "+J208",
+   "source": "MVTIC!B208",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 209,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I209",
+   "I": "+I194*2",
+   "J": "+J194*2",
+   "K": "+J209",
+   "source": "MVTIC!B209",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 210,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I210",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J210",
+   "source": "MVTIC!B210",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 211,
+   "khs_code": 125,
+   "description": "Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I211",
+   "I": "+I194*2",
+   "J": "+J194*2",
+   "K": "+J211",
+   "source": "MVTIC!B211",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 212,
+   "khs_code": 124,
+   "description": "Cross Arm UNP 80 - 1500 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I212",
+   "I": "I194*2",
+   "J": "J194*2",
+   "K": "+J212",
+   "source": "MVTIC!B212",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 213,
+   "khs_code": 34,
+   "description": "Begel klem 3/4\" u/ kabel",
+   "H": "+I213",
+   "I": "+I194*3",
+   "J": "+J194*3",
+   "K": "+J213",
+   "source": "MVTIC!B213",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 214,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I214",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J214",
+   "source": "MVTIC!B214",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 215,
+   "khs_code": 292,
+   "description": "Ornament Cabel Band 3\" x 9\" - TM",
+   "H": "+I215",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J215",
+   "source": "MVTIC!B215",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 216,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I216",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J216",
+   "source": "MVTIC!B216",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 217,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I217",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J217",
+   "source": "MVTIC!B217",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 218,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I218",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J218",
+   "source": "MVTIC!B218",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 219,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I219",
+   "I": "+I194*3",
+   "J": "+J194*3",
+   "K": "+J219",
+   "source": "MVTIC!B219",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 220,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I220",
+   "I": "+I194*3",
+   "J": "+J194*3",
+   "K": "+J220",
+   "source": "MVTIC!B220",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 221,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I221",
+   "I": "+I194*3",
+   "J": "+J194*3",
+   "K": "+J221",
+   "source": "MVTIC!B221",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 222,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I222",
+   "I": "+I194*9",
+   "J": "+J194*9",
+   "K": "+J222",
+   "source": "MVTIC!B222",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 223,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I223",
+   "I": "+I194*12",
+   "J": "+J194*12",
+   "K": "+J223",
+   "source": "MVTIC!B223",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 224,
+   "khs_code": 488,
+   "description": "Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+I224",
+   "I": "+I194",
+   "J": "+J194",
+   "K": "+J224",
+   "source": "MVTIC!B224",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 225,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+I225",
+   "I": "+I224",
+   "J": "+J224",
+   "K": "+J225",
+   "source": "MVTIC!B225",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 226,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I226",
+   "I": "+I194*2",
+   "J": "+J194*2",
+   "K": "+J226",
+   "source": "MVTIC!B226",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 228,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 1",
+   "H": "+I228",
+   "I": "GAMBAR!X20",
+   "J": "GAMBAR!Y20",
+   "K": "+J228",
+   "source": "MVTIC!B228",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 229,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I229",
+   "I": "+I228",
+   "J": "+J228",
+   "K": "+J229",
+   "source": "MVTIC!B229",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 230,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I230",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J230",
+   "source": "MVTIC!B230",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 231,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I231",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J231",
+   "source": "MVTIC!B231",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 232,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I232",
+   "I": "+I230+I231*2+I237*4+I236*4",
+   "J": "+J230+J231*2+J237*4+J236*4",
+   "K": "+J232",
+   "source": "MVTIC!B232",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 233,
+   "khs_code": 150,
+   "description": "Extension for GW type A - (Acc.MVTIC)",
+   "H": "+I233",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J233",
+   "source": "MVTIC!B233",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 234,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I234",
+   "I": "+I228*4",
+   "J": "+J228*4",
+   "K": "+J234",
+   "source": "MVTIC!B234",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 235,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I235",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J235",
+   "source": "MVTIC!B235",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 236,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I236",
+   "I": "+I228",
+   "J": "+J228",
+   "K": "+J236",
+   "source": "MVTIC!B236",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 237,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I237",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J237",
+   "source": "MVTIC!B237",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 238,
+   "khs_code": 514,
+   "description": "Wire Clip M16 (Ø 95mm)",
+   "H": "+I238",
+   "I": "+I228*4",
+   "J": "+J228*4",
+   "K": "+J238",
+   "source": "MVTIC!B238",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 240,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 2",
+   "H": "+I240",
+   "I": "GAMBAR!X21",
+   "J": "GAMBAR!Y21",
+   "K": "+J240",
+   "source": "MVTIC!B240",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 241,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I241",
+   "I": "+I240",
+   "J": "+J240",
+   "K": "+J241",
+   "source": "MVTIC!B241",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 242,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I242",
+   "I": "+I240*2",
+   "J": "+J240*2",
+   "K": "+J242",
+   "source": "MVTIC!B242",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 243,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I243",
+   "I": "+I240*8",
+   "J": "+J240*8",
+   "K": "+J243",
+   "source": "MVTIC!B243",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 244,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I244",
+   "I": "+I242+I243*2+I250*2+I253*4+I254*4",
+   "J": "+J242+J243*2+J250*2+J253*4+J254*4",
+   "K": "+J244",
+   "source": "MVTIC!B244",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 245,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I245",
+   "I": "+I240*2",
+   "J": "+J240*2",
+   "K": "+J245",
+   "source": "MVTIC!B245",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 246,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I246",
+   "I": "+I240*4",
+   "J": "+J240*4",
+   "K": "+J246",
+   "source": "MVTIC!B246",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 247,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I247",
+   "I": "+I240*4",
+   "J": "+J240*4",
+   "K": "+J247",
+   "source": "MVTIC!B247",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 248,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I248",
+   "I": "+I246",
+   "J": "+J246",
+   "K": "+J248",
+   "source": "MVTIC!B248",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 249,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I249",
+   "I": "+I240*4",
+   "J": "+J240*4",
+   "K": "+J249",
+   "source": "MVTIC!B249",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 250,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I250",
+   "I": "+I249*2",
+   "J": "+J249*2",
+   "K": "+J250",
+   "source": "MVTIC!B250",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 251,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I251",
+   "I": "+I240*4",
+   "J": "+J240*4",
+   "K": "+J251",
+   "source": "MVTIC!B251",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 252,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I252",
+   "I": "+I240*2",
+   "J": "+J240*2",
+   "K": "+J252",
+   "source": "MVTIC!B252",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 253,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I253",
+   "I": "+I240",
+   "J": "+J240",
+   "K": "+J253",
+   "source": "MVTIC!B253",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 254,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I254",
+   "I": "+I240*2",
+   "J": "+J240*2",
+   "K": "+J254",
+   "source": "MVTIC!B254",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 256,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 4",
+   "H": "+I256",
+   "I": "GAMBAR!X22",
+   "J": "GAMBAR!Y22",
+   "K": "+J256",
+   "source": "MVTIC!B256",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 257,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I257",
+   "I": "+I256",
+   "J": "+J256",
+   "K": "+J257",
+   "source": "MVTIC!B257",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 258,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I258",
+   "I": "+I257*2+I277*3",
+   "J": "+J257*2+J277*3",
+   "K": "+J258",
+   "source": "MVTIC!B258",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 259,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I259",
+   "I": "+I257*2+I267",
+   "J": "+J257*2+J267",
+   "K": "+J259",
+   "source": "MVTIC!B259",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 260,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I260",
+   "I": "I257*2+I277*6+I259*2+I266*2+I269*4+I270*4",
+   "J": "J257*2+J277*6+J259*2+J266*2+J269*4+J270*4",
+   "K": "+J260",
+   "source": "MVTIC!B260",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 261,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I261",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J261",
+   "source": "MVTIC!B261",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 262,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I262",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J262",
+   "source": "MVTIC!B262",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 263,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I263",
+   "I": "+I262",
+   "J": "+J262",
+   "K": "+J263",
+   "source": "MVTIC!B263",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 264,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I264",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J264",
+   "source": "MVTIC!B264",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 265,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I265",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J265",
+   "source": "MVTIC!B265",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 266,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I266",
+   "I": "+I265*2",
+   "J": "+J265*2",
+   "K": "+J266",
+   "source": "MVTIC!B266",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 267,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I267",
+   "I": "+I264",
+   "J": "+J264",
+   "K": "+J267",
+   "source": "MVTIC!B267",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 268,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I268",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J268",
+   "source": "MVTIC!B268",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 269,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I269",
+   "I": "+I256",
+   "J": "+J256",
+   "K": "+J269",
+   "source": "MVTIC!B269",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 270,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I270",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J270",
+   "source": "MVTIC!B270",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 271,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I271",
+   "I": "+I256*3",
+   "J": "+J256*3",
+   "K": "+J271",
+   "source": "MVTIC!B271",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 272,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I272",
+   "I": "+I256*3",
+   "J": "+J256*3",
+   "K": "+J272",
+   "source": "MVTIC!B272",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 273,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I273",
+   "I": "+I256*3",
+   "J": "+J256*3",
+   "K": "+J273",
+   "source": "MVTIC!B273",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 274,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I274",
+   "I": "+I256*9",
+   "J": "+J256*9",
+   "K": "+J274",
+   "source": "MVTIC!B274",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 275,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I275",
+   "I": "+I256*12",
+   "J": "+J256*12",
+   "K": "+J275",
+   "source": "MVTIC!B275",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 276,
+   "khs_code": 488,
+   "description": "Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+I276",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J276",
+   "source": "MVTIC!B276",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 277,
+   "khs_code": 292,
+   "description": "Ornament Cabel Band 3\" x 9\" - TM",
+   "H": "+I277",
+   "I": "+I256*2",
+   "J": "+J256*2",
+   "K": "+J277",
+   "source": "MVTIC!B277",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 279,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 5",
+   "H": "+I279",
+   "I": "GAMBAR!X23",
+   "J": "GAMBAR!Y23",
+   "K": "+J279",
+   "source": "MVTIC!B279",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 280,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I280",
+   "I": "+I279",
+   "J": "+J279",
+   "K": "+J280",
+   "source": "MVTIC!B280",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 281,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I281",
+   "I": "+I280*2+I297*2+I299*2+I305*3",
+   "J": "+J280*2+J297*2+J299*2+J305*3",
+   "K": "+J281",
+   "source": "MVTIC!B281",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 282,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I282",
+   "I": "+I280*2+I290",
+   "J": "+J280*2+J290",
+   "K": "+J282",
+   "source": "MVTIC!B282",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 283,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I283",
+   "I": "+I279*142",
+   "J": "+J279*142",
+   "K": "+J283",
+   "source": "MVTIC!B283",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 284,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I284",
+   "I": "+I279*2",
+   "J": "+J279*2",
+   "K": "+J284",
+   "source": "MVTIC!B284",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 285,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I285",
+   "I": "+I284*2",
+   "J": "+J284*2",
+   "K": "+J285",
+   "source": "MVTIC!B285",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 286,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I286",
+   "I": "+I285",
+   "J": "+J285",
+   "K": "+J286",
+   "source": "MVTIC!B286",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 287,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I287",
+   "I": "+I279*4",
+   "J": "+J279*4",
+   "K": "+J287",
+   "source": "MVTIC!B287",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 288,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I288",
+   "I": "+I287*2",
+   "J": "+J287*2",
+   "K": "+J288",
+   "source": "MVTIC!B288",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 289,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I289",
+   "I": "+I288",
+   "J": "+J288",
+   "K": "+J289",
+   "source": "MVTIC!B289",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 290,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I290",
+   "I": "+I287",
+   "J": "+J287",
+   "K": "+J290",
+   "source": "MVTIC!B290",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 291,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I291",
+   "I": "+I279*2",
+   "J": "+J279*2",
+   "K": "+J291",
+   "source": "MVTIC!B291",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 292,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I292",
+   "I": "+I279*2",
+   "J": "+J279*2",
+   "K": "+J292",
+   "source": "MVTIC!B292",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 293,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I293",
+   "I": "+I279*3",
+   "J": "+J279*3",
+   "K": "+J293",
+   "source": "MVTIC!B293",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 294,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I294",
+   "I": "+I279*3",
+   "J": "+J279*3",
+   "K": "+J294",
+   "source": "MVTIC!B294",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 295,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I295",
+   "I": "+I279*3",
+   "J": "+J279*3",
+   "K": "+J295",
+   "source": "MVTIC!B295",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 296,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I296",
+   "I": "+I279*9",
+   "J": "+J279*9",
+   "K": "+J296",
+   "source": "MVTIC!B296",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 297,
+   "khs_code": 127,
+   "description": "Cross Arm UNP 80 - 3000 (l=45mm,t=3,5mm,tgg=80mm)",
+   "H": "+I297",
+   "I": "+I279*3",
+   "J": "+J279*3",
+   "K": "+J297",
+   "source": "MVTIC!B297",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 298,
+   "khs_code": 124,
+   "description": "Cross Arm UNP 80 - 1500 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I298",
+   "I": "+I279*2",
+   "J": "+J279*2",
+   "K": "+J298",
+   "source": "MVTIC!B298",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 299,
+   "khs_code": 34,
+   "description": "Begel klem 3/4\" u/ kabel",
+   "H": "+I299",
+   "I": "+I279*12",
+   "J": "+J279*12",
+   "K": "+J299",
+   "source": "MVTIC!B299",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 300,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I300",
+   "I": "+I279*12",
+   "J": "+J279*12",
+   "K": "+J300",
+   "source": "MVTIC!B300",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 301,
+   "khs_code": 119,
+   "description": "Cross Arm UNP 100 - 3000 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I301",
+   "I": "+I279*2",
+   "J": "+J279*2",
+   "K": "+J301",
+   "source": "MVTIC!B301",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 302,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I302",
+   "I": "+I301",
+   "J": "+J301",
+   "K": "+J302",
+   "source": "MVTIC!B302",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 303,
+   "khs_code": 385,
+   "description": "Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I303",
+   "I": "+I279*6",
+   "J": "+J279*6",
+   "K": "+J303",
+   "source": "MVTIC!B303",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 304,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I304",
+   "I": "+I279*6",
+   "J": "+J279*6",
+   "K": "+J304",
+   "source": "MVTIC!B304",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 305,
+   "khs_code": 292,
+   "description": "Ornament Cabel Band 3\" x 9\" - TM",
+   "H": "+I305",
+   "I": "+I279*4",
+   "J": "+J279*4",
+   "K": "+J305",
+   "source": "MVTIC!B305",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 306,
+   "khs_code": 488,
+   "description": "Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+I306",
+   "I": "+I279*4",
+   "J": "+J279*4",
+   "K": "+J306",
+   "source": "MVTIC!B306",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 307,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I307",
+   "I": "+I279*24",
+   "J": "+J279*24",
+   "K": "+J307",
+   "source": "MVTIC!B307",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 309,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 5A",
+   "H": "+I309",
+   "I": "GAMBAR!X24",
+   "J": "GAMBAR!Y24",
+   "K": "+J309",
+   "source": "MVTIC!B309",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 310,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I310",
+   "I": "+I309",
+   "J": "+J309",
+   "K": "+J310",
+   "source": "MVTIC!B310",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 311,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I311",
+   "I": "+I310*2+I323*2+I325*2",
+   "J": "+J310*2+J323*2+J325*2",
+   "K": "+J311",
+   "source": "MVTIC!B311",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 312,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I312",
+   "I": "+I310*2+I319+I325*2",
+   "J": "+J310*2+J319+J325*2",
+   "K": "+J312",
+   "source": "MVTIC!B312",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 313,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I313",
+   "I": "+I310*2+I312*2+I326*2+I322*4+I323*4+I321*4+I324*4+I325*2",
+   "J": "+J310*2+J312*2+J326*2+J322*4+J323*4+J321*4+J324*4+J325*2",
+   "K": "+J313",
+   "source": "MVTIC!B313",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 314,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I314",
+   "I": "+I309*2",
+   "J": "+J309*2",
+   "K": "+J314",
+   "source": "MVTIC!B314",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 315,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I315",
+   "I": "+I309*4",
+   "J": "+J309*4",
+   "K": "+J315",
+   "source": "MVTIC!B315",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 316,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I316",
+   "I": "+I315",
+   "J": "+J315",
+   "K": "+J316",
+   "source": "MVTIC!B316",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 317,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I317",
+   "I": "+I309*4",
+   "J": "+J309*4",
+   "K": "+J317",
+   "source": "MVTIC!B317",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 318,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I318",
+   "I": "+I317",
+   "J": "+J317",
+   "K": "+J318",
+   "source": "MVTIC!B318",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 319,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I319",
+   "I": "+I317",
+   "J": "+J317",
+   "K": "+J319",
+   "source": "MVTIC!B319",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 320,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I320",
+   "I": "+I309*4",
+   "J": "+J309*4",
+   "K": "+J320",
+   "source": "MVTIC!B320",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 321,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I321",
+   "I": "+I309*2",
+   "J": "+J309*2",
+   "K": "+J321",
+   "source": "MVTIC!B321",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 322,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I322",
+   "I": "+I309*6",
+   "J": "+J309*6",
+   "K": "+J322",
+   "source": "MVTIC!B322",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 323,
+   "khs_code": 39,
+   "description": "Besi siku L 50x50x3,5 mm x 900 mm - dudukan Jointing",
+   "H": "+I323",
+   "I": "+I309*4",
+   "J": "+J309*4",
+   "K": "+J323",
+   "source": "MVTIC!B323",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 324,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I324",
+   "I": "+I309",
+   "J": "+J309",
+   "K": "+J324",
+   "source": "MVTIC!B324",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 325,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I325",
+   "I": "+I324",
+   "J": "+J324",
+   "K": "+J325",
+   "source": "MVTIC!B325",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 326,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I326",
+   "I": "+I318*2",
+   "J": "+J318*2",
+   "K": "+J326",
+   "source": "MVTIC!B326",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 327,
+   "khs_code": 366,
+   "description": "Plastic Strap",
+   "H": "+I327",
+   "I": "+I309*6",
+   "J": "+J309*6",
+   "K": "+J327",
+   "source": "MVTIC!B327",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 328,
+   "khs_code": 517,
+   "description": "Jointing Termination 24 Kv - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+H309*2",
+   "I": "+I309*2",
+   "J": "+J309*2",
+   "K": "+K309*2",
+   "source": "MVTIC!B328",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 330,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 5B",
+   "H": "+I330",
+   "I": "GAMBAR!X25",
+   "J": "GAMBAR!Y25",
+   "K": "+J330",
+   "source": "MVTIC!B330",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 331,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I331",
+   "I": "+I330",
+   "J": "+J330",
+   "K": "+J331",
+   "source": "MVTIC!B331",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 332,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I332",
+   "I": "+I331*2+I344*2+I346*2",
+   "J": "+J331*2+J344*2+J346*2",
+   "K": "+J332",
+   "source": "MVTIC!B332",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 333,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I333",
+   "I": "+I331*2+I340+I346*2",
+   "J": "+J331*2+J340+J346*2",
+   "K": "+J333",
+   "source": "MVTIC!B333",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 334,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I334",
+   "I": "+I331*2+I333*2+I347*2+I343*4+I344*4+I342*4+I345*4+I346*2",
+   "J": "+J331*2+J333*2+J347*2+J343*4+J344*4+J342*4+J345*4+J346*2",
+   "K": "+J334",
+   "source": "MVTIC!B334",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 335,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I335",
+   "I": "+I330*2",
+   "J": "+J330*2",
+   "K": "+J335",
+   "source": "MVTIC!B335",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 336,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I336",
+   "I": "+I330*4",
+   "J": "+J330*4",
+   "K": "+J336",
+   "source": "MVTIC!B336",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 337,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I337",
+   "I": "+I336",
+   "J": "+J336",
+   "K": "+J337",
+   "source": "MVTIC!B337",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 338,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I338",
+   "I": "+I330*4",
+   "J": "+J330*4",
+   "K": "+J338",
+   "source": "MVTIC!B338",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 339,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I339",
+   "I": "+I338",
+   "J": "+J338",
+   "K": "+J339",
+   "source": "MVTIC!B339",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 340,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I340",
+   "I": "+I338",
+   "J": "+J338",
+   "K": "+J340",
+   "source": "MVTIC!B340",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 341,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I341",
+   "I": "+I330*4",
+   "J": "+J330*4",
+   "K": "+J341",
+   "source": "MVTIC!B341",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 342,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I342",
+   "I": "+I330*2",
+   "J": "+J330*2",
+   "K": "+J342",
+   "source": "MVTIC!B342",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 343,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I343",
+   "I": "+I330*6",
+   "J": "+J330*6",
+   "K": "+J343",
+   "source": "MVTIC!B343",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 344,
+   "khs_code": 39,
+   "description": "Besi siku L 50x50x3,5 mm x 900 mm - dudukan Jointing",
+   "H": "+I344",
+   "I": "+I330*4",
+   "J": "+J330*4",
+   "K": "+J344",
+   "source": "MVTIC!B344",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 345,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I345",
+   "I": "+I330",
+   "J": "+J330",
+   "K": "+J345",
+   "source": "MVTIC!B345",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 346,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I346",
+   "I": "+I345",
+   "J": "+J345",
+   "K": "+J346",
+   "source": "MVTIC!B346",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 347,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I347",
+   "I": "+I339*2",
+   "J": "+J339",
+   "K": "+J347",
+   "source": "MVTIC!B347",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 348,
+   "khs_code": 366,
+   "description": "Plastic Strap",
+   "H": "+I348",
+   "I": "+I330*6",
+   "J": "+J330*6",
+   "K": "+J348",
+   "source": "MVTIC!B348",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 349,
+   "khs_code": 281,
+   "description": "Ornament Cabel Band 3\" - 0,5\" + baut u/ Clamp MVTIC (l=30 mm, t=3 mm)",
+   "H": "+I349",
+   "I": "+I330*8",
+   "J": "+J330*8",
+   "K": "+J349",
+   "source": "MVTIC!B349",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 350,
+   "khs_code": 517,
+   "description": "Jointing Termination 24 Kv - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+H330*2",
+   "I": "+I330*2",
+   "J": "+J330*2",
+   "K": "+K330*2",
+   "source": "MVTIC!B350",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 352,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 10",
+   "H": "+I352",
+   "I": "GAMBAR!X26",
+   "J": "GAMBAR!Y26",
+   "K": "+J352",
+   "source": "MVTIC!B352",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 353,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I353",
+   "I": "+I352*2",
+   "J": "+J352*2",
+   "K": "+J353",
+   "source": "MVTIC!B353",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 354,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I354",
+   "I": "+I353*2",
+   "J": "+J353*2",
+   "K": "+J354",
+   "source": "MVTIC!B354",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 355,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I355",
+   "I": "+I353*2+I361",
+   "J": "+J353*2+J361",
+   "K": "+J355",
+   "source": "MVTIC!B355",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 356,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I356",
+   "I": "+I354+I355*2+I363*2+I365*4+I366*4",
+   "J": "+J354+J355*2+J363*2+J365*4+J366*4",
+   "K": "+J356",
+   "source": "MVTIC!B356",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 357,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I357",
+   "I": "+I352*4",
+   "J": "+J352*4",
+   "K": "+J357",
+   "source": "MVTIC!B357",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 358,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I358",
+   "I": "+I352*4",
+   "J": "+J352*4",
+   "K": "+J358",
+   "source": "MVTIC!B358",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 359,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I359",
+   "I": "+I358",
+   "J": "+J358",
+   "K": "+J359",
+   "source": "MVTIC!B359",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 360,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I360",
+   "I": "+I359",
+   "J": "+J359",
+   "K": "+J360",
+   "source": "MVTIC!B360",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 361,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I361",
+   "I": "+I359",
+   "J": "+J359",
+   "K": "+J361",
+   "source": "MVTIC!B361",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 362,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I362",
+   "I": "+I358",
+   "J": "+J358",
+   "K": "+J362",
+   "source": "MVTIC!B362",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 363,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I363",
+   "I": "+I360*2",
+   "J": "+J360*2",
+   "K": "+J363",
+   "source": "MVTIC!B363",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 364,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I364",
+   "I": "+I352*4",
+   "J": "+J352*4",
+   "K": "+J364",
+   "source": "MVTIC!B364",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 365,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I365",
+   "I": "+I352*2",
+   "J": "+J352*2",
+   "K": "+J365",
+   "source": "MVTIC!B365",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 366,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I366",
+   "I": "+I352*4",
+   "J": "+J352*4",
+   "K": "+J366",
+   "source": "MVTIC!B366",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 368,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC TM Pole",
+   "H": "+I368",
+   "I": "GAMBAR!X27",
+   "J": "GAMBAR!Y27",
+   "K": "+J368",
+   "source": "MVTIC!B368",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 369,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I369",
+   "I": "+I368*2",
+   "J": "+J368*2",
+   "K": "+J369",
+   "source": "MVTIC!B369",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 370,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I370",
+   "I": "+I369*2+I384*2",
+   "J": "+J369*2+J384*2",
+   "K": "+J370",
+   "source": "MVTIC!B370",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 371,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I371",
+   "I": "+I369*2+I384+I379*2",
+   "J": "+J369*2+J384+J379*2",
+   "K": "+J371",
+   "source": "MVTIC!B371",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 372,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I372",
+   "I": "+I370+I371*2+I378*2+I383*4+I382*4",
+   "J": "+J370+J371*2+J378*2+J383*4+J382*4",
+   "K": "+J372",
+   "source": "MVTIC!B372",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 373,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I373",
+   "I": "+I368*2",
+   "J": "+J368*2",
+   "K": "+J373",
+   "source": "MVTIC!B373",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 374,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I374",
+   "I": "+I368*4",
+   "J": "+J368*4",
+   "K": "+J374",
+   "source": "MVTIC!B374",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 375,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I375",
+   "I": "+I374",
+   "J": "+J374",
+   "K": "+J375",
+   "source": "MVTIC!B375",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 376,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I376",
+   "I": "+I374",
+   "J": "+J374",
+   "K": "+J376",
+   "source": "MVTIC!B376",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 377,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I377",
+   "I": "+I375",
+   "J": "+J375",
+   "K": "+J377",
+   "source": "MVTIC!B377",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 378,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I378",
+   "I": "+I377*2",
+   "J": "+J377*2",
+   "K": "+J378",
+   "source": "MVTIC!B378",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 379,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I379",
+   "I": "+I375",
+   "J": "+J375",
+   "K": "+J379",
+   "source": "MVTIC!B379",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 380,
+   "khs_code": 119,
+   "description": "Cross Arm UNP 100 - 3000 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I380",
+   "I": "+I368*2",
+   "J": "+J368*2",
+   "K": "+J380",
+   "source": "MVTIC!B380",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 381,
+   "khs_code": 18,
+   "description": "Arm Tie Type 900 - 3/4\" - (t=2,3 mm)",
+   "H": "+I381",
+   "I": "+I380",
+   "J": "+J380",
+   "K": "+J381",
+   "source": "MVTIC!B381",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 382,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I382",
+   "I": "+I368*2",
+   "J": "+J368*2",
+   "K": "+J382",
+   "source": "MVTIC!B382",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 383,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I383",
+   "I": "+I368*2",
+   "J": "+J368*2",
+   "K": "+J383",
+   "source": "MVTIC!B383",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 384,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I384",
+   "I": "+I368*2",
+   "J": "+J368*2",
+   "K": "+J384",
+   "source": "MVTIC!B384",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 386,
+   "khs_code": null,
+   "description": "Konstruksi 2 MVTIC 4 - DS",
+   "H": "+I386",
+   "I": "GAMBAR!X28",
+   "J": "GAMBAR!Y28",
+   "K": "+J386",
+   "source": "MVTIC!B386",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 387,
+   "khs_code": 14,
+   "description": "Arm Tie Band 8\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I387",
+   "I": "+I386",
+   "J": "+J386",
+   "K": "+J387",
+   "source": "MVTIC!B387",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 388,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I388",
+   "I": "+I387*2+I407*2+I409*2+I410*2+I411*3+I413*3+I414*3+I415*3",
+   "J": "+J387*2+J407*2+J409*2+J410*2+J411*3+J413*3+J414*3+J415*3",
+   "K": "+J388",
+   "source": "MVTIC!B388",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 389,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I389",
+   "I": "+I387*2+I397",
+   "J": "+J387*2+J397",
+   "K": "+J389",
+   "source": "MVTIC!B389",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 390,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I390",
+   "I": "+I386*126",
+   "J": "+J386*126",
+   "K": "+J390",
+   "source": "MVTIC!B390",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 391,
+   "khs_code": 151,
+   "description": "Extension for GW type B - (Acc.MVTIC)",
+   "H": "+I391",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J391",
+   "source": "MVTIC!B391",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 392,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I392",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J392",
+   "source": "MVTIC!B392",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 393,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I393",
+   "I": "+I392",
+   "J": "+J392",
+   "K": "+J393",
+   "source": "MVTIC!B393",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 394,
+   "khs_code": 439,
+   "description": "Strain Clamp 150 - 240 mm - 3 nut",
+   "H": "+I394",
+   "I": "+I392",
+   "J": "+J392",
+   "K": "+J394",
+   "source": "MVTIC!B394",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 395,
+   "khs_code": 102,
+   "description": "Cross Arm Clevis - TM - (l=42mm, t=6mm, p=35mm) - HDG",
+   "H": "+I395",
+   "I": "+I394",
+   "J": "+J394",
+   "K": "+J395",
+   "source": "MVTIC!B395",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 396,
+   "khs_code": 53,
+   "description": "Bolt & Nut M.16 x 140 - HDG",
+   "H": "+I396",
+   "I": "+I395*2",
+   "J": "+J395*2",
+   "K": "+J396",
+   "source": "MVTIC!B396",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 397,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I397",
+   "I": "+I394",
+   "J": "+J394",
+   "K": "+J397",
+   "source": "MVTIC!B397",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 398,
+   "khs_code": 113,
+   "description": "Cross Arm UNP 100 - 750 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I398",
+   "I": "+I386*4",
+   "J": "+J386*4",
+   "K": "+J398",
+   "source": "MVTIC!B398",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 399,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I399",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J399",
+   "source": "MVTIC!B399",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 400,
+   "khs_code": 139,
+   "description": "Double Arm Band 8 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I400",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J400",
+   "source": "MVTIC!B400",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 401,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I401",
+   "I": "+I386*6",
+   "J": "+J386*6",
+   "K": "+J401",
+   "source": "MVTIC!B401",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 402,
+   "khs_code": 119,
+   "description": "Cross Arm UNP 100 - 3000 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I402",
+   "I": "+I386*5",
+   "J": "+J386*5",
+   "K": "+J402",
+   "source": "MVTIC!B402",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 403,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I403",
+   "I": "+I402",
+   "J": "+J402",
+   "K": "+J403",
+   "source": "MVTIC!B403",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 404,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I404",
+   "I": "+I386*12",
+   "J": "+J386*12",
+   "K": "+J404",
+   "source": "MVTIC!B404",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 405,
+   "khs_code": 385,
+   "description": "Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I405",
+   "I": "+I386*6",
+   "J": "+J386*6",
+   "K": "+J405",
+   "source": "MVTIC!B405",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 406,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I406",
+   "I": "+I386",
+   "J": "+J386",
+   "K": "+J406",
+   "source": "MVTIC!B406",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 407,
+   "khs_code": 127,
+   "description": "Cross Arm UNP 80 - 3000 (l=45mm,t=3,5mm,tgg=80mm)",
+   "H": "+I407",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J407",
+   "source": "MVTIC!B407",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 408,
+   "khs_code": 124,
+   "description": "Cross Arm UNP 80 - 1500 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I408",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J408",
+   "source": "MVTIC!B408",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 409,
+   "khs_code": 34,
+   "description": "Begel klem 3/4\" u/ kabel",
+   "H": "+I409",
+   "I": "+I386*6",
+   "J": "+J386*6",
+   "K": "+J409",
+   "source": "MVTIC!B409",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 410,
+   "khs_code": 22,
+   "description": "Begel 3\" U - ( (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I410",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J410",
+   "source": "MVTIC!B410",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 411,
+   "khs_code": 292,
+   "description": "Ornament Cabel Band 3\" x 9\" - TM",
+   "H": "+I411",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J411",
+   "source": "MVTIC!B411",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 412,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I412",
+   "I": "+I386",
+   "J": "+J386",
+   "K": "+J412",
+   "source": "MVTIC!B412",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 413,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I413",
+   "I": "+I412",
+   "J": "+J412",
+   "K": "+J413",
+   "source": "MVTIC!B413",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 414,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I414",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+J414",
+   "source": "MVTIC!B414",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 415,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I415",
+   "I": "+I414",
+   "J": "+J414",
+   "K": "+J415",
+   "source": "MVTIC!B415",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 416,
+   "khs_code": 125,
+   "description": "Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I416",
+   "I": "+I386",
+   "J": "+J386",
+   "K": "+J416",
+   "source": "MVTIC!B416",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 417,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I417",
+   "I": "+I386*3",
+   "J": "+J386*3",
+   "K": "+J417",
+   "source": "MVTIC!B417",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 418,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I418",
+   "I": "+I386*3",
+   "J": "+J386*3",
+   "K": "+J418",
+   "source": "MVTIC!B418",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 419,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I419",
+   "I": "+I386*3",
+   "J": "+J386*3",
+   "K": "+J419",
+   "source": "MVTIC!B419",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 420,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I420",
+   "I": "+I386*9",
+   "J": "+J386*9",
+   "K": "+J420",
+   "source": "MVTIC!B420",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 421,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I421",
+   "I": "+I386*24",
+   "J": "+J386*24",
+   "K": "+J421",
+   "source": "MVTIC!B421",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 422,
+   "khs_code": 488,
+   "description": "Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC",
+   "H": "+I422",
+   "I": "+I386*2",
+   "J": "+J386*2",
+   "K": "+J422",
+   "source": "MVTIC!B422",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 423,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+I423",
+   "I": "+I422",
+   "J": "+J422",
+   "K": "+J423",
+   "source": "MVTIC!B423",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 427,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire",
+   "H": "+I427",
+   "I": "+GAMBAR!X29",
+   "J": "+GAMBAR!Y29",
+   "K": "+J427",
+   "source": "MVTIC!B427",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 428,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I428",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J428",
+   "source": "MVTIC!B428",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 429,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I429",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J429",
+   "source": "MVTIC!B429",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 430,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I430",
+   "I": "+I427*2",
+   "J": "+J427*2",
+   "K": "+J430",
+   "source": "MVTIC!B430",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 431,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I431",
+   "I": "+I427*2",
+   "J": "+J427*2",
+   "K": "+J431",
+   "source": "MVTIC!B431",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 432,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I432",
+   "I": "+I430*2+I431*2",
+   "J": "+J430*2+J431*2",
+   "K": "+J432",
+   "source": "MVTIC!B432",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 433,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I433",
+   "I": "+I427*4",
+   "J": "+J427*4",
+   "K": "+J433",
+   "source": "MVTIC!B433",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 434,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I434",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J434",
+   "source": "MVTIC!B434",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 435,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I435",
+   "I": "+I427*12",
+   "J": "+J427*12",
+   "K": "+J435",
+   "source": "MVTIC!B435",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 436,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I436",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J436",
+   "source": "MVTIC!B436",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 437,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I437",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J437",
+   "source": "MVTIC!B437",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 438,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I438",
+   "I": "+I427*2",
+   "J": "+J427*2",
+   "K": "+J438",
+   "source": "MVTIC!B438",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 439,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I439",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J439",
+   "source": "MVTIC!B439",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 440,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I440",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J440",
+   "source": "MVTIC!B440",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 441,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I441",
+   "I": "+I427",
+   "J": "+J427",
+   "K": "+J441",
+   "source": "MVTIC!B441",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 443,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire Bajong",
+   "H": "+I443",
+   "I": "+GAMBAR!X31",
+   "J": "+GAMBAR!Y31",
+   "K": "+J443",
+   "source": "MVTIC!B443",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 444,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I444",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J444",
+   "source": "MVTIC!B444",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 445,
+   "khs_code": 424,
+   "description": "Single Guy Wire Band 9\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I445",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J445",
+   "source": "MVTIC!B445",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 446,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I446",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J446",
+   "source": "MVTIC!B446",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 447,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I447",
+   "I": "+I443*4",
+   "J": "+J443*4",
+   "K": "+J447",
+   "source": "MVTIC!B447",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 448,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I448",
+   "I": "+I443*2",
+   "J": "+J443*2",
+   "K": "+J448",
+   "source": "MVTIC!B448",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 449,
+   "khs_code": 52,
+   "description": "Bolt & Nut M.16 x 120 - HDG",
+   "H": "+I449",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J449",
+   "source": "MVTIC!B449",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 450,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I450",
+   "I": "+I447*2+I448*2+I449*2",
+   "J": "+J447*2+J448*2+J449*2",
+   "K": "+J450",
+   "source": "MVTIC!B450",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 451,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I451",
+   "I": "+I443*6",
+   "J": "+J443*6",
+   "K": "+J451",
+   "source": "MVTIC!B451",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 452,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I452",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J452",
+   "source": "MVTIC!B452",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 453,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I453",
+   "I": "+I443*12",
+   "J": "+J443*12",
+   "K": "+J453",
+   "source": "MVTIC!B453",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 454,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I454",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J454",
+   "source": "MVTIC!B454",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 455,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I455",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J455",
+   "source": "MVTIC!B455",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 456,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I456",
+   "I": "+I443*4",
+   "J": "+J443*4",
+   "K": "+J456",
+   "source": "MVTIC!B456",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 457,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I457",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J457",
+   "source": "MVTIC!B457",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 458,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I458",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J458",
+   "source": "MVTIC!B458",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 459,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I459",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J459",
+   "source": "MVTIC!B459",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 460,
+   "khs_code": 444,
+   "description": "Strut Tie 2000 - pipe 2\" - 2,0 meter, Tebal 2,0 mm - TM",
+   "H": "+I460",
+   "I": "+I443",
+   "J": "+J443",
+   "K": "+J460",
+   "source": "MVTIC!B460",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 462,
+   "khs_code": null,
+   "description": "Konstruksi Horizontal Guy Wire",
+   "H": "+I462",
+   "I": "+GAMBAR!X30",
+   "J": "+GAMBAR!Y30",
+   "K": "+J462",
+   "source": "MVTIC!B462",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 463,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I463",
+   "I": "+I462*2",
+   "J": "+J462*2",
+   "K": "+J463",
+   "source": "MVTIC!B463",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 464,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I464",
+   "I": "+I462*2",
+   "J": "+J462*2",
+   "K": "+J464",
+   "source": "MVTIC!B464",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 465,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I465",
+   "I": "+I462*4",
+   "J": "+J462*4",
+   "K": "+J465",
+   "source": "MVTIC!B465",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 466,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I466",
+   "I": "+I462*4",
+   "J": "+J462*4",
+   "K": "+J466",
+   "source": "MVTIC!B466",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 467,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I467",
+   "I": "+I465*2+I466*2",
+   "J": "+J465*2+J466*2",
+   "K": "+J467",
+   "source": "MVTIC!B467",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 468,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I468",
+   "I": "+I462*6",
+   "J": "+J462*6",
+   "K": "+J468",
+   "source": "MVTIC!B468",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 469,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I469",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J469",
+   "source": "MVTIC!B469",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 470,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I470",
+   "I": "+I462*30",
+   "J": "+J462*30",
+   "K": "+J470",
+   "source": "MVTIC!B470",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 471,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I471",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J471",
+   "source": "MVTIC!B471",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 472,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I472",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J472",
+   "source": "MVTIC!B472",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 473,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I473",
+   "I": "+I462*4",
+   "J": "+J462*4",
+   "K": "+J473",
+   "source": "MVTIC!B473",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 474,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I474",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J474",
+   "source": "MVTIC!B474",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 475,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I475",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J475",
+   "source": "MVTIC!B475",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 476,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I476",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J476",
+   "source": "MVTIC!B476",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 478,
+   "khs_code": null,
+   "description": "Konstruksi Strut Pole",
+   "H": "+I478",
+   "I": "+GAMBAR!X32",
+   "J": "+GAMBAR!Y32",
+   "K": "+J478",
+   "source": "MVTIC!B478",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 479,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I479",
+   "I": "+I478",
+   "J": "+J478",
+   "K": "+J479",
+   "source": "MVTIC!B479",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 480,
+   "khs_code": 441,
+   "description": "Strut Arm TM - (l=50mm, t=5mm, tgg=100mm) NP 10 - 30 cm",
+   "H": "+I480",
+   "I": "+I478",
+   "J": "+J478",
+   "K": "+J480",
+   "source": "MVTIC!B480",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 481,
+   "khs_code": 444,
+   "description": "Strut Tie 2000 - pipe 2\" - 2,0 meter, Tebal 2,0 mm - TM",
+   "H": "+I481",
+   "I": "+I478",
+   "J": "+J478",
+   "K": "+J481",
+   "source": "MVTIC!B481",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 482,
+   "khs_code": 426,
+   "description": "Single Guy Wire Band 10\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I482",
+   "I": "+I478*2",
+   "J": "+J478*2",
+   "K": "+J482",
+   "source": "MVTIC!B482",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 483,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I483",
+   "I": "+I478*2",
+   "J": "+J478*2",
+   "K": "+J483",
+   "source": "MVTIC!B483",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 484,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I484",
+   "I": "+I478*8",
+   "J": "+J478*8",
+   "K": "+J484",
+   "source": "MVTIC!B484",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 485,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I485",
+   "I": "+I478",
+   "J": "+J478",
+   "K": "+J485",
+   "source": "MVTIC!B485",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 486,
+   "khs_code": 52,
+   "description": "Bolt & Nut M.16 x 120 - HDG",
+   "H": "+I486",
+   "I": "+I478*2",
+   "J": "+J478*2",
+   "K": "+J486",
+   "source": "MVTIC!B486",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 487,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I487",
+   "I": "+I479*2+I484*2+I485*2+I486*2",
+   "J": "+J479*2+J484*2+J485*2+J486*2",
+   "K": "+J487",
+   "source": "MVTIC!B487",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 490,
+   "khs_code": 70,
+   "description": "Commisioning test Jaringan Kabel JTM",
+   "H": "+GAMBAR!X5",
+   "source": "MVTIC!B490",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 493,
+   "khs_code": 391,
+   "description": "Safety Cost K3L",
+   "H": "+H490",
+   "source": "MVTIC!B493",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 496,
+   "khs_code": 251,
+   "description": "NFA2XSEY-T 3 x 150 + 1 x 95 mm2 - CWS",
+   "H": "SUMIF($B$9:$B$494,B496,$H$9:$H$494)",
+   "source": "MVTIC!B496",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 497,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "SUMIF($B$9:$B$494,B497,$H$9:$H$494)",
+   "source": "MVTIC!B497",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 498,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "SUMIF($B$9:$B$494,B498,$H$9:$H$494)",
+   "source": "MVTIC!B498",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 499,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "SUMIF($B$9:$B$494,B499,$H$9:$H$494)",
+   "source": "MVTIC!B499",
+   "expected": {
+    "H": 0
+   }
+  }
+ ],
+ "input_values": {
+  "X6": 0,
+  "Y6": 0,
+  "X7": 0,
+  "Y7": 0,
+  "X8": 0,
+  "Y8": 0,
+  "X9": 0,
+  "Y9": 0,
+  "X10": 0,
+  "Y10": 0,
+  "X11": 0,
+  "Y11": 0,
+  "X12": 0,
+  "Y12": 0,
+  "X13": 0,
+  "Y13": 0,
+  "X14": 0,
+  "Y14": 0,
+  "X15": 0,
+  "Y15": 0,
+  "X16": 0,
+  "Y16": 0,
+  "X17": 0,
+  "Y17": 0,
+  "X18": 0,
+  "Y18": 0,
+  "X19": 0,
+  "Y19": 0,
+  "X20": 0,
+  "Y20": 0,
+  "X21": 0,
+  "Y21": 0,
+  "X22": 0,
+  "Y22": 0,
+  "X23": 0,
+  "Y23": 0,
+  "X24": 0,
+  "Y24": 0,
+  "X25": 0,
+  "Y25": 0,
+  "X26": 0,
+  "Y26": 0,
+  "X27": 0,
+  "Y27": 0,
+  "X28": 0,
+  "Y28": 0,
+  "X29": 0,
+  "Y29": 0,
+  "X30": 0,
+  "Y30": 0,
+  "X31": 0,
+  "Y31": 0,
+  "X32": 0,
+  "Y32": 0,
+  "X33": 0,
+  "Y33": 0,
+  "X34": 0,
+  "Y34": 0
+ },
+ "params": [
+  {
+   "cell": "X5",
+   "name": "COMMISSIONING:MVTIC",
+   "default": 0,
+   "description": "Volume Commisioning test Jaringan Kabel JTM (GAMBAR!X5); diisi dari halaman gambar"
+  }
+ ],
+ "review": []
+}

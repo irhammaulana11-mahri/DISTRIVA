@@ -1,0 +1,560 @@
+{
+ "group": "PBPD_6_41",
+ "source": "MASTER RAB & KKF.xlsx / sheet APP LANGSUNG",
+ "inputs": [],
+ "lines": [
+  {
+   "sequence": 10,
+   "khs_code": null,
+   "description": "SR-APP & Accessories",
+   "H": "I10",
+   "I": "I14+I15",
+   "J": "J14+J15",
+   "K": "J10",
+   "source": "APP LANGSUNG!B10",
+   "expected": {
+    "H": 1,
+    "I": 1,
+    "J": 1,
+    "K": 1
+   }
+  },
+  {
+   "sequence": 11,
+   "khs_code": 66,
+   "description": "Cable Power ; NFA2X ; 4 x 16 mm²",
+   "H": "20",
+   "I": "20",
+   "J": "IF(GAMBAR!Z50=GAMBAR!AM7,0,(IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5),GAMBAR!AB51*30,\"0\"))+(IF(OR(GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5),GAMBAR!AB52*30,\"0\"))+(IF(OR(GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5),GAMBAR!AB53*30,\"0\"))+(IF(OR(GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5),GAMBAR!AB54*30,\"0\"))+(IF(OR(GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5),GAMBAR!AB55*30,\"0\"))+(IF(OR(GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5),GAMBAR!AB56*30,\"0\")))",
+   "K": "J11",
+   "source": "APP LANGSUNG!B11",
+   "expected": {
+    "H": 20,
+    "I": 20,
+    "J": 30,
+    "K": 30
+   },
+   "B": "IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5,GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5,GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5,GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5,GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5,GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5),66,\"\")",
+   "khs_codes": [
+    66
+   ]
+  },
+  {
+   "sequence": 12,
+   "khs_code": 250,
+   "description": "NFA2X 4x25mm",
+   "H": "I12",
+   "I": "IF(GAMBAR!Z50=GAMBAR!AM9,0,(IF(OR(GAMBAR!Z51=GAMBAR!$AD$6,GAMBAR!Z51=GAMBAR!$AD$7),GAMBAR!AA51*30,\"0\"))+(IF(OR(GAMBAR!Z52=GAMBAR!$AD$6,GAMBAR!Z52=GAMBAR!$AD$7),GAMBAR!AA52*30,\"0\"))+(IF(OR(GAMBAR!Z53=GAMBAR!$AD$6,GAMBAR!Z53=GAMBAR!$AD$7),GAMBAR!AA53*30,\"0\"))+(IF(OR(GAMBAR!Z54=GAMBAR!$AD$6,GAMBAR!Z54=GAMBAR!$AD$7),GAMBAR!AA54*30,\"0\"))+(IF(OR(GAMBAR!Z55=GAMBAR!$AD$6,GAMBAR!Z55=GAMBAR!$AD$7),GAMBAR!AA55*30,\"0\"))+(IF(OR(GAMBAR!Z56=GAMBAR!$AD$6,GAMBAR!Z56=GAMBAR!$AD$7),GAMBAR!AA56*30,\"0\")))",
+   "J": "IF(GAMBAR!Z50=GAMBAR!AM9,0,(IF(OR(GAMBAR!Z51=GAMBAR!$AD$6,GAMBAR!Z51=GAMBAR!$AD$7),GAMBAR!AB51*30,\"0\"))+(IF(OR(GAMBAR!Z52=GAMBAR!$AD$6,GAMBAR!Z52=GAMBAR!$AD$7),GAMBAR!AB52*30,\"0\"))+(IF(OR(GAMBAR!Z53=GAMBAR!$AD$6,GAMBAR!Z53=GAMBAR!$AD$7),GAMBAR!AB53*30,\"0\"))+(IF(OR(GAMBAR!Z54=GAMBAR!$AD$6,GAMBAR!Z54=GAMBAR!$AD$7),GAMBAR!AB54*30,\"0\"))+(IF(OR(GAMBAR!Z55=GAMBAR!$AD$6,GAMBAR!Z55=GAMBAR!$AD$7),GAMBAR!AB55*30,\"0\"))+(IF(OR(GAMBAR!Z56=GAMBAR!$AD$6,GAMBAR!Z56=GAMBAR!$AD$7),GAMBAR!AB56*30,\"0\")))",
+   "K": "J12",
+   "source": "APP LANGSUNG!B12",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   },
+   "B": "IF(OR(GAMBAR!Z51=GAMBAR!$AD$6,GAMBAR!Z51=GAMBAR!$AD$7,GAMBAR!Z52=GAMBAR!$AD$6,GAMBAR!Z52=GAMBAR!$AD$7,GAMBAR!Z53=GAMBAR!$AD$6,GAMBAR!Z53=GAMBAR!$AD$7,GAMBAR!Z54=GAMBAR!$AD$6,GAMBAR!Z54=GAMBAR!$AD$7,GAMBAR!Z55=GAMBAR!$AD$6,GAMBAR!Z55=GAMBAR!$AD$7,GAMBAR!Z56=GAMBAR!$AD$6,GAMBAR!Z56=GAMBAR!$AD$7),250,\"\")",
+   "khs_codes": [
+    250
+   ]
+  },
+  {
+   "sequence": 13,
+   "khs_code": 191,
+   "description": "KWh meter 3 phs. Elektronik lengkap dengan Modem",
+   "H": "I13",
+   "I": "I16",
+   "J": "J16",
+   "K": "J13",
+   "source": "APP LANGSUNG!B13",
+   "expected": {
+    "H": 1,
+    "I": 1,
+    "J": 1,
+    "K": 1
+   }
+  },
+  {
+   "sequence": 14,
+   "khs_code": 233,
+   "description": "MCB 3 phs. 230 V - 25 A s/d 50 A",
+   "H": "I14",
+   "I": "(IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5,GAMBAR!Z51=GAMBAR!$AD$6),GAMBAR!AA51,\"0\"))+(IF(OR(GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5,GAMBAR!Z52=GAMBAR!$AD$6),GAMBAR!AA52,\"0\"))+(IF(OR(GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5,GAMBAR!Z53=GAMBAR!$AD$6),GAMBAR!AA53,\"0\"))+(IF(OR(GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5,GAMBAR!Z54=GAMBAR!$AD$6),GAMBAR!AA54,\"0\"))+(IF(OR(GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5,GAMBAR!Z55=GAMBAR!$AD$6),GAMBAR!AA55,\"0\"))+(IF(OR(GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5,GAMBAR!Z56=GAMBAR!$AD$6),GAMBAR!AA56,\"0\"))",
+   "J": "(IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5,GAMBAR!Z51=GAMBAR!$AD$6),GAMBAR!AB51,\"0\"))+(IF(OR(GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5,GAMBAR!Z52=GAMBAR!$AD$6),GAMBAR!AB52,\"0\"))+(IF(OR(GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5,GAMBAR!Z53=GAMBAR!$AD$6),GAMBAR!AB53,\"0\"))+(IF(OR(GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5,GAMBAR!Z54=GAMBAR!$AD$6),GAMBAR!AB54,\"0\"))+(IF(OR(GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5,GAMBAR!Z55=GAMBAR!$AD$6),GAMBAR!AB55,\"0\"))+(IF(OR(GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5,GAMBAR!Z56=GAMBAR!$AD$6),GAMBAR!AB56,\"0\"))",
+   "K": "J14",
+   "source": "APP LANGSUNG!B14",
+   "expected": {
+    "H": 1,
+    "I": 1,
+    "J": 1,
+    "K": 1
+   },
+   "B": "IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5,GAMBAR!Z51=GAMBAR!$AD$6,GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5,GAMBAR!Z52=GAMBAR!$AD$6,GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5,GAMBAR!Z53=GAMBAR!$AD$6,GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5,GAMBAR!Z54=GAMBAR!$AD$6,GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5,GAMBAR!Z55=GAMBAR!$AD$6,GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5,GAMBAR!Z56=GAMBAR!$AD$6),233,\"\")",
+   "khs_codes": [
+    233
+   ]
+  },
+  {
+   "sequence": 15,
+   "khs_code": 241,
+   "description": "MCCB 63 A , 25 kA, 3 Phs (Adj)",
+   "H": "I15",
+   "I": "(IF(GAMBAR!Z51=GAMBAR!$AD$7,GAMBAR!AA51,\"0\"))+(IF(GAMBAR!Z52=GAMBAR!$AD$7,GAMBAR!AA52,\"0\"))+(IF(GAMBAR!Z53=GAMBAR!$AD$7,GAMBAR!AA53,\"0\"))+(IF(GAMBAR!Z54=GAMBAR!$AD$7,GAMBAR!AA54,\"0\"))+(IF(GAMBAR!Z55=GAMBAR!$AD$7,GAMBAR!AA55,\"0\"))+(IF(GAMBAR!Z56=GAMBAR!$AD$7,GAMBAR!AA56,\"0\"))",
+   "J": "(IF(GAMBAR!Z51=GAMBAR!$AD$7,GAMBAR!AB51,\"0\"))+(IF(GAMBAR!Z52=GAMBAR!$AD$7,GAMBAR!AB52,\"0\"))+(IF(GAMBAR!Z53=GAMBAR!$AD$7,GAMBAR!AB53,\"0\"))+(IF(GAMBAR!Z54=GAMBAR!$AD$7,GAMBAR!AB54,\"0\"))+(IF(GAMBAR!Z55=GAMBAR!$AD$7,GAMBAR!AB55,\"0\"))+(IF(GAMBAR!Z56=GAMBAR!$AD$7,GAMBAR!AB56,\"0\"))",
+   "K": "J15",
+   "source": "APP LANGSUNG!B15",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   },
+   "B": "IF(OR(GAMBAR!Z51=GAMBAR!$AD$7,GAMBAR!Z52=GAMBAR!$AD$7,GAMBAR!Z53=GAMBAR!$AD$7,GAMBAR!Z54=GAMBAR!$AD$7,GAMBAR!Z55=GAMBAR!$AD$7,GAMBAR!Z56=GAMBAR!$AD$7),241,\"\")",
+   "khs_codes": [
+    241
+   ]
+  },
+  {
+   "sequence": 16,
+   "khs_code": 60,
+   "description": "Box APP Pengukuran Langsung tanpa MCCB Aluminium",
+   "H": "I16",
+   "I": "IF(OR(GAMBAR!Z50=GAMBAR!AM7,GAMBAR!Z50=GAMBAR!AM8,GAMBAR!Z50=GAMBAR!AM9),0,(IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5,GAMBAR!Z51=GAMBAR!$AD$6,GAMBAR!Z51=GAMBAR!$AD$7),GAMBAR!AA51,\"0\"))+(IF(OR(GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5,GAMBAR!Z52=GAMBAR!$AD$6,GAMBAR!Z52=GAMBAR!$AD$7),GAMBAR!AA52,\"0\"))+(IF(OR(GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5,GAMBAR!Z53=GAMBAR!$AD$6,GAMBAR!Z53=GAMBAR!$AD$7),GAMBAR!AA53,\"0\"))+(IF(OR(GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5,GAMBAR!Z54=GAMBAR!$AD$6,GAMBAR!Z54=GAMBAR!$AD$7),GAMBAR!AA54,\"0\"))+(IF(OR(GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5,GAMBAR!Z55=GAMBAR!$AD$6,GAMBAR!Z55=GAMBAR!$AD$7),GAMBAR!AA55,\"0\"))+(IF(OR(GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5,GAMBAR!Z56=GAMBAR!$AD$6,GAMBAR!Z56=GAMBAR!$AD$7),GAMBAR!AA56,\"0\")))",
+   "J": "IF(OR(GAMBAR!Z50=GAMBAR!AM7,GAMBAR!Z50=GAMBAR!AM8,GAMBAR!Z50=GAMBAR!AM9),0,(IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5,GAMBAR!Z51=GAMBAR!$AD$6,GAMBAR!Z51=GAMBAR!$AD$7),GAMBAR!AB51,\"0\"))+(IF(OR(GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5,GAMBAR!Z52=GAMBAR!$AD$6,GAMBAR!Z52=GAMBAR!$AD$7),GAMBAR!AB52,\"0\"))+(IF(OR(GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5,GAMBAR!Z53=GAMBAR!$AD$6,GAMBAR!Z53=GAMBAR!$AD$7),GAMBAR!AB53,\"0\"))+(IF(OR(GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5,GAMBAR!Z54=GAMBAR!$AD$6,GAMBAR!Z54=GAMBAR!$AD$7),GAMBAR!AB54,\"0\"))+(IF(OR(GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5,GAMBAR!Z55=GAMBAR!$AD$6,GAMBAR!Z55=GAMBAR!$AD$7),GAMBAR!AB55,\"0\"))+(IF(OR(GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5,GAMBAR!Z56=GAMBAR!$AD$6,GAMBAR!Z56=GAMBAR!$AD$7),GAMBAR!AB56,\"0\")))",
+   "K": "J16",
+   "source": "APP LANGSUNG!B16",
+   "expected": {
+    "H": 1,
+    "I": 1,
+    "J": 1,
+    "K": 1
+   },
+   "B": "IF(OR(GAMBAR!Z51=GAMBAR!$AD$4,GAMBAR!Z51=GAMBAR!$AD$5,GAMBAR!Z51=GAMBAR!$AD$7,GAMBAR!Z52=GAMBAR!$AD$4,GAMBAR!Z52=GAMBAR!$AD$5,GAMBAR!Z52=GAMBAR!$AD$7,GAMBAR!Z53=GAMBAR!$AD$4,GAMBAR!Z53=GAMBAR!$AD$5,GAMBAR!Z53=GAMBAR!$AD$7,GAMBAR!Z54=GAMBAR!$AD$4,GAMBAR!Z54=GAMBAR!$AD$5,GAMBAR!Z54=GAMBAR!$AD$7,GAMBAR!Z55=GAMBAR!$AD$4,GAMBAR!Z55=GAMBAR!$AD$5,GAMBAR!Z55=GAMBAR!$AD$7,GAMBAR!Z56=GAMBAR!$AD$4,GAMBAR!Z56=GAMBAR!$AD$5,GAMBAR!Z56=GAMBAR!$AD$7),60,\"\")",
+   "khs_codes": [
+    60
+   ]
+  },
+  {
+   "sequence": 17,
+   "khs_code": 244,
+   "description": "Mountage kWH 5/20 A",
+   "H": "H16",
+   "I": "I16",
+   "J": "J16",
+   "K": "K16",
+   "source": "APP LANGSUNG!B17",
+   "expected": {
+    "H": 1,
+    "I": 1,
+    "J": 1,
+    "K": 1
+   }
+  },
+  {
+   "sequence": 19,
+   "khs_code": null,
+   "description": "Asuransi Material PLN (3 per mil)",
+   "H": "I19",
+   "I": "IF(AND(I11=0,I12=0),0,+I10)",
+   "J": "IF(AND(J11=0,J12=0),0,+J10)",
+   "K": "J19",
+   "source": "APP LANGSUNG!B19",
+   "expected": {
+    "H": 1,
+    "I": 1,
+    "J": 1,
+    "K": 1
+   }
+  },
+  {
+   "sequence": 20,
+   "khs_code": 19,
+   "description": "Baut mata",
+   "H": "I20",
+   "I": "I19",
+   "J": "J19",
+   "K": "J20",
+   "source": "APP LANGSUNG!B20",
+   "expected": {
+    "H": 1,
+    "I": 1,
+    "J": 1,
+    "K": 1
+   }
+  },
+  {
+   "sequence": 21,
+   "khs_code": 397,
+   "description": "Service wedge clamp 4/4 x 10/16 mm",
+   "H": "I21",
+   "I": "I19*2",
+   "J": "J19*2",
+   "K": "J21",
+   "source": "APP LANGSUNG!B21",
+   "expected": {
+    "H": 2,
+    "I": 2,
+    "J": 2,
+    "K": 2
+   }
+  },
+  {
+   "sequence": 22,
+   "khs_code": 84,
+   "description": "Conn. press AL/AL type 6-25 mm2 / 35-70 mm2 + vinil masive",
+   "H": "I22",
+   "I": "I19*4",
+   "J": "J19*4",
+   "K": "J22",
+   "source": "APP LANGSUNG!B22",
+   "expected": {
+    "H": 4,
+    "I": 4,
+    "J": 4,
+    "K": 4
+   }
+  },
+  {
+   "sequence": 23,
+   "khs_code": 183,
+   "description": "Klem kabel/ Cable suport (508/U/2009)",
+   "H": "I23",
+   "I": "I19*3",
+   "J": "J19*3",
+   "K": "J23",
+   "source": "APP LANGSUNG!B23",
+   "expected": {
+    "H": 3,
+    "I": 3,
+    "J": 3,
+    "K": 3
+   }
+  },
+  {
+   "sequence": 26,
+   "khs_code": 249,
+   "description": "NFA2X 4x10mm",
+   "H": "SUMIF($B$9:$B$18,B26,$H$9:$H$18)",
+   "source": "APP LANGSUNG!B26",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 27,
+   "khs_code": 250,
+   "description": "NFA2X 4x25mm",
+   "H": "SUMIF($B$9:$B$18,B27,$H$9:$H$18)",
+   "source": "APP LANGSUNG!B27",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 28,
+   "khs_code": 190,
+   "description": "KWh meter 3 phs. 220/380 V - 20/60 A ST Clas 1 Elektronik",
+   "H": "SUMIF($B$9:$B$18,B28,$H$9:$H$18)",
+   "source": "APP LANGSUNG!B28",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 29,
+   "khs_code": 233,
+   "description": "MCB 3 phs. 230 V - 25 A s/d 50 A",
+   "H": "SUMIF($B$9:$B$18,B29,$H$9:$H$18)",
+   "source": "APP LANGSUNG!B29",
+   "expected": {
+    "H": 1
+   }
+  },
+  {
+   "sequence": 30,
+   "khs_code": 241,
+   "description": "MCCB 63 A , 25 kA, 3 Phs (Adj)",
+   "H": "SUMIF($B$9:$B$18,B30,$H$9:$H$18)",
+   "source": "APP LANGSUNG!B30",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 31,
+   "khs_code": 60,
+   "description": "Box APP Pengukuran Langsung tanpa MCCB Aluminium",
+   "H": "SUMIF($B$9:$B$18,B31,$H$9:$H$18)",
+   "source": "APP LANGSUNG!B31",
+   "expected": {
+    "H": 1
+   }
+  }
+ ],
+ "input_values": {},
+ "params": [
+  {
+   "cell": "Z50",
+   "name": "PBPD:JENIS",
+   "type": "text",
+   "options": [
+    "PBPD",
+    "PD 6,6-23 KVA",
+    "PD 6,6-41,5 KVA",
+    "PD 33-41,5 KVA",
+    "PD-53-197 KVA"
+   ],
+   "default": "PBPD",
+   "description": "Jenis pekerjaan (GAMBAR!Z50)"
+  },
+  {
+   "cell": "S55",
+   "name": "PBPD:PEMBAYARAN",
+   "type": "text",
+   "options": [
+    "TUNAI",
+    "PLN"
+   ],
+   "default": "TUNAI",
+   "description": "TUNAI = material dibeli vendor pelaksana; PLN (GAMBAR!S55)"
+  },
+  {
+   "cell": "Z51",
+   "name": "PBPD:RENTANG_1",
+   "type": "text",
+   "options": [
+    "450-5500 VA",
+    "6,6-16,5 kVA",
+    "23 kVA",
+    "33 kVA",
+    "41,5 kVA",
+    "53 kVA",
+    "66 kVA",
+    "82,5 kVA",
+    "105 kVA",
+    "131 kVA",
+    "147 kVA",
+    "164 kVA",
+    "197 kVA"
+   ],
+   "default": "450-5500 VA",
+   "description": "Rentang daya baris 1 (GAMBAR!Z51)"
+  },
+  {
+   "cell": "AA51",
+   "name": "PBPD:PSG_1",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah pasang baru baris 1 (GAMBAR!AA51)"
+  },
+  {
+   "cell": "AB51",
+   "name": "PBPD:BKR_1",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 1 (GAMBAR!AB51)"
+  },
+  {
+   "cell": "Z52",
+   "name": "PBPD:RENTANG_2",
+   "type": "text",
+   "options": [
+    "450-5500 VA",
+    "6,6-16,5 kVA",
+    "23 kVA",
+    "33 kVA",
+    "41,5 kVA",
+    "53 kVA",
+    "66 kVA",
+    "82,5 kVA",
+    "105 kVA",
+    "131 kVA",
+    "147 kVA",
+    "164 kVA",
+    "197 kVA"
+   ],
+   "default": "6,6-16,5 kVA",
+   "description": "Rentang daya baris 2 (GAMBAR!Z52)"
+  },
+  {
+   "cell": "AA52",
+   "name": "PBPD:PSG_2",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah pasang baru baris 2 (GAMBAR!AA52)"
+  },
+  {
+   "cell": "AB52",
+   "name": "PBPD:BKR_2",
+   "type": "number",
+   "default": 1,
+   "description": "Jumlah bongkar/perubahan baris 2 (GAMBAR!AB52)"
+  },
+  {
+   "cell": "Z53",
+   "name": "PBPD:RENTANG_3",
+   "type": "text",
+   "options": [
+    "450-5500 VA",
+    "6,6-16,5 kVA",
+    "23 kVA",
+    "33 kVA",
+    "41,5 kVA",
+    "53 kVA",
+    "66 kVA",
+    "82,5 kVA",
+    "105 kVA",
+    "131 kVA",
+    "147 kVA",
+    "164 kVA",
+    "197 kVA"
+   ],
+   "default": "41,5 kVA",
+   "description": "Rentang daya baris 3 (GAMBAR!Z53)"
+  },
+  {
+   "cell": "AA53",
+   "name": "PBPD:PSG_3",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah pasang baru baris 3 (GAMBAR!AA53)"
+  },
+  {
+   "cell": "AB53",
+   "name": "PBPD:BKR_3",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 3 (GAMBAR!AB53)"
+  },
+  {
+   "cell": "Z54",
+   "name": "PBPD:RENTANG_4",
+   "type": "text",
+   "options": [
+    "450-5500 VA",
+    "6,6-16,5 kVA",
+    "23 kVA",
+    "33 kVA",
+    "41,5 kVA",
+    "53 kVA",
+    "66 kVA",
+    "82,5 kVA",
+    "105 kVA",
+    "131 kVA",
+    "147 kVA",
+    "164 kVA",
+    "197 kVA"
+   ],
+   "default": "105 kVA",
+   "description": "Rentang daya baris 4 (GAMBAR!Z54)"
+  },
+  {
+   "cell": "AA54",
+   "name": "PBPD:PSG_4",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah pasang baru baris 4 (GAMBAR!AA54)"
+  },
+  {
+   "cell": "AB54",
+   "name": "PBPD:BKR_4",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 4 (GAMBAR!AB54)"
+  },
+  {
+   "cell": "Z55",
+   "name": "PBPD:RENTANG_5",
+   "type": "text",
+   "options": [
+    "450-5500 VA",
+    "6,6-16,5 kVA",
+    "23 kVA",
+    "33 kVA",
+    "41,5 kVA",
+    "53 kVA",
+    "66 kVA",
+    "82,5 kVA",
+    "105 kVA",
+    "131 kVA",
+    "147 kVA",
+    "164 kVA",
+    "197 kVA"
+   ],
+   "default": "23 kVA",
+   "description": "Rentang daya baris 5 (GAMBAR!Z55)"
+  },
+  {
+   "cell": "AA55",
+   "name": "PBPD:PSG_5",
+   "type": "number",
+   "default": 1,
+   "description": "Jumlah pasang baru baris 5 (GAMBAR!AA55)"
+  },
+  {
+   "cell": "AB55",
+   "name": "PBPD:BKR_5",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 5 (GAMBAR!AB55)"
+  },
+  {
+   "cell": "Z56",
+   "name": "PBPD:RENTANG_6",
+   "type": "text",
+   "options": [
+    "450-5500 VA",
+    "6,6-16,5 kVA",
+    "23 kVA",
+    "33 kVA",
+    "41,5 kVA",
+    "53 kVA",
+    "66 kVA",
+    "82,5 kVA",
+    "105 kVA",
+    "131 kVA",
+    "147 kVA",
+    "164 kVA",
+    "197 kVA"
+   ],
+   "default": "33 kVA",
+   "description": "Rentang daya baris 6 (GAMBAR!Z56)"
+  },
+  {
+   "cell": "AA56",
+   "name": "PBPD:PSG_6",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah pasang baru baris 6 (GAMBAR!AA56)"
+  },
+  {
+   "cell": "AB56",
+   "name": "PBPD:BKR_6",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 6 (GAMBAR!AB56)"
+  }
+ ],
+ "constants": {
+  "AD3": "450-5500 VA",
+  "AD4": "6,6-16,5 kVA",
+  "AD5": "23 kVA",
+  "AD6": "33 kVA",
+  "AD7": "41,5 kVA",
+  "AD8": "53 kVA",
+  "AD9": "66 kVA",
+  "AD10": "82,5 kVA",
+  "AD11": "105 kVA",
+  "AD12": "131 kVA",
+  "AD13": "147 kVA",
+  "AD14": "164 kVA",
+  "AD15": "197 kVA",
+  "AM6": "PBPD",
+  "AM7": "PD 6,6-23 KVA",
+  "AM8": "PD 6,6-41,5 KVA",
+  "AM9": "PD 33-41,5 KVA",
+  "AM10": "PD-53-197 KVA"
+ },
+ "review": []
+}

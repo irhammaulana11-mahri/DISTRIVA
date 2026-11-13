@@ -1,0 +1,30 @@
+# dependencies and build output
+node_modules/
+vendor/
+dist/
+.venv/
+__pycache__/
+
+# secrets and local state (never commit)
+.env
+.env.*
+!.env.example
+eis_session.json
+*.log
+.phpunit.result.cache
+
+# generated, downloaded or bulky data
+backups/
+scratch/
+tools/samples/
+tools/omt_sync/out/
+tools/eis_sync/downloads/
+tools/eis_sync/debug/
+backend/storage/app/private/
+*.zip
+MASTER RAB & KKF.xlsx
+*.xlsx
+*.xls
+*.xlsm
+*.mdb
+*.accdb

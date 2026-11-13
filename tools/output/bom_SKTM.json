@@ -1,0 +1,643 @@
+{
+ "group": "SKTM",
+ "source": "MASTER RAB & KKF.xlsx / sheet SKTM",
+ "inputs": [
+  {
+   "cell": "U55",
+   "group": "SKTM",
+   "label": "SKTM (NA2XSEYBY 3X150)",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V55",
+   "group": "SKTM",
+   "label": "SKTM (NA2XSEYBY 3X150)",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U56",
+   "group": "SKTM",
+   "label": "SKTM (NA2XSEYBY 3X240)",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V56",
+   "group": "SKTM",
+   "label": "SKTM (NA2XSEYBY 3X240)",
+   "kind": "BKR"
+  }
+ ],
+ "lines": [
+  {
+   "sequence": 11,
+   "khs_code": null,
+   "description": "Panjang SKTM / UGC 150 mm2",
+   "H": "+I11",
+   "I": "+GAMBAR!U55",
+   "J": "+GAMBAR!V55",
+   "K": "+J11",
+   "source": "SKTM!B11",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 12,
+   "khs_code": null,
+   "description": "Kabel ditanam",
+   "H": "+I12",
+   "I": "+I13+I14+I15+I16+I17",
+   "J": "+J13+J14+J15+J16+J17",
+   "K": "+J12",
+   "source": "SKTM!B12",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 13,
+   "khs_code": null,
+   "description": "- Tanah Biasa",
+   "H": "+I13",
+   "K": "+J13",
+   "source": "SKTM!B13",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 14,
+   "khs_code": null,
+   "description": "- PV blok/ tembok/ plesteran",
+   "H": "+I14",
+   "K": "+J14",
+   "source": "SKTM!B14",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 15,
+   "khs_code": null,
+   "description": "- Aspal",
+   "H": "+I15",
+   "K": "+J15",
+   "source": "SKTM!B15",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 16,
+   "khs_code": null,
+   "description": "- Floor Beton",
+   "H": "+I16",
+   "K": "+J16",
+   "source": "SKTM!B16",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 17,
+   "khs_code": null,
+   "description": "- Floor Beton Bertulang",
+   "H": "+I17",
+   "K": "+J17",
+   "source": "SKTM!B17",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 18,
+   "khs_code": null,
+   "description": "- Borring",
+   "H": "+I18",
+   "K": "+J18",
+   "source": "SKTM!B18",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 19,
+   "khs_code": 246,
+   "description": "NA2XSEYBY 3 x 150 mm2;20KV;UG",
+   "H": "+I19",
+   "I": "TRUNC((I11*1.1)/1)*1",
+   "J": "TRUNC((J11*1.1)/1)*1",
+   "K": "+J19",
+   "source": "SKTM!B19",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 20,
+   "khs_code": 178,
+   "description": "Jointing Termination 24 Kv - uk. 150 mm - 3 Core/XLPE",
+   "H": "+I20",
+   "I": "TRUNC((I19/250)/1)*1",
+   "J": "TRUNC((J19/250)/1)*1",
+   "K": "+J20",
+   "source": "SKTM!B20",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 21,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I21",
+   "K": "+J21",
+   "source": "SKTM!B21",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 22,
+   "khs_code": 432,
+   "description": "Sock Draad Pipa Galvanized 4\"",
+   "H": "+I22",
+   "K": "+J22",
+   "source": "SKTM!B22",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 24,
+   "khs_code": null,
+   "description": "Panjang SKTM / UGC 240 mm2",
+   "H": "+I24",
+   "I": "+GAMBAR!U56",
+   "J": "+GAMBAR!V56",
+   "K": "+J24",
+   "source": "SKTM!B24",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 25,
+   "khs_code": null,
+   "description": "Kabel ditanam",
+   "H": "+I25",
+   "I": "+I26+I27+I28+I29+I30",
+   "J": "+J26+J27+J28+J29+J30",
+   "K": "+J25",
+   "source": "SKTM!B25",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 26,
+   "khs_code": null,
+   "description": "- Tanah Biasa",
+   "H": "+I26",
+   "K": "+J26",
+   "source": "SKTM!B26",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 27,
+   "khs_code": null,
+   "description": "- PV blok/ tembok/ plesteran",
+   "H": "+I27",
+   "K": "+J27",
+   "source": "SKTM!B27",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 28,
+   "khs_code": null,
+   "description": "- Aspal",
+   "H": "+I28",
+   "K": "+J28",
+   "source": "SKTM!B28",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 29,
+   "khs_code": null,
+   "description": "- Floor Beton",
+   "H": "+I29",
+   "K": "+J29",
+   "source": "SKTM!B29",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 30,
+   "khs_code": null,
+   "description": "- Floor Beton Bertulang",
+   "H": "+I30",
+   "K": "+J30",
+   "source": "SKTM!B30",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 31,
+   "khs_code": null,
+   "description": "- Borring",
+   "H": "+I31",
+   "K": "+J31",
+   "source": "SKTM!B31",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 32,
+   "khs_code": 247,
+   "description": "NA2XSEYBY 3 x 240 mm2;20KV;UG",
+   "H": "+I32",
+   "I": "TRUNC((I24*1.1)/1)*1",
+   "J": "TRUNC((J24*1.1)/1)*1",
+   "K": "+J32",
+   "source": "SKTM!B32",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 33,
+   "khs_code": 518,
+   "description": "Jointing Termination 24 Kv - uk. 240 mm - 3 Core/XLPE",
+   "H": "+I33",
+   "I": "TRUNC((I32/250)/1)*1",
+   "J": "TRUNC((J32/250)/1)*1",
+   "K": "+J33",
+   "source": "SKTM!B33",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 34,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I34",
+   "K": "+J34",
+   "source": "SKTM!B34",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 35,
+   "khs_code": 432,
+   "description": "Sock Draad Pipa Galvanized 4\"",
+   "H": "+I35",
+   "K": "+J35",
+   "source": "SKTM!B35",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 37,
+   "khs_code": null,
+   "description": "Grounding Kabel",
+   "H": "+I37",
+   "K": "+J37",
+   "source": "SKTM!B37",
+   "expected": {
+    "H": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 38,
+   "khs_code": 149,
+   "description": "Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron",
+   "H": "+I38",
+   "I": "+I37",
+   "J": "+J37",
+   "K": "+J38",
+   "source": "SKTM!B38",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 39,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I39",
+   "I": "+I37*2",
+   "J": "+J37*2",
+   "K": "+J39",
+   "source": "SKTM!B39",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 40,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I40",
+   "I": "+I37",
+   "J": "+J37",
+   "K": "+J40",
+   "source": "SKTM!B40",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 41,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I41",
+   "I": "+I37*2",
+   "J": "+J37*2",
+   "K": "+J41",
+   "source": "SKTM!B41",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 44,
+   "khs_code": 228,
+   "description": "Load Segel Kabel Tanah (identifikasi Kabel)",
+   "H": "+I44",
+   "I": "TRUNC((((I12+I25)/5)/1)*1)",
+   "J": "TRUNC((((J12+J25)/5)/1)*1)",
+   "K": "+J44",
+   "source": "SKTM!B44",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 45,
+   "khs_code": 309,
+   "description": "Patok Tanda Kabel (Rute Kabel)",
+   "H": "+I45",
+   "I": "I44",
+   "J": "J44",
+   "K": "+J45",
+   "source": "SKTM!B45",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 46,
+   "khs_code": 308,
+   "description": "Pasir urug",
+   "H": "+I46",
+   "I": "ROUNDUP((TRUNC((I12+I25)*((0.8*0.2*0.2)*1)/0.1)*0.1),0)",
+   "J": "ROUNDUP((TRUNC((J12+J25)*((0.8*0.2*0.2)*1)/0.1)*0.1),0)",
+   "K": "+J46",
+   "source": "SKTM!B46",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 47,
+   "khs_code": 82,
+   "description": "Concrete Slove",
+   "H": "+I47",
+   "I": "TRUNC((((I12+I25))/0.5))",
+   "J": "TRUNC((((J12+J25))/0.5))",
+   "K": "+J47",
+   "source": "SKTM!B47",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 48,
+   "khs_code": 156,
+   "description": "Galian tanah & pengurugan kembali",
+   "H": "+I48",
+   "I": "(I13+I26)*0.2*0.8",
+   "J": "(J13+J26)*0.2*0.8",
+   "K": "+J48",
+   "source": "SKTM!B48",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 49,
+   "khs_code": 157,
+   "description": "Galian tanah & pengurugan kembali di bawah PV blok/ tembok/ plesteran",
+   "H": "+I49",
+   "I": "(I14+I27)*0.2*0.8",
+   "J": "(J14+J27)*0.2*0.8",
+   "K": "+J49",
+   "source": "SKTM!B49",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 50,
+   "khs_code": 154,
+   "description": "Galian Aspal & pengurugan kembali Aspal (tebal Aspal 30 cm + dipadatkan)",
+   "H": "+I50",
+   "I": "(I15+I28)*0.2*0.8",
+   "J": "(J15+J28)*0.2*0.8",
+   "K": "+J50",
+   "source": "SKTM!B50",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 51,
+   "khs_code": 155,
+   "description": "Galian Floor Beton & pengurugan kembali Floor Beton",
+   "H": "+I51",
+   "I": "(I16+I29)*0.2*0.8",
+   "J": "(J16+J29)*0.2*0.8",
+   "K": "+J51",
+   "source": "SKTM!B51",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 52,
+   "khs_code": 153,
+   "description": "Galian & pengurugan kembali Beton Bertulang",
+   "H": "+I52",
+   "I": "(I17+I30)*0.2*0.8",
+   "J": "(J17+J30)*0.2*0.8",
+   "K": "+J52",
+   "source": "SKTM!B52",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 53,
+   "khs_code": 59,
+   "description": "Borring untuk Kabel tanah",
+   "H": "+I53",
+   "I": "+I31",
+   "J": "+J31",
+   "K": "+J53",
+   "source": "SKTM!B53",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 56,
+   "khs_code": 70,
+   "description": "Commisioning test Jaringan Kabel JTM",
+   "H": "+GAMBAR!U54",
+   "source": "SKTM!B56",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 59,
+   "khs_code": 391,
+   "description": "Safety Cost K3L",
+   "H": "+H56",
+   "source": "SKTM!B59",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 62,
+   "khs_code": 246,
+   "description": "NA2XSEYBY 3 x 150 mm2;20KV;UG",
+   "H": "SUMIF($B$9:$B$60,B62,$H$9:$H$60)",
+   "source": "SKTM!B62",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 63,
+   "khs_code": 247,
+   "description": "NA2XSEYBY 3 x 240 mm2;20KV;UG",
+   "H": "SUMIF($B$9:$B$60,B63,$H$9:$H$60)",
+   "source": "SKTM!B63",
+   "expected": {
+    "H": 0
+   }
+  }
+ ],
+ "input_values": {
+  "U55": 0,
+  "V55": 0,
+  "U56": 0,
+  "V56": 0
+ },
+ "params": [
+  {
+   "cell": "U54",
+   "name": "COMMISSIONING:SKTM",
+   "default": 0,
+   "description": "Volume Commisioning test Jaringan Kabel JTM (GAMBAR!U54); diisi dari halaman gambar"
+  }
+ ],
+ "review": []
+}

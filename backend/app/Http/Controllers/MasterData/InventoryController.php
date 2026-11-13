@@ -1,0 +1,356 @@
+<?php
+
+namespace App\Http\Controllers\MasterData;
+
+use App\Exceptions\AdministrationDenied;
+use App\Exceptions\AssignmentRuleViolation;
+use App\Http\Controllers\Controller;
+use App\Services\Authorization\CatalogAuthorizer;
+use App\Services\Inventory\KhsMaterialMapService;
+use App\Services\Inventory\MimsStockSyncService;
+use App\Services\Inventory\PoleContractService;
+use App\Services\Inventory\StockService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+
+/** Warehouses, stock snapshots and pole contracts / Kontrak Rinci (docs/62 §30). Violations -> 409, authorization -> 403/404. */
+class InventoryController extends Controller
+{
+    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims) {}
+
+    public function warehouses(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $rows = DB::table('warehouses as w')->join('organizational_units as u', 'u.id', '=', 'w.organizational_unit_id')->orderBy('w.code')
+            ->get(['w.id', 'w.code', 'w.name', 'w.is_active', 'w.plant', 'w.stor_loc', 'w.kind', 'w.erp_unit_code', 'u.id as unit_id', 'u.code as unit_code', 'u.name as unit_name']);
+
+        return response()->json(['data' => $rows->map(fn ($w) => ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'is_active' => (bool) $w->is_active, 'plant' => $w->plant, 'stor_loc' => $w->stor_loc, 'kind' => $w->kind, 'erp_unit_code' => $w->erp_unit_code, 'unit' => ['id' => $w->unit_id, 'code' => $w->unit_code, 'name' => $w->unit_name]])->all()]);
+    }
+
+    public function createWarehouse(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'warehouses.manage');
+        $d = Validator::make($request->all(), ['code' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9_.-]+$/'], 'name' => ['required', 'string', 'max:150'], 'organizational_unit_id' => ['required', 'uuid']])->validate();
+
+        return response()->json(['data' => ['id' => $this->stock->createWarehouse($d['code'], $d['name'], $d['organizational_unit_id'])]], 201);
+    }
+
+    public function snapshots(Request $request, string $warehouse): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        DB::table('warehouses')->where('id', $warehouse)->exists() || throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        $rows = DB::table('stock_snapshots as s')->join('users as u', 'u.id', '=', 's.created_by')->where('s.warehouse_id', $warehouse)->orderByDesc('s.as_of')
+            ->selectRaw('s.id, s.as_of, s.source_reference, s.materials_total, s.materials_mapped, s.created_at, u.name as created_by_name, (select count(*) from stock_snapshot_lines l where l.snapshot_id = s.id) as lines')->get();
+
+        return response()->json(['data' => $rows->map(fn ($s) => ['id' => $s->id, 'as_of' => $s->as_of, 'source_reference' => $s->source_reference, 'lines' => (int) $s->lines, 'materials_total' => (int) $s->materials_total, 'materials_mapped' => (int) $s->materials_mapped, 'created_at' => $s->created_at, 'created_by_name' => $s->created_by_name])->all()]);
+    }
+
+    public function importSnapshot(Request $request, string $warehouse): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'stock.import'); // grant first, then validate
+        $d = Validator::make($request->all(), [
+            'file' => ['required', 'file', 'mimetypes:text/csv,text/plain,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip', 'extensions:csv,txt,xlsx', 'max:'.(int) config('distriva_permissions.master_data_import.max_kb')],
+            'as_of' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'], 'source_reference' => ['nullable', 'string', 'max:255'], 'dry_run' => ['sometimes', 'boolean'],
+        ])->validate();
+        $r = $this->stock->import($warehouse, $request->file('file'), $d['as_of'], $d['source_reference'] ?? null, $request->boolean('dry_run'), $actor);
+
+        return response()->json(['data' => $r['summary'], 'rows' => $r['rows']], $r['summary']['dry_run'] ? 200 : 201);
+    }
+
+    public function snapshot(Request $request, string $snapshot): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $s = DB::table('stock_snapshots')->where('id', $snapshot)->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        $lines = DB::table('stock_snapshot_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.snapshot_id', $snapshot)->orderByRaw('length(k.code), k.code')->get(['k.code', 'l.on_hand', 'l.reserved', 'l.incoming_confirmed', 'l.safety_stock']);
+
+        return response()->json(['data' => ['id' => $s->id, 'warehouse_id' => $s->warehouse_id, 'as_of' => $s->as_of, 'lines' => $lines->map(fn ($l) => ['khs_code' => $l->code, 'on_hand' => (float) $l->on_hand, 'reserved' => (float) $l->reserved, 'incoming' => (float) $l->incoming_confirmed, 'safety_stock' => (float) $l->safety_stock])->all()]]);
+    }
+
+    /** GET /master-data/stock-position?warehouse_ids[]=&date= — what the allocation and the RKM read. */
+    public function position(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $request->validate(['warehouse_ids' => ['required', 'array', 'min:1', 'max:50'], 'warehouse_ids.*' => ['uuid'], 'date' => ['nullable', 'date_format:Y-m-d']]);
+        $pos = $this->stock->position($d['warehouse_ids'], $d['date'] ?? now(config('distriva.business_timezone'))->toDateString());
+        $codes = DB::table('khs_items')->whereIn('id', array_keys($pos))->pluck('code', 'id');
+
+        return response()->json(['data' => collect($pos)->map(fn ($p, $id) => ['khs_code' => $codes[$id] ?? $id] + $p)->sortBy(fn ($r) => (int) $r['khs_code'])->values()->all()]);
+    }
+
+    /** GET /master-data/khs-material-map?search=&per_page= */
+    public function khsMap(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $request->validate(['search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:200']]);
+        $q = DB::table('khs_material_map as m')->join('khs_items as k', 'k.id', '=', 'm.khs_item_id')->orderByRaw('length(k.code), k.code')->orderBy('m.material_no')
+            ->selectRaw('m.id, m.material_no, m.note, k.code as khs_code, (select v.name from khs_item_versions v where v.khs_item_id = k.id order by v.version_number desc limit 1) as khs_name');
+        if ($request->filled('search')) {
+            $term = '%'.str_replace(['%', '_'], ['\%', '\_'], $request->query('search')).'%';
+            $q->where(fn ($w) => $w->where('k.code', 'ilike', $term)->orWhere('m.material_no', 'ilike', $term));
+        }
+        $page = $q->paginate((int) $request->query('per_page', 50));
+
+        return response()->json(['data' => collect($page->items())->map(fn ($r) => (array) $r)->all(), 'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
+    }
+
+    public function importKhsMap(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'khs.manage');
+        $d = Validator::make($request->all(), ['file' => ['required', 'file', 'mimetypes:text/csv,text/plain,application/csv,application/vnd.ms-excel', 'extensions:csv,txt', 'max:'.(int) config('distriva_permissions.master_data_import.max_kb')], 'dry_run' => ['sometimes', 'boolean']])->validate();
+        $r = $this->map->import($request->file('file'), $request->boolean('dry_run'), $request->user());
+
+        return response()->json(['data' => $r['summary'], 'rows' => $r['rows']], $r['summary']['dry_run'] ? 200 : 201);
+    }
+
+    /** POST /master-data/khs-material-map/exemptions {khs_code, reason} — this KHS item is deliberately not mapped (e.g. requested only after the customer has paid). */
+    public function exemptKhs(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'khs.manage');
+        $d = Validator::make($request->all(), ['khs_code' => ['required', 'string', 'max:50'], 'reason' => ['required', 'string', 'max:1000']])->validate();
+
+        return response()->json(['data' => ['id' => $this->map->exempt($d['khs_code'], $d['reason'], $request->user())]], 201);
+    }
+
+    /** POST /master-data/khs-material-map/exemptions/{khs_code}/lift {reason} — the item needs a SKU again. */
+    public function liftKhsExemption(Request $request, string $khsCode): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'khs.manage');
+        $d = Validator::make($request->all(), ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->map->lift($khsCode, $d['reason'], $request->user());
+
+        return response()->json(['message' => 'Pengecualian dicabut.']);
+    }
+
+    public function deleteKhsMap(Request $request, string $map): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'khs.manage');
+        $this->map->delete($map);
+
+        return response()->json(['message' => 'Pemetaan dihapus.']);
+    }
+
+    /** GET /master-data/stock-snapshots/{id}/unmapped — the SKUs of an ERP stock file that are not mapped to a KHS item (what is still to be mapped). */
+    public function unmapped(Request $request, string $snapshot): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        DB::table('stock_snapshots')->where('id', $snapshot)->exists() || throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        $request->validate(['search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:200']]);
+        $q = DB::table('stock_snapshot_materials')->where('snapshot_id', $snapshot)->whereNull('khs_item_id')->orderBy('material_name');
+        if ($request->filled('search')) {
+            $term = '%'.str_replace(['%', '_'], ['\%', '\_'], $request->query('search')).'%';
+            $q->where(fn ($w) => $w->where('material_name', 'ilike', $term)->orWhere('material_no', 'ilike', $term));
+        }
+        $page = $q->paginate((int) $request->query('per_page', 50));
+
+        return response()->json(['data' => collect($page->items())->map(fn ($m) => ['material_no' => $m->material_no, 'name' => $m->material_name, 'unit' => $m->unit, 'stock_ready' => (float) $m->stock_ready])->all(),
+            'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
+    }
+
+    /** POST /master-data/warehouses/import — the ERP list of storage locations (JSON as the ERP returns it, or a bare list); `dry_run` previews. */
+    public function importWarehouses(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'warehouses.manage');
+        $payload = $request->input('gudang.data', $request->input('data', $request->input('items')));
+        $d = Validator::make(['items' => $payload, 'dry_run' => $request->input('dry_run')], ['items' => ['required', 'array', 'min:1', 'max:200'], 'items.*.plant' => ['required', 'string', 'max:10'], 'items.*.stor_loc' => ['required', 'string', 'max:10'],
+            'items.*.stor_loc_name' => ['required', 'string', 'max:150'], 'items.*.unit' => ['required', 'string', 'max:20'], 'items.*.jenis' => ['required', 'in:GI,GO'], 'dry_run' => ['nullable', 'boolean']])->validate();
+        $r = $this->stock->importWarehouses($d['items'], (bool) ($d['dry_run'] ?? false));
+
+        return response()->json(['data' => $r['summary'], 'rows' => $r['rows']], $r['summary']['dry_run'] ? 200 : 201);
+    }
+
+    /** POST /master-data/khs-material-map — one pair (the mapping workbench). */
+    public function createKhsMap(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'khs.manage');
+        $d = Validator::make($request->all(), ['khs_code' => ['required', 'string', 'max:50'], 'material_no' => ['required', 'string', 'max:30'], 'note' => ['nullable', 'string', 'max:255']])->validate();
+
+        return response()->json(['data' => ['id' => $this->map->create($d['khs_code'], $d['material_no'], $d['note'] ?? null, $request->user())]], 201);
+    }
+
+    /** GET /master-data/khs-material-map/workbench?filter=unmapped|mapped|all&used=1&supply=pln&search= — KHS items to map, the ones used in approved BOMs first. */
+    public function khsMapWorkbench(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $request->validate(['filter' => ['nullable', 'in:all,mapped,unmapped'], 'used' => ['nullable', 'boolean'], 'supply' => ['nullable', 'in:pln'], 'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:200']]);
+        $page = $this->map->workbench($d['filter'] ?? 'unmapped', $d['search'] ?? null, $request->boolean('used'), (int) ($d['per_page'] ?? 50), ($d['supply'] ?? null) === 'pln');
+        $skus = $this->map->mappedSkus(collect($page->items())->pluck('id')->all());
+
+        return response()->json(['data' => collect($page->items())->map(fn ($k) => ['khs_code' => $k->code, 'name' => $k->name, 'unit' => $k->unit, 'used_in_bom' => (bool) $k->used_in_bom, 'material_status' => $k->material_status, 'sku_exempt' => (bool) $k->sku_exempt, 'exempt_reason' => $k->exempt_reason, 'mapped' => $skus[$k->id] ?? []])->all(),
+            'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
+    }
+
+    /** GET /master-data/khs-material-map/suggestions?khs_code=&category_id=(category or subcategory) — ranked candidate SKUs for one KHS item (to be confirmed by a person). */
+    public function khsMapSuggestions(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $request->validate(['khs_code' => ['required', 'string', 'max:50'], 'limit' => ['nullable', 'integer', 'min:1', 'max:30'], 'category_id' => ['nullable', 'uuid', 'exists:material_categories,id']]);
+
+        return response()->json(['data' => $this->map->suggestions($d['khs_code'], (int) ($d['limit'] ?? 10), $d['category_id'] ?? null),
+            'meta' => ['categories' => $this->map->suggestionCategories($d['khs_code'])]]);
+    }
+
+    public function khsMapCoverage(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+
+        return response()->json(['data' => $this->map->coverage()]);
+    }
+
+    /** GET /master-data/stock-sync-runs?warehouse_id= — the automatic pulls of the ERP stock (status, message, snapshot). */
+    public function syncRuns(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $request->validate(['warehouse_id' => ['nullable', 'uuid'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $q = DB::table('stock_sync_runs as r')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->orderByDesc('r.started_at')->select('r.*', 'w.code as warehouse_code', 'w.name as warehouse_name');
+        if (isset($d['warehouse_id'])) {
+            $q->where('r.warehouse_id', $d['warehouse_id']);
+        }
+        $page = $q->paginate((int) ($d['per_page'] ?? 30));
+
+        return response()->json(['data' => collect($page->items())->map(fn ($r) => ['id' => $r->id, 'warehouse_code' => $r->warehouse_code, 'warehouse_name' => $r->warehouse_name, 'status' => $r->status, 'message' => $r->message, 'snapshot_id' => $r->snapshot_id,
+            'materials_total' => (int) $r->materials_total, 'materials_mapped' => (int) $r->materials_mapped, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all(),
+            'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()],
+            'sync_configured' => filled(config('distriva.mims.base_url')) && filled(config('distriva.mims.auth_token'))]);
+    }
+
+    /**
+     * POST /master-data/stock-sync — pull the ERP (MIMS) stock NOW with the signed-in user's own MIMS token (the token of his session, copied from the MIMS application). The token is used for these
+     * calls only: it is not stored, logged or returned. Without `warehouse_ids` every active warehouse with a plant and storage location is pulled.
+     */
+    public function mimsPull(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'stock.import'); // grant first, then validate
+        @set_time_limit(600);   // up to one call per warehouse, each with its own timeout: the default web limit (30 s) would cut the request mid-way
+        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'dry_run' => ['sometimes', 'boolean']])->validate();
+        if (! $this->mims->baseUrlConfigured()) {
+            throw new AssignmentRuleViolation('Alamat dasar MIMS (DISTRIVA_MIMS_BASE_URL) belum diisi di server.');
+        }
+        $useSaved = $request->boolean('use_saved_token');
+        $token = $useSaved ? $this->savedToken($actor->getKey()) : (string) $d['token'];
+        $q = DB::table('warehouses')->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code');
+        if (! empty($d['warehouse_ids'])) {
+            $q->whereIn('id', $d['warehouse_ids']);
+        }
+        $warehouses = $q->get();
+        if ($warehouses->isEmpty()) {
+            throw new AdministrationDenied('Tidak ada gudang ERP yang dapat ditarik (impor daftar gudang dan pastikan plant/storage location terisi).', 404);
+        }
+        $results = [];
+        foreach ($warehouses as $wh) {
+            $r = $this->mims->syncWarehouse($wh, $actor, $d['date'] ?? null, $request->boolean('dry_run'), $token, $actor);
+            $results[] = ['warehouse_id' => $wh->id, 'warehouse_code' => $wh->code, 'warehouse_name' => $wh->name] + $r;
+            if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
+                break;                                                                                  // an expired token fails every warehouse: stop at the first
+            }
+        }
+
+        $rejected = collect($results)->contains(fn ($r) => $r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak'));
+        $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true));
+        if (! $useSaved && $request->boolean('save_token') && ! $rejected) {
+            DB::table('user_mims_tokens')->upsert([['user_id' => $actor->getKey(), 'token_encrypted' => Crypt::encryptString($token), 'saved_at' => now(), 'last_used_at' => now(), 'last_result' => 'OK']], ['user_id'], ['token_encrypted', 'saved_at', 'last_used_at', 'last_result']);
+        } elseif ($useSaved && ($rejected || $worked)) {
+            DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->update(['last_used_at' => now(), 'last_result' => $rejected ? 'REJECTED' : 'OK']);   // kept either way: the user decides when to replace it
+        }
+
+        return response()->json(['data' => $results]);
+    }
+
+    /** GET /stock-sync/token — whether the user keeps a MIMS token (never the token itself). */
+    public function mimsTokenStatus(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'stock.import');
+        $row = DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->first(['saved_at', 'last_used_at', 'last_result']);
+
+        return response()->json(['data' => ['saved' => $row !== null, 'saved_at' => $row->saved_at ?? null, 'last_used_at' => $row->last_used_at ?? null, 'last_result' => $row->last_result ?? null]]);
+    }
+
+    /** DELETE /stock-sync/token */
+    public function mimsTokenForget(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'stock.import');
+        DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->delete();
+
+        return response()->json(['message' => 'Token MIMS tersimpan dihapus.']);
+    }
+
+    private function savedToken(string $userId): string
+    {
+        $row = DB::table('user_mims_tokens')->where('user_id', $userId)->value('token_encrypted');
+        if ($row === null) {
+            throw new AssignmentRuleViolation('Belum ada token MIMS tersimpan; tempel token sesi dan centang "Simpan token".');
+        }
+        try {
+            return Crypt::decryptString($row);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+            DB::table('user_mims_tokens')->where('user_id', $userId)->delete();
+
+            throw new AssignmentRuleViolation('Token tersimpan tidak dapat dibaca lagi; tempel token sesi yang baru.');
+        }
+    }
+
+    public function poleContracts(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+
+        return response()->json(['data' => DB::table('pole_contracts')->orderBy('kr_number')->get()->map(fn ($c) => $this->contract($c))->all(),
+            'options' => ['vendors' => DB::table('vendor_companies')->where('status', 'ACTIVE')->where('work_scope', '<>', 'JARINGAN')->orderBy('name')->get(['id', 'code', 'name'])->map(fn ($v) => (array) $v)->all(),
+                'up3' => DB::table('organizational_units')->where('unit_type', 'UP3')->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(fn ($u) => (array) $u)->all()]]);
+    }
+
+    public function poleContract(Request $request, string $contract): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $c = DB::table('pole_contracts')->where('id', $contract)->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        $events = DB::table('pole_contract_events as e')->join('users as u', 'u.id', '=', 'e.actor_user_id')->where('e.pole_contract_id', $contract)->orderBy('e.occurred_at')->get(['e.event_type', 'e.reason', 'e.details', 'e.occurred_at', 'u.email as actor_email']);
+
+        return response()->json(['data' => $this->contract($c) + ['events' => $events->map(fn ($e) => ['event_type' => $e->event_type, 'reason' => $e->reason, 'details' => json_decode((string) $e->details, true), 'occurred_at' => $e->occurred_at, 'actor_email' => $e->actor_email])->all()]]);
+    }
+
+    public function createPoleContract(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'poles.manage');
+        $d = Validator::make($request->all(), ['kr_number' => ['required', 'string', 'max:100'], 'vendor_company_id' => ['nullable', 'uuid'], 'up3_unit_id' => ['nullable', 'uuid'], 'description' => ['nullable', 'string', 'max:255'], 'qty_tm' => ['required_without:lines', 'integer', 'min:0', 'max:10000000'], 'qty_tr' => ['required_without:lines', 'integer', 'min:0', 'max:10000000'], 'lines' => ['sometimes', 'array', 'max:100'], 'lines.*.khs_item_id' => ['required', 'uuid'], 'lines.*.pole_type' => ['required', 'in:TM,TR'], 'lines.*.quantity' => ['required', 'integer', 'min:1', 'max:10000000']])->validate();
+
+        return response()->json(['data' => ['id' => $this->poles->create($d['kr_number'], $d['description'] ?? null, (int) ($d['qty_tm'] ?? 0), (int) ($d['qty_tr'] ?? 0), $actor, $d['lines'] ?? null, $d['vendor_company_id'] ?? null, $d['up3_unit_id'] ?? null)]], 201);
+    }
+
+    public function updatePoleContract(Request $request, string $contract): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'poles.manage');
+        $d = Validator::make($request->all(), ['vendor_company_id' => ['nullable', 'uuid'], 'up3_unit_id' => ['nullable', 'uuid'], 'description' => ['nullable', 'string', 'max:255'], 'qty_tm' => ['sometimes', 'integer', 'min:0', 'max:10000000'], 'qty_tr' => ['sometimes', 'integer', 'min:0', 'max:10000000'], 'reason' => ['required', 'string', 'max:1000'], 'lines' => ['sometimes', 'array', 'max:100'], 'lines.*.khs_item_id' => ['required', 'uuid'], 'lines.*.pole_type' => ['required', 'in:TM,TR'], 'lines.*.quantity' => ['required', 'integer', 'min:1', 'max:10000000']])->validate();
+        $this->poles->update($contract, $d['description'] ?? null, isset($d['qty_tm']) ? (int) $d['qty_tm'] : null, isset($d['qty_tr']) ? (int) $d['qty_tr'] : null, $d['reason'], $actor, $d['lines'] ?? null, array_intersect_key($d, ['vendor_company_id' => 1, 'up3_unit_id' => 1]));
+
+        return response()->json(['message' => 'Kontrak Rinci diperbarui.']);
+    }
+
+    public function closePoleContract(Request $request, string $contract): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'poles.manage');
+        $d = Validator::make($request->all(), ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->poles->close($contract, $d['reason'], $actor);
+
+        return response()->json(['message' => 'Kontrak Rinci ditutup.']);
+    }
+
+    /** @return array<string,mixed> */
+    private function contract(object $c): array
+    {
+        $used = $this->poles->allocated($c->id);
+
+        return ['id' => $c->id, 'kr_number' => $c->kr_number, 'description' => $c->description, 'status' => $c->status,
+            'vendor_company_id' => $c->vendor_company_id, 'vendor_name' => $c->vendor_company_id === null ? null : DB::table('vendor_companies')->where('id', $c->vendor_company_id)->value('name'),
+            'up3_unit_id' => $c->up3_unit_id, 'up3_name' => $c->up3_unit_id === null ? null : DB::table('organizational_units')->where('id', $c->up3_unit_id)->value('name'),
+            'in_debt' => ((int) $c->qty_tm - $used['TM'] < 0) || ((int) $c->qty_tr - $used['TR'] < 0),
+            'tm' => ['total' => (int) $c->qty_tm, 'allocated' => $used['TM'], 'remaining' => (int) $c->qty_tm - $used['TM']], 'tr' => ['total' => (int) $c->qty_tr, 'allocated' => $used['TR'], 'remaining' => (int) $c->qty_tr - $used['TR']], 'lines' => $this->poles->lineStock($c)];
+    }
+}

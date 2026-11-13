@@ -1,0 +1,991 @@
+import { useCallback, useEffect, useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { adminApi } from '../../services/api.js'
+import { useAuth } from '../../features/auth/AuthContext.jsx'
+import { useAccess } from '../../features/admin/AccessContext.jsx'
+import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import Spinner from '../../components/Spinner.jsx'
+import Alert from '../../components/Alert.jsx'
+import Button from '../../components/Button.jsx'
+import TableFooter from '../../components/TableFooter.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
+import StatusBadge from '../../components/StatusBadge.jsx'
+import Drawer from '../../components/Drawer.jsx'
+import ConfirmationModal from '../../components/ConfirmationModal.jsx'
+import {
+  IconPlus,
+  IconUsers,
+  IconSearch,
+  IconEye,
+  IconPencil,
+  IconPower,
+  IconTrash,
+  IconShield,
+  IconUser,
+  IconKey,
+  IconArrowRight,
+  IconCheck,
+} from '../../components/icons.jsx'
+
+// Helper to render user roles cleanly as badges
+function renderUserRoles(u) {
+  let rolesList = []
+  if (Array.isArray(u.roles) && u.roles.length > 0) {
+    rolesList = u.roles.map((r) => (typeof r === 'object' ? r : { role: r }))
+  } else if (Array.isArray(u.role_names) && u.role_names.length > 0) {
+    rolesList = u.role_names.map((name) => ({ role: name }))
+  } else if (u.role) {
+    rolesList = [{ role: u.role }]
+  }
+
+  if (rolesList.length === 0) {
+    return <span className="text-slate-400 dark:text-slate-500 text-xs italic">—</span>
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {rolesList.map((item, idx) => {
+        const roleName = item.role || item.name || 'PENGGUNA'
+        const isSysAdmin = roleName === 'SYS_ADMIN'
+        const isManager = roleName.includes('MANAGER')
+        const badgeColor = isSysAdmin
+          ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200/80 dark:border-purple-800/60'
+          : isManager
+          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60'
+          : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/60'
+
+        return (
+          <span
+            key={idx}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${badgeColor}`}
+          >
+            <span>{roleName}</span>
+            {item.unit_code && (
+              <span className="text-[10px] opacity-75 font-mono">({item.unit_code})</span>
+            )}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+export default function UsersPage() {
+  const { canWrite } = useAccess()
+  const { notify } = useNotifications()
+  const searchInputRef = useRef(null)
+
+  // Filters & Pagination State
+  const [filters, setFilters] = useState({ search: '', status: '' })
+  const [applied, setApplied] = useState({ search: '', status: '' })
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
+
+  // Drawer & Modal Target States
+  const [createOpen, setCreateOpen] = useState(false)
+  const [previewTarget, setPreviewTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
+  const [deactivateTarget, setDeactivateTarget] = useState(null)
+
+  const load = useCallback(() => {
+    setState((s) => ({ ...s, loading: true, error: '' }))
+    adminApi.users({ ...applied, page, per_page: perPage })
+      .then((d) => setState({ loading: false, error: '', rows: d.data ?? [], meta: d.meta }))
+      .catch((e) => setState({ loading: false, error: e.message, rows: [], meta: null }))
+  }, [applied, page, perPage])
+
+  useEffect(load, [load])
+
+  // Keyboard shortcut: Press "/" to focus search box
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  function onSubmit(e) {
+    e.preventDefault()
+    setPage(1)
+    setApplied(filters)
+  }
+
+  // Handle Deactivation (for users linked to data)
+  const handleConfirmDeactivate = async (reason) => {
+    if (!deactivateTarget) return
+    const target = deactivateTarget
+    await adminApi.changeStatus(target.id, 'INACTIVE', reason)
+    notify({
+      type: 'warning',
+      title: 'Akun Pengguna Dinonaktifkan',
+      desc: `Akun ${target.name} (${target.email}) berhasil dinonaktifkan sesuai audit trail.`,
+      tag: 'Pengguna',
+    })
+    setDeactivateTarget(null)
+    load()
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Standard Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            DISTRIVA / ADMINISTRASI
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
+            Pengguna
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+            Daftar pengguna terdaftar dan status akun pada cakupan unit kerja Anda. Penugasan peran dan otorisasi dikelola secara granular.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="hidden lg:inline-flex items-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <IconShield size={14} className="text-slate-400 dark:text-slate-500" />
+            <span>Scope: <strong>SAME_UNIT</strong></span>
+          </div>
+
+          {canWrite['users.create'] && (
+            <Link
+              to="/admin/users/new"
+              onClick={(e) => {
+                e.preventDefault()
+                setCreateOpen(true)
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+            >
+              <IconPlus size={16} />
+              <span>Tambah pengguna</span>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Main Standardized Table Card */}
+      <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+        {/* Filter Toolbar */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80">
+          <form onSubmit={onSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input with Icon */}
+            <div className="relative flex-1">
+              <label htmlFor="search" className="sr-only">
+                Cari nama / email
+              </label>
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                <IconSearch size={16} />
+              </span>
+              <input
+                id="search"
+                ref={searchInputRef}
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                placeholder="Cari nama atau email…"
+                className="block w-full pl-10 pr-14 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span className="hidden sm:inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
+                  /
+                </span>
+              </span>
+            </div>
+
+            {/* Status Select Filter */}
+            <div className="min-w-[170px]">
+              <label htmlFor="status" className="sr-only">
+                Status
+              </label>
+              <select
+                id="status"
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                className="block w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer"
+              >
+                <option value="">Semua status</option>
+                <option value="ACTIVE">Aktif</option>
+                <option value="PENDING_ACTIVATION">Menunggu aktivasi</option>
+                <option value="SUSPENDED">Ditangguhkan</option>
+                <option value="INACTIVE">Nonaktif</option>
+              </select>
+            </div>
+
+            {/* Apply Button */}
+            <button
+              type="submit"
+              className="rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white px-4 py-2 text-xs sm:text-sm font-semibold shadow-2xs transition focus-ring cursor-pointer"
+            >
+              Terapkan
+            </button>
+          </form>
+        </div>
+
+        {/* Content States & Table */}
+        <div>
+          {state.error && (
+            <div className="p-5">
+              <Alert>{state.error}</Alert>
+            </div>
+          )}
+          {state.loading && (
+            <div className="p-8">
+              <Spinner />
+            </div>
+          )}
+
+          {!state.loading && !state.error && state.rows.length === 0 && (
+            <EmptyState
+              icon={IconUsers}
+              title="Belum ada pengguna"
+              description="Tidak ada pengguna pada cakupan Anda. Coba sesuaikan kata kunci pencarian atau filter status akun."
+            />
+          )}
+
+          {!state.loading && state.rows.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm data-table">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                    <th className="py-3 px-6 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-transparent">
+                      PENGGUNA / NAMA ↑
+                    </th>
+                    <th className="py-3 px-6 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-transparent">
+                      EMAIL
+                    </th>
+                    <th className="py-3 px-6 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-transparent">
+                      NO HP
+                    </th>
+                    <th className="py-3 px-6 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-transparent">
+                      ROLE
+                    </th>
+                    <th className="py-3 px-6 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-transparent">
+                      STATUS ↕
+                    </th>
+                    <th className="py-3 px-6 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-transparent text-right">
+                      AKSI
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {state.rows.map((u) => {
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3.5 px-6 font-medium text-slate-900 dark:text-slate-100">
+                          <Link
+                            className="font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                            to={`/admin/users/${u.id}`}
+                          >
+                            {u.name}
+                          </Link>
+                          {u.nip && (
+                            <span className="block text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
+                              NIP: {u.nip}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-6 text-slate-600 dark:text-slate-400 font-mono text-xs">
+                          {u.email}
+                        </td>
+                        <td className="py-3.5 px-6 font-mono text-xs text-slate-600 dark:text-slate-300">
+                          {u.phone ? (
+                            <span>{u.phone}</span>
+                          ) : (
+                            <span className="text-slate-400 dark:text-slate-500 font-sans italic">—</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-6">
+                          {renderUserRoles(u)}
+                        </td>
+                        <td className="py-3.5 px-6">
+                          <StatusBadge status={u.account_status} />
+                        </td>
+                        <td className="py-3.5 px-6 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            {/* 1. Preview Action (IconEye -> Preview Drawer) */}
+                            <button
+                              type="button"
+                              onClick={() => setPreviewTarget(u)}
+                              aria-label={`Preview ${u.name}`}
+                              title={`Preview detail pengguna ${u.name}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer"
+                            >
+                              <IconEye size={13} />
+                              <span>Detail</span>
+                            </button>
+
+                            {/* 2. Edit Action (IconPencil -> Edit Drawer) */}
+                            {canWrite['users.change_status'] && (
+                              <button
+                                type="button"
+                                onClick={() => setEditTarget(u)}
+                                aria-label={`Ubah ${u.name}`}
+                                title={`Ubah data profil pengguna ${u.name}`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer"
+                              >
+                                <IconPencil size={13} />
+                                <span>Ubah</span>
+                              </button>
+                            )}
+
+                            {/* 3. Nonaktifkan (akun tidak pernah dihapus fisik: riwayat audit append-only, O-030 & doc 54) */}
+                            {canWrite['users.change_status'] && u.account_status !== 'INACTIVE' && (
+                              <button
+                                type="button"
+                                onClick={() => setDeactivateTarget(u)}
+                                aria-label={`Nonaktifkan ${u.name}`}
+                                title="Nonaktifkan akun"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                              >
+                                <IconTrash size={13} />
+                                <span>Nonaktifkan</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Standardized Table Pagination Footer */}
+          {state.meta && (
+            <TableFooter
+              itemCount={state.rows.length}
+              total={state.meta.total}
+              entityLabel="pengguna"
+              meta={state.meta}
+              page={page}
+              perPage={perPage}
+              onPage={setPage}
+              onPerPage={(newPerPage) => {
+                setPerPage(newPerPage)
+                setPage(1)
+              }}
+              perPageOptions={[10, 25, 50, 100]}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ----------------------------------------------------------------------------------------- */}
+      {/* DRAWERS: TAMBAH, PREVIEW, & EDIT PENGGUNA                                                 */}
+      {/* ----------------------------------------------------------------------------------------- */}
+
+      {/* 1. Drawer Tambah Pengguna Baru */}
+      {createOpen && (
+        <UserCreateDrawer
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onSuccess={(res) => {
+            setCreateOpen(false)
+            notify({
+              type: 'success',
+              title: 'Pengguna Berhasil Ditambahkan',
+              desc: `Akun ${res.data?.name ?? 'baru'} telah didaftarkan dan undangan aktivasi disiapkan.`,
+              tag: 'Pengguna',
+            })
+            load()
+          }}
+        />
+      )}
+
+      {/* 2. Drawer Preview Pengguna */}
+      {previewTarget && (
+        <UserPreviewDrawer
+          user={previewTarget}
+          onClose={() => setPreviewTarget(null)}
+          onEdit={(u) => {
+            setPreviewTarget(null)
+            setEditTarget(u)
+          }}
+        />
+      )}
+
+      {/* 3. Drawer Edit Pengguna */}
+      {editTarget && (
+        <UserEditDrawer
+          user={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={(updated) => {
+            setEditTarget(null)
+            notify({
+              type: 'success',
+              title: 'Data Pengguna Diperbarui',
+              desc: `Pembaruan data akun ${updated.name} berhasil disimpan.`,
+              tag: 'Pengguna',
+            })
+            load()
+          }}
+        />
+      )}
+
+      {/* ----------------------------------------------------------------------------------------- */}
+      {/* MODAL KONFIRMASI REUSABLE: DELETE & NONAKTIFKAN                                           */}
+      {/* ----------------------------------------------------------------------------------------- */}
+
+      {/* Modal Konfirmasi Nonaktifkan */}
+      {deactivateTarget && (
+        <ConfirmationModal
+          open={Boolean(deactivateTarget)}
+          variant="warning"
+          title="Nonaktifkan Akun Pengguna"
+          itemName={`${deactivateTarget.name} (${deactivateTarget.email})`}
+          description="Akun pengguna tidak dihapus secara fisik: riwayat penugasan dan audit bersifat append-only (O-030 & doc 54). Akun diubah menjadi Nonaktif, tidak dapat login lagi, dan riwayatnya tetap tersimpan."
+          confirmLabel="Nonaktifkan Akun"
+          cancelLabel="Batal"
+          requireReason
+          reasonLabel="Alasan Penonaktifan (Audit Log)"
+          reasonPlaceholder="Tuliskan alasan penonaktifan akun untuk riwayat audit…"
+          onConfirm={handleConfirmDeactivate}
+          onClose={() => setDeactivateTarget(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// -------------------------------------------------------------------------------------------------
+// Sub-component: UserPreviewDrawer (Tampilan Bersih, Read-Only, Lengkap Penugasan)
+// -------------------------------------------------------------------------------------------------
+function UserPreviewDrawer({ user, onClose, onEdit }) {
+  const [assignments, setAssignments] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user?.id) return
+    setLoading(true)
+    adminApi.assignments(user.id)
+      .then((res) => {
+        setAssignments(res.data ?? [])
+        setLoading(false)
+      })
+      .catch(() => {
+        setAssignments([])
+        setLoading(false)
+      })
+  }, [user?.id])
+
+  return (
+    <Drawer
+      open={Boolean(user)}
+      onClose={onClose}
+      eyebrow="PREVIEW DETAIL PENGGUNA"
+      title={user.name}
+      subtitle={user.email}
+      size="max-w-xl"
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <Link
+            to={`/admin/users/${user.id}`}
+            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
+          >
+            <span>Buka Halaman Lengkap</span>
+            <IconArrowRight size={14} />
+          </Link>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose}>
+              Tutup
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => onEdit(user)}>
+              Ubah Data
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        {/* Profile Identity Card */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4">
+          <div className="flex items-center gap-3.5 mb-4">
+            <div className="h-12 w-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">{user.name}</h3>
+              <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{user.email}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs border-t border-slate-200/60 dark:border-slate-700/60 pt-3">
+            <div>
+              <span className="text-slate-400 dark:text-slate-500 block mb-0.5">NIP Pegawai:</span>
+              <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                {user.nip || '—'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 dark:text-slate-500 block mb-0.5">No. Telepon / WA:</span>
+              <span className="font-mono text-slate-800 dark:text-slate-200">
+                {user.phone || '—'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 dark:text-slate-500 block mb-1">Status Akun:</span>
+              <StatusBadge status={user.account_status} />
+            </div>
+            <div>
+              <span className="text-slate-400 dark:text-slate-500 block mb-0.5">Rotasi Password:</span>
+              <span className="text-slate-700 dark:text-slate-300">
+                {user.must_change_password ? 'Wajib ganti sandi' : 'Normal / Terverifikasi'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Assignments List */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Penugasan Peran & Unit Organisasi
+            </h4>
+            <span className="text-[11px] text-slate-400 font-mono">
+              {assignments.length} penugasan
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="py-6 flex justify-center"><Spinner /></div>
+          ) : assignments.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center text-xs text-slate-400">
+              Belum ada penugasan peran terdaftar untuk pengguna ini.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden text-xs">
+              {assignments.map((a) => (
+                <div key={a.id} className="p-3 bg-white dark:bg-slate-900/60 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">{a.role}</span>
+                    <span className="ml-2 font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                      Unit: {a.unit_code ?? 'Pusat'}
+                    </span>
+                    <span className="block text-[11px] text-slate-400 mt-0.5">
+                      {a.valid_from} s/d {a.valid_until ?? 'tanpa batas'}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${a.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-slate-100 text-slate-500'}`}>
+                    {a.is_active ? 'Aktif' : 'Berakhir'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Drawer>
+  )
+}
+
+// -------------------------------------------------------------------------------------------------
+// Sub-component: UserEditDrawer (Kelola Status Akun & Akses Pengguna)
+// -------------------------------------------------------------------------------------------------
+function UserEditDrawer({ user, onClose, onSuccess }) {
+  const { user: currentUser } = useAuth()
+  const isSelf = currentUser && String(currentUser.id) === String(user?.id)
+  const [status, setStatus] = useState(user?.account_status ?? 'ACTIVE')
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault()
+    setError('')
+
+    if (isSelf) {
+      setError('Anda tidak dapat mengubah status akun sendiri (kebijakan anti-lockout DISTRIVA).')
+      return
+    }
+
+    if (!reason.trim()) {
+      setError('Alasan perubahan status akun wajib dicatat untuk kepatuhan audit.')
+      return
+    }
+
+    setBusy(true)
+    try {
+      if (status !== user.account_status) {
+        await adminApi.changeStatus(user.id, status, reason.trim())
+      }
+      onSuccess({ ...user, account_status: status })
+    } catch (err) {
+      setError(err?.message || 'Gagal memperbarui status akun.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Drawer
+      open={Boolean(user)}
+      onClose={onClose}
+      eyebrow="ADMINISTRASI / STATUS PENGGUNA"
+      title={`Kelola Status: ${user.name}`}
+      subtitle="Perbarui status operasional akun atau kelola penugasan peran pengguna"
+      size="max-w-xl"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={busy}>
+            Tutup
+          </Button>
+          {!isSelf && (
+            <Button variant="primary" size="sm" type="button" onClick={handleSubmit} loading={busy}>
+              Simpan Perubahan Status
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+
+        {isSelf && (
+          <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3.5 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-300">
+            <strong>Perhatian:</strong> Ini adalah akun Anda sendiri yang sedang aktif. Anda tidak dapat mengubah status atau menonaktifkan akun sendiri untuk mencegah terkunci dari sistem (<em>anti-lockout policy</em>).
+          </div>
+        )}
+
+        {/* User Identity Info Card */}
+        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2 text-xs">
+          <span className="font-bold text-slate-800 dark:text-slate-200 block">Identitas Akun Pegawai</span>
+          <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-300">
+            <div>
+              <span className="text-slate-400 block text-[10px]">Nama Lengkap</span>
+              <strong className="text-slate-800 dark:text-slate-100">{user.name}</strong>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px]">Email Kedinasan</span>
+              <span className="font-mono">{user.email}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px]">NIP</span>
+              <span className="font-mono">{user.nip || '—'}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px]">Telepon / WA</span>
+              <span className="font-mono">{user.phone || '—'}</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-700">
+            Identitas akun resmi terdaftar saat pembuatan akun. Untuk penyesuaian peran operasional atau unit kerja, kelola melalui menu Penugasan.
+          </p>
+        </div>
+
+        {/* Change Status Section */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Status Akun Pengguna
+          </label>
+          <select
+            disabled={isSelf}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <option value="ACTIVE">Aktif (Operasional Normal)</option>
+            <option value="SUSPENDED">Ditangguhkan (Akses Dibekukan Sementara)</option>
+            <option value="INACTIVE">Nonaktif (Akun Diakhiri)</option>
+          </select>
+        </div>
+
+        {!isSelf && (
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Alasan Perubahan Status <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Contoh: Penonaktifan akun karena mutasi pegawai / penangguhan akses..."
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            />
+          </div>
+        )}
+
+        {/* Direct Link to Role Assignment Page */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+          <Link
+            to={`/admin/users/${user.id}`}
+            onClick={onClose}
+            className="inline-flex items-center justify-between w-full p-2.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+          >
+            <span>Kelola Penugasan Peran & Unit di Halaman Detail</span>
+            <IconArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
+    </Drawer>
+  )
+}
+
+// -------------------------------------------------------------------------------------------------
+// Sub-component: UserCreateDrawer (Form Tambah Pengguna Baru & Penugasan Awal)
+// -------------------------------------------------------------------------------------------------
+function UserCreateDrawer({ open, onClose, onSuccess }) {
+  const [roles, setRoles] = useState([])
+  const [units, setUnits] = useState([])
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    nip: '',
+    role_id: '',
+    organizational_unit_id: '',
+    valid_from: new Date().toISOString().slice(0, 10),
+    valid_until: '',
+    assignment_document: '',
+    reason: '',
+  })
+  const [errors, setErrors] = useState({})
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    adminApi.roles().then((d) => setRoles(d.data ?? [])).catch(() => setRoles([]))
+    adminApi.units({ per_page: 100 }).then((d) => setUnits((d.data ?? []).filter((u) => u.is_active))).catch(() => setUnits([]))
+  }, [])
+
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault()
+    setErrors({})
+    setMessage('')
+
+    // Client-side validation checks
+    const newErrors = {}
+    if (!form.name.trim()) newErrors.name = 'Nama lengkap wajib diisi.'
+    if (!form.email.trim()) newErrors.email = 'Email kedinasan wajib diisi.'
+    if (!form.role_id) newErrors.role_id = 'Peran (Role) wajib dipilih.'
+    if (!form.organizational_unit_id) newErrors.organizational_unit_id = 'Unit organisasi wajib dipilih.'
+    if (!form.valid_from) newErrors.valid_from = 'Tanggal berlaku mulai wajib diisi.'
+    if (!form.assignment_document.trim()) newErrors.assignment_document = 'Nomor dokumen penugasan (SK) wajib diisi.'
+    if (!form.reason.trim()) newErrors.reason = 'Alasan penugasan wajib diisi untuk catatan audit.'
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      setMessage('Mohon lengkapi semua kolom wajib bertanda bintang (*).')
+      return
+    }
+
+    setBusy(true)
+
+    try {
+      const body = {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone?.trim() || null,
+        nip: form.nip?.trim() || null,
+        role_id: Number(form.role_id) || form.role_id,
+        organizational_unit_id: form.organizational_unit_id,
+        valid_from: form.valid_from,
+        valid_until: form.valid_until || null,
+        assignment_document: form.assignment_document.trim(),
+        reason: form.reason.trim(),
+      }
+      const res = await adminApi.createUser(body)
+      onSuccess(res)
+    } catch (err) {
+      if (err.status === 422 && err.errors) {
+        setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v.join(' ')])))
+      } else {
+        setMessage(err.message || 'Gagal menambahkan pengguna baru.')
+      }
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      eyebrow="TAMBAH PENGGUNA BARU"
+      title="Pendaftaran Pengguna Baru"
+      subtitle="Akun didaftarkan dengan status Menunggu Aktivasi dan akan menerima kode OTP"
+      size="max-w-xl"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={busy}>
+            Batal
+          </Button>
+          <Button variant="primary" size="sm" type="button" onClick={handleSubmit} loading={busy}>
+            Daftarkan & Kirim Undangan
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {message && <Alert>{message}</Alert>}
+
+        <div className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3.5 border border-blue-200 dark:border-blue-900/60 text-xs text-blue-800 dark:text-blue-300">
+          <strong>Kebijakan Keamanan (Doc 16):</strong> Password tidak dibuat oleh administrator. Pengguna baru akan menerima undangan via email/WhatsApp dan mengaktifkan akun secara mandiri menggunakan kode OTP.
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Nama Lengkap <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Contoh: Irham Maulana"
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            />
+            {errors.name && <p className="text-[11px] text-red-600 mt-1">{errors.name}</p>}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Email Kedinasan <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="nama@pln.co.id"
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus-ring"
+            />
+            {errors.email && <p className="text-[11px] text-red-600 mt-1">{errors.email}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Nomor Telepon / WA (Opsional)
+            </label>
+            <input
+              type="text"
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              placeholder="08123456789"
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus-ring"
+            />
+            {errors.phone && <p className="text-[11px] text-red-600 mt-1">{errors.phone}</p>}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              NIP Pegawai (Opsional)
+            </label>
+            <input
+              type="text"
+              value={form.nip}
+              onChange={(e) => setForm((f) => ({ ...f, nip: e.target.value }))}
+              placeholder="Contoh: 19890101..."
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus-ring"
+            />
+            {errors.nip && <p className="text-[11px] text-red-600 mt-1">{errors.nip}</p>}
+          </div>
+        </div>
+
+        {/* Initial Assignment */}
+        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+            Penugasan Peran & Unit Organisasi Awal
+          </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Peran (Role) <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.role_id}
+                onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value }))}
+                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+              >
+                <option value="">Pilih peran…</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id} disabled={r.name === 'SYS_ADMIN'}>
+                    {r.name} {r.name === 'SYS_ADMIN' ? '(Khusus Konsol CLI)' : ''}
+                  </option>
+                ))}
+              </select>
+              {errors.role_id && <p className="text-[11px] text-red-600 mt-1">{errors.role_id}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Unit Organisasi <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.organizational_unit_id}
+                onChange={(e) => setForm((f) => ({ ...f, organizational_unit_id: e.target.value }))}
+                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+              >
+                <option value="">Pilih unit organisasi…</option>
+                {units.map((u) => (
+                  <option key={u.id} value={u.id}>{u.code} - {u.name}</option>
+                ))}
+              </select>
+              {errors.organizational_unit_id && <p className="text-[11px] text-red-600 mt-1">{errors.organizational_unit_id}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Berlaku Mulai <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={form.valid_from}
+                onChange={(e) => setForm((f) => ({ ...f, valid_from: e.target.value }))}
+                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+              />
+              {errors.valid_from && <p className="text-[11px] text-red-600 mt-1">{errors.valid_from}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Berlaku Sampai (Opsional)
+              </label>
+              <input
+                type="date"
+                value={form.valid_until}
+                onChange={(e) => setForm((f) => ({ ...f, valid_until: e.target.value }))}
+                className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+              />
+              {errors.valid_until && <p className="text-[11px] text-red-600 mt-1">{errors.valid_until}</p>}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              Dokumen Penugasan (SK) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.assignment_document}
+              onChange={(e) => setForm((f) => ({ ...f, assignment_document: e.target.value }))}
+              placeholder="Contoh: SK-042/SDM/2026"
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            />
+            {errors.assignment_document && <p className="text-[11px] text-red-600 mt-1">{errors.assignment_document}</p>}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Alasan Pembuatan Akun <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            rows={2}
+            value={form.reason}
+            onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+            placeholder="Alasan pendaftaran akun baru untuk pencatatan audit log…"
+            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+          />
+          {errors.reason && <p className="text-[11px] text-red-600 mt-1">{errors.reason}</p>}
+        </div>
+      </form>
+    </Drawer>
+  )
+}

@@ -1,0 +1,133 @@
+kode_khs,nama_khs,mdu_di_distriva,cara_cocok,baris_marjono,nama_marjono,tipe_marjono,mdu_marjono,sumber_harga_marjono,status
+1,AAAC - 70 sqmm,,USUL (perlu konfirmasi),207,Kabel AAAC - 70 mm2,MDU,13550.0,Market place,MENGISI YANG KOSONG
+2,AAAC - 150 sqmm,,USUL (perlu konfirmasi),204,Kabel AAAC - 150 mm2,MDU,0.0,,MARJONO BERNILAI 0
+3,AAAC - 240 sqmm,,USUL (perlu konfirmasi),205,Kabel AAAC - 240 mm2,MDU,47900.0,Market place,MENGISI YANG KOSONG
+4,AAAC - S 70 sqmm,,USUL (perlu konfirmasi),211,Kabel AAAC - S 70 mm2,MDU,19795.0,Market place,MENGISI YANG KOSONG
+5,AAAC - S 150 sqmm,28260.0,USUL (perlu konfirmasi),209,Kabel AAAC - S 150 mm2,MDU,36427.9279279279,SAP,BERBEDA
+6,AAAC - S 240 sqmm,37350.0,USUL (perlu konfirmasi),210,Kabel AAAC - S 240 mm2,MDU,56000.0,Market place,BERBEDA
+7,ACO TM,211800000.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+49,Bimetal Connector Al/Cu -150/50 mm,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+60,Box APP Pengukuran Langsung tanpa MCCB Aluminium,3250300.0,NAMA SAMA,66,Box APP Pengukuran Langsung tanpa MCCB Aluminium,MDU,1800000.0,Market place,BERBEDA
+61,"Box berisi RTU protocol DNP 3, IEC (siap komunikasi GSM )",,NAMA SAMA,69,"Box berisi RTU protocol DNP 3, IEC (siap komunikasi GSM)",MDU,0.0,,MARJONO BERNILAI 0
+64,C Clamp Cu 25 mm,,NAMA SAMA,72,C Clamp Cu 25 mm,MDU,0.0,,MARJONO BERNILAI 0
+66,Cable Power ; NFA2X ; 4 x 16 mm²,12220.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+67,Cable Power ; NFA2X ; 4 x 35 mm²,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+75,Compresion Joint Sleeve 95 mm - Al,,USUL (perlu konfirmasi),112,Compresion Joint Sleeve Tension 95 mm - Al,MDU,39782.8828828829,SAP,MENGISI YANG KOSONG
+79,Compresion Joint Sleeve Non Tenion 95 mm - Al,,USUL (perlu konfirmasi),105,Compresion Joint Sleeve Non Tension 95 mm - Al,MDU,0.0,,MARJONO BERNILAI 0
+87,Connection Clamp For Netral + Bolt M12 x 25 - (Acc.MVTIC),,NAMA SAMA,114,Connection Clamp For Netral + Bolt M12 x 25 - (Acc. MVTIC),MDU,37387.2,KHS Material 2026,MENGISI YANG KOSONG
+98,Cover Silicon Bushing Trafo,85800.0,NAMA SAMA,116,Cover Silicon Bushing Trafo,MDU,84251.2,KHS Material 2026,BERBEDA
+99,Cover Silicon Fuse Cut Out (Atas),97500.0,NAMA SAMA,117,Cover Silicon Fuse Cut Out (Atas),MDU,105094.4,KHS Material 2026,BERBEDA
+100,Cover Silicon Fuse Cut Out (Bawah),97500.0,NAMA SAMA,118,Cover Silicon Fuse Cut Out (Bawah),MDU,104093.6,KHS Material 2026,BERBEDA
+101,Cover Silicon Lightning Arrester,49000.0,NAMA SAMA,119,Cover Silicon Lightning Arrester,MDU,55116.0,KHS Material 2026,BERBEDA
+129,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10",2218000.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+130,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10 Rasio CT single primer 25/5-5A s/d 75/5-5A.",2218000.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+133,"Disconnecting Switch 25,8 kV - 800 A out door (3 phasa)",,NAMA SAMA,159,"Disconnecting Switch 25,8 kV - 800 A Outdoor (3 Phasa)",MDU,3278536.36363636,SAP,MENGISI YANG KOSONG
+134,"Disconnecting Switch 20 kV - … A In Door - 25,8 kV (3 phasa)",,USUL (perlu konfirmasi),158,"Disconnecting Switch 20 kV - Indoor - 25,8 kV (3 Phasa)",MDU,0.0,,MARJONO BERNILAI 0
+159,Galvanized Steel Wire 22 mm - HDG,,NAMA SAMA,178,Galvanized Steel Wire 22 mm -HDG,Non-MDU Jasa,17856.0,,MENGISI YANG KOSONG
+160,Galvanized Steel Wire 35 mm - HDG,,NAMA SAMA,179,Galvanized Steel Wire 35 mm -HDG,Non-MDU Jasa,27635.0,,MENGISI YANG KOSONG
+161,Galvanized Steel Wire 70 mm - HDG,,NAMA SAMA,180,Galvanized Steel Wire 70 mm -HDG,Non-MDU Jasa,40546.0,,MENGISI YANG KOSONG
+162,Gembok Electronic,,NAMA SAMA,182,Gembok Electronic,MDU,0.0,,MARJONO BERNILAI 0
+174,"Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",219570.0,USUL (perlu konfirmasi),200,"Insulator - Pin Post Insulator 20 kV;12,5 kN - Tumpu",MDU,254003.0,SAP,BERBEDA
+175,Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik),398050.0,USUL (perlu konfirmasi),201,Insulator - Strain Insulator 20 kV Lengkap - Tarik,MDU,568830.0,SAP,BERBEDA
+180,Kawat Segel @ 15 cm,,NAMA SAMA,259,Kawat Segel @ 15 cm,Non-MDU Jasa,570.0,,MENGISI YANG KOSONG
+181,Klem C - 25/25 mm - Cu,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+186,"Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 1250 A ) digunakan daya > 20 MVA s/d 30 MVA",,USUL (perlu konfirmasi),263,"Kubikel (1 LBS Incoming, Kubikel Ming dan Kubikel Outgoing (Draw Out) Minimal Rating Arus 1250 A) Digunakan Daya > 20 MVA s/d 30 MVA",MDU,73116000.0,Market place,MENGISI YANG KOSONG
+187,"Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A ) maks digunakan s/d Daya 20 MVA",98199750.0,USUL (perlu konfirmasi),264,"Kubikel (1 LBS Incoming, Kubikel Ming dan Kubikel Outgoing (Draw Out) Minimal Rating Arus 630 A) Maks Digunakan s/d Daya 20 MVA",MDU,54950000.0,Market place,BERBEDA
+188,"Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 1250 A) digunakan daya > 20 MVA s/d 30 MVA",,USUL (perlu konfirmasi),266,"Kubikel (2 LBS Incoming Dilengkapi Motorized, Kubikel Ming dan Kubikel Outgoing (Draw Out) Minimal Rating Arus 1250 A) Digunakan Daya > 20 MVA s/d 30 MVA",MDU,299189000.0,Market place,MENGISI YANG KOSONG
+189,"Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A) maks digunakan s/d Daya 20 MVA",291521750.0,USUL (perlu konfirmasi),265,"Kubikel (2 LBS Incoming Dilengkapi Motorized, Kubikel Ming dan Kubikel Out Going (Draw Out) Minimal Rating Arus 630A) Digunakan Daya s/d 20 MVA",MDU,75000000.0,Market place,BERBEDA
+190,KWh meter 3 phs. 220/380 V - 20/60 A ST Clas 1 Elektronik,1287010.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+191,KWh meter 3 phs. Elektronik lengkap dengan Modem,1341010.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+192,"KWh meter Electronic Anti Temper 1 Phasa 2 kawat 50 Hz, 5(20) klass 1 lengkap MCB",,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+193,"kWh Meter TM Kelas 0,5s dilengkapi fasilitas AMR",1430010.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+202,LBS Motorized + RTU + Kabel Data,81159000.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+203,Lemari APP Pengukuran Tidak Langsung Montage 100A Aluminium,14243500.0,NAMA SAMA,281,Lemari APP Pengukuran Tidak Langsung Montage 100 A Aluminium,MDU,16748000.0,Market place,BERBEDA
+204,Lemari APP Pengukuran Tidak Langsung Montage 125A Aluminium,14243500.0,NAMA SAMA,282,Lemari APP Pengukuran Tidak Langsung Montage 125 A Aluminium,MDU,17333000.0,Market place,BERBEDA
+205,Lemari APP Pengukuran Tidak Langsung Montage 160A Aluminium,14243500.0,NAMA SAMA,283,Lemari APP Pengukuran Tidak Langsung Montage 160 A Aluminium,MDU,17662000.0,Market place,BERBEDA
+206,Lemari APP Pengukuran Tidak Langsung Montage 200A Aluminium,14243500.0,NAMA SAMA,284,Lemari APP Pengukuran Tidak Langsung Montage 200 A Aluminium,MDU,16675076.5765766,SAP,BERBEDA
+207,Lemari APP Pengukuran Tidak Langsung Montage 225A Aluminium,14243500.0,NAMA SAMA,285,Lemari APP Pengukuran Tidak Langsung Montage 225 A Aluminium,MDU,17799000.0,Market place,BERBEDA
+208,Lemari APP Pengukuran Tidak Langsung Montage 250A Aluminium,14243500.0,NAMA SAMA,286,Lemari APP Pengukuran Tidak Langsung Montage 250 A Aluminium,MDU,17800000.0,Market place,BERBEDA
+209,Lemari APP Pengukuran Tidak Langsung Montage 300A Aluminium,14243500.0,NAMA SAMA,287,Lemari APP Pengukuran Tidak Langsung Montage 300 A Aluminium,MDU,20430000.0,Market place,BERBEDA
+210,Lemari APP Pengukuran Tidak Langsung Montage 80A Aluminium,14243500.0,NAMA SAMA,288,Lemari APP Pengukuran Tidak Langsung Montage 80 A Aluminium,MDU,16748000.0,Market place,BERBEDA
+211,Lightning Arrester 24 kV - 10 kA,,USUL (perlu konfirmasi),289,Lightning Arrester 24 kV,MDU,664332.0,SAP,MENGISI YANG KOSONG
+212,Line Tap Connector ( type press ) 35-70 / 35-70 mm + scoth,,NAMA SAMA,291,Line Tap Connector (Type Press) 35 - 70/35 - 70 mm + Scoth,MDU,0.0,,MARJONO BERNILAI 0
+213,Line Tap Connector ( type press ) 6-25 / 35-70 mm + heatshrink,,NAMA SAMA,290,Line Tap Connector (Type Press) 6 - 25/35 - 70 mm + Heatshrink,Non-MDU Jasa,29876.0,,MENGISI YANG KOSONG
+215,Line Tap Connector 50-70 mm type G,,USUL (perlu konfirmasi),305,Line Tap Connector 50-70/35-50 mm type G,MDU,22099.0909090909,Price list,MENGISI YANG KOSONG
+216,Line Tap Connector Al - 35 mm - tipe C,,USUL (perlu konfirmasi),310,Line Tap Connector Al - 35 mm -Type C,Non-MDU Jasa,20273.0,,MENGISI YANG KOSONG
+219,Line Tap Connector Cu - 25 mm / Klem C,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+220,Line Tap Connector Cu - 50 mm / Klem C,,USUL (perlu konfirmasi),302,Line Tap Connector 35-70 mm Type C,MDU,22000.0,,MENGISI YANG KOSONG
+225,Live Line Connector 70-150 mm,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+227,Load Break Switch 24 kV - 630 A Manual,,NAMA SAMA,332,Load Break Switch 24 kV - 630 A Manual,MDU,102800127.272727,SAP,MENGISI YANG KOSONG
+228,Load Segel Kabel Tanah (identifikasi Kabel),,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+229,LV Insulator A1,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+230,"LVSB ; LV Panel 250A, 2 Jurusan (SPLN D3.016-1 : 2010)-LBS",9065260.0,NAMA SAMA,333,"LVSB ; LV Panel 250 A, 2 Jurusan (SPLN D3.016-1 : 2010) - LBS",MDU,14118900.0,SAP,BERBEDA
+231,"LVSB ; LV Panel 400A, 4 Jurusan (SPLN D3.016-1 : 2010)-LBS",12680640.0,NAMA SAMA,334,"LVSB ; LV Panel 400 A, 4 Jurusan (SPLN D3.016-1 : 2010) - LBS",MDU,20425891.8918919,SAP,BERBEDA
+232,MCB 230 V - 2 A s/d 35 A - 1 Phasa,30680.0,USUL (perlu konfirmasi),335,MCB 230 V - 2 A s/d 50 A - 1 Phasa,MDU,38805.4054054054,SAP,BERBEDA
+233,MCB 3 phs. 230 V - 25 A s/d 50 A,154080.0,NAMA SAMA,336,MCB 3 phs. 230 V - 25 A s/d 50 A,MDU,178785.585585586,SAP,BERBEDA
+234,"MCCB 100 A , 18 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),337,"MCCB 100 A, 18 kA, 3 Phasa (Fixed)",MDU,1948800.0,,MENGISI YANG KOSONG
+235,"MCCB 125 A , 18 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),338,"MCCB 125 A, 18 kA, 3 Phasa (Fixed)",MDU,2039060.36036036,SAP,MENGISI YANG KOSONG
+236,"MCCB 160 A , 18 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),339,"MCCB 160 A, 18 kA, 3 Phasa (Fixed)",MDU,2168672.07207207,SAP,MENGISI YANG KOSONG
+237,"MCCB 200 A , 18 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),340,"MCCB 200 A, 18 kA, 3 Phasa (Fixed)",MDU,2236390.90909091,,MENGISI YANG KOSONG
+238,"MCCB 225 A , 18 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),341,"MCCB 225 A, 18 kA, 3 Phasa (Fixed)",MDU,2433900.0,SAP,MENGISI YANG KOSONG
+239,"MCCB 250 A , 18 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),342,"MCCB 250 A, 18 kA, 3 Phasa (Fixed)",MDU,2433900.0,SAP,MENGISI YANG KOSONG
+240,"MCCB 300 A , 36 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),343,"MCCB 300 A, 36 kA, 3 Phasa (Fixed)",MDU,0.0,,MARJONO BERNILAI 0
+241,"MCCB 63 A , 25 kA, 3 Phs (Adj)",,USUL (perlu konfirmasi),344,"MCCB 63 A, 25 kA, 3 Phasa (Adj)",MDU,1290293.69369369,SAP,MENGISI YANG KOSONG
+242,"MCCB 80 A , 18 kA, 3 Phs (Fixed)",,USUL (perlu konfirmasi),345,"MCCB 80 A, 18 kA, 3 Phasa (Fixed)",MDU,1397600.0,SAP,MENGISI YANG KOSONG
+243,"Meter Elektronik (ME) 3 ph - 4 W , teg: 57,7/100V; Arus :5A. Class: 0,5",,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+246,NA2XSEYBY 3 x 150 mm2;20KV;UG,352150.0,USUL (perlu konfirmasi),213,Kabel NA2XSEYBY 3 x 150 mm2 ;20 kV; UG,MDU,443789.090909091,SAP,BERBEDA
+247,NA2XSEYBY 3 x 240 mm2;20KV;UG,443250.0,USUL (perlu konfirmasi),214,Kabel NA2XSEYBY 3 x 240 mm2; 20 kV; UG,MDU,640910.0,Market place,BERBEDA
+249,NFA2X 4x10mm,,USUL (perlu konfirmasi),218,Kabel NFA2X 4 x 10 mm2,MDU,0.0,,MARJONO BERNILAI 0
+250,NFA2X 4x25mm,,USUL (perlu konfirmasi),220,Kabel NFA2X 4 x 25 mm2,MDU,37000.0,Market place,MENGISI YANG KOSONG
+251,NFA2XSEY-T 3 x 150 + 1 x 95 mm2 - CWS,263250.0,USUL (perlu konfirmasi),222,Kabel NFA2XSEY - T 3 x 150 + 1 x 95 mm2 - CWS,MDU,409948.181818182,SAP,BERBEDA
+252,NFA2XSEY-T 3 x 240 + 1 x 95 mm2 - CWS,311950.0,USUL (perlu konfirmasi),223,Kabel NFA2XSEY - T 3 x 240 + 1 x 95 mm2 - CWS,MDU,516180.0,Market place,BERBEDA
+253,NFA2X-T;3x70 + 1x70 mm2,53945.0,USUL (perlu konfirmasi),216,Kabel NFA2X - T; 3 x 70 + 1 x 70 mm2,MDU,80220.0,SAP,BERBEDA
+258,NYY 1 x 150 sqmm - Input ( SPLN ),196590.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+261,NYY 4 x 70 sqmm - Output ( SPLN ),,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+307,Panel APP TM,,NAMA SAMA,392,Panel APP TM,MDU,0.0,,MARJONO BERNILAI 0
+317,PHB - TR 2 Jurusan 400 A - SPLN D5.016.1 : 2010,,NAMA SAMA,405,PHB - TR 2 Jurusan 400 A - SPLND5.016.1 : 2010,MDU,0.0,,MARJONO BERNILAI 0
+318,Pierching Tap Connector 70/70 mm - Al/Al,,NAMA SAMA,406,Pierching Tap Connector 70/70 mm - Al/Al,MDU,0.0,,MARJONO BERNILAI 0
+372,PMCB Out Door 24 kV lengkap,,USUL (perlu konfirmasi),462,PMCB Outdoor Lengkap,MDU,224889076.0,Market place,MENGISI YANG KOSONG
+376,Polymer Arrester 24 kV - 10 kA,676300.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+377,Polymer Cut Out Switch 24 kV + Fuse,853350.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+382,Potensial Trafo (PT) 20 kV - Outdoor,,NAMA SAMA,472,Potensial Trafo (PT) 20 kV -Outdoor,MDU,7939050.45045045,SAP,MENGISI YANG KOSONG
+383,"Potential Transformer kelas maks 0,2 Burden minimal 30 VA",,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+384,Preformed Side Tie 150mm (Semi Cond/non metalic/Composite),,NAMA SAMA,475,Preformed Side Tie 150 mm (Semi Cond / Non Metalic / Composite),MDU,76682.4,KHS Material 2026,MENGISI YANG KOSONG
+385,Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite),,NAMA SAMA,477,Preformed Side Tie Double 150 mm (Semi Cond / Non Metalic / Composite),MDU,149973.6,KHS Material 2026,MENGISI YANG KOSONG
+389,Preformed Top Tie 150mm (Semi Cond/non metalic/Composite),,NAMA SAMA,482,Preformed Top Tie 150 mm (Semi Cond / Non Metalic / Composite),MDU,77989.6,KHS Material 2026,MENGISI YANG KOSONG
+390,"Recloser 24 kV-630 A Motorized 12,5 kA c/w PTCC",158300576.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+448,TC 3 x 50 + 1 x 35 sqmm ( SPLN ),,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+449,TC 35 mm - 50 cm untuk kumisan,,USUL (perlu konfirmasi),548,TC 35 mm untuk Kumisan,Non-MDU Jasa,10563.0,,MENGISI YANG KOSONG
+450,Tekep (MV Cover),,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+452,Terminal Lug 35 mm - Al 1 Hole,,NAMA SAMA,571,Terminal Lug 35 mm - Al 1 Hole,Non-MDU Jasa,26675.0,,MENGISI YANG KOSONG
+453,Terminal Lug 35 mm - Al 2 Hole,,NAMA SAMA,572,Terminal Lug 35 mm - Al 2 Hole,MDU,13282.0,SAP,MENGISI YANG KOSONG
+454,Terminal Lug 35 mm - Al / Cu 1 Hole,,NAMA SAMA,573,Terminal Lug 35 mm - Al/Cu 1 Hole,Non-MDU Jasa,64020.0,,MENGISI YANG KOSONG
+455,Terminal Lug 35 mm - Al / Cu 2 Hole,,NAMA SAMA,574,Terminal Lug 35 mm - Al/Cu 2 Hole,MDU,0.0,,MARJONO BERNILAI 0
+457,Terminal Lug 35 mm - Cu 2 Hole,,NAMA SAMA,576,Terminal Lug 35 mm - Cu 2 Hole,MDU,44236.0,SAP,MENGISI YANG KOSONG
+458,Terminal Lug 50 mm - Al 1 Hole,,NAMA SAMA,577,Terminal Lug 50 mm - Al 1 Hole,Non-MDU Jasa,58685.0,,MENGISI YANG KOSONG
+459,Terminal Lug 50 mm - Al 2 Hole,,NAMA SAMA,578,Terminal Lug 50 mm - Al 2 Hole,MDU,0.0,,MARJONO BERNILAI 0
+460,Terminal Lug 50 mm - Al / Cu 1 Hole,,NAMA SAMA,579,Terminal Lug 50 mm - Al/Cu 1 Hole,Non-MDU Jasa,100031.0,,MENGISI YANG KOSONG
+461,Terminal Lug 50 mm - Al / Cu 2Hole,,NAMA SAMA,580,Terminal Lug 50 mm - Al/Cu 2 Hole,MDU,0.0,,MARJONO BERNILAI 0
+463,Terminal Lug 50 mm - Cu 2 Hole,,NAMA SAMA,582,Terminal Lug 50 mm - Cu 2 Hole,MDU,0.0,,MARJONO BERNILAI 0
+465,Terminal Lug 70 mm - Al / Cu 2 Hole,,NAMA SAMA,586,Terminal Lug 70 mm - Al/Cu 2 Hole,MDU,85000.0,SAP,MENGISI YANG KOSONG
+467,Terminal Lug 70 mm - Cu 2 Hole,,USUL (perlu konfirmasi),586,Terminal Lug 70 mm - Al/Cu 2 Hole,MDU,85000.0,SAP,MENGISI YANG KOSONG
+468,Terminal Lug 70 mm - Al 1 Hole,,NAMA SAMA,583,Terminal Lug 70 mm - Al 1 Hole,MDU,28500.0,Price list,MENGISI YANG KOSONG
+469,Terminal Lug 70 mm - Al 2 Hole,,NAMA SAMA,584,Terminal Lug 70 mm - Al 2 Hole,MDU,0.0,,MARJONO BERNILAI 0
+471,Terminal Lug 150 mm - Al 2 Hole,,NAMA SAMA,556,Terminal Lug 150 mm - Al 2 Hole,MDU,64835.0,SAP,MENGISI YANG KOSONG
+475,Terminal Lug 150 mm - Cu 2 Hole,,NAMA SAMA,560,Terminal Lug 150 mm - Cu 2 Hole,MDU,170273.873873874,SAP,MENGISI YANG KOSONG
+477,Terminal Lug 240 mm - Al 2 Hole,,NAMA SAMA,564,Terminal Lug 240 mm - Al 2 Hole,MDU,0.0,,MARJONO BERNILAI 0
+481,Terminal Lug 240 mm - Cu 2 Hole,,NAMA SAMA,568,Terminal Lug 240 mm - Cu 2 Hole,MDU,0.0,,MARJONO BERNILAI 0
+482,Terminasi Elastimold Single Core 95-300 mm2,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+483,Terminasi Elastimold Three Core 95-300 mm2,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+484,Termination ID 24 kV - uk. 150 mm - 1 Core/MVTIC,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+486,Termination OD 3 X 150 MM2 u/XLPE,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+487,Termination Out Door 3 X 150 + 1 x 95 mm u/MVTIC,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+488,Termination Outdoor 24 kV - uk. 150 mm - 1 Core/MVTIC,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+497,Timah Segel,,NAMA SAMA,609,Timah Segel,MDU,0.0,,MARJONO BERNILAI 0
+499,Trafo Distribusi 20 kV 3 PH 50 KVA Yzn5 ( D3 ),,USUL (perlu konfirmasi),613,Trafo Distribusi 20 KV 3 Phasa 50 KVA,MDU,0.0,,MARJONO BERNILAI 0
+500,Trafo Distribusi 20 kV 3 PH 100 KVA Yzn5 ( D3 ),36505400.0,USUL (perlu konfirmasi),614,Trafo Distribusi 20 KV 3 Phasa 100 KVA,MDU,40852069.3693694,SAP,BERBEDA
+501,Trafo Distribusi 20 kV 3 PH 160 KVA Yzn5 ( D3 ),32351500.0,USUL (perlu konfirmasi),615,Trafo Distribusi 20 KV 3 Phasa 160 KVA,MDU,59342649.5495495,SAP,BERBEDA
+502,Trafo Distribusi 20 kV 3 PH 200 KVA Dyn5 ( D3 ),36654500.0,USUL (perlu konfirmasi),616,Trafo Distribusi 20 KV 3 Phasa 200 KVA,MDU,68946270.0,SAP,BERBEDA
+503,Trafo Distribusi 20 kV 3 PH 250 KVA Dyn5 ( D3 ),40924500.0,USUL (perlu konfirmasi),617,Trafo Distribusi 20 KV 3 Phasa 250 KVA,MDU,71137886.4864865,SAP,BERBEDA
+504,"Tree Way Load Break Switch 24 kV-630 A Motorized 12,5 kA c/w PTCC",327000000.0,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+507,Twisted Cable 2 x 10 mm² - Al,,TIDAK ADA,,,,,,TIDAK DITEMUKAN
+508,Type Box App sesuai SPLN No.D3.051-1:2011,,USUL (perlu konfirmasi),67,Box App sesuai SPLN No. D3.015-1:2011,MDU,0.0,,MARJONO BERNILAI 0
+516,ZCT 50/5 - 100/5 A,,NAMA SAMA,635,ZCT 50/5 - 100/5 A,MDU,0.0,,MARJONO BERNILAI 0

@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── DISTRIVA Design System Tokens ─── */
+/* Tailwind v4 CSS-first configuration via @theme */
+
+@theme {
+  /* Brand colors */
+  --color-brand-50: oklch(97.1% .013 254);
+  --color-brand-100: oklch(93.2% .032 255);
+  --color-brand-200: oklch(87.7% .058 256);
+  --color-brand-300: oklch(80.9% .105 258);
+  --color-brand-400: oklch(72.3% .15 260);
+  --color-brand-500: oklch(62.3% .19 262);
+  --color-brand-600: oklch(54.6% .215 263);
+  --color-brand-700: oklch(48.8% .2 264);
+  --color-brand-800: oklch(42.4% .17 265);
+  --color-brand-900: oklch(37.9% .14 266);
+  --color-brand-950: oklch(28.2% .11 267);
+
+  /* Sidebar */
+  --color-sidebar: oklch(20.5% .015 260);
+  --color-sidebar-hover: oklch(26% .02 260);
+  --color-sidebar-active: oklch(30% .04 260);
+  --color-sidebar-text: oklch(90% .01 260);
+  --color-sidebar-muted: oklch(65% .015 260);
+
+  /* Status semantic colors */
+  --color-status-success: oklch(62.7% .194 149.214);
+  --color-status-success-bg: oklch(95% .044 156.743);
+  --color-status-success-text: oklch(37% .1 152);
+  --color-status-warning: oklch(76.9% .188 70.08);
+  --color-status-warning-bg: oklch(96.2% .059 95.617);
+  --color-status-warning-text: oklch(35% .1 58);
+  --color-status-error: oklch(63.7% .237 25.331);
+  --color-status-error-bg: oklch(93.6% .032 17.717);
+  --color-status-error-text: oklch(35% .1 26);
+  --color-status-info: oklch(62.3% .19 262);
+  --color-status-info-bg: oklch(93.2% .032 255);
+  --color-status-info-text: oklch(35% .1 264);
+  --color-status-neutral: oklch(55.1% .014 257.417);
+  --color-status-neutral-bg: oklch(92.9% .013 255.508);
+  --color-status-neutral-text: oklch(37.2% .044 257.287);
+
+  /* Surface / Layout */
+  --color-surface: oklch(98% .003 247);
+  --color-surface-card: oklch(100% 0 0);
+  --color-surface-border: oklch(90.8% .014 255);
+
+  /* Font */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Base resets ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Focus ring utility ─── */
+.focus-ring {
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1;
+}
+
+/* ─── Scrollbar (for sidebar - auto-hide & auto-appear on need) ─── */
+.sidebar-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.3s ease;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.35);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.6);
+}
+
+/* ─── Status badge variants ─── */
+.badge-success { background-color: var(--color-status-success-bg); color: var(--color-status-success-text); }
+.badge-warning { background-color: var(--color-status-warning-bg); color: var(--color-status-warning-text); }
+.badge-error   { background-color: var(--color-status-error-bg);   color: var(--color-status-error-text); }
+.badge-info    { background-color: var(--color-status-info-bg);    color: var(--color-status-info-text); }
+.badge-neutral { background-color: var(--color-status-neutral-bg); color: var(--color-status-neutral-text); }
+
+/* ─── Table styling ─── */
+.data-table th {
+  @apply py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-800/80;
+}
+.data-table td {
+  @apply py-3 px-4 text-sm text-slate-700 dark:text-slate-300;
+}
+.data-table tbody tr {
+  @apply border-b border-slate-100 dark:border-slate-800 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/40;
+}
+
+/* ─── Transition utilities ─── */
+.sidebar-transition {
+  transition: width 200ms ease, transform 200ms ease;
+}

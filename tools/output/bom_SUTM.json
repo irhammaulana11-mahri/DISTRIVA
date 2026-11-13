@@ -1,0 +1,10359 @@
+{
+ "group": "SUTM",
+ "source": "MASTER RAB & KKF.xlsx / sheet SUTM",
+ "inputs": [
+  {
+   "cell": "U6",
+   "group": "SUTM",
+   "label": "A3C 150",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V6",
+   "group": "SUTM",
+   "label": "A3C 150",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U7",
+   "group": "SUTM",
+   "label": "A3C-S 70",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V7",
+   "group": "SUTM",
+   "label": "A3C-S 70",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U8",
+   "group": "SUTM",
+   "label": "A3C-S 150",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V8",
+   "group": "SUTM",
+   "label": "A3C-S 150",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U9",
+   "group": "SUTM",
+   "label": "A3C-S 240",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V9",
+   "group": "SUTM",
+   "label": "A3C-S 240",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U10",
+   "group": "SUTM",
+   "label": "Tibet 11 / 200",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V10",
+   "group": "SUTM",
+   "label": "Tibet 11 / 200",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U11",
+   "group": "SUTM",
+   "label": "Tibet 13 / 350",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V11",
+   "group": "SUTM",
+   "label": "Tibet 13 / 350",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U12",
+   "group": "SUTM",
+   "label": "Tibet 14 / 350",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V12",
+   "group": "SUTM",
+   "label": "Tibet 14 / 350",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U13",
+   "group": "SUTM",
+   "label": "TM 1",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V13",
+   "group": "SUTM",
+   "label": "TM 1",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U14",
+   "group": "SUTM",
+   "label": "TM 1C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V14",
+   "group": "SUTM",
+   "label": "TM 1C",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U15",
+   "group": "SUTM",
+   "label": "TM 2",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V15",
+   "group": "SUTM",
+   "label": "TM 2",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U16",
+   "group": "SUTM",
+   "label": "TM 2C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V16",
+   "group": "SUTM",
+   "label": "TM 2C",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U17",
+   "group": "SUTM",
+   "label": "TM 4",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V17",
+   "group": "SUTM",
+   "label": "TM 4",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U18",
+   "group": "SUTM",
+   "label": "TM 4A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V18",
+   "group": "SUTM",
+   "label": "TM 4A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U19",
+   "group": "SUTM",
+   "label": "TM 4X",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V19",
+   "group": "SUTM",
+   "label": "TM 4X",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U20",
+   "group": "SUTM",
+   "label": "TM 4XC",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V20",
+   "group": "SUTM",
+   "label": "TM 4XC",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U21",
+   "group": "SUTM",
+   "label": "TM 5",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V21",
+   "group": "SUTM",
+   "label": "TM 5",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U22",
+   "group": "SUTM",
+   "label": "TM 5C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V22",
+   "group": "SUTM",
+   "label": "TM 5C",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U23",
+   "group": "SUTM",
+   "label": "TM 8",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V23",
+   "group": "SUTM",
+   "label": "TM 8",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U24",
+   "group": "SUTM",
+   "label": "TM 8A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V24",
+   "group": "SUTM",
+   "label": "TM 8A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U25",
+   "group": "SUTM",
+   "label": "TM 8X",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V25",
+   "group": "SUTM",
+   "label": "TM 8X",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U26",
+   "group": "SUTM",
+   "label": "TM 8C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V26",
+   "group": "SUTM",
+   "label": "TM 8C",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U27",
+   "group": "SUTM",
+   "label": "TM 8XC",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V27",
+   "group": "SUTM",
+   "label": "TM 8XC",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U28",
+   "group": "SUTM",
+   "label": "TM 10",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V28",
+   "group": "SUTM",
+   "label": "TM 10",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U29",
+   "group": "SUTM",
+   "label": "TM 10X",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V29",
+   "group": "SUTM",
+   "label": "TM 10X",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U30",
+   "group": "SUTM",
+   "label": "TM 10C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V30",
+   "group": "SUTM",
+   "label": "TM 10C",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U31",
+   "group": "SUTM",
+   "label": "TM 10XC",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V31",
+   "group": "SUTM",
+   "label": "TM 10XC",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U32",
+   "group": "SUTM",
+   "label": "TM 11",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V32",
+   "group": "SUTM",
+   "label": "TM 11",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U33",
+   "group": "SUTM",
+   "label": "TM 11X",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V33",
+   "group": "SUTM",
+   "label": "TM 11X",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U34",
+   "group": "SUTM",
+   "label": "TM 11C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V34",
+   "group": "SUTM",
+   "label": "TM 11C",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U35",
+   "group": "SUTM",
+   "label": "TM 11XC",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V35",
+   "group": "SUTM",
+   "label": "TM 11XC",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U36",
+   "group": "SUTM",
+   "label": "TM 11DS",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V36",
+   "group": "SUTM",
+   "label": "TM 11DS",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U37",
+   "group": "SUTM",
+   "label": "TM 11XDS",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V37",
+   "group": "SUTM",
+   "label": "TM 11XDS",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U38",
+   "group": "SUTM",
+   "label": "TMTP2",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V38",
+   "group": "SUTM",
+   "label": "TMTP2",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U39",
+   "group": "SUTM",
+   "label": "TMTP2A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V39",
+   "group": "SUTM",
+   "label": "TMTP2A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U40",
+   "group": "SUTM",
+   "label": "TMTP3",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V40",
+   "group": "SUTM",
+   "label": "TMTP3",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U41",
+   "group": "SUTM",
+   "label": "TMTP3A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V41",
+   "group": "SUTM",
+   "label": "TMTP3A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U42",
+   "group": "SUTM",
+   "label": "GW TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V42",
+   "group": "SUTM",
+   "label": "GW TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U43",
+   "group": "SUTM",
+   "label": "HGW TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V43",
+   "group": "SUTM",
+   "label": "HGW TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U44",
+   "group": "SUTM",
+   "label": "GW Baj. TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V44",
+   "group": "SUTM",
+   "label": "GW Baj. TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U45",
+   "group": "SUTM",
+   "label": "SP TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V45",
+   "group": "SUTM",
+   "label": "SP TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U46",
+   "group": "SUTM",
+   "label": "Pnd Tipe A TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V46",
+   "group": "SUTM",
+   "label": "Pnd Tipe A TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U47",
+   "group": "SUTM",
+   "label": "Pnd Tipe D TM",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V47",
+   "group": "SUTM",
+   "label": "Pnd Tipe D TM",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U48",
+   "group": "SUTM",
+   "label": "Verlenk Konst + GW Tipe A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V48",
+   "group": "SUTM",
+   "label": "Verlenk Konst + GW Tipe A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U49",
+   "group": "SUTM",
+   "label": "Verlenk Konst + GW Tipe B",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V49",
+   "group": "SUTM",
+   "label": "Verlenk Konst + GW Tipe B",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U50",
+   "group": "SUTM",
+   "label": "Verlenk Konst + GW Tipe C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V50",
+   "group": "SUTM",
+   "label": "Verlenk Konst + GW Tipe C",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U51",
+   "group": "SUTM",
+   "label": "Verlenk GW Tipe A",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V51",
+   "group": "SUTM",
+   "label": "Verlenk GW Tipe A",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U52",
+   "group": "SUTM",
+   "label": "Verlenk GW Tipe B",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V52",
+   "group": "SUTM",
+   "label": "Verlenk GW Tipe B",
+   "kind": "BKR"
+  },
+  {
+   "cell": "U53",
+   "group": "SUTM",
+   "label": "Verlenk GW Tipe C",
+   "kind": "PSG"
+  },
+  {
+   "cell": "V53",
+   "group": "SUTM",
+   "label": "Verlenk GW Tipe C",
+   "kind": "BKR"
+  }
+ ],
+ "lines": [
+  {
+   "sequence": 11,
+   "khs_code": null,
+   "description": "Panjang SUTM",
+   "H": "+I11",
+   "I": "+SUM(GAMBAR!U6:U9)",
+   "J": "+SUM(GAMBAR!V6:V9)",
+   "K": "+J11",
+   "source": "SUTM!B11",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 12,
+   "khs_code": 2,
+   "description": "AAAC - 150 sqmm",
+   "H": "+I12",
+   "I": "TRUNC((GAMBAR!U6*1.02*3)/1)*1",
+   "J": "TRUNC((GAMBAR!V6*1.02*3)/1)*1",
+   "K": "+J12",
+   "source": "SUTM!B12",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 13,
+   "khs_code": 4,
+   "description": "AAAC - S 70 sqmm",
+   "H": "+I13",
+   "I": "TRUNC((GAMBAR!U7*1.02*3)/1)*1",
+   "J": "TRUNC((GAMBAR!V7*1.02*3)/1)*1",
+   "K": "+J13",
+   "source": "SUTM!B13",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 14,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "+I14",
+   "I": "TRUNC((GAMBAR!U8*1.02*3)/1)*1",
+   "J": "TRUNC((GAMBAR!V8*1.02*3)/1)*1",
+   "K": "+J14",
+   "source": "SUTM!B14",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 15,
+   "khs_code": 6,
+   "description": "AAAC - S 240 sqmm",
+   "H": "+I15",
+   "I": "TRUNC((GAMBAR!U9*1.02*3)/1)*1",
+   "J": "TRUNC((GAMBAR!V9*1.02*3)/1)*1",
+   "K": "+J15",
+   "source": "SUTM!B15",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 16,
+   "khs_code": 160,
+   "description": "Galvanized Steel Wire 35 mm - HDG",
+   "H": "+I16",
+   "I": "TRUNC((I11*1.01)/1)*1",
+   "J": "TRUNC((J11*1.01)/1)*1",
+   "K": "+J16",
+   "source": "SUTM!B16",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 17,
+   "khs_code": 74,
+   "description": "Compresion Joint Sleeve 70 mm - Al",
+   "H": "+I17",
+   "I": "TRUNC((I13/1000)/1)*1",
+   "J": "TRUNC((J13/1000)/1)*1",
+   "K": "+J17",
+   "source": "SUTM!B17",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 18,
+   "khs_code": 77,
+   "description": "Compresion Joint Sleeve 150 mm - Al",
+   "H": "+I18",
+   "I": "TRUNC(((I14+I12)/1000)/1)*1",
+   "J": "TRUNC(((J14+J12)/1000)/1)*1",
+   "K": "+J18",
+   "source": "SUTM!B18",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 19,
+   "khs_code": 78,
+   "description": "Compresion Joint Sleeve 240 mm - Al",
+   "H": "+I19",
+   "I": "TRUNC((I15/1000)/1)*1",
+   "J": "TRUNC((J15/1000)/1)*1",
+   "K": "+J19",
+   "source": "SUTM!B19",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 20,
+   "khs_code": 348,
+   "description": "Pipa Galvanized 4\" - 4 meter (medium 3,2 mm) + plat GW Clamp type A",
+   "H": "+I20",
+   "I": "+GAMBAR!U48",
+   "J": "+GAMBAR!V48",
+   "K": "+J20",
+   "source": "SUTM!B20",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 21,
+   "khs_code": 349,
+   "description": "Pipa Galvanized 4\" - 4 meter (medium 3,2 mm) + plat GW Clamp type B",
+   "H": "+I21",
+   "I": "+GAMBAR!U49",
+   "J": "+GAMBAR!V49",
+   "K": "+J21",
+   "source": "SUTM!B21",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 22,
+   "khs_code": 350,
+   "description": "Pipa Galvanized 4\" - 4 meter (medium 3,2 mm) + plat GW Clamp type C",
+   "H": "+I22",
+   "I": "+GAMBAR!U50",
+   "J": "+GAMBAR!V50",
+   "K": "+J22",
+   "source": "SUTM!B22",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 23,
+   "khs_code": 330,
+   "description": "Pipa Galvanized 3\" - 3 meter ( medium 2,5mm ) + Plat GW Clamp Type A",
+   "H": "+I23",
+   "I": "+GAMBAR!U51",
+   "J": "+GAMBAR!V51",
+   "K": "+J23",
+   "source": "SUTM!B23",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 24,
+   "khs_code": 331,
+   "description": "Pipa Galvanized 3\" - 3 meter ( medium 2,5mm ) + Plat GW Clamp Type B",
+   "H": "+I24",
+   "I": "+GAMBAR!U52",
+   "J": "+GAMBAR!V52",
+   "K": "+J24",
+   "source": "SUTM!B24",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 25,
+   "khs_code": 332,
+   "description": "Pipa Galvanized 3\" - 3 meter ( medium 2,5mm ) + Plat GW Clamp Type C",
+   "H": "+I25",
+   "I": "+GAMBAR!U53",
+   "J": "+GAMBAR!V53",
+   "K": "+J25",
+   "source": "SUTM!B25",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 26,
+   "khs_code": 291,
+   "description": "Ornament Cabel Band 3\" x 8\" - TM",
+   "H": "+I26",
+   "I": "+SUM(I23:I25)*2",
+   "J": "+SUM(J23:J25)*2",
+   "K": "+J26",
+   "source": "SUTM!B26",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 27,
+   "khs_code": 303,
+   "description": "Ornament Cabel Band 4\" x 8\" - TM",
+   "H": "+I27",
+   "I": "+SUM(I20:I22)*2",
+   "J": "+SUM(J20:J22)*2",
+   "K": "+J27",
+   "source": "SUTM!B27",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 28,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I28",
+   "I": "+SUM(I26:I27)*3",
+   "J": "+SUM(J26:J27)*3",
+   "K": "+J28",
+   "source": "SUTM!B28",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 29,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I29",
+   "I": "+I28*2",
+   "J": "+J28*2",
+   "K": "+J29",
+   "source": "SUTM!B29",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 32,
+   "khs_code": 489,
+   "description": "Tiang Beton 11m - 200 daN",
+   "H": "+I32",
+   "I": "+I623+I639",
+   "J": "+J623+J639",
+   "K": "+J32",
+   "source": "SUTM!B32",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 33,
+   "khs_code": 492,
+   "description": "Tiang Beton 13m - 350 daN",
+   "H": "+I33",
+   "I": "+GAMBAR!U11",
+   "J": "+GAMBAR!V11",
+   "K": "+J33",
+   "source": "SUTM!B33",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 34,
+   "khs_code": 494,
+   "description": "Tiang Beton 14m - 350 daN",
+   "H": "+I34",
+   "I": "+GAMBAR!U12",
+   "J": "+GAMBAR!V12",
+   "K": "+J34",
+   "source": "SUTM!B34",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 35,
+   "khs_code": 378,
+   "description": "Pondasi type A ( 1 tiang ) (91/U/2009)",
+   "H": "+I35",
+   "I": "+GAMBAR!U46",
+   "J": "+GAMBAR!V46",
+   "K": "+J35",
+   "source": "SUTM!B35",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 36,
+   "khs_code": 379,
+   "description": "Pondasi type D ( 2 Tiang ) (91/U/2009)",
+   "H": "+I36",
+   "I": "GAMBAR!U47",
+   "J": "+GAMBAR!V47",
+   "K": "+J36",
+   "source": "SUTM!B36",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 37,
+   "khs_code": 315,
+   "description": "Penghalang panjat 10\" HDG (l=35mm, t=3,2mm, besi 10mm)",
+   "H": "+I37",
+   "I": "+SUM(I33:I34)",
+   "J": "+SUM(J33:J34)",
+   "K": "+J37",
+   "source": "SUTM!B37",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 38,
+   "khs_code": 447,
+   "description": "Tanda Bahaya Kecil",
+   "H": "+I38",
+   "I": "+I37",
+   "J": "+J37",
+   "K": "+J38",
+   "source": "SUTM!B38",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 41,
+   "khs_code": null,
+   "description": "Grounding Dalam (GSW)",
+   "H": "+I41",
+   "I": "+SUM(GAMBAR!U11:U12)",
+   "J": "+SUM(GAMBAR!V11:V12)",
+   "K": "+J41",
+   "source": "SUTM!B41",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 42,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I42",
+   "I": "+I41*1",
+   "J": "+J41*1",
+   "K": "+J42",
+   "source": "SUTM!B42",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 43,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I43",
+   "I": "+I41",
+   "J": "+J41",
+   "K": "+J43",
+   "source": "SUTM!B43",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 44,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I44",
+   "I": "+I41",
+   "J": "+J41",
+   "K": "+J44",
+   "source": "SUTM!B44",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 46,
+   "khs_code": null,
+   "description": "Grounding Luar (LA & XLPE)",
+   "H": "+I46",
+   "I": "+GAMBAR!U32+GAMBAR!U33+GAMBAR!U34+GAMBAR!U35+GAMBAR!U36+GAMBAR!U37",
+   "J": "+GAMBAR!V32+GAMBAR!V33+GAMBAR!V34+GAMBAR!V35+GAMBAR!V36+GAMBAR!V37",
+   "K": "+J46",
+   "source": "SUTM!B46",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 47,
+   "khs_code": 149,
+   "description": "Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron",
+   "H": "+I47",
+   "I": "+I46*2",
+   "J": "+J46*2",
+   "K": "+J47",
+   "source": "SUTM!B47",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 48,
+   "khs_code": 20,
+   "description": "BC 50 MM (Bare Conductor)",
+   "H": "+I48",
+   "I": "+I46*22",
+   "J": "+J46*22",
+   "K": "+J48",
+   "source": "SUTM!B48",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 49,
+   "khs_code": 58,
+   "description": "Bolt M.12 x 30 + Washer Cu",
+   "H": "+I49",
+   "I": "+I47*2",
+   "J": "+J47",
+   "K": "+J49",
+   "source": "SUTM!B49",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 50,
+   "khs_code": 462,
+   "description": "Terminal Lug 50 mm - Cu 1 Hole",
+   "H": "+I50",
+   "I": "+I47*2",
+   "J": "+J47*2",
+   "K": "+J50",
+   "source": "SUTM!B50",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 51,
+   "khs_code": 436,
+   "description": "Stainless Steel Strip non magnetic",
+   "H": "+I51",
+   "I": "+I46*8",
+   "J": "+J46*8",
+   "K": "+J51",
+   "source": "SUTM!B51",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 52,
+   "khs_code": 437,
+   "description": "Stoping Buckle non magnetic",
+   "H": "+I52",
+   "I": "+I46*10",
+   "J": "+J46*10",
+   "K": "+J52",
+   "source": "SUTM!B52",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 53,
+   "khs_code": 223,
+   "description": "Link - HDG",
+   "H": "+I53",
+   "I": "+I46*4",
+   "J": "+J46*4",
+   "K": "+J53",
+   "source": "SUTM!B53",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 54,
+   "khs_code": 361,
+   "description": "Pipa Galvanized 3/4\" - 6 mtr (tebal= 1,6 mm)",
+   "H": "+I54",
+   "I": "+I46*2",
+   "J": "+J46*2",
+   "K": "+J54",
+   "source": "SUTM!B54",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 57,
+   "khs_code": null,
+   "description": "Konstruksi TM 1",
+   "H": "+I57",
+   "I": "+GAMBAR!U13",
+   "J": "+GAMBAR!V13",
+   "K": "+J57",
+   "source": "SUTM!B57",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 58,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I58",
+   "I": "I57",
+   "J": "J57",
+   "K": "+J58",
+   "source": "SUTM!B58",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 59,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I59",
+   "I": "+I57",
+   "J": "+J57",
+   "K": "+J59",
+   "source": "SUTM!B59",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 60,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I60",
+   "I": "+I57*2",
+   "J": "+J57*2",
+   "K": "+J60",
+   "source": "SUTM!B60",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 61,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I61",
+   "I": "+I57",
+   "J": "+J57",
+   "K": "+J61",
+   "source": "SUTM!B61",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 62,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I62",
+   "I": "+I57*6",
+   "J": "+J57*6",
+   "K": "+J62",
+   "source": "SUTM!B62",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 63,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I63",
+   "I": "+I57*3",
+   "J": "+J57*3",
+   "K": "+J63",
+   "source": "SUTM!B63",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 64,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I64",
+   "I": "+I63",
+   "J": "+J63",
+   "K": "+J64",
+   "source": "SUTM!B64",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 65,
+   "khs_code": 164,
+   "description": "Ground Wire Clamp Type A - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I65",
+   "I": "+I57",
+   "J": "+J57",
+   "K": "+J65",
+   "source": "SUTM!B65",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 66,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I66",
+   "I": "+I65*2",
+   "J": "+J65*2",
+   "K": "+J66",
+   "source": "SUTM!B66",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 68,
+   "khs_code": null,
+   "description": "Konstruksi TM 1 Type C",
+   "H": "+I68",
+   "I": "+GAMBAR!U14",
+   "J": "+GAMBAR!V14",
+   "K": "+J68",
+   "source": "SUTM!B68",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 69,
+   "khs_code": 118,
+   "description": "Cross Arm UNP 100 - 2500 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I69",
+   "I": "I68",
+   "J": "J68",
+   "K": "+J69",
+   "source": "SUTM!B69",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 70,
+   "khs_code": 18,
+   "description": "Arm Tie Type 900 - 3/4\" - (t=2,3 mm)",
+   "H": "+I70",
+   "I": "+I68",
+   "J": "+J68",
+   "K": "+J70",
+   "source": "SUTM!B70",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 71,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I71",
+   "I": "+I68*2",
+   "J": "+J68*2",
+   "K": "+J71",
+   "source": "SUTM!B71",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 72,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I72",
+   "I": "+I68",
+   "J": "+J68",
+   "K": "+J72",
+   "source": "SUTM!B72",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 73,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I73",
+   "I": "+I68*6",
+   "J": "+J68*6",
+   "K": "+J73",
+   "source": "SUTM!B73",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 74,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I74",
+   "I": "+I68*3",
+   "J": "+J68*3",
+   "K": "+J74",
+   "source": "SUTM!B74",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 75,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I75",
+   "I": "+I74",
+   "J": "+J74",
+   "K": "+J75",
+   "source": "SUTM!B75",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 76,
+   "khs_code": 164,
+   "description": "Ground Wire Clamp Type A - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I76",
+   "I": "+I68",
+   "J": "+J68",
+   "K": "+J76",
+   "source": "SUTM!B76",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 77,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I77",
+   "I": "+I76*2",
+   "J": "+J76*2",
+   "K": "+J77",
+   "source": "SUTM!B77",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 79,
+   "khs_code": null,
+   "description": "Konstruksi TM 2",
+   "H": "+I79",
+   "I": "GAMBAR!U15",
+   "J": "GAMBAR!V15",
+   "K": "+J79",
+   "source": "SUTM!B79",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 80,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I80",
+   "I": "+I79*2",
+   "J": "+J79*2",
+   "K": "+J80",
+   "source": "SUTM!B80",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 81,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I81",
+   "I": "+I79*2",
+   "J": "+J79*2",
+   "K": "+J81",
+   "source": "SUTM!B81",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 82,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I82",
+   "I": "+I79*3",
+   "J": "+J79*3",
+   "K": "+J82",
+   "source": "SUTM!B82",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 83,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I83",
+   "I": "+I79*8",
+   "J": "+J79*8",
+   "K": "+J83",
+   "source": "SUTM!B83",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 84,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I84",
+   "I": "+I79*6",
+   "J": "+J79*6",
+   "K": "+J84",
+   "source": "SUTM!B84",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 85,
+   "khs_code": 385,
+   "description": "Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I85",
+   "I": "+I79*3",
+   "J": "+J79*3",
+   "K": "+J85",
+   "source": "SUTM!B85",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 86,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I86",
+   "I": "+I79",
+   "J": "+J79",
+   "K": "+J86",
+   "source": "SUTM!B86",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 87,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I87",
+   "I": "+I79*2",
+   "J": "+J79*2",
+   "K": "+J87",
+   "source": "SUTM!B87",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 88,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I88",
+   "I": "+I87",
+   "J": "+J87",
+   "K": "+J88",
+   "source": "SUTM!B88",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 90,
+   "khs_code": null,
+   "description": "Konstruksi TM 2 Type C",
+   "H": "+I90",
+   "I": "GAMBAR!U16",
+   "J": "GAMBAR!V16",
+   "K": "+J90",
+   "source": "SUTM!B90",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 91,
+   "khs_code": 118,
+   "description": "Cross Arm UNP 100 - 2500 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I91",
+   "I": "+I90*2",
+   "J": "+J90*2",
+   "K": "+J91",
+   "source": "SUTM!B91",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 92,
+   "khs_code": 18,
+   "description": "Arm Tie Type 900 - 3/4\" - (t=2,3 mm)",
+   "H": "+I92",
+   "I": "+I90*2",
+   "J": "+J90*2",
+   "K": "+J92",
+   "source": "SUTM!B92",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 93,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I93",
+   "I": "+I90*3",
+   "J": "+J90*3",
+   "K": "+J93",
+   "source": "SUTM!B93",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 94,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I94",
+   "I": "+I90*8",
+   "J": "+J90*8",
+   "K": "+J94",
+   "source": "SUTM!B94",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 95,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I95",
+   "I": "+I90*6",
+   "J": "+J90*6",
+   "K": "+J95",
+   "source": "SUTM!B95",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 96,
+   "khs_code": 385,
+   "description": "Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I96",
+   "I": "+I90*3",
+   "J": "+J90*3",
+   "K": "+J96",
+   "source": "SUTM!B96",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 97,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I97",
+   "I": "+I90",
+   "J": "+J90",
+   "K": "+J97",
+   "source": "SUTM!B97",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 98,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I98",
+   "I": "+I90*2",
+   "J": "+J90*2",
+   "K": "+J98",
+   "source": "SUTM!B98",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 99,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I99",
+   "I": "+I98",
+   "J": "+J98",
+   "K": "+J99",
+   "source": "SUTM!B99",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 101,
+   "khs_code": null,
+   "description": "Konstruksi TM 4",
+   "H": "+I101",
+   "I": "GAMBAR!U17",
+   "J": "GAMBAR!V17",
+   "K": "+J101",
+   "source": "SUTM!B101",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 102,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I102",
+   "I": "+I101*2",
+   "J": "+J101*2",
+   "K": "+J102",
+   "source": "SUTM!B102",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 103,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I103",
+   "I": "+I101*2",
+   "J": "+J101*2",
+   "K": "+J103",
+   "source": "SUTM!B103",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 104,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I104",
+   "I": "+I101*1",
+   "J": "+J101*1",
+   "K": "+J104",
+   "source": "SUTM!B104",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 105,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I105",
+   "I": "+I101*4",
+   "J": "+J101*4",
+   "K": "+J105",
+   "source": "SUTM!B105",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 106,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I106",
+   "I": "+I101*12",
+   "J": "+J101*12",
+   "K": "+J106",
+   "source": "SUTM!B106",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 107,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I107",
+   "I": "+I101*3",
+   "J": "+J101*3",
+   "K": "+J107",
+   "source": "SUTM!B107",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 108,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I108",
+   "I": "+I101",
+   "J": "+J101",
+   "K": "+J108",
+   "source": "SUTM!B108",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 109,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I109",
+   "I": "+I101*2",
+   "J": "+J101*2",
+   "K": "+J109",
+   "source": "SUTM!B109",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 110,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I110",
+   "I": "+I109",
+   "J": "+J109",
+   "K": "+J110",
+   "source": "SUTM!B110",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 112,
+   "khs_code": null,
+   "description": "Konstruksi TM 4A",
+   "H": "+I112",
+   "I": "+GAMBAR!U18",
+   "J": "+GAMBAR!V18",
+   "K": "+J112",
+   "source": "SUTM!B112",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 113,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I113",
+   "I": "+I112*2",
+   "J": "+J112*2",
+   "K": "+J113",
+   "source": "SUTM!B113",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 114,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I114",
+   "I": "+I112*2",
+   "J": "+J112*2",
+   "K": "+J114",
+   "source": "SUTM!B114",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 115,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I115",
+   "I": "+I112",
+   "J": "+J112",
+   "K": "+J115",
+   "source": "SUTM!B115",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 116,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I116",
+   "I": "+I112*4",
+   "J": "+J112*4",
+   "K": "+J116",
+   "source": "SUTM!B116",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 117,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I117",
+   "I": "+I112*12",
+   "J": "+J112*12",
+   "K": "+J117",
+   "source": "SUTM!B117",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 118,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I118",
+   "I": "+I112*3",
+   "J": "+J112*3",
+   "K": "+J118",
+   "source": "SUTM!B118",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 119,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I119",
+   "I": "+I112",
+   "J": "+J112",
+   "K": "+J119",
+   "source": "SUTM!B119",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 120,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I120",
+   "I": "+I119*2",
+   "J": "+J119*2",
+   "K": "+J120",
+   "source": "SUTM!B120",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 121,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I121",
+   "I": "+I120",
+   "J": "+J120",
+   "K": "+J121",
+   "source": "SUTM!B121",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 122,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I122",
+   "I": "+I112*3",
+   "J": "+J112*3",
+   "K": "+J122",
+   "source": "SUTM!B122",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 123,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I123",
+   "I": "+I112*3",
+   "J": "+J112*3",
+   "K": "+J123",
+   "source": "SUTM!B123",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 124,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I124",
+   "I": "+I123",
+   "J": "+J123",
+   "K": "+J124",
+   "source": "SUTM!B124",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 125,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I125",
+   "I": "+I112*9",
+   "J": "+J112*9",
+   "K": "+J125",
+   "source": "SUTM!B125",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 126,
+   "khs_code": 217,
+   "description": "Line Tap Connector Al 150 - 50 mm type G",
+   "H": "+I126",
+   "I": "+I112*3",
+   "J": "+J112*3",
+   "K": "+J126",
+   "source": "SUTM!B126",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 128,
+   "khs_code": null,
+   "description": "Konstruksi TM 4X",
+   "H": "+I128",
+   "I": "+GAMBAR!U19",
+   "J": "+GAMBAR!V19",
+   "K": "+J128",
+   "source": "SUTM!B128",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 129,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I129",
+   "I": "+I128*3",
+   "J": "+J128*3",
+   "K": "+J129",
+   "source": "SUTM!B129",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 130,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I130",
+   "I": "+I128",
+   "J": "+J128",
+   "K": "+J130",
+   "source": "SUTM!B130",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 131,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I131",
+   "I": "+I130",
+   "J": "+J130",
+   "K": "+J131",
+   "source": "SUTM!B131",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 132,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I132",
+   "I": "+I128",
+   "J": "+J128",
+   "K": "+J132",
+   "source": "SUTM!B132",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 133,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I133",
+   "I": "+I128*3",
+   "J": "+J128*3",
+   "K": "+J133",
+   "source": "SUTM!B133",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 134,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I134",
+   "I": "+I128",
+   "J": "+J128",
+   "K": "+J134",
+   "source": "SUTM!B134",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 135,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I135",
+   "I": "+I134",
+   "J": "+J134",
+   "K": "+J135",
+   "source": "SUTM!B135",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 136,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I136",
+   "I": "+I128*4",
+   "J": "+J128*4",
+   "K": "+J136",
+   "source": "SUTM!B136",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 138,
+   "khs_code": null,
+   "description": "Konstruksi TM 4XC",
+   "H": "+I138",
+   "I": "+GAMBAR!U20",
+   "J": "+GAMBAR!V20",
+   "K": "+J138",
+   "source": "SUTM!B138",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 139,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I139",
+   "I": "+I138*3",
+   "J": "+J138*3",
+   "K": "+J139",
+   "source": "SUTM!B139",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 140,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I140",
+   "I": "+I138",
+   "J": "+J138",
+   "K": "+J140",
+   "source": "SUTM!B140",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 141,
+   "khs_code": 384,
+   "description": "Preformed Side Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I141",
+   "I": "+I140",
+   "J": "+J140",
+   "K": "+J141",
+   "source": "SUTM!B141",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 142,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I142",
+   "I": "+I138",
+   "J": "+J138",
+   "K": "+J142",
+   "source": "SUTM!B142",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 143,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I143",
+   "I": "+I138*3",
+   "J": "+J138*3",
+   "K": "+J143",
+   "source": "SUTM!B143",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 144,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I144",
+   "I": "+I138",
+   "J": "+J138",
+   "K": "+J144",
+   "source": "SUTM!B144",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 145,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I145",
+   "I": "+I144",
+   "J": "+J144",
+   "K": "+J145",
+   "source": "SUTM!B145",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 146,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I146",
+   "I": "+I138*4",
+   "J": "+J138*4",
+   "K": "+J146",
+   "source": "SUTM!B146",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 147,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I147",
+   "I": "+I138*3",
+   "J": "+J138*3",
+   "K": "+J147",
+   "source": "SUTM!B147",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 148,
+   "khs_code": 472,
+   "description": "Terminal Lug 150 mm - Al / Cu 1 Hole",
+   "H": "+I148",
+   "I": "+I138*6",
+   "J": "+J138*6",
+   "K": "+J148",
+   "source": "SUTM!B148",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 149,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I149",
+   "I": "+I138*2",
+   "J": "+J138*2",
+   "K": "+J149",
+   "source": "SUTM!B149",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 150,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I150",
+   "I": "+I149",
+   "J": "+J149",
+   "K": "+J150",
+   "source": "SUTM!B150",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 151,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I151",
+   "I": "+I138",
+   "J": "+J138",
+   "K": "+J151",
+   "source": "SUTM!B151",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 152,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I152",
+   "I": "+I138",
+   "J": "+J138",
+   "K": "+J152",
+   "source": "SUTM!B152",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 153,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I153",
+   "I": "+I138*2",
+   "J": "+J138*2",
+   "K": "+J153",
+   "source": "SUTM!B153",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 154,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I154",
+   "I": "+I152*2",
+   "J": "+J152*2",
+   "K": "+J154",
+   "source": "SUTM!B154",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 155,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I155",
+   "I": "+I154",
+   "J": "+J154",
+   "K": "+J155",
+   "source": "SUTM!B155",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 156,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I156",
+   "I": "+I138*18",
+   "J": "+J138*18",
+   "K": "+J156",
+   "source": "SUTM!B156",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 158,
+   "khs_code": null,
+   "description": "Konstruksi TM 5",
+   "H": "+I158",
+   "I": "+GAMBAR!U21",
+   "J": "+GAMBAR!V21",
+   "K": "+J158",
+   "source": "SUTM!B158",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 159,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I159",
+   "I": "+I158*2",
+   "J": "+J158*2",
+   "K": "+J159",
+   "source": "SUTM!B159",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 160,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I160",
+   "I": "+I159",
+   "J": "+J159",
+   "K": "+J160",
+   "source": "SUTM!B160",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 161,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I161",
+   "I": "+I159",
+   "J": "+J159",
+   "K": "+J161",
+   "source": "SUTM!B161",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 162,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I162",
+   "I": "+I158*4",
+   "J": "+J158*4",
+   "K": "+J162",
+   "source": "SUTM!B162",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 163,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I163",
+   "I": "+I158*12",
+   "J": "+J158*12",
+   "K": "+J163",
+   "source": "SUTM!B163",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 164,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I164",
+   "I": "+I158*6",
+   "J": "+J158*6",
+   "K": "+J164",
+   "source": "SUTM!B164",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 165,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I165",
+   "I": "+I158",
+   "J": "+J158",
+   "K": "+J165",
+   "source": "SUTM!B165",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 166,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I166",
+   "I": "+I165",
+   "J": "+J165",
+   "K": "+J166",
+   "source": "SUTM!B166",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 167,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I167",
+   "I": "+I158*3",
+   "J": "+J158*3",
+   "K": "+J167",
+   "source": "SUTM!B167",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 168,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I168",
+   "I": "+I158",
+   "J": "+J158",
+   "K": "+J168",
+   "source": "SUTM!B168",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 169,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I169",
+   "I": "+I168*2",
+   "J": "+J168*2",
+   "K": "+J169",
+   "source": "SUTM!B169",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 170,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I170",
+   "I": "+I169",
+   "J": "+J169",
+   "K": "+J170",
+   "source": "SUTM!B170",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 172,
+   "khs_code": null,
+   "description": "Konstruksi TM 5C",
+   "H": "+I172",
+   "I": "+GAMBAR!U22",
+   "J": "+GAMBAR!V22",
+   "K": "+J172",
+   "source": "SUTM!B172",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 173,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I173",
+   "I": "+I172*4",
+   "J": "+J172*4",
+   "K": "+J173",
+   "source": "SUTM!B173",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 174,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I174",
+   "I": "+I173",
+   "J": "+J173",
+   "K": "+J174",
+   "source": "SUTM!B174",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 175,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I175",
+   "I": "+I172*2",
+   "J": "+J172*2",
+   "K": "+J175",
+   "source": "SUTM!B175",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 176,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I176",
+   "I": "+I172*6",
+   "J": "+J172*6",
+   "K": "+J176",
+   "source": "SUTM!B176",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 177,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I177",
+   "I": "+I172*2",
+   "J": "+J172*2",
+   "K": "+J177",
+   "source": "SUTM!B177",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 178,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I178",
+   "I": "+I172*2",
+   "J": "+J172*2",
+   "K": "+J178",
+   "source": "SUTM!B178",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 179,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I179",
+   "I": "+I172*(12+18)",
+   "J": "+J172*(12+18)",
+   "K": "+J179",
+   "source": "SUTM!B179",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 180,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I180",
+   "I": "+I172*6",
+   "J": "+J172*6",
+   "K": "+J180",
+   "source": "SUTM!B180",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 181,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I181",
+   "I": "+I172",
+   "J": "+J172",
+   "K": "+J181",
+   "source": "SUTM!B181",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 182,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I182",
+   "I": "+I181*2",
+   "J": "+J181*2",
+   "K": "+J182",
+   "source": "SUTM!B182",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 183,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I183",
+   "I": "+I182",
+   "J": "+J182",
+   "K": "+J183",
+   "source": "SUTM!B183",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 184,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I184",
+   "I": "+I172*3",
+   "J": "+J172*3",
+   "K": "+J184",
+   "source": "SUTM!B184",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 185,
+   "khs_code": 472,
+   "description": "Terminal Lug 150 mm - Al / Cu 1 Hole",
+   "H": "+I185",
+   "I": "+I184*2",
+   "J": "+J184*2",
+   "K": "+J185",
+   "source": "SUTM!B185",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 186,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I186",
+   "I": "+I172",
+   "J": "+J172",
+   "K": "+J186",
+   "source": "SUTM!B186",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 187,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I187",
+   "I": "+I186",
+   "J": "+J186",
+   "K": "+J187",
+   "source": "SUTM!B187",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 189,
+   "khs_code": null,
+   "description": "Konstruksi TM 8",
+   "H": "+I189",
+   "I": "+GAMBAR!U23",
+   "J": "+GAMBAR!V23",
+   "K": "+J189",
+   "source": "SUTM!B189",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 190,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I190",
+   "I": "+I189",
+   "J": "+J189",
+   "K": "+J190",
+   "source": "SUTM!B190",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 191,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I191",
+   "I": "+I189*2",
+   "J": "+J189*2",
+   "K": "+J191",
+   "source": "SUTM!B191",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 192,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I192",
+   "I": "+I189*3",
+   "J": "+J189*3",
+   "K": "+J192",
+   "source": "SUTM!B192",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 193,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I193",
+   "I": "+I189*4",
+   "J": "+J189*4",
+   "K": "+J193",
+   "source": "SUTM!B193",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 194,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I194",
+   "I": "+I189*3",
+   "J": "+J189*3",
+   "K": "+J194",
+   "source": "SUTM!B194",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 195,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I195",
+   "I": "+I189*2",
+   "J": "+J189*2",
+   "K": "+J195",
+   "source": "SUTM!B195",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 196,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I196",
+   "I": "+I189",
+   "J": "+J189",
+   "K": "+J196",
+   "source": "SUTM!B196",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 197,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I197",
+   "I": "+I196",
+   "J": "+J196",
+   "K": "+J197",
+   "source": "SUTM!B197",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 198,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I198",
+   "I": "+I189*(6+18)",
+   "J": "+J189*(6+18)",
+   "K": "+J198",
+   "source": "SUTM!B198",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 199,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I199",
+   "I": "+I189*3",
+   "J": "+J189*3",
+   "K": "+J199",
+   "source": "SUTM!B199",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 200,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I200",
+   "I": "+I189*4",
+   "J": "+J189*4",
+   "K": "+J200",
+   "source": "SUTM!B200",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 201,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I201",
+   "I": "+I189*3",
+   "J": "+J189*3",
+   "K": "+J201",
+   "source": "SUTM!B201",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 202,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I202",
+   "I": "+I200",
+   "J": "+J200",
+   "K": "+J202",
+   "source": "SUTM!B202",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 203,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I203",
+   "I": "+I189",
+   "J": "+J189",
+   "K": "+J203",
+   "source": "SUTM!B203",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 204,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I204",
+   "I": "+I189*3",
+   "J": "+J189*3",
+   "K": "+J204",
+   "source": "SUTM!B204",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 205,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I205",
+   "I": "+I204",
+   "J": "+J204",
+   "K": "+J205",
+   "source": "SUTM!B205",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 206,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I206",
+   "I": "+I189*2",
+   "J": "+J189*2",
+   "K": "+J206",
+   "source": "SUTM!B206",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 208,
+   "khs_code": null,
+   "description": "Konstruksi TM 8A",
+   "H": "+I208",
+   "I": "+GAMBAR!U24",
+   "J": "+GAMBAR!V24",
+   "K": "+J208",
+   "source": "SUTM!B208",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 209,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I209",
+   "I": "+I208*2",
+   "J": "+J208*2",
+   "K": "+J209",
+   "source": "SUTM!B209",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 210,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I210",
+   "I": "+I208*2",
+   "J": "+J208*2",
+   "K": "+J210",
+   "source": "SUTM!B210",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 211,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I211",
+   "I": "+I208*4",
+   "J": "+J208*4",
+   "K": "+J211",
+   "source": "SUTM!B211",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 212,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I212",
+   "I": "+I208*5",
+   "J": "+J208*5",
+   "K": "+J212",
+   "source": "SUTM!B212",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 213,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I213",
+   "I": "+I208*2",
+   "J": "+J208*2",
+   "K": "+J213",
+   "source": "SUTM!B213",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 214,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I214",
+   "I": "+I208*2",
+   "J": "+J208*2",
+   "K": "+J214",
+   "source": "SUTM!B214",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 215,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I215",
+   "I": "+I208",
+   "J": "+J208",
+   "K": "+J215",
+   "source": "SUTM!B215",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 216,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I216",
+   "I": "+I208",
+   "J": "+J208",
+   "K": "+J216",
+   "source": "SUTM!B216",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 217,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I217",
+   "I": "+I208*(18+8)",
+   "J": "+J208*(18+8)",
+   "K": "+J217",
+   "source": "SUTM!B217",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 218,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I218",
+   "I": "+I208*3",
+   "J": "+J208*3",
+   "K": "+J218",
+   "source": "SUTM!B218",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 219,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I219",
+   "I": "+I208*7",
+   "J": "+J208*7",
+   "K": "+J219",
+   "source": "SUTM!B219",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 220,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I220",
+   "I": "+I208*3",
+   "J": "+J208*3",
+   "K": "+J220",
+   "source": "SUTM!B220",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 221,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I221",
+   "I": "+I208",
+   "J": "+J208",
+   "K": "+J221",
+   "source": "SUTM!B221",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 222,
+   "khs_code": 385,
+   "description": "Preformed Side Tie Double 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I222",
+   "I": "+I208*3",
+   "J": "+J208*3",
+   "K": "+J222",
+   "source": "SUTM!B222",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 223,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I223",
+   "I": "+I208",
+   "J": "+J208",
+   "K": "+J223",
+   "source": "SUTM!B223",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 224,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I224",
+   "I": "+I208*3",
+   "J": "+J208*3",
+   "K": "+J224",
+   "source": "SUTM!B224",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 225,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I225",
+   "I": "+I224",
+   "J": "+J224",
+   "K": "+J225",
+   "source": "SUTM!B225",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 226,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I226",
+   "I": "+I208*2",
+   "J": "+J208*2",
+   "K": "+J226",
+   "source": "SUTM!B226",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 228,
+   "khs_code": null,
+   "description": "Konstruksi TM 8X",
+   "H": "+I228",
+   "I": "+GAMBAR!U25",
+   "J": "+GAMBAR!V25",
+   "K": "+J228",
+   "source": "SUTM!B228",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 229,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I229",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J229",
+   "source": "SUTM!B229",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 230,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I230",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J230",
+   "source": "SUTM!B230",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 231,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I231",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J231",
+   "source": "SUTM!B231",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 232,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I232",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J232",
+   "source": "SUTM!B232",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 233,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I233",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J233",
+   "source": "SUTM!B233",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 234,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I234",
+   "I": "+I228",
+   "J": "+J228",
+   "K": "+J234",
+   "source": "SUTM!B234",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 235,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I235",
+   "I": "+I228",
+   "J": "+J228",
+   "K": "+J235",
+   "source": "SUTM!B235",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 236,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I236",
+   "I": "+I228*18",
+   "J": "+J228*18",
+   "K": "+J236",
+   "source": "SUTM!B236",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 237,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I237",
+   "I": "+I228*3",
+   "J": "+J228*3",
+   "K": "+J237",
+   "source": "SUTM!B237",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 238,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I238",
+   "I": "+I228",
+   "J": "+J228",
+   "K": "+J238",
+   "source": "SUTM!B238",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 239,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I239",
+   "I": "+I228*3",
+   "J": "+J228*3",
+   "K": "+J239",
+   "source": "SUTM!B239",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 240,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I240",
+   "I": "+I238",
+   "J": "+J238",
+   "K": "+J240",
+   "source": "SUTM!B240",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 241,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I241",
+   "I": "+I228",
+   "J": "+J228",
+   "K": "+J241",
+   "source": "SUTM!B241",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 242,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I242",
+   "I": "+I241*3",
+   "J": "+J241*3",
+   "K": "+J242",
+   "source": "SUTM!B242",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 243,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I243",
+   "I": "+I242",
+   "J": "+J242",
+   "K": "+J243",
+   "source": "SUTM!B243",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 244,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I244",
+   "I": "+I228*2",
+   "J": "+J228*2",
+   "K": "+J244",
+   "source": "SUTM!B244",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 246,
+   "khs_code": null,
+   "description": "Konstruksi TM 8C",
+   "H": "+I246",
+   "I": "+GAMBAR!U26",
+   "J": "+GAMBAR!V26",
+   "K": "+J246",
+   "source": "SUTM!B246",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 247,
+   "khs_code": 117,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tumpu",
+   "H": "+I247",
+   "I": "+I246",
+   "J": "+J246",
+   "K": "+J247",
+   "source": "SUTM!B247",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 248,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I248",
+   "I": "+I246*2",
+   "J": "+J246*2",
+   "K": "+J248",
+   "source": "SUTM!B248",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 249,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I249",
+   "I": "+I246*3",
+   "J": "+J246*3",
+   "K": "+J249",
+   "source": "SUTM!B249",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 250,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I250",
+   "I": "+I246*4",
+   "J": "+J246*4",
+   "K": "+J250",
+   "source": "SUTM!B250",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 251,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I251",
+   "I": "+I246*3",
+   "J": "+J246*3",
+   "K": "+J251",
+   "source": "SUTM!B251",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 252,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I252",
+   "I": "+I246*2",
+   "J": "+J246*2",
+   "K": "+J252",
+   "source": "SUTM!B252",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 253,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I253",
+   "I": "+I246",
+   "J": "+J246",
+   "K": "+J253",
+   "source": "SUTM!B253",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 254,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I254",
+   "I": "+I246",
+   "J": "+J246",
+   "K": "+J254",
+   "source": "SUTM!B254",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 255,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I255",
+   "I": "+I246*(18+6)",
+   "J": "+J246*(18+6)",
+   "K": "+J255",
+   "source": "SUTM!B255",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 256,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I256",
+   "I": "+I246*3",
+   "J": "+J246*3",
+   "K": "+J256",
+   "source": "SUTM!B256",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 257,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I257",
+   "I": "+I246",
+   "J": "+J246",
+   "K": "+J257",
+   "source": "SUTM!B257",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 258,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I258",
+   "I": "+I246*3",
+   "J": "+J246*3",
+   "K": "+J258",
+   "source": "SUTM!B258",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 259,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I259",
+   "I": "+I257",
+   "J": "+J257",
+   "K": "+J259",
+   "source": "SUTM!B259",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 260,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I260",
+   "I": "+I246",
+   "J": "+J246",
+   "K": "+J260",
+   "source": "SUTM!B260",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 261,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I261",
+   "I": "+I260*3",
+   "J": "+J260*3",
+   "K": "+J261",
+   "source": "SUTM!B261",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 262,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I262",
+   "I": "+I261",
+   "J": "+J261",
+   "K": "+J262",
+   "source": "SUTM!B262",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 263,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I263",
+   "I": "+I246*2",
+   "J": "+J246*2",
+   "K": "+J263",
+   "source": "SUTM!B263",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 264,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I264",
+   "I": "+I246*3",
+   "J": "+J246*3",
+   "K": "+J264",
+   "source": "SUTM!B264",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 265,
+   "khs_code": 472,
+   "description": "Terminal Lug 150 mm - Al / Cu 1 Hole",
+   "H": "+I265",
+   "I": "+I246*6",
+   "J": "+J246*6",
+   "K": "+J265",
+   "source": "SUTM!B265",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 267,
+   "khs_code": null,
+   "description": "Konstruksi TM 8XC",
+   "H": "+I267",
+   "I": "+GAMBAR!U27",
+   "J": "+GAMBAR!V27",
+   "K": "+J267",
+   "source": "SUTM!B267",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 268,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I268",
+   "I": "+I267*2",
+   "J": "+J267*2",
+   "K": "+J268",
+   "source": "SUTM!B268",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 269,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I269",
+   "I": "+I267*2",
+   "J": "+J267*2",
+   "K": "+J269",
+   "source": "SUTM!B269",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 270,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I270",
+   "I": "+I267*2",
+   "J": "+J267*2",
+   "K": "+J270",
+   "source": "SUTM!B270",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 271,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I271",
+   "I": "+I267*2",
+   "J": "+J267*2",
+   "K": "+J271",
+   "source": "SUTM!B271",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 272,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I272",
+   "I": "+I267*2",
+   "J": "+J267*2",
+   "K": "+J272",
+   "source": "SUTM!B272",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 273,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I273",
+   "I": "+I267",
+   "J": "+J267",
+   "K": "+J273",
+   "source": "SUTM!B273",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 274,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I274",
+   "I": "+I267",
+   "J": "+J267",
+   "K": "+J274",
+   "source": "SUTM!B274",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 275,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I275",
+   "I": "+I267*18",
+   "J": "+J267*18",
+   "K": "+J275",
+   "source": "SUTM!B275",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 276,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I276",
+   "I": "+I267*3",
+   "J": "+J267*3",
+   "K": "+J276",
+   "source": "SUTM!B276",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 277,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I277",
+   "I": "+I267",
+   "J": "+J267",
+   "K": "+J277",
+   "source": "SUTM!B277",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 278,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I278",
+   "I": "+I267*3",
+   "J": "+J267*3",
+   "K": "+J278",
+   "source": "SUTM!B278",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 279,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I279",
+   "I": "+I277",
+   "J": "+J277",
+   "K": "+J279",
+   "source": "SUTM!B279",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 280,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I280",
+   "I": "+I267",
+   "J": "+J267",
+   "K": "+J280",
+   "source": "SUTM!B280",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 281,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I281",
+   "I": "+I267*3",
+   "J": "+J267*3",
+   "K": "+J281",
+   "source": "SUTM!B281",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 282,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I282",
+   "I": "+I281",
+   "J": "+J281",
+   "K": "+J282",
+   "source": "SUTM!B282",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 283,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I283",
+   "I": "+I267*2",
+   "J": "+J267*2",
+   "K": "+J283",
+   "source": "SUTM!B283",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 284,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I284",
+   "I": "+I267*3",
+   "J": "+J267*3",
+   "K": "+J284",
+   "source": "SUTM!B284",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 285,
+   "khs_code": 472,
+   "description": "Terminal Lug 150 mm - Al / Cu 1 Hole",
+   "H": "+I285",
+   "I": "+I267*6",
+   "J": "+J267*6",
+   "K": "+J285",
+   "source": "SUTM!B285",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 287,
+   "khs_code": null,
+   "description": "Konstruksi TM 10",
+   "H": "+I287",
+   "I": "+GAMBAR!U28",
+   "J": "+GAMBAR!V28",
+   "K": "+J287",
+   "source": "SUTM!B287",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 288,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I288",
+   "I": "+I287*4",
+   "J": "+J287*4",
+   "K": "+J288",
+   "source": "SUTM!B288",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 289,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I289",
+   "I": "+I287*4",
+   "J": "+J287*4",
+   "K": "+J289",
+   "source": "SUTM!B289",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 290,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I290",
+   "I": "+I287*6",
+   "J": "+J287*6",
+   "K": "+J290",
+   "source": "SUTM!B290",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 291,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I291",
+   "I": "+I287*2",
+   "J": "+J287*2",
+   "K": "+J291",
+   "source": "SUTM!B291",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 292,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I292",
+   "I": "+I287*2",
+   "J": "+J287*2",
+   "K": "+J292",
+   "source": "SUTM!B292",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 293,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I293",
+   "I": "+I287",
+   "J": "+J287",
+   "K": "+J293",
+   "source": "SUTM!B293",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 294,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I294",
+   "I": "+I287",
+   "J": "+J287",
+   "K": "+J294",
+   "source": "SUTM!B294",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 295,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I295",
+   "I": "+I287*(12+18)",
+   "J": "+J287*(12+18)",
+   "K": "+J295",
+   "source": "SUTM!B295",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 296,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I296",
+   "I": "+I287*3",
+   "J": "+J287*3",
+   "K": "+J296",
+   "source": "SUTM!B296",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 297,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I297",
+   "I": "+I287*2",
+   "J": "+J287*2",
+   "K": "+J297",
+   "source": "SUTM!B297",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 298,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I298",
+   "I": "+I287*6",
+   "J": "+J287*6",
+   "K": "+J298",
+   "source": "SUTM!B298",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 299,
+   "khs_code": 384,
+   "description": "Preformed Side Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I299",
+   "I": "+I297",
+   "J": "+J297",
+   "K": "+J299",
+   "source": "SUTM!B299",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 300,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I300",
+   "I": "+I287",
+   "J": "+J287",
+   "K": "+J300",
+   "source": "SUTM!B300",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 301,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I301",
+   "I": "+I287*2",
+   "J": "+J287*2",
+   "K": "+J301",
+   "source": "SUTM!B301",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 302,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I302",
+   "I": "+I301",
+   "J": "+J301",
+   "K": "+J302",
+   "source": "SUTM!B302",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 303,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I303",
+   "I": "+I287",
+   "J": "+J287",
+   "K": "+J303",
+   "source": "SUTM!B303",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 305,
+   "khs_code": null,
+   "description": "Konstruksi TM 10X",
+   "H": "+I305",
+   "I": "+GAMBAR!U29",
+   "J": "+GAMBAR!V29",
+   "K": "+J305",
+   "source": "SUTM!B305",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 306,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I306",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J306",
+   "source": "SUTM!B306",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 307,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I307",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J307",
+   "source": "SUTM!B307",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 308,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I308",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J308",
+   "source": "SUTM!B308",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 309,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I309",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J309",
+   "source": "SUTM!B309",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 310,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I310",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J310",
+   "source": "SUTM!B310",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 311,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I311",
+   "I": "+I305",
+   "J": "+J305",
+   "K": "+J311",
+   "source": "SUTM!B311",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 312,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I312",
+   "I": "+I305",
+   "J": "+J305",
+   "K": "+J312",
+   "source": "SUTM!B312",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 313,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I313",
+   "I": "+I305*18",
+   "J": "+J305*18",
+   "K": "+J313",
+   "source": "SUTM!B313",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 314,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I314",
+   "I": "+I305*3",
+   "J": "+J305*3",
+   "K": "+J314",
+   "source": "SUTM!B314",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 315,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I315",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J315",
+   "source": "SUTM!B315",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 316,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I316",
+   "I": "+I305*3",
+   "J": "+J305*3",
+   "K": "+J316",
+   "source": "SUTM!B316",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 317,
+   "khs_code": 384,
+   "description": "Preformed Side Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I317",
+   "I": "+I315",
+   "J": "+J315",
+   "K": "+J317",
+   "source": "SUTM!B317",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 318,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I318",
+   "I": "+I305",
+   "J": "+J305",
+   "K": "+J318",
+   "source": "SUTM!B318",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 319,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I319",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J319",
+   "source": "SUTM!B319",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 320,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I320",
+   "I": "+I319",
+   "J": "+J319",
+   "K": "+J320",
+   "source": "SUTM!B320",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 321,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I321",
+   "I": "+I305*2",
+   "J": "+J305*2",
+   "K": "+J321",
+   "source": "SUTM!B321",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 323,
+   "khs_code": null,
+   "description": "Konstruksi TM 10C",
+   "H": "+I323",
+   "I": "+GAMBAR!U30",
+   "J": "+GAMBAR!V30",
+   "K": "+J323",
+   "source": "SUTM!B323",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 324,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I324",
+   "I": "+I323*4",
+   "J": "+J323*4",
+   "K": "+J324",
+   "source": "SUTM!B324",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 325,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I325",
+   "I": "+I323*4",
+   "J": "+J323*4",
+   "K": "+J325",
+   "source": "SUTM!B325",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 326,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I326",
+   "I": "+I323*6",
+   "J": "+J323*6",
+   "K": "+J326",
+   "source": "SUTM!B326",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 327,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I327",
+   "I": "+I323*2",
+   "J": "+J323*2",
+   "K": "+J327",
+   "source": "SUTM!B327",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 328,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I328",
+   "I": "+I323*2",
+   "J": "+J323*2",
+   "K": "+J328",
+   "source": "SUTM!B328",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 329,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I329",
+   "I": "+I323",
+   "J": "+J323",
+   "K": "+J329",
+   "source": "SUTM!B329",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 330,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I330",
+   "I": "+I323",
+   "J": "+J323",
+   "K": "+J330",
+   "source": "SUTM!B330",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 331,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I331",
+   "I": "+I323*(12+18)",
+   "J": "+J323*(12+18)",
+   "K": "+J331",
+   "source": "SUTM!B331",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 332,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I332",
+   "I": "+I323*2",
+   "J": "+J323*2",
+   "K": "+J332",
+   "source": "SUTM!B332",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 333,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I333",
+   "I": "+I323*6",
+   "J": "+J323*6",
+   "K": "+J333",
+   "source": "SUTM!B333",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 334,
+   "khs_code": 384,
+   "description": "Preformed Side Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I334",
+   "I": "+I332",
+   "J": "+J332",
+   "K": "+J334",
+   "source": "SUTM!B334",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 335,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I335",
+   "I": "+I323",
+   "J": "+J323",
+   "K": "+J335",
+   "source": "SUTM!B335",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 336,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I336",
+   "I": "+I323*2",
+   "J": "+J323*2",
+   "K": "+J336",
+   "source": "SUTM!B336",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 337,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I337",
+   "I": "+I336",
+   "J": "+J336",
+   "K": "+J337",
+   "source": "SUTM!B337",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 338,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I338",
+   "I": "+I323*3",
+   "J": "+J323*3",
+   "K": "+J338",
+   "source": "SUTM!B338",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 339,
+   "khs_code": 472,
+   "description": "Terminal Lug 150 mm - Al / Cu 1 Hole",
+   "H": "+I339",
+   "I": "+I338*2",
+   "J": "+J338*2",
+   "K": "+J339",
+   "source": "SUTM!B339",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 340,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I340",
+   "I": "+I323",
+   "J": "+J323",
+   "K": "+J340",
+   "source": "SUTM!B340",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 342,
+   "khs_code": null,
+   "description": "Konstruksi TM 10XC",
+   "H": "+I342",
+   "I": "GAMBAR!$U$37",
+   "J": "GAMBAR!$V$37",
+   "K": "+J342",
+   "source": "SUTM!B342",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 343,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I343",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J343",
+   "source": "SUTM!B343",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 344,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I344",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J344",
+   "source": "SUTM!B344",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 345,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I345",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J345",
+   "source": "SUTM!B345",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 346,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I346",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J346",
+   "source": "SUTM!B346",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 347,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I347",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J347",
+   "source": "SUTM!B347",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 348,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I348",
+   "I": "+I342",
+   "J": "+J342",
+   "K": "+J348",
+   "source": "SUTM!B348",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 349,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I349",
+   "I": "+I342",
+   "J": "+J342",
+   "K": "+J349",
+   "source": "SUTM!B349",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 350,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I350",
+   "I": "+I342*18",
+   "J": "+J342*18",
+   "K": "+J350",
+   "source": "SUTM!B350",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 351,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I351",
+   "I": "+I342*3",
+   "J": "+J342*3",
+   "K": "+J351",
+   "source": "SUTM!B351",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 352,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I352",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J352",
+   "source": "SUTM!B352",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 353,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I353",
+   "I": "+I342*3",
+   "J": "+J342*3",
+   "K": "+J353",
+   "source": "SUTM!B353",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 354,
+   "khs_code": 384,
+   "description": "Preformed Side Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I354",
+   "I": "+I352",
+   "J": "+J352",
+   "K": "+J354",
+   "source": "SUTM!B354",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 355,
+   "khs_code": 166,
+   "description": "Ground Wire Clamp Type C - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I355",
+   "I": "+I342",
+   "J": "+J342",
+   "K": "+J355",
+   "source": "SUTM!B355",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 356,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I356",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J356",
+   "source": "SUTM!B356",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 357,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I357",
+   "I": "+I356",
+   "J": "+J356",
+   "K": "+J357",
+   "source": "SUTM!B357",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 358,
+   "khs_code": 512,
+   "description": "Wire Clip M10 (Ø 35mm)",
+   "H": "+I358",
+   "I": "+I342*2",
+   "J": "+J342*2",
+   "K": "+J358",
+   "source": "SUTM!B358",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 359,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I359",
+   "I": "+I342*3",
+   "J": "+J342*3",
+   "K": "+J359",
+   "source": "SUTM!B359",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 360,
+   "khs_code": 472,
+   "description": "Terminal Lug 150 mm - Al / Cu 1 Hole",
+   "H": "+I360",
+   "I": "+I359*2",
+   "J": "+J359*2",
+   "K": "+J360",
+   "source": "SUTM!B360",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 362,
+   "khs_code": null,
+   "description": "Konstruksi TM 11",
+   "H": "+I362",
+   "I": "+GAMBAR!U32",
+   "J": "+GAMBAR!V32",
+   "K": "+J362",
+   "source": "SUTM!B362",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 363,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I363",
+   "I": "+I362*4",
+   "J": "+J362*4",
+   "K": "+J363",
+   "source": "SUTM!B363",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 364,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I364",
+   "I": "+I362*4",
+   "J": "+J362*4",
+   "K": "+J364",
+   "source": "SUTM!B364",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 365,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I365",
+   "I": "+I362",
+   "J": "+J362",
+   "K": "+J365",
+   "source": "SUTM!B365",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 366,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I366",
+   "I": "+I362*6",
+   "J": "+J362*6",
+   "K": "+J366",
+   "source": "SUTM!B366",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 367,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I367",
+   "I": "+I362*(2+6+9)",
+   "J": "+J362*(2+6+9)",
+   "K": "+J367",
+   "source": "SUTM!B367",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 368,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I368",
+   "I": "+I362*2",
+   "J": "+J362*2",
+   "K": "+J368",
+   "source": "SUTM!B368",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 369,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I369",
+   "I": "+I362*(12+18+12+18)",
+   "J": "+J362*(12+18+12+18)",
+   "K": "+J369",
+   "source": "SUTM!B369",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 370,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I370",
+   "I": "+I362*3",
+   "J": "+J362*3",
+   "K": "+J370",
+   "source": "SUTM!B370",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 371,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I371",
+   "I": "+I362",
+   "J": "+J362",
+   "K": "+J371",
+   "source": "SUTM!B371",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 372,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I372",
+   "I": "+I362",
+   "J": "+J362",
+   "K": "+J372",
+   "source": "SUTM!B372",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 373,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I373",
+   "I": "+I372",
+   "J": "+J372",
+   "K": "+J373",
+   "source": "SUTM!B373",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 374,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I374",
+   "I": "+I362*3",
+   "J": "+J362*3",
+   "K": "+J374",
+   "source": "SUTM!B374",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 375,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I375",
+   "I": "+I362*3",
+   "J": "+J362*3",
+   "K": "+J375",
+   "source": "SUTM!B375",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 376,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I376",
+   "I": "+I362*3",
+   "J": "+J362*3",
+   "K": "+J376",
+   "source": "SUTM!B376",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 377,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I377",
+   "I": "+I362*9",
+   "J": "+J362*9",
+   "K": "+J377",
+   "source": "SUTM!B377",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 378,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I378",
+   "I": "+I362*6",
+   "J": "+J362*6",
+   "K": "+J378",
+   "source": "SUTM!B378",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 379,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I379",
+   "I": "+I362",
+   "J": "+J362",
+   "K": "+J379",
+   "source": "SUTM!B379",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 380,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I380",
+   "I": "+I379",
+   "J": "+J379",
+   "K": "+J380",
+   "source": "SUTM!B380",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 381,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I381",
+   "I": "+I380",
+   "J": "+J380",
+   "K": "+J381",
+   "source": "SUTM!B381",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 382,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I382",
+   "I": "+I381",
+   "J": "+J381",
+   "K": "+J382",
+   "source": "SUTM!B382",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 383,
+   "khs_code": 34,
+   "description": "Begel klem 3/4\" u/ kabel",
+   "H": "+I383",
+   "I": "+I362*3",
+   "J": "+J362*3",
+   "K": "+J383",
+   "source": "SUTM!B383",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 384,
+   "khs_code": 217,
+   "description": "Line Tap Connector Al 150 - 50 mm type G",
+   "H": "+I384",
+   "I": "+I362*3",
+   "J": "+J362*3",
+   "K": "+J384",
+   "source": "SUTM!B384",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 385,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I385",
+   "I": "+I362",
+   "J": "+J362",
+   "K": "+J385",
+   "source": "SUTM!B385",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 386,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I386",
+   "I": "+I362",
+   "J": "+J362",
+   "K": "+J386",
+   "source": "SUTM!B386",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 387,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+H362",
+   "I": "+I362",
+   "J": "+J362",
+   "K": "+K362",
+   "source": "SUTM!B387",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 389,
+   "khs_code": null,
+   "description": "Konstruksi TM 11X",
+   "H": "+I389",
+   "I": "+GAMBAR!U33",
+   "J": "+GAMBAR!V33",
+   "K": "+J389",
+   "source": "SUTM!B389",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 390,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I390",
+   "I": "+I389*2",
+   "J": "+J389*2",
+   "K": "+J390",
+   "source": "SUTM!B390",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 391,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I391",
+   "I": "+I389*2",
+   "J": "+J389*2",
+   "K": "+J391",
+   "source": "SUTM!B391",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 392,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I392",
+   "I": "+I389*2",
+   "J": "+J389*2",
+   "K": "+J392",
+   "source": "SUTM!B392",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 393,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I393",
+   "I": "+I389*(2+6+9)",
+   "J": "+J389*(2+6+9)",
+   "K": "+J393",
+   "source": "SUTM!B393",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 394,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I394",
+   "I": "+I389*2",
+   "J": "+J389*2",
+   "K": "+J394",
+   "source": "SUTM!B394",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 395,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I395",
+   "I": "+I389*(18+12+18)",
+   "J": "+J389*(18+12+18)",
+   "K": "+J395",
+   "source": "SUTM!B395",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 396,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I396",
+   "I": "+I389*3",
+   "J": "+J389*3",
+   "K": "+J396",
+   "source": "SUTM!B396",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 397,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I397",
+   "I": "+I389*3",
+   "J": "+J389*3",
+   "K": "+J397",
+   "source": "SUTM!B397",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 398,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I398",
+   "I": "+I389*3",
+   "J": "+J389*3",
+   "K": "+J398",
+   "source": "SUTM!B398",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 399,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I399",
+   "I": "+I389*9",
+   "J": "+J389*9",
+   "K": "+J399",
+   "source": "SUTM!B399",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 400,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I400",
+   "I": "+I389*6",
+   "J": "+J389*6",
+   "K": "+J400",
+   "source": "SUTM!B400",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 401,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I401",
+   "I": "+I389",
+   "J": "+J389",
+   "K": "+J401",
+   "source": "SUTM!B401",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 402,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I402",
+   "I": "+I401",
+   "J": "+J401",
+   "K": "+J402",
+   "source": "SUTM!B402",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 403,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I403",
+   "I": "+I402",
+   "J": "+J402",
+   "K": "+J403",
+   "source": "SUTM!B403",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 404,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I404",
+   "I": "+I403",
+   "J": "+J403",
+   "K": "+J404",
+   "source": "SUTM!B404",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 405,
+   "khs_code": 34,
+   "description": "Begel klem 3/4\" u/ kabel",
+   "H": "+I405",
+   "I": "+I389*3",
+   "J": "+J389*3",
+   "K": "+J405",
+   "source": "SUTM!B405",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 406,
+   "khs_code": 217,
+   "description": "Line Tap Connector Al 150 - 50 mm type G",
+   "H": "+I406",
+   "I": "+I389*3",
+   "J": "+J389*3",
+   "K": "+J406",
+   "source": "SUTM!B406",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 407,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "+I407",
+   "I": "+I389*3",
+   "J": "+J389*3",
+   "K": "+J407",
+   "source": "SUTM!B407",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 408,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I408",
+   "I": "+I389*3",
+   "J": "+J389*3",
+   "K": "+J408",
+   "source": "SUTM!B408",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 409,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I409",
+   "I": "+I389",
+   "J": "+J389",
+   "K": "+J409",
+   "source": "SUTM!B409",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 410,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I410",
+   "I": "+I389",
+   "J": "+J389",
+   "K": "+J410",
+   "source": "SUTM!B410",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 411,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+H389",
+   "I": "+I389",
+   "J": "+J389",
+   "K": "+K389",
+   "source": "SUTM!B411",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 413,
+   "khs_code": null,
+   "description": "Konstruksi TM 11C",
+   "H": "+I413",
+   "I": "+GAMBAR!U34",
+   "J": "+GAMBAR!V34",
+   "K": "+J413",
+   "source": "SUTM!B413",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 414,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I414",
+   "I": "+I413*4",
+   "J": "+J413*4",
+   "K": "+J414",
+   "source": "SUTM!B414",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 415,
+   "khs_code": 125,
+   "description": "Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I415",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+J415",
+   "source": "SUTM!B415",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 416,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I416",
+   "I": "+I413*4",
+   "J": "+J413*4",
+   "K": "+J416",
+   "source": "SUTM!B416",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 417,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I417",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+J417",
+   "source": "SUTM!B417",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 418,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I418",
+   "I": "+I413*6",
+   "J": "+J413*6",
+   "K": "+J418",
+   "source": "SUTM!B418",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 419,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I419",
+   "I": "+I413*(12+12+2+18)",
+   "J": "+J413*(12+12+2+18)",
+   "K": "+J419",
+   "source": "SUTM!B419",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 420,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I420",
+   "I": "+I413*3",
+   "J": "+J413*3",
+   "K": "+J420",
+   "source": "SUTM!B420",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 421,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I421",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+J421",
+   "source": "SUTM!B421",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 422,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I422",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+J422",
+   "source": "SUTM!B422",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 423,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I423",
+   "I": "+I422",
+   "J": "+J422",
+   "K": "+J423",
+   "source": "SUTM!B423",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 424,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I424",
+   "I": "+I413*3",
+   "J": "+J413*3",
+   "K": "+J424",
+   "source": "SUTM!B424",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 425,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I425",
+   "I": "+I413*3",
+   "J": "+J413*3",
+   "K": "+J425",
+   "source": "SUTM!B425",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 426,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I426",
+   "I": "+I413*3",
+   "J": "+J413*3",
+   "K": "+J426",
+   "source": "SUTM!B426",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 427,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I427",
+   "I": "+I413*12",
+   "J": "+J413*12",
+   "K": "+J427",
+   "source": "SUTM!B427",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 428,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I428",
+   "I": "+I413*6",
+   "J": "+J413*6",
+   "K": "+J428",
+   "source": "SUTM!B428",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 429,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I429",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+J429",
+   "source": "SUTM!B429",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 430,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I430",
+   "I": "+I429",
+   "J": "+J429",
+   "K": "+J430",
+   "source": "SUTM!B430",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 431,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I431",
+   "I": "+I430",
+   "J": "+J430",
+   "K": "+J431",
+   "source": "SUTM!B431",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 432,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I432",
+   "I": "+I431",
+   "J": "+J431",
+   "K": "+J432",
+   "source": "SUTM!B432",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 433,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I433",
+   "I": "+(I432+I431+I430)*3",
+   "J": "+(J432+J431+J430)*3",
+   "K": "+J433",
+   "source": "SUTM!B433",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 434,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I434",
+   "I": "+I413*3",
+   "J": "+J413*3",
+   "K": "+J434",
+   "source": "SUTM!B434",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 435,
+   "khs_code": 407,
+   "description": "Single Arm Band 9\" (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I435",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+J435",
+   "source": "SUTM!B435",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 436,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I436",
+   "I": "+I435",
+   "J": "+J435",
+   "K": "+J436",
+   "source": "SUTM!B436",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 437,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+H413",
+   "I": "+I413",
+   "J": "+J413",
+   "K": "+K413",
+   "source": "SUTM!B437",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 439,
+   "khs_code": null,
+   "description": "Konstruksi TM 11XC",
+   "H": "+I439",
+   "I": "+GAMBAR!U35",
+   "J": "+GAMBAR!V35",
+   "K": "+J439",
+   "source": "SUTM!B439",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 440,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I440",
+   "I": "+I439*2",
+   "J": "+J439*2",
+   "K": "+J440",
+   "source": "SUTM!B440",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 441,
+   "khs_code": 125,
+   "description": "Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I441",
+   "I": "+I439",
+   "J": "+J439",
+   "K": "+J441",
+   "source": "SUTM!B441",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 442,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I442",
+   "I": "+I439*2",
+   "J": "+J439*2",
+   "K": "+J442",
+   "source": "SUTM!B442",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 443,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I443",
+   "I": "+I439*2",
+   "J": "+J439*2",
+   "K": "+J443",
+   "source": "SUTM!B443",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 444,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I444",
+   "I": "+I439*(12+2+18)",
+   "J": "+J439*(12+2+18)",
+   "K": "+J444",
+   "source": "SUTM!B444",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 445,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I445",
+   "I": "+I439*3",
+   "J": "+J439*3",
+   "K": "+J445",
+   "source": "SUTM!B445",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 446,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I446",
+   "I": "+I439*3",
+   "J": "+J439*3",
+   "K": "+J446",
+   "source": "SUTM!B446",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 447,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I447",
+   "I": "+I439*3",
+   "J": "+J439*3",
+   "K": "+J447",
+   "source": "SUTM!B447",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 448,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I448",
+   "I": "+I439*12",
+   "J": "+J439*12",
+   "K": "+J448",
+   "source": "SUTM!B448",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 449,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I449",
+   "I": "+I439*6",
+   "J": "+J439*6",
+   "K": "+J449",
+   "source": "SUTM!B449",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 450,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I450",
+   "I": "+I439",
+   "J": "+J439",
+   "K": "+J450",
+   "source": "SUTM!B450",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 451,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I451",
+   "I": "+I450",
+   "J": "+J450",
+   "K": "+J451",
+   "source": "SUTM!B451",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 452,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I452",
+   "I": "+I451",
+   "J": "+J451",
+   "K": "+J452",
+   "source": "SUTM!B452",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 453,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I453",
+   "I": "+I452",
+   "J": "+J452",
+   "K": "+J453",
+   "source": "SUTM!B453",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 454,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I454",
+   "I": "+(I453+I452+I451)*3",
+   "J": "+(J453+J452+J451)*3",
+   "K": "+J454",
+   "source": "SUTM!B454",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 455,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "+I455",
+   "I": "+I439*3",
+   "J": "+J439*3",
+   "K": "+J455",
+   "source": "SUTM!B455",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 456,
+   "khs_code": 407,
+   "description": "Single Arm Band 9\" (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I456",
+   "I": "+I439",
+   "J": "+J439",
+   "K": "+J456",
+   "source": "SUTM!B456",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 457,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I457",
+   "I": "+I456",
+   "J": "+J456",
+   "K": "+J457",
+   "source": "SUTM!B457",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 458,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "+I458",
+   "I": "+I439*3",
+   "J": "+J439*3",
+   "K": "+J458",
+   "source": "SUTM!B458",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 459,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I459",
+   "I": "+I439*3",
+   "J": "+J439*3",
+   "K": "+J459",
+   "source": "SUTM!B459",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 460,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+H439",
+   "I": "+I439",
+   "J": "+J439",
+   "K": "+K439",
+   "source": "SUTM!B460",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 462,
+   "khs_code": null,
+   "description": "Konstruksi TM 11DS",
+   "H": "+I462",
+   "I": "+GAMBAR!U36",
+   "J": "+GAMBAR!V36",
+   "K": "+J462",
+   "source": "SUTM!B462",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 463,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I463",
+   "I": "+I462*5",
+   "J": "+J462*5",
+   "K": "+J463",
+   "source": "SUTM!B463",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 464,
+   "khs_code": 125,
+   "description": "Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I464",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J464",
+   "source": "SUTM!B464",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 465,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I465",
+   "I": "+I462*4",
+   "J": "+J462*4",
+   "K": "+J465",
+   "source": "SUTM!B465",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 466,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I466",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J466",
+   "source": "SUTM!B466",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 467,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I467",
+   "I": "+I462*6",
+   "J": "+J462*6",
+   "K": "+J467",
+   "source": "SUTM!B467",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 468,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I468",
+   "I": "+I462*(12+12+2+2+18)",
+   "J": "+J462*(12+12+2+2+18)",
+   "K": "+J468",
+   "source": "SUTM!B468",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 469,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I469",
+   "I": "+I462*3",
+   "J": "+J462*3",
+   "K": "+J469",
+   "source": "SUTM!B469",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 470,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I470",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J470",
+   "source": "SUTM!B470",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 471,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I471",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J471",
+   "source": "SUTM!B471",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 472,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I472",
+   "I": "+I471",
+   "J": "+J471",
+   "K": "+J472",
+   "source": "SUTM!B472",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 473,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I473",
+   "I": "+I462*3",
+   "J": "+J462*3",
+   "K": "+J473",
+   "source": "SUTM!B473",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 474,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I474",
+   "I": "+I462*3",
+   "J": "+J462*3",
+   "K": "+J474",
+   "source": "SUTM!B474",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 475,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I475",
+   "I": "+I462*3",
+   "J": "+J462*3",
+   "K": "+J475",
+   "source": "SUTM!B475",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 476,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I476",
+   "I": "+I462*12",
+   "J": "+J462*12",
+   "K": "+J476",
+   "source": "SUTM!B476",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 477,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I477",
+   "I": "+I462*6",
+   "J": "+J462*6",
+   "K": "+J477",
+   "source": "SUTM!B477",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 478,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I478",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J478",
+   "source": "SUTM!B478",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 479,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I479",
+   "I": "+I478",
+   "J": "+J478",
+   "K": "+J479",
+   "source": "SUTM!B479",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 480,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I480",
+   "I": "+I479",
+   "J": "+J479",
+   "K": "+J480",
+   "source": "SUTM!B480",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 481,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I481",
+   "I": "+I480",
+   "J": "+J480",
+   "K": "+J481",
+   "source": "SUTM!B481",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 482,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I482",
+   "I": "+(I481+I480+I479)*3",
+   "J": "+(J481+J480+J479)*3",
+   "K": "+J482",
+   "source": "SUTM!B482",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 483,
+   "khs_code": 133,
+   "description": "Disconnecting Switch 25,8 kV - 800 A out door (3 phasa)",
+   "H": "+I483",
+   "I": "+I462*3",
+   "J": "+J462*3",
+   "K": "+J483",
+   "source": "SUTM!B483",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 484,
+   "khs_code": 407,
+   "description": "Single Arm Band 9\" (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I484",
+   "I": "+I462*2",
+   "J": "+J462*2",
+   "K": "+J484",
+   "source": "SUTM!B484",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 485,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I485",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+J485",
+   "source": "SUTM!B485",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 486,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+H462",
+   "I": "+I462",
+   "J": "+J462",
+   "K": "+K462",
+   "source": "SUTM!B486",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 488,
+   "khs_code": null,
+   "description": "Konstruksi TM 11XDS",
+   "H": "+I488",
+   "I": "+GAMBAR!U37",
+   "J": "+GAMBAR!V37",
+   "K": "+J488",
+   "source": "SUTM!B488",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 489,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I489",
+   "I": "+I488*3",
+   "J": "+J488*3",
+   "K": "+J489",
+   "source": "SUTM!B489",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 490,
+   "khs_code": 125,
+   "description": "Cross Arm UNP 80 - 2000 (l=42mm,t=3,5mm,tgg=80mm)",
+   "H": "+I490",
+   "I": "+I488",
+   "J": "+J488",
+   "K": "+J490",
+   "source": "SUTM!B490",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 491,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I491",
+   "I": "+I488*2",
+   "J": "+J488*2",
+   "K": "+J491",
+   "source": "SUTM!B491",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 492,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I492",
+   "I": "+I488*2",
+   "J": "+J488*2",
+   "K": "+J492",
+   "source": "SUTM!B492",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 493,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I493",
+   "I": "+I488*(12+2+2+18)",
+   "J": "+J488*(12+2+2+18)",
+   "K": "+J493",
+   "source": "SUTM!B493",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 494,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "+I494",
+   "I": "+I488*3",
+   "J": "+J488*3",
+   "K": "+J494",
+   "source": "SUTM!B494",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 495,
+   "khs_code": 254,
+   "description": "NYA 35 sqmm ( SPLN )",
+   "H": "+I495",
+   "I": "+I488*3",
+   "J": "+J488*3",
+   "K": "+J495",
+   "source": "SUTM!B495",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 496,
+   "khs_code": 256,
+   "description": "NYAF 35 sqmm u/ bawah Arrester ( SPLN )",
+   "H": "+I496",
+   "I": "+I488*3",
+   "J": "+J488*3",
+   "K": "+J496",
+   "source": "SUTM!B496",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 497,
+   "khs_code": 456,
+   "description": "Terminal Lug 35 mm - Cu 1 Hole",
+   "H": "+I497",
+   "I": "+I488*12",
+   "J": "+J488*12",
+   "K": "+J497",
+   "source": "SUTM!B497",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 498,
+   "khs_code": 473,
+   "description": "Terminal Lug 150 mm - Al / Cu 2 Hole",
+   "H": "+I498",
+   "I": "+I488*6",
+   "J": "+J488*6",
+   "K": "+J498",
+   "source": "SUTM!B498",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 499,
+   "khs_code": 353,
+   "description": "Pipa Galvanized 4\" - 6 meter (tebal= 3,2 mm)",
+   "H": "+I499",
+   "I": "+I488",
+   "J": "+J488",
+   "K": "+J499",
+   "source": "SUTM!B499",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 500,
+   "khs_code": 304,
+   "description": "Ornament Cabel Band 4\" x 9\" - TM",
+   "H": "+I500",
+   "I": "+I499",
+   "J": "+J499",
+   "K": "+J500",
+   "source": "SUTM!B500",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 501,
+   "khs_code": 295,
+   "description": "Ornament Cabel Band 4\" x 10\" - TM",
+   "H": "+I501",
+   "I": "+I500",
+   "J": "+J500",
+   "K": "+J501",
+   "source": "SUTM!B501",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 502,
+   "khs_code": 296,
+   "description": "Ornament Cabel Band 4\" x 11\" - TM",
+   "H": "+I502",
+   "I": "+I501",
+   "J": "+J501",
+   "K": "+J502",
+   "source": "SUTM!B502",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 503,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I503",
+   "I": "+(I502+I501+I500)*3",
+   "J": "+(J502+J501+J500)*3",
+   "K": "+J503",
+   "source": "SUTM!B503",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 504,
+   "khs_code": 133,
+   "description": "Disconnecting Switch 25,8 kV - 800 A out door (3 phasa)",
+   "H": "+I504",
+   "I": "+I488*3",
+   "J": "+J488*3",
+   "K": "+J504",
+   "source": "SUTM!B504",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 505,
+   "khs_code": 407,
+   "description": "Single Arm Band 9\" (t = 6 mm x 35 mm) HDG TR",
+   "H": "+I505",
+   "I": "+I488*2",
+   "J": "+J488*2",
+   "K": "+J505",
+   "source": "SUTM!B505",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 506,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I506",
+   "I": "+I488",
+   "J": "+J488",
+   "K": "+J506",
+   "source": "SUTM!B506",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 507,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "+I507",
+   "I": "+I488*3",
+   "J": "+J488*3",
+   "K": "+J507",
+   "source": "SUTM!B507",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 508,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I508",
+   "I": "+I488*3",
+   "J": "+J488*3",
+   "K": "+J508",
+   "source": "SUTM!B508",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 509,
+   "khs_code": 486,
+   "description": "Termination OD 3 X 150 MM2 u/XLPE",
+   "H": "+H488",
+   "I": "+I488",
+   "J": "+J488",
+   "K": "+K488",
+   "source": "SUTM!B509",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 511,
+   "khs_code": null,
+   "description": "Konstruksi TM TP2",
+   "H": "+I511",
+   "I": "+GAMBAR!U38",
+   "J": "+GAMBAR!V38",
+   "K": "+J511",
+   "source": "SUTM!B511",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 512,
+   "khs_code": 119,
+   "description": "Cross Arm UNP 100 - 3000 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I512",
+   "I": "+I511*2",
+   "J": "+J511*2",
+   "K": "+J512",
+   "source": "SUTM!B512",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 513,
+   "khs_code": 127,
+   "description": "Cross Arm UNP 80 - 3000 (l=45mm,t=3,5mm,tgg=80mm)",
+   "H": "+I513",
+   "I": "+I511",
+   "J": "+J511",
+   "K": "+J513",
+   "source": "SUTM!B513",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 514,
+   "khs_code": 18,
+   "description": "Arm Tie Type 900 - 3/4\" - (t=2,3 mm)",
+   "H": "+I514",
+   "I": "+I511*4",
+   "J": "+J511*4",
+   "K": "+J514",
+   "source": "SUTM!B514",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 515,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I515",
+   "I": "+I511*4",
+   "J": "+J511*4",
+   "K": "+J515",
+   "source": "SUTM!B515",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 516,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I516",
+   "I": "+I511*2",
+   "J": "+J511*2",
+   "K": "+J516",
+   "source": "SUTM!B516",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 517,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I517",
+   "I": "+I511*6",
+   "J": "+J511*6",
+   "K": "+J517",
+   "source": "SUTM!B517",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 518,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I518",
+   "I": "+I511*(4+16)",
+   "J": "+J511*(4+16)",
+   "K": "+J518",
+   "source": "SUTM!B518",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 519,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I519",
+   "I": "+I511*6",
+   "J": "+J511*6",
+   "K": "+J519",
+   "source": "SUTM!B519",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 520,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I520",
+   "I": "+I511*2",
+   "J": "+J511*2",
+   "K": "+J520",
+   "source": "SUTM!B520",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 521,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I521",
+   "I": "+I520",
+   "J": "+J520",
+   "K": "+J521",
+   "source": "SUTM!B521",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 522,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I522",
+   "I": "+I511*3",
+   "J": "+J511*3",
+   "K": "+J522",
+   "source": "SUTM!B522",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 523,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I523",
+   "I": "+I511",
+   "J": "+J511",
+   "K": "+J523",
+   "source": "SUTM!B523",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 524,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I524",
+   "I": "+I511*2",
+   "J": "+J511*2",
+   "K": "+J524",
+   "source": "SUTM!B524",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 525,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I525",
+   "I": "+I524",
+   "J": "+J524",
+   "K": "+J525",
+   "source": "SUTM!B525",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 527,
+   "khs_code": null,
+   "description": "Konstruksi TM TP2A",
+   "H": "+I527",
+   "I": "+GAMBAR!U39",
+   "J": "+GAMBAR!V39",
+   "K": "+J527",
+   "source": "SUTM!B527",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 528,
+   "khs_code": 119,
+   "description": "Cross Arm UNP 100 - 3000 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I528",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J528",
+   "source": "SUTM!B528",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 529,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I529",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J529",
+   "source": "SUTM!B529",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 530,
+   "khs_code": 127,
+   "description": "Cross Arm UNP 80 - 3000 (l=45mm,t=3,5mm,tgg=80mm)",
+   "H": "+I530",
+   "I": "+I527",
+   "J": "+J527",
+   "K": "+J530",
+   "source": "SUTM!B530",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 531,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I531",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J531",
+   "source": "SUTM!B531",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 532,
+   "khs_code": 18,
+   "description": "Arm Tie Type 900 - 3/4\" - (t=2,3 mm)",
+   "H": "+I532",
+   "I": "+I527*4",
+   "J": "+J527*4",
+   "K": "+J532",
+   "source": "SUTM!B532",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 533,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I533",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J533",
+   "source": "SUTM!B533",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 534,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I534",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J534",
+   "source": "SUTM!B534",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 535,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I535",
+   "I": "+I527",
+   "J": "+J527",
+   "K": "+J535",
+   "source": "SUTM!B535",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 536,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I536",
+   "I": "+I527",
+   "J": "+J527",
+   "K": "+J536",
+   "source": "SUTM!B536",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 537,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I537",
+   "I": "+I527*8",
+   "J": "+J527*8",
+   "K": "+J537",
+   "source": "SUTM!B537",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 538,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I538",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J538",
+   "source": "SUTM!B538",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 539,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I539",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J539",
+   "source": "SUTM!B539",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 540,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I540",
+   "I": "+I527*(4+16+18)",
+   "J": "+J527*(4+16+18)",
+   "K": "+J540",
+   "source": "SUTM!B540",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 541,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I541",
+   "I": "+I527*6",
+   "J": "+J527*6",
+   "K": "+J541",
+   "source": "SUTM!B541",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 542,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I542",
+   "I": "+I527*3",
+   "J": "+J527*3",
+   "K": "+J542",
+   "source": "SUTM!B542",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 543,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I543",
+   "I": "+I542",
+   "J": "+J542",
+   "K": "+J543",
+   "source": "SUTM!B543",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 544,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I544",
+   "I": "+I527*3",
+   "J": "+J527*3",
+   "K": "+J544",
+   "source": "SUTM!B544",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 545,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I545",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J545",
+   "source": "SUTM!B545",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 546,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I546",
+   "I": "+I527*2",
+   "J": "+J527*2",
+   "K": "+J546",
+   "source": "SUTM!B546",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 547,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I547",
+   "I": "+I546",
+   "J": "+J546",
+   "K": "+J547",
+   "source": "SUTM!B547",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 549,
+   "khs_code": null,
+   "description": "Konstruksi TM TP3",
+   "H": "+I549",
+   "I": "+GAMBAR!U40",
+   "J": "+GAMBAR!V40",
+   "K": "+J549",
+   "source": "SUTM!B549",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 550,
+   "khs_code": 120,
+   "description": "Cross Arm UNP 100 - 6000 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I550",
+   "I": "+I549*2",
+   "J": "+J549*2",
+   "K": "+J550",
+   "source": "SUTM!B550",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 551,
+   "khs_code": 128,
+   "description": "Cross Arm UNP 80 - 6000 (l=45mm,t=3,5mm,tgg=80mm)",
+   "H": "+I551",
+   "I": "+I549",
+   "J": "+J549",
+   "K": "+J551",
+   "source": "SUTM!B551",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 552,
+   "khs_code": 18,
+   "description": "Arm Tie Type 900 - 3/4\" - (t=2,3 mm)",
+   "H": "+I552",
+   "I": "+I549*4",
+   "J": "+J549*4",
+   "K": "+J552",
+   "source": "SUTM!B552",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 553,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I553",
+   "I": "+I549*6",
+   "J": "+J549*6",
+   "K": "+J553",
+   "source": "SUTM!B553",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 554,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I554",
+   "I": "+I549*3",
+   "J": "+J549*3",
+   "K": "+J554",
+   "source": "SUTM!B554",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 555,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I555",
+   "I": "+I549*7",
+   "J": "+J549*7",
+   "K": "+J555",
+   "source": "SUTM!B555",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 556,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I556",
+   "I": "+I549*(6+18)",
+   "J": "+J549*(6+18)",
+   "K": "+J556",
+   "source": "SUTM!B556",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 557,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I557",
+   "I": "+I549*6",
+   "J": "+J549*6",
+   "K": "+J557",
+   "source": "SUTM!B557",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 558,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I558",
+   "I": "+I549*3",
+   "J": "+J549*3",
+   "K": "+J558",
+   "source": "SUTM!B558",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 559,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I559",
+   "I": "+I558",
+   "J": "+J558",
+   "K": "+J559",
+   "source": "SUTM!B559",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 560,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I560",
+   "I": "+I559",
+   "J": "+J559",
+   "K": "+J560",
+   "source": "SUTM!B560",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 561,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I561",
+   "I": "+I549",
+   "J": "+J549",
+   "K": "+J561",
+   "source": "SUTM!B561",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 562,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I562",
+   "I": "+I561*2",
+   "J": "+J561*2",
+   "K": "+J562",
+   "source": "SUTM!B562",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 563,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I563",
+   "I": "+I562",
+   "J": "+J562",
+   "K": "+J563",
+   "source": "SUTM!B563",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 565,
+   "khs_code": null,
+   "description": "Konstruksi TM TP3A",
+   "H": "+I565",
+   "I": "+GAMBAR!U41",
+   "J": "+GAMBAR!V41",
+   "K": "+J565",
+   "source": "SUTM!B565",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 566,
+   "khs_code": 120,
+   "description": "Cross Arm UNP 100 - 6000 mm - (l=50mm, t=5mm, tgg=100mm)",
+   "H": "+I566",
+   "I": "+I565*2",
+   "J": "+J565*2",
+   "K": "+J566",
+   "source": "SUTM!B566",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 567,
+   "khs_code": 116,
+   "description": "Cross Arm UNP 100 - 2000 mm - (l=50mm, t=5mm, tgg=100mm)-Tarik",
+   "H": "+I567",
+   "I": "+I565*2",
+   "J": "+J565*2",
+   "K": "+J567",
+   "source": "SUTM!B567",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 568,
+   "khs_code": 128,
+   "description": "Cross Arm UNP 80 - 6000 (l=45mm,t=3,5mm,tgg=80mm)",
+   "H": "+I568",
+   "I": "+I565",
+   "J": "+J565",
+   "K": "+J568",
+   "source": "SUTM!B568",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 569,
+   "khs_code": 17,
+   "description": "Arm Tie Type 750 - 3/4\" - (t=2,3 mm)",
+   "H": "+I569",
+   "I": "+I565*2",
+   "J": "+J565*2",
+   "K": "+J569",
+   "source": "SUTM!B569",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 570,
+   "khs_code": 18,
+   "description": "Arm Tie Type 900 - 3/4\" - (t=2,3 mm)",
+   "H": "+I570",
+   "I": "+I565*4",
+   "J": "+J565*4",
+   "K": "+J570",
+   "source": "SUTM!B570",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 571,
+   "khs_code": 510,
+   "description": "U - Strap - TM - (l=42mm, t=6mm)",
+   "H": "+I571",
+   "I": "+I565*3",
+   "J": "+J565*3",
+   "K": "+J571",
+   "source": "SUTM!B571",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 572,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I572",
+   "I": "+I565*3",
+   "J": "+J565*3",
+   "K": "+J572",
+   "source": "SUTM!B572",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 573,
+   "khs_code": 140,
+   "description": "Double Arm Band 9 \" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I573",
+   "I": "+I565",
+   "J": "+J565",
+   "K": "+J573",
+   "source": "SUTM!B573",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 574,
+   "khs_code": 15,
+   "description": "Arm Tie Band 9\"( TM ) (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I574",
+   "I": "+I565",
+   "J": "+J565",
+   "K": "+J574",
+   "source": "SUTM!B574",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 575,
+   "khs_code": 55,
+   "description": "Bolt & Nut M.16 x 400 (besi as) Double Arm - HDG",
+   "H": "+I575",
+   "I": "+I565*9",
+   "J": "+J565*9",
+   "K": "+J575",
+   "source": "SUTM!B575",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 576,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I576",
+   "I": "+I565*2",
+   "J": "+J565*2",
+   "K": "+J576",
+   "source": "SUTM!B576",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 577,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I577",
+   "I": "+I565*2",
+   "J": "+J565*2",
+   "K": "+J577",
+   "source": "SUTM!B577",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 578,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I578",
+   "I": "+I565*(6+18+18)",
+   "J": "+J565*(6+18+18)",
+   "K": "+J578",
+   "source": "SUTM!B578",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 579,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "+I579",
+   "I": "+I565*6",
+   "J": "+J565*6",
+   "K": "+J579",
+   "source": "SUTM!B579",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 580,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "+I580",
+   "I": "+I565*4",
+   "J": "+J565*4",
+   "K": "+J580",
+   "source": "SUTM!B580",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 581,
+   "khs_code": 389,
+   "description": "Preformed Top Tie 150mm (Semi Cond/non metalic/Composite)",
+   "H": "+I581",
+   "I": "+I580",
+   "J": "+J580",
+   "K": "+J581",
+   "source": "SUTM!B581",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 582,
+   "khs_code": 222,
+   "description": "Line Tap Connector Type 150 - 150 mm - Al",
+   "H": "+I582",
+   "I": "+I565*3",
+   "J": "+J565*3",
+   "K": "+J582",
+   "source": "SUTM!B582",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 583,
+   "khs_code": 165,
+   "description": "Ground Wire Clamp Type B - TM - (l=50mm, t=6mm, p=300mm)",
+   "H": "+I583",
+   "I": "+I565*2",
+   "J": "+J565*2",
+   "K": "+J583",
+   "source": "SUTM!B583",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 584,
+   "khs_code": 387,
+   "description": "Preformed Termination 35 mm (542/U/2009)",
+   "H": "+I584",
+   "I": "+I565*2",
+   "J": "+J565*2",
+   "K": "+J584",
+   "source": "SUTM!B584",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 585,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I585",
+   "I": "+I584",
+   "J": "+J584",
+   "K": "+J585",
+   "source": "SUTM!B585",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 588,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire",
+   "H": "+I588",
+   "I": "+GAMBAR!U42",
+   "J": "+GAMBAR!V42",
+   "K": "+J588",
+   "source": "SUTM!B588",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 589,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I589",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J589",
+   "source": "SUTM!B589",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 590,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I590",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J590",
+   "source": "SUTM!B590",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 591,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I591",
+   "I": "+I588*2",
+   "J": "+J588*2",
+   "K": "+J591",
+   "source": "SUTM!B591",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 592,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I592",
+   "I": "+I588*2",
+   "J": "+J588*2",
+   "K": "+J592",
+   "source": "SUTM!B592",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 593,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I593",
+   "I": "+I591*2+I592*2",
+   "J": "+J591*2+J592*2",
+   "K": "+J593",
+   "source": "SUTM!B593",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 594,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I594",
+   "I": "+I588*4",
+   "J": "+J588*4",
+   "K": "+J594",
+   "source": "SUTM!B594",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 595,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I595",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J595",
+   "source": "SUTM!B595",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 596,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I596",
+   "I": "+I588*12",
+   "J": "+J588*12",
+   "K": "+J596",
+   "source": "SUTM!B596",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 597,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I597",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J597",
+   "source": "SUTM!B597",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 598,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I598",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J598",
+   "source": "SUTM!B598",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 599,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I599",
+   "I": "+I588*2",
+   "J": "+J588*2",
+   "K": "+J599",
+   "source": "SUTM!B599",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 600,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I600",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J600",
+   "source": "SUTM!B600",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 601,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I601",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J601",
+   "source": "SUTM!B601",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 602,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I602",
+   "I": "+I588",
+   "J": "+J588",
+   "K": "+J602",
+   "source": "SUTM!B602",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 604,
+   "khs_code": null,
+   "description": "Konstruksi Guy Wire Bajong",
+   "H": "+I604",
+   "I": "+GAMBAR!U44",
+   "J": "+GAMBAR!V44",
+   "K": "+J604",
+   "source": "SUTM!B604",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 605,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I605",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J605",
+   "source": "SUTM!B605",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 606,
+   "khs_code": 424,
+   "description": "Single Guy Wire Band 9\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I606",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J606",
+   "source": "SUTM!B606",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 607,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I607",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J607",
+   "source": "SUTM!B607",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 608,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I608",
+   "I": "+I604*4",
+   "J": "+J604*4",
+   "K": "+J608",
+   "source": "SUTM!B608",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 609,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I609",
+   "I": "+I604*2",
+   "J": "+J604*2",
+   "K": "+J609",
+   "source": "SUTM!B609",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 610,
+   "khs_code": 52,
+   "description": "Bolt & Nut M.16 x 120 - HDG",
+   "H": "+I610",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J610",
+   "source": "SUTM!B610",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 611,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I611",
+   "I": "+I608*2+I609*2+I610*2",
+   "J": "+J608*2+J609*2+J610*2",
+   "K": "+J611",
+   "source": "SUTM!B611",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 612,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I612",
+   "I": "+I604*6",
+   "J": "+J604*6",
+   "K": "+J612",
+   "source": "SUTM!B612",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 613,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I613",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J613",
+   "source": "SUTM!B613",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 614,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I614",
+   "I": "+I604*12",
+   "J": "+J604*12",
+   "K": "+J614",
+   "source": "SUTM!B614",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 615,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I615",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J615",
+   "source": "SUTM!B615",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 616,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I616",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J616",
+   "source": "SUTM!B616",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 617,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I617",
+   "I": "+I604*4",
+   "J": "+J604*4",
+   "K": "+J617",
+   "source": "SUTM!B617",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 618,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I618",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J618",
+   "source": "SUTM!B618",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 619,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I619",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J619",
+   "source": "SUTM!B619",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 620,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I620",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J620",
+   "source": "SUTM!B620",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 621,
+   "khs_code": 444,
+   "description": "Strut Tie 2000 - pipe 2\" - 2,0 meter, Tebal 2,0 mm - TM",
+   "H": "+I621",
+   "I": "+I604",
+   "J": "+J604",
+   "K": "+J621",
+   "source": "SUTM!B621",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 623,
+   "khs_code": null,
+   "description": "Konstruksi Horizontal Guy Wire",
+   "H": "+I623",
+   "I": "+GAMBAR!U43",
+   "J": "+GAMBAR!V43",
+   "K": "+J623",
+   "source": "SUTM!B623",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 624,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I624",
+   "I": "+I623*2",
+   "J": "+J623*2",
+   "K": "+J624",
+   "source": "SUTM!B624",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 625,
+   "khs_code": 505,
+   "description": "Turn Buckle TM 3/4\" (7000 kg) - TM - (l=42mm, t=6mm)",
+   "H": "+I625",
+   "I": "+I623*2",
+   "J": "+J623*2",
+   "K": "+J625",
+   "source": "SUTM!B625",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 626,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I626",
+   "I": "+I623*4",
+   "J": "+J623*4",
+   "K": "+J626",
+   "source": "SUTM!B626",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 627,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I627",
+   "I": "+I623*4",
+   "J": "+J623*4",
+   "K": "+J627",
+   "source": "SUTM!B627",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 628,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I628",
+   "I": "+I626*2+I627*2",
+   "J": "+J626*2+J627*2",
+   "K": "+J628",
+   "source": "SUTM!B628",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 629,
+   "khs_code": 388,
+   "description": "Preformed Termination 70 mm (542/U/2009)",
+   "H": "+I629",
+   "I": "+I623*6",
+   "J": "+J623*6",
+   "K": "+J629",
+   "source": "SUTM!B629",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 630,
+   "khs_code": 168,
+   "description": "Guy Insulator MV (TM) - belimbing",
+   "H": "+I630",
+   "I": "+I623",
+   "J": "+J623",
+   "K": "+J630",
+   "source": "SUTM!B630",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 631,
+   "khs_code": 161,
+   "description": "Galvanized Steel Wire 70 mm - HDG",
+   "H": "+I631",
+   "I": "+I623*30",
+   "J": "+J623*30",
+   "K": "+J631",
+   "source": "SUTM!B631",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 632,
+   "khs_code": 513,
+   "description": "Wire Clip M12 (Ø 70mm)",
+   "H": "+I632",
+   "I": "+I623",
+   "J": "+J623",
+   "K": "+J632",
+   "source": "SUTM!B632",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 633,
+   "khs_code": 337,
+   "description": "Pipa Galvanized 3/4\" - 2 mtr (tebal= 1,6 mm) u/Pipa Pelindung",
+   "H": "+I633",
+   "I": "+I623",
+   "J": "+J623",
+   "K": "+J633",
+   "source": "SUTM!B633",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 634,
+   "khs_code": 96,
+   "description": "Cousen/Thimble - (t=2,5mm)",
+   "H": "+I634",
+   "I": "+I623*4",
+   "J": "+J623*4",
+   "K": "+J634",
+   "source": "SUTM!B634",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 635,
+   "khs_code": 170,
+   "description": "Guy Wire Rod 5/8\" ( 15 mm ) - 2.500 mm - TM",
+   "H": "+I635",
+   "I": "+I623",
+   "J": "+J623",
+   "K": "+J635",
+   "source": "SUTM!B635",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 636,
+   "khs_code": 509,
+   "description": "U - Bolt + Steel Plate TM/TR Bolt M.18 + 2 nut",
+   "H": "+I636",
+   "I": "+I623",
+   "J": "+J623",
+   "K": "+J636",
+   "source": "SUTM!B636",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 637,
+   "khs_code": 47,
+   "description": "Beton Block 400 x 400 x 100 - kotak",
+   "H": "+I637",
+   "I": "+I623",
+   "J": "+J623",
+   "K": "+J637",
+   "source": "SUTM!B637",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 639,
+   "khs_code": null,
+   "description": "Konstruksi Strut Pole",
+   "H": "+I639",
+   "I": "+GAMBAR!U45",
+   "J": "+GAMBAR!V45",
+   "K": "+J639",
+   "source": "SUTM!B639",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 640,
+   "khs_code": 406,
+   "description": "Single Arm Band 8\" (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I640",
+   "I": "+I639",
+   "J": "+J639",
+   "K": "+J640",
+   "source": "SUTM!B640",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 641,
+   "khs_code": 441,
+   "description": "Strut Arm TM - (l=50mm, t=5mm, tgg=100mm) NP 10 - 30 cm",
+   "H": "+I641",
+   "I": "+I639",
+   "J": "+J639",
+   "K": "+J641",
+   "source": "SUTM!B641",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 642,
+   "khs_code": 444,
+   "description": "Strut Tie 2000 - pipe 2\" - 2,0 meter, Tebal 2,0 mm - TM",
+   "H": "+I642",
+   "I": "+I639",
+   "J": "+J639",
+   "K": "+J642",
+   "source": "SUTM!B642",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 643,
+   "khs_code": 426,
+   "description": "Single Guy Wire Band 10\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I643",
+   "I": "+I639*2",
+   "J": "+J639*2",
+   "K": "+J643",
+   "source": "SUTM!B643",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 644,
+   "khs_code": 422,
+   "description": "Single Guy Wire Band 8\" - (t = 6 mm x 42 mm) HDG TM",
+   "H": "+I644",
+   "I": "+I639*2",
+   "J": "+J639*2",
+   "K": "+J644",
+   "source": "SUTM!B644",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 645,
+   "khs_code": 56,
+   "description": "Bolt & Nut M.16 x 50 - HDG",
+   "H": "+I645",
+   "I": "+I639*8",
+   "J": "+J639*8",
+   "K": "+J645",
+   "source": "SUTM!B645",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 646,
+   "khs_code": 57,
+   "description": "Bolt & Nut M.16 x 75 - HDG",
+   "H": "+I646",
+   "I": "+I639",
+   "J": "+J639",
+   "K": "+J646",
+   "source": "SUTM!B646",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 647,
+   "khs_code": 52,
+   "description": "Bolt & Nut M.16 x 120 - HDG",
+   "H": "+I647",
+   "I": "+I639*2",
+   "J": "+J639*2",
+   "K": "+J647",
+   "source": "SUTM!B647",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 648,
+   "khs_code": 511,
+   "description": "Washer 45 x 45 x 3,5 - HDG",
+   "H": "+I648",
+   "I": "+I640*2+I645*2+I646*2+I647*2",
+   "J": "+J640*2+J645*2+J646*2+J647*2",
+   "K": "+J648",
+   "source": "SUTM!B648",
+   "expected": {
+    "H": 0,
+    "I": 0,
+    "J": 0,
+    "K": 0
+   }
+  },
+  {
+   "sequence": 651,
+   "khs_code": 69,
+   "description": "Commisioning test Jaringan JTM",
+   "H": "+GAMBAR!U5",
+   "source": "SUTM!B651",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 654,
+   "khs_code": 391,
+   "description": "Safety Cost K3L",
+   "H": "+H651",
+   "source": "SUTM!B654",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 657,
+   "khs_code": 1,
+   "description": "AAAC - 70 sqmm",
+   "H": "SUMIF($B$9:$B$647,B657,$H$9:$H$647)",
+   "source": "SUTM!B657",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 658,
+   "khs_code": 2,
+   "description": "AAAC - 150 sqmm",
+   "H": "SUMIF($B$9:$B$647,B658,$H$9:$H$647)",
+   "source": "SUTM!B658",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 659,
+   "khs_code": 5,
+   "description": "AAAC - S 150 sqmm",
+   "H": "SUMIF($B$9:$B$647,B659,$H$9:$H$647)",
+   "source": "SUTM!B659",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 660,
+   "khs_code": 6,
+   "description": "AAAC - S 240 sqmm",
+   "H": "SUMIF($B$9:$B$647,B660,$H$9:$H$647)",
+   "source": "SUTM!B660",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 661,
+   "khs_code": 175,
+   "description": "Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)",
+   "H": "SUMIF($B$9:$B$647,B661,$H$9:$H$647)",
+   "source": "SUTM!B661",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 662,
+   "khs_code": 174,
+   "description": "Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)",
+   "H": "SUMIF($B$9:$B$647,B662,$H$9:$H$647)",
+   "source": "SUTM!B662",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 663,
+   "khs_code": 376,
+   "description": "Polymer Arrester 24 kV - 10 kA",
+   "H": "SUMIF($B$9:$B$647,B663,$H$9:$H$647)",
+   "source": "SUTM!B663",
+   "expected": {
+    "H": 0
+   }
+  },
+  {
+   "sequence": 664,
+   "khs_code": 377,
+   "description": "Polymer Cut Out Switch 24 kV + Fuse",
+   "H": "SUMIF($B$9:$B$647,B664,$H$9:$H$647)",
+   "source": "SUTM!B664",
+   "expected": {
+    "H": 0
+   }
+  }
+ ],
+ "input_values": {
+  "U6": 0,
+  "V6": 0,
+  "U7": 0,
+  "V7": 0,
+  "U8": 0,
+  "V8": 0,
+  "U9": 0,
+  "V9": 0,
+  "U10": 0,
+  "V10": 0,
+  "U11": 0,
+  "V11": 0,
+  "U12": 0,
+  "V12": 0,
+  "U13": 0,
+  "V13": 0,
+  "U14": 0,
+  "V14": 0,
+  "U15": 0,
+  "V15": 0,
+  "U16": 0,
+  "V16": 0,
+  "U17": 0,
+  "V17": 0,
+  "U18": 0,
+  "V18": 0,
+  "U19": 0,
+  "V19": 0,
+  "U20": 0,
+  "V20": 0,
+  "U21": 0,
+  "V21": 0,
+  "U22": 0,
+  "V22": 0,
+  "U23": 0,
+  "V23": 0,
+  "U24": 0,
+  "V24": 0,
+  "U25": 0,
+  "V25": 0,
+  "U26": 0,
+  "V26": 0,
+  "U27": 0,
+  "V27": 0,
+  "U28": 0,
+  "V28": 0,
+  "U29": 0,
+  "V29": 0,
+  "U30": 0,
+  "V30": 0,
+  "U31": 0,
+  "V31": 0,
+  "U32": 0,
+  "V32": 0,
+  "U33": 0,
+  "V33": 0,
+  "U34": 0,
+  "V34": 0,
+  "U35": 0,
+  "V35": 0,
+  "U36": 0,
+  "V36": 0,
+  "U37": 0,
+  "V37": 0,
+  "U38": 0,
+  "V38": 0,
+  "U39": 0,
+  "V39": 0,
+  "U40": 0,
+  "V40": 0,
+  "U41": 0,
+  "V41": 0,
+  "U42": 0,
+  "V42": 0,
+  "U43": 0,
+  "V43": 0,
+  "U44": 0,
+  "V44": 0,
+  "U45": 0,
+  "V45": 0,
+  "U46": 0,
+  "V46": 0,
+  "U47": 0,
+  "V47": 0,
+  "U48": 0,
+  "V48": 0,
+  "U49": 0,
+  "V49": 0,
+  "U50": 0,
+  "V50": 0,
+  "U51": 0,
+  "V51": 0,
+  "U52": 0,
+  "V52": 0,
+  "U53": 0,
+  "V53": 0
+ },
+ "params": [
+  {
+   "cell": "U5",
+   "name": "COMMISSIONING:SUTM",
+   "default": 0,
+   "description": "Volume Commisioning test Jaringan JTM (GAMBAR!U5); diisi dari halaman gambar"
+  }
+ ],
+ "review": []
+}

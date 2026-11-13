@@ -1,0 +1,5 @@
+# Prompt siap tempel — vendor dan SPK/WO (agen frontend)
+
+Anda adalah agen frontend DISTRIVA (React/Vite di `frontend/`). Bangun (1) **master vendor**, (2) **WO/SPK pada halaman permohonan** (buat, pilih vendor, ajukan, terbitkan/kembalikan, progres dan verifikasi, selesai, batal, amandemen, daftar versi), dan (3) **portal vendor** (daftar WO milik perusahaannya, detail tanpa nilai RAB, formulir progres kumulatif dengan `submission_key`). Baca dulu `docs/72-FRONTEND-HANDOFF-VENDOR-WORK-ORDERS.md` dan bagian "Vendor dan WO/SPK" di `docs/57-API-CONTRACT.md`.
+
+Aturan: hak akses ditentukan backend; UI hanya menampilkan/menyembunyikan menurut izin efektif (fail-closed); vendor tidak boleh melihat nilai RAB atau riwayat internal. Pesan 403/404/409/422 ditampilkan apa adanya. Jangan mengubah backend. Endpoint aktif setelah pemilik menerapkan migrasi; kembangkan terhadap mock/tes dan uji ke backend setelahnya. Sertakan tes Vitest sesuai docs/72 dan laporkan hanya hasil tes yang benar-benar dijalankan.

@@ -1,0 +1,106 @@
+group,khs_code,source_reference,description
+SUTM,69,SUTM!B651,Commisioning test Jaringan JTM
+SUTM,391,SUTM!B654,Safety Cost K3L
+SUTM,1,SUTM!B657,AAAC - 70 sqmm
+SUTM,2,SUTM!B658,AAAC - 150 sqmm
+SUTM,5,SUTM!B659,AAAC - S 150 sqmm
+SUTM,6,SUTM!B660,AAAC - S 240 sqmm
+SUTM,175,SUTM!B661,Insulator - Strain Insulator 20 kV lengkap (SIR) Porcelain (Tarik)
+SUTM,174,SUTM!B662,"Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)"
+SUTM,376,SUTM!B663,Polymer Arrester 24 kV - 10 kA
+SUTM,377,SUTM!B664,Polymer Cut Out Switch 24 kV + Fuse
+MVTIC,5,MVTIC!B13,AAAC - S 150 sqmm
+MVTIC,70,MVTIC!B490,Commisioning test Jaringan Kabel JTM
+MVTIC,391,MVTIC!B493,Safety Cost K3L
+MVTIC,251,MVTIC!B496,NFA2XSEY-T 3 x 150 + 1 x 95 mm2 - CWS
+MVTIC,5,MVTIC!B497,AAAC - S 150 sqmm
+MVTIC,174,MVTIC!B498,"Insulator - Pin Post Insulator 20 Kv;12,5 kN - Porcelain (Tumpu)"
+MVTIC,376,MVTIC!B499,Polymer Arrester 24 kV - 10 kA
+SUTR,20,SUTR!B21,BC 50 MM (Bare Conductor)
+SUTR,58,SUTR!B22,Bolt M.12 x 30 + Washer Cu
+SUTR,462,SUTR!B23,Terminal Lug 50 mm - Cu 1 Hole
+SUTR,73,SUTR!B24,Compresion Joint Bimetal 70/70 mm - Al/Cu
+SUTR,71,SUTR!B163,Commisioning test JTR
+SUTR,391,SUTR!B166,Safety Cost K3L
+SUTR,253,SUTR!B169,NFA2X-T;3x70 + 1x70 mm2
+SKTM,353,SKTM!B21,"Pipa Galvanized 4"" - 6 meter (tebal= 3,2 mm)"
+SKTM,432,SKTM!B22,"Sock Draad Pipa Galvanized 4"""
+SKTM,353,SKTM!B34,"Pipa Galvanized 4"" - 6 meter (tebal= 3,2 mm)"
+SKTM,432,SKTM!B35,"Sock Draad Pipa Galvanized 4"""
+SKTM,149,SKTM!B38,"Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron"
+SKTM,20,SKTM!B39,BC 50 MM (Bare Conductor)
+SKTM,58,SKTM!B40,Bolt M.12 x 30 + Washer Cu
+SKTM,462,SKTM!B41,Terminal Lug 50 mm - Cu 1 Hole
+SKTM,228,SKTM!B44,Load Segel Kabel Tanah (identifikasi Kabel)
+SKTM,309,SKTM!B45,Patok Tanda Kabel (Rute Kabel)
+SKTM,308,SKTM!B46,Pasir urug
+SKTM,82,SKTM!B47,Concrete Slove
+SKTM,156,SKTM!B48,Galian tanah & pengurugan kembali
+SKTM,157,SKTM!B49,Galian tanah & pengurugan kembali di bawah PV blok/ tembok/ plesteran
+SKTM,154,SKTM!B50,Galian Aspal & pengurugan kembali Aspal (tebal Aspal 30 cm + dipadatkan)
+SKTM,155,SKTM!B51,Galian Floor Beton & pengurugan kembali Floor Beton
+SKTM,153,SKTM!B52,Galian & pengurugan kembali Beton Bertulang
+SKTM,59,SKTM!B53,Borring untuk Kabel tanah
+SKTM,70,SKTM!B56,Commisioning test Jaringan Kabel JTM
+SKTM,391,SKTM!B59,Safety Cost K3L
+SKTM,246,SKTM!B62,NA2XSEYBY 3 x 150 mm2;20KV;UG
+SKTM,247,SKTM!B63,NA2XSEYBY 3 x 240 mm2;20KV;UG
+KUBIKEL,7,KUBIKEL!B19,ACO TM
+KUBIKEL,129,KUBIKEL!B20,"Current transformer (CT) kelas 0,2s, Burden minimal 7,5 VA Proteksi 5P10"
+KUBIKEL,485,KUBIKEL!B21,Termination ID 3 X 150 MM2 u/XLPE
+KUBIKEL,68,KUBIKEL!B35,Commisioning test GD
+KUBIKEL,391,KUBIKEL!B38,Safety Cost K3L
+KUBIKEL,187,KUBIKEL!B41,"Kubikel (1 LBS Incoming, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A ) maks digunakan s/d Daya 20 MVA"
+KUBIKEL,189,KUBIKEL!B42,"Kubikel (2 LBS Incoming dilengkapi Motorized, kubikel Metering dan kubikel Out Going (draw out) minimal rating arus 630 A) maks digunakan s/d Daya 20 MVA"
+GTT_UMUM,5,GTT UMUM!B26,AAAC - S 150 sqmm
+GTT_UMUM,217,GTT UMUM!B27,Line Tap Connector Al 150 - 50 mm type G
+GTT_UMUM,255,GTT UMUM!B28,NYA 50 sqmm ( SPLN )
+GTT_UMUM,256,GTT UMUM!B29,NYAF 35 sqmm u/ bawah Arrester ( SPLN )
+GTT_UMUM,462,GTT UMUM!B30,Terminal Lug 50 mm - Cu 1 Hole
+GTT_UMUM,456,GTT UMUM!B31,Terminal Lug 35 mm - Cu 1 Hole
+GTT_UMUM,376,GTT UMUM!B32,Polymer Arrester 24 kV - 10 kA
+GTT_UMUM,98,GTT UMUM!B34,Cover Silicon Bushing Trafo
+GTT_UMUM,99,GTT UMUM!B35,Cover Silicon Fuse Cut Out (Atas)
+GTT_UMUM,100,GTT UMUM!B36,Cover Silicon Fuse Cut Out (Bawah)
+GTT_UMUM,101,GTT UMUM!B37,Cover Silicon Lightning Arrester
+GTT_UMUM,149,GTT UMUM!B159,"Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron"
+GTT_UMUM,20,GTT UMUM!B160,BC 50 MM (Bare Conductor)
+GTT_UMUM,58,GTT UMUM!B161,Bolt M.12 x 30 + Washer Cu
+GTT_UMUM,462,GTT UMUM!B162,Terminal Lug 50 mm - Cu 1 Hole
+GTT_UMUM,436,GTT UMUM!B163,Stainless Steel Strip non magnetic
+GTT_UMUM,437,GTT UMUM!B164,Stoping Buckle non magnetic
+GTT_UMUM,223,GTT UMUM!B165,Link - HDG
+GTT_UMUM,361,GTT UMUM!B166,"Pipa Galvanized 3/4"" - 6 mtr (tebal= 1,6 mm)"
+GTT_UMUM,20,GTT UMUM!B169,BC 50 MM (Bare Conductor)
+GTT_UMUM,58,GTT UMUM!B170,Bolt M.12 x 30 + Washer Cu
+GTT_UMUM,462,GTT UMUM!B171,Terminal Lug 50 mm - Cu 1 Hole
+GTT_UMUM,149,GTT UMUM!B174,"Earthing Rod 16 mm - 2,5 m+clamp - TM - besi As, Electroplatting tembaga 35 micron"
+GTT_UMUM,20,GTT UMUM!B175,BC 50 MM (Bare Conductor)
+GTT_UMUM,58,GTT UMUM!B176,Bolt M.12 x 30 + Washer Cu
+GTT_UMUM,462,GTT UMUM!B177,Terminal Lug 50 mm - Cu 1 Hole
+GTT_UMUM,436,GTT UMUM!B178,Stainless Steel Strip non magnetic
+GTT_UMUM,437,GTT UMUM!B179,Stoping Buckle non magnetic
+GTT_UMUM,223,GTT UMUM!B180,Link - HDG
+GTT_UMUM,336,GTT UMUM!B181,"Pipa Galvanized 3/4"" - 1 mtr (tebal= 1,6 mm)"
+GTT_UMUM,68,GTT UMUM!B222,Commisioning test GD
+GTT_UMUM,391,GTT UMUM!B225,Safety Cost K3L
+GTT_UMUM,499,GTT UMUM!B228,Trafo Distribusi 20 kV 3 PH 50 KVA Yzn5 ( D3 )
+GTT_UMUM,500,GTT UMUM!B229,Trafo Distribusi 20 kV 3 PH 100 KVA Yzn5 ( D3 )
+GTT_UMUM,501,GTT UMUM!B230,Trafo Distribusi 20 kV 3 PH 160 KVA Yzn5 ( D3 )
+GTT_UMUM,502,GTT UMUM!B231,Trafo Distribusi 20 kV 3 PH 200 KVA Dyn5 ( D3 )
+GTT_UMUM,503,GTT UMUM!B232,Trafo Distribusi 20 kV 3 PH 250 KVA Dyn5 ( D3 )
+GTT_UMUM,376,GTT UMUM!B233,Polymer Arrester 24 kV - 10 kA
+GTT_UMUM,377,GTT UMUM!B234,Polymer Cut Out Switch 24 kV + Fuse
+GTT_UMUM,258,GTT UMUM!B235,NYY 1 x 150 sqmm - Input ( SPLN )
+GTT_UMUM,230,GTT UMUM!B236,"LVSB ; LV Panel 250A, 2 Jurusan (SPLN D3.016-1 : 2010)-LBS"
+GTT_UMUM,231,GTT UMUM!B237,"LVSB ; LV Panel 400A, 4 Jurusan (SPLN D3.016-1 : 2010)-LBS"
+GTT_KHUSUS,145,GTT KHUSUS!B40,"Dudukan : Trafo Cantol, Pipa Kabel, PHB-TR & Dudukan Arrester"
+GTT_KHUSUS,68,GTT KHUSUS!B192,Commisioning test GD
+GTT_KHUSUS,391,GTT KHUSUS!B195,Safety Cost K3L
+GTT_KHUSUS,500,GTT KHUSUS!B198,Trafo Distribusi 20 kV 3 PH 100 KVA Yzn5 ( D3 )
+GTT_KHUSUS,501,GTT KHUSUS!B199,Trafo Distribusi 20 kV 3 PH 160 KVA Yzn5 ( D3 )
+GTT_KHUSUS,502,GTT KHUSUS!B200,Trafo Distribusi 20 kV 3 PH 200 KVA Dyn5 ( D3 )
+GTT_KHUSUS,503,GTT KHUSUS!B201,Trafo Distribusi 20 kV 3 PH 250 KVA Dyn5 ( D3 )
+GTT_KHUSUS,376,GTT KHUSUS!B202,Polymer Arrester 24 kV - 10 kA
+GTT_KHUSUS,377,GTT KHUSUS!B203,Polymer Cut Out Switch 24 kV + Fuse
+GTT_KHUSUS,258,GTT KHUSUS!B204,NYY 1 x 150 sqmm - Input ( SPLN )

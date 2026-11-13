@@ -1,0 +1,5 @@
+.env
+eis_session.json
+downloads/
+debug/
+__pycache__/

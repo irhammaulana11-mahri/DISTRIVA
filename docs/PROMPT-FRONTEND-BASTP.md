@@ -1,0 +1,5 @@
+# Prompt siap tempel — BASTP (agen frontend)
+
+Anda adalah agen frontend DISTRIVA (React/Vite di `frontend/`). Bangun fitur **BASTP** pada halaman WO: editor draf (lampiran material terpasang, daftar kWh meter dengan unggah foto), pengajuan dan penandatanganan elektronik dengan konfirmasi kata sandi, alur peninjau (terima Manager ULP, tanda tangan KONSTRUKSI_UP3, tutup ASMAN_KONSTRUKSI, kembalikan dengan alasan), panel tanda tangan per putaran, dan dokumen BASTP (pratinjau, cetak, XLSX). Ganti tombol "Selesai" WO dengan tautan ke BASTP. Baca dulu `docs/75-FRONTEND-HANDOFF-BASTP.md` dan bagian "BASTP" di `docs/57-API-CONTRACT.md`; ikuti pola portal vendor dan WO (docs/72) serta dokumen keluaran (docs/70).
+
+Aturan: hak akses ditentukan backend (`bastp.*` dan relasi vendor tersimpan; fail-closed); kata sandi hanya dikirim pada permintaan tanda tangan dan tidak disimpan; pesan 403/404/409/422 ditampilkan apa adanya. Jangan mengubah backend. Endpoint aktif setelah pemilik menerapkan migrasi; kembangkan terhadap mock/tes dan uji ke backend setelahnya. Sertakan tes Vitest sesuai docs/75 dan laporkan hanya hasil tes yang benar-benar dijalankan.
