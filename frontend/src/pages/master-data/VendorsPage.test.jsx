@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import VendorsPage from './VendorsPage.jsx'
+import VendorAccountsPage from './VendorAccountsPage.jsx'
 import { vendorsApi, adminApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
@@ -19,7 +20,10 @@ function mount({ isSysAdmin = false } = {}) {
     <AccessContext.Provider value={{ loading: false, can: { 'vendors.manage': true }, canWrite: {}, isSysAdmin }}>
       <NotificationProvider>
         <MemoryRouter>
-          <VendorsPage />
+          <Routes>
+            <Route path="/master-data/vendors/:id/akun" element={<VendorAccountsPage />} />
+            <Route path="*" element={<VendorsPage />} />
+          </Routes>
         </MemoryRouter>
       </NotificationProvider>
     </AccessContext.Provider>,

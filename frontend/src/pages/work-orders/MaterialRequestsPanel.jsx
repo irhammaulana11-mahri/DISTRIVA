@@ -6,7 +6,7 @@ import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import HandoverForm from './HandoverForm.jsx'
 import Spinner from '../../components/Spinner.jsx'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
@@ -200,6 +200,8 @@ export default function MaterialRequestsPanel({ applicationId }) {
 
   return (
     <div className="space-y-5">
+      {!drawerOpen && (
+      <>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Permintaan material (Outbox)</h3>
@@ -375,10 +377,14 @@ export default function MaterialRequestsPanel({ applicationId }) {
         />
       </div>
 
-      {/* DETAIL DRAWER */}
-      <Drawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+      </>
+      )}
+
+      {/* DETAIL (halaman dalam tab, bukan laci: ada aksi ekspor dan tandai diserahkan) */}
+      {drawerOpen && (
+      <PanelShell
+        asPage
+        onBack={() => setDrawerOpen(false)}
         title={
           detail ? (
             <div className="flex items-center gap-2">
@@ -400,11 +406,10 @@ export default function MaterialRequestsPanel({ applicationId }) {
           )
         }
         subtitle="Rincian paket alokasi material, tiang, status penyerahan eksternal, dan riwayat peristiwa."
-        width="max-w-3xl"
         footer={
           <div className="flex flex-wrap items-center justify-between gap-2 w-full">
             <Button variant="ghost" size="sm" onClick={() => setDrawerOpen(false)}>
-              Tutup
+              Kembali ke daftar
             </Button>
 
             {detail && canManage && detail.status !== 'CANCELLED' && detail.status !== 'SUPERSEDED' && (
@@ -748,7 +753,8 @@ export default function MaterialRequestsPanel({ applicationId }) {
             </div>
           </div>
         )}
-      </Drawer>
+      </PanelShell>
+      )}
 
       {/* DRAWER: Tandai Diserahkan */}
       <Modal

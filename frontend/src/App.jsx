@@ -46,6 +46,11 @@ import RkmVersionDetailPage from './pages/rkm/RkmVersionDetailPage.jsx'
 import ReportsPage from './pages/reports/ReportsPage.jsx'
 import CategoriesPage from './pages/master-data/CategoriesPage.jsx'
 import ApplicationsPage from './pages/applications/ApplicationsPage.jsx'
+import KhsMaterialMapImportPage from './pages/master-data/KhsMaterialMapImportPage.jsx'
+import WarehouseSnapshotImportPage from './pages/master-data/WarehouseSnapshotImportPage.jsx'
+import WarehouseCreatePage from './pages/master-data/WarehouseCreatePage.jsx'
+import { PoleContractCreatePage, PoleContractEditPage } from './pages/master-data/PoleContractFormPages.jsx'
+import VendorAccountsPage from './pages/master-data/VendorAccountsPage.jsx'
 import { BastpDetailPage } from './pages/work-orders/BastpPages.jsx'
 import { ConstructionImportPage, KkfParameterCreatePage, KkfParameterEditPage } from './pages/master-data/MoreFormPages.jsx'
 import { KhsDraftEditPage, KhsImportPage } from './pages/master-data/KhsPages.jsx'
@@ -113,6 +118,7 @@ export default function App() {
         <Route path="master-data/khs/impor" element={<RequireCapability capability="master_data.view"><KhsImportPage /></RequireCapability>} />
         <Route path="master-data/khs/:id/koreksi" element={<RequireCapability capability="master_data.view"><KhsDraftEditPage /></RequireCapability>} />
         <Route path="master-data/mapping" element={<RequireCapability capability="master_data.view"><KhsMaterialMapPage /></RequireCapability>} />
+        <Route path="master-data/mapping/impor" element={<RequireCapability capability="master_data.view"><KhsMaterialMapImportPage /></RequireCapability>} />
         <Route path="master-data/constructions" element={<RequireCapability capability="master_data.view"><ConstructionsPage /></RequireCapability>} />
         <Route path="master-data/constructions/impor" element={<RequireCapability capability="master_data.view"><ConstructionImportPage /></RequireCapability>} />
         <Route path="master-data/bom" element={<RequireCapability capability="master_data.view"><BomPage /></RequireCapability>} />
@@ -130,6 +136,7 @@ export default function App() {
         <Route path="master-data/tariff-books/impor" element={<RequireCapability capability="tariffs.manage"><TariffBookImportPage /></RequireCapability>} />
         <Route path="master-data/tariff-books/:id" element={<RequireCapability capability="master_data.view"><TariffBookDetailPage /></RequireCapability>} />
         <Route path="master-data/vendors" element={<RequireCapability capability="vendors.manage"><VendorsPage /></RequireCapability>} />
+        <Route path="master-data/vendors/:id/akun" element={<RequireCapability capability="vendors.manage"><VendorAccountsPage /></RequireCapability>} />
         <Route path="master-data/vendors/new" element={<RequireCapability capability="vendors.manage"><VendorFormPage /></RequireCapability>} />
         <Route path="master-data/vendors/:id/edit" element={<RequireCapability capability="vendors.manage"><VendorFormPage /></RequireCapability>} />
         <Route path="master-data/substations" element={<RequireCapability capability="substations.view"><SubstationsPage /></RequireCapability>} />
@@ -139,7 +146,11 @@ export default function App() {
         <Route path="master-data/feeders" element={<RequireCapability capability="feeders.view"><FeedersPage /></RequireCapability>} />
         <Route path="master-data/customers" element={<RequireCapability capability="customers.view"><CustomersPage /></RequireCapability>} />
         <Route path="master-data/warehouses" element={<RequireCapability capability="master_data.view"><WarehousesPage /></RequireCapability>} />
+        <Route path="master-data/warehouses/baru" element={<RequireCapability capability="master_data.view"><WarehouseCreatePage /></RequireCapability>} />
+        <Route path="master-data/warehouses/:id/impor-stok" element={<RequireCapability capability="stock.import"><WarehouseSnapshotImportPage /></RequireCapability>} />
         <Route path="master-data/pole-contracts" element={<RequireCapability capability="master_data.view"><PoleContractsPage /></RequireCapability>} />
+        <Route path="master-data/pole-contracts/baru" element={<RequireCapability capability="poles.manage"><PoleContractCreatePage /></RequireCapability>} />
+        <Route path="master-data/pole-contracts/:id/ubah" element={<RequireCapability capability="poles.manage"><PoleContractEditPage /></RequireCapability>} />
         <Route path="master-data/categories" element={<RequireCapability capability="master_data.view"><CategoriesPage /></RequireCapability>} />
         <Route path="master-data/categories/baru" element={<RequireCapability capability="master_data.view"><CategoryCreatePage /></RequireCapability>} />
         <Route path="master-data/categories/satuan/baru" element={<RequireCapability capability="master_data.view"><UomCreatePage /></RequireCapability>} />

@@ -5,6 +5,8 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import WarehousesPage from '../master-data/WarehousesPage.jsx'
+import WarehouseCreatePage from '../master-data/WarehouseCreatePage.jsx'
+import WarehouseSnapshotImportPage from '../master-data/WarehouseSnapshotImportPage.jsx'
 import KhsMaterialMapPage from '../master-data/KhsMaterialMapPage.jsx'
 import MaterialRequestsPanel from '../work-orders/MaterialRequestsPanel.jsx'
 import ReportsPage from './ReportsPage.jsx'
@@ -102,6 +104,8 @@ function renderWithProviders(ui, { can = {}, route = '/', path = '*' } = {}) {
       <NotificationProvider>
         <MemoryRouter initialEntries={[route]}>
           <Routes>
+            <Route path="/master-data/warehouses/baru" element={<WarehouseCreatePage />} />
+          <Route path="/master-data/warehouses/:id/impor-stok" element={<WarehouseSnapshotImportPage />} />
             <Route path={path} element={ui} />
           </Routes>
         </MemoryRouter>

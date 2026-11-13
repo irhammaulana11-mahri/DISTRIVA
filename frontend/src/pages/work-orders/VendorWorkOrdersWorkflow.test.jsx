@@ -4,6 +4,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import VendorsPage from '../master-data/VendorsPage.jsx'
+import VendorAccountsPage from '../master-data/VendorAccountsPage.jsx'
 import ApplicationWorkOrdersPanel from '../applications/ApplicationWorkOrdersPanel.jsx'
 import WorkOrdersPage from './WorkOrdersPage.jsx'
 import WorkOrderAgendaPage from './WorkOrderAgendaPage.jsx'
@@ -191,7 +192,13 @@ describe('Vendor & Work Orders Workflow (docs/72, docs/62 §32)', () => {
       vendorsApi.linkAccount.mockResolvedValueOnce({ message: 'Akun ditautkan.' })
       vendorsApi.deactivateAccount.mockResolvedValueOnce({ message: 'Tautan akun dinonaktifkan.' })
 
-      renderWithProviders(<VendorsPage />, { can: { 'vendors.manage': true } })
+      renderWithProviders(
+        <Routes>
+          <Route path="/master-data/vendors/:id/akun" element={<VendorAccountsPage />} />
+          <Route path="*" element={<VendorsPage />} />
+        </Routes>,
+        { can: { 'vendors.manage': true } }
+      )
 
       await waitFor(() => {
         expect(screen.getByText('PT Sinar Abadi Raya')).toBeInTheDocument()

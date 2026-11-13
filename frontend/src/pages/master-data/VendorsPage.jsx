@@ -4,7 +4,6 @@ import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { vendorsApi, adminApi } from '../../services/api.js'
 import Button from '../../components/Button.jsx'
-import useAccountUnits from './useAccountUnits.js'
 import Drawer from '../../components/Drawer.jsx'
 import Modal from '../../components/Modal.jsx'
 import Alert from '../../components/Alert.jsx'
@@ -146,14 +145,6 @@ export default function VendorsPage() {
   const [previewVendor, setPreviewVendor] = useState(null)
 
   // Drawer Kelola Akun Vendor
-  const [selectedVendor, setSelectedVendor] = useState(null)
-  const [accountDrawerOpen, setAccountDrawerOpen] = useState(false)
-  const [candidateUsers, setCandidateUsers] = useState([])
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [linkingAccount, setLinkingAccount] = useState(false)
-  const [newAccount, setNewAccount] = useState({ name: '', email: '', phone: '', unit: '' })
-  const accountUnits = useAccountUnits(isSysAdmin)
-  const [drawerError, setDrawerError] = useState('')
 
   // Status Change State
   const [statusChangingId, setStatusChangingId] = useState(null)
@@ -174,24 +165,6 @@ export default function VendorsPage() {
   useEffect(() => {
     loadVendors()
   }, [loadVendors])
-
-  // Load candidate users when opening drawer
-  const loadCandidateUsers = useCallback(async () => {
-    try {
-      const res = await adminApi.users({ per_page: 100 })
-      setCandidateUsers(res?.data || [])
-    } catch {
-      setCandidateUsers([])
-    }
-  }, [])
-
-  const handleOpenAccountDrawer = (vendor) => {
-    setSelectedVendor(vendor)
-    setSelectedUserId('')
-    setDrawerError('')
-    setAccountDrawerOpen(true)
-    loadCandidateUsers()
-  }
 
   const openCreate = () => navigate('/master-data/vendors/new')
   const openEdit = (vendor) => navigate(`/master-data/vendors/${vendor.id}/edit`)
@@ -222,77 +195,6 @@ export default function VendorsPage() {
   }
 
   // Buat akun Pelaksana baru (undangan aktivasi) untuk vendor yang sudah ada, langsung tertaut
-  const handleCreateAccount = async (e) => {
-    e.preventDefault()
-    if (!selectedVendor) return
-    setLinkingAccount(true)
-    setDrawerError('')
-    try {
-      await vendorsApi.linkAccount(selectedVendor.id, {
-        account: { name: newAccount.name.trim(), email: newAccount.email.trim(), ...(newAccount.phone.trim() && { phone: newAccount.phone.trim() }), ...(newAccount.unit && { organizational_unit_id: newAccount.unit }) },
-      })
-      notify({ type: 'success', title: 'Akun Pelaksana Dibuat', desc: `Undangan aktivasi dikirim ke ${newAccount.email.trim()}; akun tertaut ke vendor.`, tag: 'VENDOR' })
-      setNewAccount({ name: '', email: '', phone: '', unit: '' })
-      const res = await vendorsApi.list()
-      const updatedList = res?.data || []
-      setVendors(updatedList)
-      const current = updatedList.find((v) => v.id === selectedVendor.id)
-      if (current) setSelectedVendor(current)
-    } catch (err) {
-      setDrawerError(err?.message || 'Gagal membuat akun Pelaksana.')
-    } finally {
-      setLinkingAccount(false)
-    }
-  }
-
-  // Handle Link Account
-  const handleLinkAccount = async (e) => {
-    e.preventDefault()
-    if (!selectedUserId || !selectedVendor) return
-    setLinkingAccount(true)
-    setDrawerError('')
-    try {
-      await vendorsApi.linkAccount(selectedVendor.id, selectedUserId)
-      notify({
-        type: 'success',
-        title: 'Akun Vendor Ditautkan',
-        desc: 'Pengguna berhasil ditautkan ke perusahaan vendor.',
-        tag: 'VENDOR',
-      })
-      setSelectedUserId('')
-      const res = await vendorsApi.list()
-      const updatedList = res?.data || []
-      setVendors(updatedList)
-      const current = updatedList.find((v) => v.id === selectedVendor.id)
-      if (current) setSelectedVendor(current)
-    } catch (err) {
-      setDrawerError(err?.message || 'Gagal menautkan akun vendor.')
-    } finally {
-      setLinkingAccount(false)
-    }
-  }
-
-  // Handle Deactivate Account Link
-  const handleDeactivateAccount = async (accountId) => {
-    setDrawerError('')
-    try {
-      await vendorsApi.deactivateAccount(accountId)
-      notify({
-        type: 'success',
-        title: 'Akun Vendor Dinonaktifkan',
-        desc: 'Tautan akun vendor berhasil dinonaktifkan.',
-        tag: 'VENDOR',
-      })
-      const res = await vendorsApi.list()
-      const updatedList = res?.data || []
-      setVendors(updatedList)
-      const current = updatedList.find((v) => v.id === selectedVendor.id)
-      if (current) setSelectedVendor(current)
-    } catch (err) {
-      setDrawerError(err?.message || 'Gagal menonaktifkan akun vendor.')
-    }
-  }
-
   const filtered = useMemo(() => {
     if (!search.trim()) return vendors
     const q = search.toLowerCase()
@@ -475,7 +377,7 @@ export default function VendorsPage() {
                         <div className="flex items-center justify-end gap-1">
                           <IconAction label="Lihat profil" onClick={() => setPreviewVendor(v)} icon={IconEye} />
                           {canManage && <IconAction label="Ubah profil" onClick={() => openEdit(v)} icon={IconPencil} />}
-                          <IconAction label="Kelola akun" onClick={() => handleOpenAccountDrawer(v)} icon={IconUser} />
+                          <IconAction label="Kelola akun" onClick={() => navigate(`/master-data/vendors/${v.id}/akun`)} icon={IconUser} />
                           {canManage && (
                             <IconAction
                               label={v.status === 'ACTIVE' ? 'Tangguhkan' : 'Aktifkan'}
@@ -532,136 +434,6 @@ export default function VendorsPage() {
       >
         {previewVendor && <VendorProfilePreview vendor={previewVendor} />}
       </Drawer>
-
-      {/* DRAWER: Kelola Akun Vendor */}
-      {selectedVendor && (
-        <Modal
-          isOpen={accountDrawerOpen}
-          onClose={() => setAccountDrawerOpen(false)}
-          title={`Akun Vendor: ${selectedVendor.name}`}
-          subtitle={`Kode: ${selectedVendor.code} · Status: ${selectedVendor.status}`}
-          width="max-w-xl"
-          footer={
-            <div className="flex justify-end w-full">
-              <Button variant="ghost" size="sm" onClick={() => setAccountDrawerOpen(false)}>
-                Tutup
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-6 text-xs">
-            {drawerError && <Alert kind="error">{drawerError}</Alert>}
-
-            {/* Section Tautkan Akun Baru */}
-            {canManage && selectedVendor.status === 'ACTIVE' && (
-              <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/30 space-y-3">
-                <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200">Tautkan Pengguna Vendor</h4>
-                  <p className="text-[11px] text-slate-500">
-                    Pilih pengguna terdaftar untuk diberi akses portal vendor mewakili perusahaan ini (satu akun hanya dapat terhubung ke satu perusahaan).
-                  </p>
-                </div>
-
-                <form onSubmit={handleLinkAccount} className="flex gap-2">
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-                  >
-                    <option value="">-- Pilih Pengguna Vendor --</option>
-                    {candidateUsers.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.email})
-                      </option>
-                    ))}
-                  </select>
-
-                  <Button type="submit" variant="primary" size="sm" loading={linkingAccount} disabled={!selectedUserId} icon={IconPlus}>
-                    Tautkan
-                  </Button>
-                </form>
-              </div>
-            )}
-
-            {canManage && selectedVendor.status === 'ACTIVE' && (
-              <form onSubmit={handleCreateAccount} className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/30 space-y-3" aria-label="Buat akun Pelaksana baru">
-                <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200">Buat Akun Pelaksana Baru</h4>
-                  <p className="text-[11px] text-slate-500">Untuk petugas administrasi vendor yang belum punya akun. Undangan aktivasi dikirim ke email; akun otomatis tertaut ke perusahaan ini.</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input required placeholder="Nama petugas administrasi" aria-label="Nama petugas administrasi" value={newAccount.name} onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })} className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800" />
-                  <input required type="email" placeholder="Email login" aria-label="Email login akun baru" value={newAccount.email} onChange={(e) => setNewAccount({ ...newAccount, email: e.target.value })} className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800" />
-                  <input type="tel" placeholder="Telepon / WhatsApp (opsional)" aria-label="Telepon akun baru" value={newAccount.phone} onChange={(e) => setNewAccount({ ...newAccount, phone: e.target.value })} className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800" />
-                  {isSysAdmin && (
-                    <select aria-label="Unit penugasan akun baru" value={newAccount.unit} onChange={(e) => setNewAccount({ ...newAccount, unit: e.target.value })} className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800">
-                      <option value="">-- Unit saya --</option>
-                      {accountUnits.map((u) => <option key={u.id} value={u.id}>{u.name}{u.unit_type ? ` (${u.unit_type})` : ''}</option>)}
-                    </select>
-                  )}
-                </div>
-                <Button type="submit" variant="primary" size="sm" loading={linkingAccount} icon={IconPlus}>Buat & Undang</Button>
-              </form>
-            )}
-
-            {/* Tabel Akun Terdaftar */}
-            <div>
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2">Daftar Akun Vendor Terhubung</h4>
-              <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/60 font-semibold text-[11px] text-slate-600 dark:text-slate-400 border-b">
-                      <th className="py-2.5 px-3">Nama Pengguna</th>
-                      <th className="py-2.5 px-3">Email Akun</th>
-                      <th className="py-2.5 px-3">Status Tautan</th>
-                      {canManage && <th className="py-2.5 px-3 text-right">Aksi</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                    {(selectedVendor.accounts || []).length === 0 ? (
-                      <tr>
-                        <td colSpan={canManage ? 4 : 3} className="py-8 text-center text-slate-400">
-                          Belum ada akun pengguna yang ditautkan ke perusahaan ini.
-                        </td>
-                      </tr>
-                    ) : (
-                      selectedVendor.accounts.map((acc) => (
-                        <tr key={acc.id} className="hover:bg-slate-50/60">
-                          <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">{acc.name || '-'}</td>
-                          <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400">{acc.email}</td>
-                          <td className="py-2.5 px-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                acc.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
-                              }`}
-                            >
-                              {acc.is_active ? 'Aktif' : 'Nonaktif'}
-                            </span>
-                          </td>
-                          {canManage && (
-                            <td className="py-2.5 px-3 text-right">
-                              {acc.is_active && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeactivateAccount(acc.id)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
-                                >
-                                  <IconTrash size={13} />
-                                  <span>Nonaktifkan</span>
-                                </button>
-                              )}
-                            </td>
-                          )}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }

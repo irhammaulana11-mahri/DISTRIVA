@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { PoleContractCreatePage, PoleContractEditPage } from './PoleContractFormPages.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import WarehousesPage from './WarehousesPage.jsx'
+import WarehouseCreatePage from './WarehouseCreatePage.jsx'
+import WarehouseSnapshotImportPage from './WarehouseSnapshotImportPage.jsx'
 import PoleContractsPage from './PoleContractsPage.jsx'
 import ApplicationAllocationPanel from '../applications/ApplicationAllocationPanel.jsx'
 import { adminApi, masterDataApi, warehousesApi, poleContractsApi, allocationsApi } from '../../services/api.js'
@@ -42,7 +45,15 @@ function renderWithContext(ui, { can = {} } = {}) {
   return render(
     <MemoryRouter>
       <AccessContext.Provider value={{ can, isSysAdmin: false, loading: false }}>
-        <NotificationProvider>{ui}</NotificationProvider>
+        <NotificationProvider>
+          <Routes>
+          <Route path="/master-data/warehouses/baru" element={<WarehouseCreatePage />} />
+          <Route path="/master-data/warehouses/:id/impor-stok" element={<WarehouseSnapshotImportPage />} />
+          <Route path="/master-data/pole-contracts/baru" element={<PoleContractCreatePage />} />
+          <Route path="/master-data/pole-contracts/:id/ubah" element={<PoleContractEditPage />} />
+          <Route path="*" element={ui} />
+        </Routes>
+        </NotificationProvider>
       </AccessContext.Provider>
     </MemoryRouter>,
   )

@@ -5,7 +5,10 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import WarehousesPage from './WarehousesPage.jsx'
+import WarehouseCreatePage from './WarehouseCreatePage.jsx'
+import WarehouseSnapshotImportPage from './WarehouseSnapshotImportPage.jsx'
 import PoleContractsPage from './PoleContractsPage.jsx'
+import { PoleContractCreatePage, PoleContractEditPage } from './PoleContractFormPages.jsx'
 import ApplicationAllocationPanel from '../applications/ApplicationAllocationPanel.jsx'
 import RkmPlansPage from '../rkm/RkmPlansPage.jsx'
 import RkmVersionDetailPage from '../rkm/RkmVersionDetailPage.jsx'
@@ -69,7 +72,13 @@ function renderWithContext(ui, { can = {}, isSysAdmin = false, initialEntries = 
     <MemoryRouter initialEntries={initialEntries}>
       <AccessContext.Provider value={{ can, isSysAdmin, loading: false }}>
         <NotificationProvider>
-          {ui}
+          <Routes>
+          <Route path="/master-data/warehouses/baru" element={<WarehouseCreatePage />} />
+          <Route path="/master-data/warehouses/:id/impor-stok" element={<WarehouseSnapshotImportPage />} />
+          <Route path="/master-data/pole-contracts/baru" element={<PoleContractCreatePage />} />
+          <Route path="/master-data/pole-contracts/:id/ubah" element={<PoleContractEditPage />} />
+          <Route path="*" element={ui} />
+        </Routes>
         </NotificationProvider>
       </AccessContext.Provider>
     </MemoryRouter>,

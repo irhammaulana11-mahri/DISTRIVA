@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { warehousesApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -24,6 +25,8 @@ import {
 } from '../../components/icons.jsx'
 
 export default function WarehousesPage() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { can } = useAccess()
   const { notify } = useNotifications()
 
@@ -43,42 +46,11 @@ export default function WarehousesPage() {
   const [syncPage, setSyncPage] = useState(1)
   const [syncPerPage, setSyncPerPage] = useState(10)
 
-  // Units list for warehouse creation
-  const [units, setUnits] = useState([])
-
-  // Unified Drawer Create / Import Warehouse
-  const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [warehouseDrawerMode, setWarehouseDrawerMode] = useState('manual') // 'manual' | 'upload'
-  const [createCode, setCreateCode] = useState('')
-  const [createName, setCreateName] = useState('')
-  const [createUnitId, setCreateUnitId] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState('')
-
-  // Impor Daftar Gudang ERP (JSON) state inside unified drawer
-  const [erpJsonText, setErpJsonText] = useState('')
-  const [erpDryRunLoading, setErpDryRunLoading] = useState(false)
-  const [erpDryRunResult, setErpDryRunResult] = useState(null)
-  const [erpApplying, setErpApplying] = useState(false)
-  const [erpError, setErpError] = useState('')
-
   // Warehouse Snapshots Drawer
   const [selectedWarehouse, setSelectedWarehouse] = useState(null)
   const [snapshotsDrawerOpen, setSnapshotsDrawerOpen] = useState(false)
   const [snapshots, setSnapshots] = useState([])
   const [loadingSnapshots, setLoadingSnapshots] = useState(false)
-
-  // Snapshot Import Drawer
-  const snapshotFileInputRef = useRef(null)
-  const [importDrawerOpen, setImportDrawerOpen] = useState(false)
-  const [importFile, setImportFile] = useState(null)
-  const [isDraggingSnapshot, setIsDraggingSnapshot] = useState(false)
-  const [importAsOf, setImportAsOf] = useState(new Date().toISOString().slice(0, 10))
-  const [importSourceRef, setImportSourceRef] = useState('')
-  const [dryRunLoading, setDryRunLoading] = useState(false)
-  const [dryRunResult, setDryRunResult] = useState(null)
-  const [applying, setApplying] = useState(false)
-  const [importError, setImportError] = useState('')
 
   // Snapshot Detail Drawer
   const [selectedSnapshot, setSelectedSnapshot] = useState(null)
@@ -148,13 +120,6 @@ export default function WarehousesPage() {
     }
   }, [])
 
-  // Load Units for dropdown
-  useEffect(() => {
-    adminApi
-      .units()
-      .then((res) => setUnits(res?.data || []))
-      .catch(() => setUnits([]))
-  }, [])
 
   useEffect(() => {
     loadWarehouses()
@@ -182,114 +147,6 @@ export default function WarehousesPage() {
       loadSyncRuns()
     }
   }, [activeTab, loadSyncRuns])
-
-  // Handle Create Warehouse
-  const handleCreateWarehouse = async (e) => {
-    e.preventDefault()
-    setCreating(true)
-    setCreateError('')
-    try {
-      await warehousesApi.create({
-        code: createCode.trim(),
-        name: createName.trim(),
-        organizational_unit_id: createUnitId,
-      })
-      notify({
-        type: 'success',
-        title: 'Gudang Berhasil Ditambahkan',
-        desc: `Gudang ${createCode} (${createName}) berhasil dibuat.`,
-        tag: 'GUDANG',
-      })
-      setCreateModalOpen(false)
-      setCreateCode('')
-      setCreateName('')
-      setCreateUnitId('')
-      loadWarehouses()
-    } catch (err) {
-      const msg = err?.message || 'Gagal menambahkan gudang.'
-      setCreateError(msg)
-      notify({
-        type: 'error',
-        title: 'Gagal Menambahkan Gudang',
-        desc: msg,
-        tag: 'GUDANG',
-      })
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  // Handle ERP Warehouse Import Dry Run
-  const handleDryRunErpImport = async (e) => {
-    e?.preventDefault?.()
-    setErpDryRunLoading(true)
-    setErpError('')
-    try {
-      let parsed
-      try {
-        parsed = JSON.parse(erpJsonText.trim())
-      } catch {
-        throw new Error('Format JSON tidak valid. Periksa sintaks JSON yang ditempel.')
-      }
-
-      const res = await warehousesApi.importErp({
-        ...parsed,
-        dry_run: true,
-      })
-      setErpDryRunResult(res)
-      notify({
-        type: 'info',
-        title: 'Validasi Gudang ERP Selesai',
-        desc: `Hasil dry run: ${res?.data?.total ?? res?.rows?.length ?? 0} gudang diperiksa.`,
-        tag: 'GUDANG',
-      })
-    } catch (err) {
-      const msg = err?.message || 'Uji validasi dry run impor gudang ERP gagal.'
-      setErpError(msg)
-      notify({
-        type: 'error',
-        title: 'Gagal Validasi Gudang ERP',
-        desc: msg,
-        tag: 'GUDANG',
-      })
-    } finally {
-      setErpDryRunLoading(false)
-    }
-  }
-
-  // Handle ERP Warehouse Import Commit
-  const handleCommitErpImport = async () => {
-    setErpApplying(true)
-    setErpError('')
-    try {
-      const parsed = JSON.parse(erpJsonText.trim())
-      const res = await warehousesApi.importErp({
-        ...parsed,
-        dry_run: false,
-      })
-      notify({
-        type: 'success',
-        title: 'Gudang ERP Berhasil Diterapkan',
-        desc: `Berhasil memproses gudang ERP: ${res?.data?.accepted || res?.data?.created || 0} diterapkan.`,
-        tag: 'GUDANG',
-      })
-      setCreateModalOpen(false)
-      setErpJsonText('')
-      setErpDryRunResult(null)
-      loadWarehouses()
-    } catch (err) {
-      const msg = err?.message || 'Gagal menerapkan impor gudang ERP.'
-      setErpError(msg)
-      notify({
-        type: 'error',
-        title: 'Gagal Menerapkan Gudang ERP',
-        desc: msg,
-        tag: 'GUDANG',
-      })
-    } finally {
-      setErpApplying(false)
-    }
-  }
 
   useEffect(() => {
     if (mimsModalOpen) loadMimsToken().then(() => setMimsUseSaved((v) => v))
@@ -384,78 +241,6 @@ export default function WarehousesPage() {
     }
   }
 
-  // Handle Dry Run Snapshot Import (CSV or .xlsx)
-  const handleDryRunImport = async (e) => {
-    e?.preventDefault?.()
-    if (!importFile || !selectedWarehouse) return
-    setDryRunLoading(true)
-    setImportError('')
-    try {
-      const formData = new FormData()
-      formData.append('file', importFile)
-      formData.append('as_of', importAsOf)
-      if (importSourceRef) formData.append('source_reference', importSourceRef)
-      formData.append('dry_run', '1')
-
-      const res = await warehousesApi.importSnapshot(selectedWarehouse.id, formData)
-      setDryRunResult(res)
-      notify({
-        type: 'info',
-        title: 'Validasi Cuplikan Stok Selesai',
-        desc: `Pratinjau cuplikan stok gudang ${selectedWarehouse.name} siap ditinjau.`,
-        tag: 'STOK',
-      })
-    } catch (err) {
-      const msg = err?.message || 'Validasi dry run gagal.'
-      setImportError(msg)
-      notify({
-        type: 'error',
-        title: 'Gagal Validasi Cuplikan Stok',
-        desc: msg,
-        tag: 'STOK',
-      })
-    } finally {
-      setDryRunLoading(false)
-    }
-  }
-
-  // Handle Commit Snapshot Import
-  const handleCommitImport = async () => {
-    if (!importFile || !selectedWarehouse) return
-    setApplying(true)
-    setImportError('')
-    try {
-      const formData = new FormData()
-      formData.append('file', importFile)
-      formData.append('as_of', importAsOf)
-      if (importSourceRef) formData.append('source_reference', importSourceRef)
-      formData.append('dry_run', '0')
-
-      const res = await warehousesApi.importSnapshot(selectedWarehouse.id, formData)
-      notify({
-        type: 'success',
-        title: 'Cuplikan Stok Tersimpan',
-        desc: `Cuplikan stok gudang ${selectedWarehouse.name} per ${importAsOf} berhasil diimpor (${res?.data?.total || 0} total SKU).`,
-        tag: 'STOK',
-      })
-      setImportDrawerOpen(false)
-      setImportFile(null)
-      setDryRunResult(null)
-      loadSnapshots(selectedWarehouse)
-    } catch (err) {
-      const msg = err?.message || 'Gagal menyimpan cuplikan stok ke database.'
-      setImportError(msg)
-      notify({
-        type: 'error',
-        title: 'Gagal Menyimpan Cuplikan Stok',
-        desc: msg,
-        tag: 'STOK',
-      })
-    } finally {
-      setApplying(false)
-    }
-  }
-
   // View Snapshot Detail
   const handleViewSnapshotDetail = async (snapshot) => {
     setSelectedSnapshot(snapshot)
@@ -499,6 +284,15 @@ export default function WarehousesPage() {
       setUnmappedLoading(false)
     }
   }
+
+  // dibuka dari halaman impor cuplikan stok: ?sku_belum_terpetakan=<id cuplikan>&gudang=<nama>
+  useEffect(() => {
+    const snapshotId = searchParams.get('sku_belum_terpetakan')
+    if (!snapshotId) return
+    handleOpenUnmapped(snapshotId, searchParams.get('gudang') || '')
+    setSearchParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const handleSearchUnmapped = async (e) => {
     e?.preventDefault?.()
@@ -588,14 +382,7 @@ export default function WarehousesPage() {
             <button
               type="button"
               aria-label="Tambah Gudang / Impor Gudang ERP"
-              onClick={() => {
-                setCreateModalOpen(true)
-                setWarehouseDrawerMode('manual')
-                setCreateError('')
-                setErpJsonText('')
-                setErpDryRunResult(null)
-                setErpError('')
-              }}
+              onClick={() => navigate('/master-data/warehouses/baru')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconPlus size={16} />
@@ -1180,259 +967,6 @@ export default function WarehousesPage() {
         </div>
       )}
 
-      {/* UNIFIED DRAWER: Tambah Gudang Manual / Impor Gudang ERP (JSON) */}
-      <Modal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        title="Tambah Gudang Penyimpanan"
-        subtitle="Tambahkan gudang baru secara manual atau impor daftar gudang dari payload JSON ERP dengan pratinjau validasi."
-        width="max-w-3xl"
-        footer={
-          warehouseDrawerMode === 'manual' ? (
-            <div className="flex items-center justify-between w-full">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setCreateModalOpen(false)}
-                disabled={creating}
-              >
-                Batal
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                loading={creating}
-                onClick={handleCreateWarehouse}
-              >
-                Simpan Gudang
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between w-full">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setCreateModalOpen(false)}
-                disabled={erpDryRunLoading || erpApplying}
-              >
-                Batal
-              </Button>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant={erpDryRunResult ? 'secondary' : 'primary'}
-                  size="sm"
-                  loading={erpDryRunLoading}
-                  disabled={!erpJsonText.trim() || erpApplying}
-                  onClick={handleDryRunErpImport}
-                >
-                  <IconUpload size={14} />
-                  <span>Uji Validasi (Dry Run)</span>
-                </Button>
-                {erpDryRunResult && (erpDryRunResult.data?.rejected === 0 || erpDryRunResult.data?.rejected === undefined) && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    loading={erpApplying}
-                    onClick={handleCommitErpImport}
-                  >
-                    <IconCheck size={14} />
-                    <span>Terapkan ({erpDryRunResult.rows?.length || erpDryRunResult.data?.total || 0} Gudang)</span>
-                  </Button>
-                )}
-              </div>
-            </div>
-          )
-        }
-      >
-        <div className="space-y-5 text-xs">
-          {/* Mode Switcher */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={() => setWarehouseDrawerMode('manual')}
-              className={`inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                warehouseDrawerMode === 'manual'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <IconPlus size={14} />
-              <span>Tambah Manual</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setWarehouseDrawerMode('upload')}
-              className={`inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                warehouseDrawerMode === 'upload'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <IconUpload size={14} />
-              <span>Via Upload (JSON ERP)</span>
-            </button>
-          </div>
-
-          {warehouseDrawerMode === 'manual' ? (
-            <form onSubmit={handleCreateWarehouse} className="space-y-4 text-xs">
-              {createError && <Alert kind="error">{createError}</Alert>}
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Kode Gudang *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={createCode}
-                  onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
-                  placeholder="Contoh: GDG-UP3-MJK, GDG-ULP-MJO"
-                  className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Nama Gudang *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="Contoh: Gudang Induk Distribusi Mojokerto"
-                  className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Unit Organisasi Pemilik *
-                </label>
-                <select
-                  required
-                  value={createUnitId}
-                  onChange={(e) => setCreateUnitId(e.target.value)}
-                  className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-                >
-                  <option value="">-- Pilih Unit Organisasi --</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.code} - {u.name} ({u.unit_type})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-4 text-xs">
-              <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 text-blue-900 dark:text-blue-200 space-y-1">
-                <p className="font-bold">Format Payload JSON Gudang ERP</p>
-                <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
-                  Tempel payload JSON daftar gudang ERP (format respons ERP <code className="font-mono">{`{"gudang":{"data":[...]}}`}</code> atau daftar item gudang dengan atribut <code className="font-mono">plant, stor_loc, stor_loc_name, unit, jenis</code>).
-                </p>
-              </div>
-
-              {erpError && <Alert kind="error">{erpError}</Alert>}
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Data JSON Gudang ERP <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  rows={7}
-                  value={erpJsonText}
-                  onChange={(e) => {
-                    setErpJsonText(e.target.value)
-                    setErpDryRunResult(null)
-                  }}
-                  placeholder={`{\n  "gudang": {\n    "data": [\n      {\n        "plant": "5110",\n        "stor_loc": "SL01",\n        "stor_loc_name": "Gudang Area Mojokerto",\n        "unit": "51330",\n        "jenis": "GI"\n      }\n    ]\n  }\n}`}
-                  className="block w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
-                />
-              </div>
-
-              {/* ERP Import Dry Run Result */}
-              {erpDryRunResult && (
-                <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
-                      Hasil Validasi Pratinjau Gudang ERP
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        Total: {erpDryRunResult.data?.total ?? erpDryRunResult.rows?.length ?? 0}
-                      </span>
-                      {erpDryRunResult.data?.created !== undefined && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                          Baru: {erpDryRunResult.data.created}
-                        </span>
-                      )}
-                      {erpDryRunResult.data?.updated !== undefined && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
-                          Perbarui: {erpDryRunResult.data.updated}
-                        </span>
-                      )}
-                      {erpDryRunResult.data?.rejected > 0 && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
-                          Ditolak: {erpDryRunResult.data.rejected}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="max-h-72 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0">
-                        <tr className="border-b border-slate-200 dark:border-slate-700 font-semibold text-[10px] text-slate-600 dark:text-slate-400">
-                          <th className="py-2 px-2.5">Plant</th>
-                          <th className="py-2 px-2.5">Storage Loc</th>
-                          <th className="py-2 px-2.5">Nama Gudang</th>
-                          <th className="py-2 px-2.5">Kode Unit</th>
-                          <th className="py-2 px-2.5">Jenis</th>
-                          <th className="py-2 px-2.5">Status</th>
-                          <th className="py-2 px-2.5">Keterangan</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
-                        {(erpDryRunResult.rows || []).map((r, idx) => (
-                          <tr key={idx} className={r.status === 'REJECTED' || r.status === 'DITOLAK' ? 'bg-rose-50/60 dark:bg-rose-950/30' : ''}>
-                            <td className="py-2 px-2.5">{r.plant}</td>
-                            <td className="py-2 px-2.5">{r.stor_loc}</td>
-                            <td className="py-2 px-2.5 font-sans font-medium">{r.stor_loc_name || r.name}</td>
-                            <td className="py-2 px-2.5">{r.unit}</td>
-                            <td className="py-2 px-2.5">{r.jenis || r.kind}</td>
-                            <td className="py-2 px-2.5">
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                  r.status === 'CREATED' || r.status === 'BARU'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : r.status === 'UPDATED' || r.status === 'PERBARUI'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-rose-100 text-rose-800'
-                                }`}
-                              >
-                                {r.status}
-                              </span>
-                            </td>
-                            <td className="py-2 px-2.5 text-[10px] font-sans text-slate-600 dark:text-slate-400">
-                              {r.reason || r.errors?.join('; ') || '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Modal>
 
       {/* DRAWER 1: Warehouse Snapshots List */}
       {selectedWarehouse && (
@@ -1467,12 +1001,7 @@ export default function WarehousesPage() {
                   variant="primary"
                   size="sm"
                   icon={IconUpload}
-                  onClick={() => {
-                    setImportDrawerOpen(true)
-                    setDryRunResult(null)
-                    setImportFile(null)
-                    setImportError('')
-                  }}
+                  onClick={() => navigate(`/master-data/warehouses/${selectedWarehouse.id}/impor-stok`)}
                 >
                   Impor Cuplikan CSV / XLSX
                 </Button>
@@ -1540,276 +1069,6 @@ export default function WarehousesPage() {
         </Drawer>
       )}
 
-      {/* DRAWER 2: Import Stock Snapshot with Dry Run */}
-      {selectedWarehouse && (
-        <Modal
-          isOpen={importDrawerOpen}
-          onClose={() => setImportDrawerOpen(false)}
-          title={`Impor Cuplikan Stok: ${selectedWarehouse.name}`}
-          subtitle="Unggah berkas CSV cuplikan stok fisik harian atau berkas .xlsx Monitoring Stock ERP."
-          width="max-w-2xl"
-          footer={
-            <div className="flex items-center justify-between w-full">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setImportDrawerOpen(false)}
-                disabled={dryRunLoading || applying}
-              >
-                Batal
-              </Button>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant={dryRunResult ? 'secondary' : 'primary'}
-                  size="sm"
-                  loading={dryRunLoading}
-                  disabled={!importFile || applying}
-                  onClick={handleDryRunImport}
-                >
-                  <IconUpload size={14} />
-                  <span>Uji Validasi (Dry Run)</span>
-                </Button>
-                {dryRunResult && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    loading={applying}
-                    onClick={handleCommitImport}
-                  >
-                    <IconCheck size={14} />
-                    <span>Terapkan & Simpan Cuplikan ({dryRunResult.data?.accepted || dryRunResult.data?.total || dryRunResult.rows?.length || 0} Baris)</span>
-                  </Button>
-                )}
-              </div>
-            </div>
-          }
-        >
-          <div className="space-y-4 text-xs">
-            {/* Guide Card */}
-            <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/40 flex items-start justify-between gap-3">
-              <div>
-                <p className="font-bold text-blue-900 dark:text-blue-300">
-                  Format Berkas CSV atau .xlsx Monitoring Stock ERP
-                </p>
-                <p className="text-[11px] text-blue-800 dark:text-blue-400 mt-0.5 leading-relaxed">
-                  Menerima CSV (<code className="font-mono">kode_khs,stok,reservasi,pasokan_masuk,stok_pengaman</code>) atau berkas Excel <code className="font-mono">.xlsx</code> resmi dari aplikasi Monitoring Stock ERP.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  downloadCsv('templat-cuplikan-stok.csv', STOCK_SNAPSHOT_TEMPLATE)
-                  notify({
-                    type: 'info',
-                    title: 'Templat CSV Diunduh',
-                    desc: 'Berkas templat-cuplikan-stok.csv berhasil diunduh.',
-                    tag: 'STOK',
-                  })
-                }}
-                className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
-              >
-                <IconDownload size={13} />
-                <span>Unduh Templat CSV</span>
-              </button>
-            </div>
-
-            {importError && <Alert kind="error">{importError}</Alert>}
-
-            <form onSubmit={handleDryRunImport} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Tanggal Cuplikan (as_of) <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={importAsOf}
-                    onChange={(e) => setImportAsOf(e.target.value)}
-                    className="block w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Referensi Sumber (Opsional)
-                  </label>
-                  <input
-                    type="text"
-                    value={importSourceRef}
-                    onChange={(e) => setImportSourceRef(e.target.value)}
-                    placeholder="Contoh: SAP ERP Monitoring Stock 07-Nov"
-                    className="block w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Berkas Cuplikan (.csv, .xlsx) <span className="text-rose-500">*</span>
-                </label>
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault()
-                    setIsDraggingSnapshot(true)
-                  }}
-                  onDragLeave={() => setIsDraggingSnapshot(false)}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    setIsDraggingSnapshot(false)
-                    const f = e.dataTransfer?.files?.[0]
-                    if (f) {
-                      setImportFile(f)
-                      setDryRunResult(null)
-                    }
-                  }}
-                  onClick={() => snapshotFileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition ${
-                    isDraggingSnapshot
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                      : importFile
-                      ? 'border-emerald-400 dark:border-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20'
-                      : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30'
-                  }`}
-                >
-                  <input
-                    ref={snapshotFileInputRef}
-                    type="file"
-                    required
-                    accept=".csv,.txt,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-                    onChange={(e) => {
-                      setImportFile(e.target.files?.[0] || null)
-                      setDryRunResult(null)
-                    }}
-                    className="sr-only"
-                  />
-                  <IconUpload
-                    size={26}
-                    className={`mx-auto mb-1.5 ${
-                      importFile ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'
-                    }`}
-                  />
-                  {importFile ? (
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        {importFile.name}
-                      </p>
-                      <p className="text-[11px] text-slate-500">
-                        {(importFile.size / 1024).toFixed(1)} KB — Klik atau seret untuk mengganti berkas
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                        Klik untuk memilih berkas .csv / .xlsx atau seret ke area ini
-                      </p>
-                      <p className="text-[11px] text-slate-400">
-                        Mendukung berkas CSV standar atau Excel (.xlsx) Monitoring Stock ERP
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </form>
-
-            {/* Dry Run Preview Summary & Table */}
-            {dryRunResult && (
-              <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 block">
-                      Ringkasan Validasi Cuplikan
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Gudang: <strong>{dryRunResult.data?.warehouse_label || selectedWarehouse.name}</strong> · Tanggal: {importAsOf}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {dryRunResult.data?.accepted !== undefined && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        Valid: {dryRunResult.data.accepted}
-                      </span>
-                    )}
-                    {dryRunResult.data?.rejected !== undefined && dryRunResult.data.rejected > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
-                        Galat: {dryRunResult.data.rejected}
-                      </span>
-                    )}
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                      Total SKU: {dryRunResult.data?.total ?? dryRunResult.data?.accepted ?? dryRunResult.rows?.length ?? 0}
-                    </span>
-                    {dryRunResult.data?.mapped !== undefined && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        Terpetakan: {dryRunResult.data.mapped}
-                      </span>
-                    )}
-                    {dryRunResult.data?.unmapped !== undefined && dryRunResult.data.unmapped > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                        Belum Terpetakan: {dryRunResult.data.unmapped}
-                      </span>
-                    )}
-                    {dryRunResult.data?.khs_lines !== undefined && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
-                        Baris KHS: {dryRunResult.data.khs_lines}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {dryRunResult.data?.unmapped > 0 && dryRunResult.data?.snapshot_id && (
-                  <div className="text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenUnmapped(dryRunResult.data.snapshot_id, selectedWarehouse.name)}
-                      className="text-xs text-blue-600 font-semibold underline hover:text-blue-800"
-                    >
-                      Lihat Daftar SKU Belum Terpetakan →
-                    </button>
-                  </div>
-                )}
-
-                <div className="max-h-60 overflow-y-auto border rounded-lg">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0">
-                      <tr className="border-b font-semibold text-[10px] text-slate-600 dark:text-slate-400">
-                        <th className="py-1.5 px-2.5">Baris</th>
-                        <th className="py-1.5 px-2.5">Kode KHS / SKU</th>
-                        <th className="py-1.5 px-2.5 text-right">Stok</th>
-                        <th className="py-1.5 px-2.5">Status</th>
-                        <th className="py-1.5 px-2.5">Keterangan</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y font-mono text-[11px]">
-                      {(dryRunResult.rows || []).map((r, idx) => (
-                        <tr key={idx} className={r.status === 'REJECTED' ? 'bg-rose-50/60' : ''}>
-                          <td className="py-1.5 px-2.5">{r.row ?? idx + 1}</td>
-                          <td className="py-1.5 px-2.5 font-bold">{r.khs_code || r.material_no}</td>
-                          <td className="py-1.5 px-2.5 text-right">{r.on_hand ?? r.stock_ready}</td>
-                          <td className="py-1.5 px-2.5">
-                            <span
-                              className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                                r.status === 'OK'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
-                            >
-                              {r.status || 'OK'}
-                            </span>
-                          </td>
-                          <td className="py-1.5 px-2.5 text-[10px] text-rose-600 font-sans">
-                            {(r.errors || []).join('; ') || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
 
       {/* DRAWER 3: Snapshot Detail Lines */}
       {selectedSnapshot && (
