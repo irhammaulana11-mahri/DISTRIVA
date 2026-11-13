@@ -335,6 +335,8 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/stock-position', [InventoryController::class, 'position']);
         Route::get('/stock-sync-runs', [InventoryController::class, 'syncRuns']);
         Route::post('/stock-sync', [InventoryController::class, 'mimsPull']);
+        Route::get('/stock-sync/settings', [InventoryController::class, 'mimsAutoShow']);
+        Route::put('/stock-sync/settings', [InventoryController::class, 'mimsAutoSave']);
         Route::get('/stock-sync/token', [InventoryController::class, 'mimsTokenStatus']);
         Route::delete('/stock-sync/token', [InventoryController::class, 'mimsTokenForget']);
         Route::get('/stock-snapshots/{snapshot}/unmapped', [InventoryController::class, 'unmapped'])->whereUuid('snapshot');

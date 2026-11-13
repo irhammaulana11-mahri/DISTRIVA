@@ -91,6 +91,9 @@ export default function WarehousesPage() {
   const [mimsToken, setMimsToken] = useState('')
   const [mimsSaved, setMimsSaved] = useState(null)        // {saved, saved_at, last_used_at, last_result} atau null bila belum dimuat
   const [mimsUseSaved, setMimsUseSaved] = useState(false)
+  const [mimsAuto, setMimsAuto] = useState(null)          // {auto_enabled, auto_time, auto_user_name, last_auto_date}
+  const [mimsAutoTime, setMimsAutoTime] = useState('02:00')
+  const [mimsAutoSaving, setMimsAutoSaving] = useState(false)
   const [mimsSaveToken, setMimsSaveToken] = useState(false)
   const [mimsWarehouseIds, setMimsWarehouseIds] = useState([])
   const [mimsDate, setMimsDate] = useState('')
@@ -149,7 +152,10 @@ export default function WarehousesPage() {
   }, [activeTab, loadSyncRuns])
 
   useEffect(() => {
-    if (mimsModalOpen) loadMimsToken().then(() => setMimsUseSaved((v) => v))
+    if (mimsModalOpen) {
+      loadMimsToken().then(() => setMimsUseSaved((v) => v))
+      loadMimsAuto()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mimsModalOpen])
 
@@ -162,6 +168,30 @@ export default function WarehousesPage() {
       if (!st?.saved) setMimsUseSaved(false)
     } catch {
       setMimsSaved(null)
+    }
+  }
+
+  const loadMimsAuto = async () => {
+    try {
+      const res = await warehousesApi.mimsAutoSettings()
+      setMimsAuto(res?.data || null)
+      if (res?.data?.auto_time) setMimsAutoTime(res.data.auto_time)
+    } catch {
+      setMimsAuto(null)
+    }
+  }
+
+  const saveMimsAuto = async (enabled) => {
+    setMimsAutoSaving(true)
+    setMimsError('')
+    try {
+      const res = await warehousesApi.saveMimsAutoSettings({ auto_enabled: enabled, auto_time: mimsAutoTime })
+      setMimsAuto(res?.data || null)
+      notify({ type: 'success', title: enabled ? 'Tarik Otomatis Aktif' : 'Tarik Otomatis Dimatikan', desc: enabled ? `Stok MIMS ditarik setiap hari pukul ${mimsAutoTime} dengan token tersimpan Anda.` : 'Stok tidak lagi ditarik otomatis.', tag: 'MIMS' })
+    } catch (err) {
+      setMimsError(err?.message || 'Gagal menyimpan pengaturan tarik otomatis.')
+    } finally {
+      setMimsAutoSaving(false)
     }
   }
 
@@ -1299,6 +1329,25 @@ export default function WarehousesPage() {
                   <input type="radio" name="mims-source" checked={!mimsUseSaved} onChange={() => setMimsUseSaved(false)} disabled={mimsPulling} className="mt-0.5" />
                   <span className="font-semibold text-slate-800 dark:text-slate-200">Tempel token baru</span>
                 </label>
+              </div>
+            )}
+
+            {mimsSaved?.saved && (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2" aria-label="Tarik otomatis">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">Tarik stok otomatis harian</span>
+                  <span className={`text-[11px] font-semibold ${mimsAuto?.auto_enabled ? 'text-emerald-600' : 'text-slate-500'}`}>{mimsAuto?.auto_enabled ? 'Aktif' : 'Nonaktif'}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="mims-auto-time" className="text-[11px] text-slate-600 dark:text-slate-300">Jam (WIB)</label>
+                  <input id="mims-auto-time" type="time" value={mimsAutoTime} onChange={(e) => setMimsAutoTime(e.target.value)} disabled={mimsAutoSaving} className="px-2 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800" />
+                  <Button type="button" variant="secondary" size="sm" disabled={mimsAutoSaving} onClick={() => saveMimsAuto(true)}>{mimsAuto?.auto_enabled ? 'Simpan jam' : 'Aktifkan'}</Button>
+                  {mimsAuto?.auto_enabled && <Button type="button" variant="secondary" size="sm" disabled={mimsAutoSaving} onClick={() => saveMimsAuto(false)}>Matikan</Button>}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Memakai token tersimpan milik {mimsAuto?.auto_enabled && mimsAuto?.auto_user_name ? mimsAuto.auto_user_name : 'Anda (yang mengaktifkan)'}.
+                  {mimsAuto?.last_auto_date ? ` Terakhir berjalan ${mimsAuto.last_auto_date}.` : ''} Bila token kedaluwarsa, penarikan gagal dan pemegang izin impor stok diberi tahu; tempel token baru dan simpan lagi.
+                </p>
               </div>
             )}
 

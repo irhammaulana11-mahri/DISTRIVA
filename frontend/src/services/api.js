@@ -324,6 +324,8 @@ export const warehousesApi = {
   },
   syncStock: (body) => request('/master-data/stock-sync', { method: 'POST', body }),
   mimsTokenStatus: () => request('/master-data/stock-sync/token'),
+  mimsAutoSettings: () => request('/master-data/stock-sync/settings'),
+  saveMimsAutoSettings: (body) => request('/master-data/stock-sync/settings', { method: 'PUT', body }),
   forgetMimsToken: () => request('/master-data/stock-sync/token', { method: 'DELETE' }),
   position: (params) => {
     // support array warehouse_ids: ?warehouse_ids[]=id1&warehouse_ids[]=id2

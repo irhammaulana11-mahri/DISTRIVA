@@ -273,6 +273,36 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_scheduled_mims_pull_uses_the_saved_token_of_the_user_who_switched_it_on_once_a_day(): void
+    {
+        $secret = 'rahasia-token-otomatis';
+        DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-auto.test/api']);
+        Http::fake(['mims-auto.test/*' => Http::response(['data' => [['No Material' => '000000000003110025', 'Nama Material' => 'CABLE', 'Satuan' => 'M', 'Stock Siap' => 10, 'Stock Reservasi' => 0, 'Stock In Transit' => 0, 'Stock Minimum' => 0]], 'msg' => '1'])]);
+
+        $this->as($this->konstruksi)->putJson('/api/master-data/stock-sync/settings', ['auto_enabled' => true, 'auto_time' => '00:00'])->assertStatus(409);   // no saved token yet
+        $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync', ['token' => $secret, 'save_token' => true, 'dry_run' => true])->assertOk();
+        $this->as($this->konstruksi)->putJson('/api/master-data/stock-sync/settings', ['auto_enabled' => true, 'auto_time' => '00:00'])->assertOk()->assertJsonPath('data.auto_enabled', true);
+        $this->as($this->viewer)->getJson('/api/master-data/stock-sync/settings')->assertForbidden();
+
+        $this->artisan('distriva:mims-sync-auto')->assertSuccessful();
+        Http::assertSent(fn ($r) => $r->hasHeader('auth-token', $secret));
+        $this->assertSame(1, DB::table('stock_snapshots')->count());
+        $this->assertSame($this->konstruksi->getKey(), DB::table('stock_sync_runs')->value('triggered_by'));
+        $this->artisan('distriva:mims-sync-auto')->assertSuccessful();                                                // already ran today
+        $this->assertSame(1, DB::table('stock_sync_runs')->count());
+
+        \Illuminate\Support\Carbon::setTestNow(now()->addDay());                                                         // next day, token now rejected
+        config(['distriva.mims.base_url' => 'https://mims-auto-expired.test/api']);
+        Http::fake(['mims-auto-expired.test/*' => Http::response([], 401)]);
+        $this->artisan('distriva:mims-sync-auto')->assertSuccessful();
+        $this->assertSame('REJECTED', DB::table('user_mims_tokens')->value('last_result'));
+        $this->assertGreaterThan(0, DB::table('user_notifications')->where('title', 'like', 'Sinkron stok MIMS gagal%')->count());
+        $this->assertStringNotContainsString($secret, json_encode(DB::table('stock_sync_runs')->get()));
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    #[Test]
     public function the_automatic_mims_pull_stores_the_days_snapshot_reports_failures_and_never_records_the_token(): void
     {
         $secret = 'rahasia-token-uji';

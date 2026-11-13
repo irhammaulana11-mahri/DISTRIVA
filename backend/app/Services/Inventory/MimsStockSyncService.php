@@ -2,8 +2,11 @@
 
 namespace App\Services\Inventory;
 
+use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
+use App\Services\Notifications\WorkflowNotifier;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -28,7 +31,7 @@ class MimsStockSyncService
         'warehouse' => ['namastorloc', 'gudang', 'warehouse', 'storlocname'],
     ];
 
-    public function __construct(private readonly StockService $stock) {}
+    public function __construct(private readonly StockService $stock, private readonly WorkflowNotifier $flow) {}
 
     public function configured(): bool
     {
@@ -38,6 +41,68 @@ class MimsStockSyncService
     public function baseUrlConfigured(): bool
     {
         return filled(config('distriva.mims.base_url'));
+    }
+
+    /** @return array{auto_enabled:bool,auto_time:string,auto_user_id:?string,auto_user_name:?string,last_auto_date:?string} */
+    public function autoSettings(): array
+    {
+        $s = DB::table('mims_sync_settings')->where('id', 1)->first();
+        $name = $s->auto_user_id ? DB::table('users')->where('id', $s->auto_user_id)->value('name') : null;
+
+        return ['auto_enabled' => (bool) $s->auto_enabled, 'auto_time' => (string) $s->auto_time, 'auto_user_id' => $s->auto_user_id, 'auto_user_name' => $name, 'last_auto_date' => $s->last_auto_date];
+    }
+
+    /** Turning it on needs a MIMS token saved by the actor (it is the one used every day). */
+    public function saveAutoSettings(User $actor, bool $enabled, string $time): array
+    {
+        if ($enabled && ! DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->exists()) {
+            throw new AssignmentRuleViolation('Simpan token MIMS Anda lebih dulu (tarik stok sekali dengan centang "Simpan token"); token itu dipakai untuk tarik otomatis.');
+        }
+        DB::table('mims_sync_settings')->where('id', 1)->update(['auto_enabled' => $enabled, 'auto_time' => $time, 'auto_user_id' => $enabled ? $actor->getKey() : DB::raw('auto_user_id'), 'updated_at' => now()]);
+
+        return $this->autoSettings();
+    }
+
+    /** Called every minute: pulls every ERP warehouse once per business day, from the set time, with the token saved by the user who switched it on. Returns the number of warehouses processed (null = nothing due). */
+    public function runAutoIfDue(): ?int
+    {
+        $s = DB::table('mims_sync_settings')->where('id', 1)->first();
+        if (! $s->auto_enabled || $s->auto_user_id === null || ! $this->baseUrlConfigured()) {
+            return null;
+        }
+        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
+        if ($now->format('H:i') < $s->auto_time || $s->last_auto_date === $now->toDateString()) {
+            return null;
+        }
+        DB::table('mims_sync_settings')->where('id', 1)->update(['last_auto_date' => $now->toDateString()]);   // once a day, even when it fails: the failure is reported, not retried every minute
+        $user = User::query()->find($s->auto_user_id);
+        $enc = DB::table('user_mims_tokens')->where('user_id', $s->auto_user_id)->value('token_encrypted');
+        $token = null;
+        try {
+            $token = $enc === null ? null : Crypt::decryptString($enc);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+        }
+        if ($user === null || $token === null) {
+            $this->flow->mimsTokenRejected();
+
+            return 0;
+        }
+        $count = 0;
+        $rejected = false;
+        foreach (DB::table('warehouses')->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code')->get() as $wh) {
+            $r = $this->syncWarehouse($wh, $user, null, false, $token, $user);
+            $count++;
+            if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
+                $rejected = true;
+                break;
+            }
+        }
+        DB::table('user_mims_tokens')->where('user_id', $user->getKey())->update(['last_used_at' => now(), 'last_result' => $rejected ? 'REJECTED' : 'OK']);
+        if ($rejected) {
+            $this->flow->mimsTokenRejected();
+        }
+
+        return $count;
     }
 
     /** @return array{status:string,message:?string,snapshot_id:?string,total:int,mapped:int} */

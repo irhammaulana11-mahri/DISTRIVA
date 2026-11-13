@@ -23,3 +23,6 @@ Schedule::command('distriva:mims-sync-stock')->dailyAt((string) config('distriva
 
 // Automatic EIS sync when due (settings in eis_sync_settings; docs/82 §19.15). Needs the usual `* * * * * php artisan schedule:run` cron entry.
 Schedule::command('distriva:eis-sync-scheduled')->everyMinute()->withoutOverlapping();
+
+// Automatic MIMS stock pull with the token saved by the user who switched it on (docs/82 §19.15).
+Schedule::command('distriva:mims-sync-auto')->everyMinute()->withoutOverlapping();

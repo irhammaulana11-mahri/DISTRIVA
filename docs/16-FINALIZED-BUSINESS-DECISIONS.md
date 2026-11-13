@@ -180,7 +180,7 @@ Klarifikasi ini menyelaraskan ringkasan finalized decisions dengan keputusan T4.
 3. IDPEL disimpan sebagai external reference pada customer, bukan primary key; satu IDPEL dapat terkait dengan banyak permohonan milik customer yang sama.
 4. Satu customer internal DISTRIVA dapat memiliki banyak applications.
 5. No. Register (`PAYMENT_REGISTER`) dan No. Agenda (`AGENDA`) melekat pada masing-masing permohonan, bukan pada customer. Satu customer/IDPEL dapat memiliki banyak nomor tersebut melalui banyak permohonan. Keduanya boleh belum tersedia saat permohonan baru dibuat; penerbitan ulang/koreksi disimpan sebagai histori.
-4. TOTALBIAYA tidak otomatis dianggap sebagai pembayaran; TGLBAYAR perlu verifikasi.
+4. TOTALBIAYA tidak otomatis dianggap sebagai pembayaran; TGLBAYAR perlu verifikasi. **Diperbarui 14 Nov 2026 (keputusan pemilik): status "Bayar" dari EIS dianggap pembayaran terverifikasi.** Tidak ada integrasi pembayaran terpisah; EIS menjadi sumber verifikasi pembayaran.
 5. STATUS_PERMOHONAN dan DURASI_HARI_KERJA adalah data eksternal yang dipertahankan dalam histori, tidak menggantikan workflow internal.
 8. Data sumber Bot Daftung dipertahankan melalui staging/payload untuk audit dan rekonsiliasi.
 

@@ -260,6 +260,24 @@ class InventoryController extends Controller
         return response()->json(['data' => $results]);
     }
 
+    /** GET /stock-sync/settings — automatic pull settings. */
+    public function mimsAutoShow(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'stock.import');
+
+        return response()->json(['data' => $this->mims->autoSettings()]);
+    }
+
+    /** PUT /stock-sync/settings {auto_enabled, auto_time} */
+    public function mimsAutoSave(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'stock.import');
+        $d = Validator::make($request->all(), ['auto_enabled' => ['required', 'boolean'], 'auto_time' => ['required', 'date_format:H:i']])->validate();
+
+        return response()->json(['data' => $this->mims->saveAutoSettings($actor, (bool) $d['auto_enabled'], $d['auto_time'])]);
+    }
+
     /** GET /stock-sync/token — whether the user keeps a MIMS token (never the token itself). */
     public function mimsTokenStatus(Request $request): JsonResponse
     {

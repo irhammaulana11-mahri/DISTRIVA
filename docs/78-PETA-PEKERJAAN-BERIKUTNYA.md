@@ -16,3 +16,8 @@ docs/10 ("Perubahan keputusan") dan docs/16/17 menetapkan **aplikasi material ek
 9. **Tahap 12 — hardening dan deployment:** tinjauan keamanan, kinerja, observabilitas, `DISTRIVA_BACKUP_ROOT`, penjadwal `schedule:run`, lokasi dokumen definitif, penggantian kata sandi `distriva_user`; **pemulihan `distriva_db` + migrasi 120000–200000 + seeder izin + data awal** (ditahan sampai modul selesai).
 ## 4. Keputusan pemilik yang membuka pekerjaan
 Tabel pemetaan SKU↔KHS (1) · kebijakan penutupan permohonan dan verifikasi meter (7) · apakah studi kelayakan terpisah dari KKF (5) · kontrak API aplikasi material, Bot Daftung/EIS, pembayaran (3, 6) · waktu pemulihan database (9).
+
+
+## 5. Pembaruan 14 Nov 2026
+- **Pembayaran:** pemilik memutuskan status "Bayar" dari EIS = terverifikasi; integrasi pembayaran terpisah tidak diperlukan (docs/16).
+- **MIMS:** arah dipilih pemilik = DISTRIVA **menarik** stok, penerimaan, dan pengeluaran material dari MIMS lalu menyinkronkannya dengan data DISTRIVA (bukan mengirim JSON ke MIMS, karena alurnya bertahap dan lintas pengguna). Stok sudah ada; penerimaan dan pengeluaran menunggu contoh endpoint/respons MIMS.
