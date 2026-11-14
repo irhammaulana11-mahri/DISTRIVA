@@ -12,7 +12,16 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import { AgendaFacts, OutboxBadge, ProgressBar, RevisionBadge } from './AgendaParts.jsx'
 import { PoleWoStatusBadge } from './PoleWoStatusBadge.jsx'
-import { IconArrowRight, IconEye, IconPlus, IconRefresh, IconSearch, IconWrench } from '../../components/icons.jsx'
+import {
+  IconArrowRight,
+  IconCheckCircle,
+  IconClock,
+  IconEye,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconWrench,
+} from '../../components/icons.jsx'
 
 const FILTERS = [
   { key: 'ALL', label: 'Semua' },
@@ -104,21 +113,107 @@ export default function WorkOrdersPage() {
   const selected = rows.find((r) => r.application_id === selectedId) || null
   const visibleFilters = FILTERS.filter((f) => !f.internalOnly || !isVendor)
 
+  const stats = useMemo(() => {
+    return {
+      total: rows.length,
+      inProgress: rows.filter((r) => r.network?.status === 'IN_PROGRESS' || r.poles.some((p) => p.status === 'IN_PROGRESS')).length,
+      needsWoCount: rows.filter((r) => needsWo(r)).length,
+      completed: rows.filter((r) => (r.network?.status === 'COMPLETED' || (r.network == null && r.poles.length > 0)) && r.poles.every((p) => p.status === 'COMPLETED')).length,
+    }
+  }, [rows])
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Surat Perintah Kerja (SPK / WO)</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {isVendor
-              ? 'Penugasan konstruksi dan pemasangan tiang yang diberikan kepada perusahaan Anda, per No. Agenda.'
-              : 'WO jaringan dan WO tiang dikelompokkan per No. Agenda. Buat, terbitkan, dan pantau progres dari sini.'}
-          </p>
+    <div className="space-y-6">
+      {/* Header Modul SPK / WO */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconWrench className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Surat Perintah Kerja (SPK / WO)
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Konstruksi &amp; Pelaksanaan
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                {isVendor
+                  ? 'Penugasan konstruksi dan pemasangan tiang yang diberikan kepada perusahaan Anda, per No. Agenda.'
+                  : 'WO jaringan dan WO tiang dikelompokkan per No. Agenda. Buat, terbitkan, dan pantau progres dari sini.'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={load}
+            title="Muat Ulang"
+            aria-label="Muat Ulang"
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition cursor-pointer shadow-2xs"
+          >
+            <IconRefresh size={14} />
+            <span>Segarkan</span>
+          </button>
         </div>
-        <button type="button" onClick={load} title="Muat Ulang" aria-label="Muat Ulang" className="self-start sm:self-auto p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
-          <IconRefresh size={15} />
-        </button>
       </div>
+
+      {/* KPI Ringkasan Metrik SPK / WO */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Agenda SPK</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconWrench className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Agenda terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Dalam Pengerjaan</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconClock className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.inProgress}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Pekerjaan aktif di lapangan</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Perlu Dibuat</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconPlus className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {stats.needsWoCount}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Menunggu penerbitan WO</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Selesai</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.completed}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Pekerjaan tuntas</p>
+        </div>
+      </dl>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">

@@ -23,6 +23,8 @@ import {
   IconAlertCircle,
   IconInfo,
   IconUpload,
+  IconRefresh,
+  IconCheckCircle,
 } from '../../components/icons.jsx'
 
 const inputCls =
@@ -571,25 +573,45 @@ export default function SubstationMeasurementsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Operasional</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Pengukuran Gardu</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Pengukuran Gardu</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Kondisi operasional gardu distribusi: pembebanan, tegangan pangkal dan ujung, keseimbangan fasa, serta proyeksi pertumbuhan beban.
-          </p>
+      {/* Header Modul Pengukuran Gardu */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-brand-600 p-2.5 text-white shadow-xs">
+              <IconActivity className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Operasional</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Pengukuran Gardu</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Pengukuran Gardu
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Operasional Distribusi
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Kondisi operasional gardu distribusi: pembebanan, tegangan pangkal dan ujung, keseimbangan fasa, serta proyeksi pertumbuhan beban.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={load} icon={IconRefresh} aria-label="Segarkan">
+              Segarkan
+            </Button>
+            {canSync && (
+              <Button icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
+                Impor Pengukuran
+              </Button>
+            )}
+          </div>
         </div>
-        {canSync && (
-          <Button icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
-            Impor Pengukuran
-          </Button>
-        )}
       </div>
 
       {/* Ringkasan Kondisi Data di Atas Tabel */}
@@ -609,6 +631,61 @@ export default function SubstationMeasurementsPage() {
           </p>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik Pengukuran Gardu */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Gardu</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {meta?.total ?? rows.length}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Gardu distribusi terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Pembacaan Terkini</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {summary.freshCount ?? '-'}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Data operasional fresh</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Overload (&gt; 80%)</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconAlertCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {rows.filter((r) => (r.latest_reading?.loading_pct || 0) >= 80).length}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Gardu beban kritis</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Peringatan Teknis</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconActivity className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {rows.filter((r) => (r.latest_reading?.flags?.length || 0) > 0).length}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Drop tegangan / fasa</p>
+        </div>
+      </dl>
 
       {/* Filter Bar */}
       <form
