@@ -108,48 +108,47 @@ export default function PriceBooksPage() {
 
   return (
     <div className="space-y-6 w-full">
-      {/* Hero Banner Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-lg">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-1.5">
-            <nav className="flex items-center gap-1.5 text-xs text-indigo-300">
-              <span className="hover:text-white transition">DISTRIVA</span>
-              <span>/</span>
-              <span className="hover:text-white transition">Master Data</span>
-              <span>/</span>
-              <span className="text-white font-medium">Katalog Tarif & Harga</span>
-            </nav>
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-              <h1 className="text-2xl font-bold tracking-tight text-white">
-                Buku Harga Kontrak
-              </h1>
-              <span className="inline-flex items-center rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-semibold text-blue-200 border border-blue-400/30">
-                Katalog Tarif & Jasa
-              </span>
-              <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-200 border border-emerald-400/30">
-                Zonasi UP3
-              </span>
+      {/* Page Header */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconTag className="h-6 w-6" />
             </div>
-            <p className="text-xs sm:text-sm text-indigo-200/80 max-w-3xl">
-              Katalog harga satuan per kontrak kerja, penetapan status pengadaan material (PLN non-RAB atau dibeli vendor), dan tarif jasa pekerjaan instalasi/pembongkaran per zona UP3.
-            </p>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Buku Harga Kontrak
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Katalog Tarif &amp; Jasa
+                </span>
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  Zonasi UP3
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
+                Katalog harga satuan per kontrak kerja, penetapan status pengadaan material (PLN non-RAB atau dibeli vendor), dan tarif jasa pekerjaan instalasi/pembongkaran per zona UP3.
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={loadBooks}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-xs border border-white/10 text-white font-medium px-3.5 py-2 text-xs transition cursor-pointer"
-              title="Segarkan data buku harga"
+              icon={IconRefresh}
+              aria-label="Segarkan data buku harga"
             >
-              <IconRefresh className="h-3.5 w-3.5" />
-              <span>Segarkan</span>
-            </button>
+              Segarkan
+            </Button>
             {canManage && (
               <button
                 type="button"
                 onClick={() => navigate('/master-data/harga/impor')}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition focus-ring cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
                 <IconUpload className="h-4 w-4" />
                 <span>Impor Buku Harga</span>
