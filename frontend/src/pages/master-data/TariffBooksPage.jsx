@@ -102,36 +102,118 @@ export default function TariffBooksPage() {
   // Find pending drafts
   const draftBooks = books.filter((b) => b.status === 'DRAFT')
 
+  // Metrik KPI Tarif
+  const approvedTariffsCount = books.filter((b) => b.status === 'APPROVED').length
+  const inactiveTariffsCount = books.filter((b) => b.status === 'INACTIVE').length
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-400 font-medium mb-1">
-            DISTRIBA / MASTER DATA
-          </nav>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <IconZap size={24} className="text-blue-600 dark:text-blue-400" />
-            <span>Buku Tarif Listrik</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Katalog tarif tenaga listrik: harga jual rata-rata (Rp/kWh), jam nyala (kWh/kVA/bulan), dan UJL (Rp/VA) per golongan tarif dan daya.
-          </p>
-        </div>
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-lg">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1.5">
+            <nav className="flex items-center gap-1.5 text-xs text-indigo-300">
+              <span className="hover:text-white transition">DISTRIVA</span>
+              <span>/</span>
+              <span className="hover:text-white transition">Master Data</span>
+              <span>/</span>
+              <span className="text-white font-medium">Tarif Listrik & Golongan Daya</span>
+            </nav>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <IconZap className="h-6 w-6 text-amber-400" />
+                <span>Buku Tarif Listrik</span>
+              </h1>
+              <span className="inline-flex items-center rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-semibold text-blue-200 border border-blue-400/30">
+                Golongan Tarif PLN
+              </span>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-200 border border-emerald-400/30">
+                Rp/kWh & UJL
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-indigo-200/80 max-w-3xl">
+              Katalog tarif tenaga listrik: harga jual rata-rata (Rp/kWh), jam nyala (kWh/kVA/bulan), dan UJL (Rp/VA) per golongan tarif dan daya.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          {canManage && (
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => navigate('/master-data/tariff-books/impor')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              onClick={loadBooks}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-xs border border-white/10 text-white font-medium px-3.5 py-2 text-xs transition cursor-pointer"
+              title="Segarkan data buku tarif"
             >
-              <IconUpload size={16} />
-              <span>Impor Buku Tarif</span>
+              <IconRefresh className="h-3.5 w-3.5" />
+              <span>Segarkan</span>
             </button>
-          )}
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => navigate('/master-data/tariff-books/impor')}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition focus-ring cursor-pointer"
+              >
+                <IconUpload className="h-4 w-4" />
+                <span>Impor Buku Tarif</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik Buku Tarif */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Buku Tarif</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {books.length.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Katalog tarif terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Buku Tarif Aktif</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {approvedTariffsCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Berlaku untuk perhitungan KKF</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Draf Menunggu Persetujuan</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconExclamation className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {draftBooks.length.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Perlu telaah Manager UP3</p>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Nonaktif / Lampau</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconTrash className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {inactiveTariffsCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Arsip tarif masa lalu</p>
+        </div>
+      </dl>
 
       {/* Pending Draft Alert Banner */}
       {draftBooks.length > 0 && (
