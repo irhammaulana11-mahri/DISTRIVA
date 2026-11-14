@@ -222,7 +222,22 @@ class WorkOrderService
             }
             DB::table('work_orders')->where('id', $woId)->update(['status' => 'COMPLETED', 'completed_by' => $actor->getKey(), 'completed_at' => now(), 'updated_at' => now()]);
             $this->event($woId, 'COMPLETED', $actor, 'Selesai melalui penutupan BASTP.', null);
+            $this->completeApplications($apps, $wo->wo_number, $actor);
         });
+    }
+
+    /**
+     * Owner decision (Nov 2026): closing the BASTP also completes the application(s) of the work order (every member of a proposal). A cancelled or refunded application is left alone.
+     *
+     * @param  list<string>  $applicationIds
+     */
+    private function completeApplications(array $applicationIds, string $woNumber, User $actor): void
+    {
+        foreach (DB::table('applications')->whereIn('id', $applicationIds)->whereNotIn('current_status', ['COMPLETED', 'CANCELLED', 'REFUNDED'])->lockForUpdate()->get(['id', 'current_status']) as $app) {
+            DB::table('applications')->where('id', $app->id)->update(['current_status' => 'COMPLETED', 'updated_at' => now()]);
+            DB::table('application_status_histories')->insert(['id' => (string) Str::uuid(), 'application_id' => $app->id, 'from_status' => $app->current_status, 'to_status' => 'COMPLETED',
+                'changed_by' => $actor->getKey(), 'changed_at' => now(), 'reason' => "Selesai: BASTP ditutup (WO {$woNumber})."]);
+        }
     }
 
     public function cancel(string $woId, string $reason, User $actor): void

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Exceptions\AdministrationDenied;
 use App\Services\Applications\ApplicationService;
 use App\Services\Authorization\ApplicationAuthorizer;
-use App\Services\WorkOrders\VendorService;
 use App\Services\Notifications\WorkflowNotifier;
+use App\Services\Proposals\ProposalService;
+use App\Services\Surveys\SurveyService;
+use App\Services\WorkOrders\VendorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,7 @@ class ApplicationController extends Controller
     /** The application whose survey speaks for `a` (docs/82 §11): the proposal's representative for members of a live or "no extension" proposal, else itself. Twin of ProposalService::surveyOwnerId(). */
     private const SURVEY_OWNER_SQL = "coalesce((select p2.representative_application_id from proposal_applications pa2 join proposals p2 on p2.id = pa2.proposal_id where pa2.application_id = a.id and ((pa2.released_at is null and p2.status = 'OPEN') or p2.status = 'COMPLETED_NO_EXTENSION') order by pa2.added_at desc limit 1), a.id)";
 
-    private const STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS', 'CONNECTION_DONE', 'CANCELLED', 'REFUNDED'];
+    private const STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS', 'CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
 
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ApplicationService $service, private readonly WorkflowNotifier $flow) {}
 
@@ -68,13 +70,13 @@ class ApplicationController extends Controller
         }
         // lifecycle: active = still running, history = done, cancelled or refunded (imported as history; the page shows the active ones by default).
         if ($request->filled('lifecycle')) {
-            $closed = ['CONNECTION_DONE', 'CANCELLED', 'REFUNDED'];
+            $closed = ['CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
             $request->query('lifecycle') === 'active' ? $q->whereNotIn('a.current_status', $closed) : $q->whereIn('a.current_status', $closed);
         }
         if ($request->boolean('ready_to_install')) {          // survey accepted as "no extension" and the application not moved on yet (docs/82)
             $q->whereIn('a.current_status', ['APPROVED', 'PAID', 'PK_PRINTED'])
-                ->whereRaw("(select s.status from application_surveys s where s.application_id = ".self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) = 'ACCEPTED'")
-                ->whereRaw("(select sv.requires_network_extension from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = ".self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1) is false");
+                ->whereRaw('(select s.status from application_surveys s where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) = 'ACCEPTED'")
+                ->whereRaw('(select sv.requires_network_extension from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1) is false");
         }
         if ($request->filled('search')) {
             $term = '%'.str_replace(['%', '_'], ['\%', '\_'], $request->query('search')).'%';
@@ -88,8 +90,8 @@ class ApplicationController extends Controller
             ->selectRaw("(select e.reference_number from application_external_references e where e.application_id = a.id and e.reference_type = 'PAYMENT_REGISTER' and e.is_active order by e.created_at desc limit 1) as register_number")
             ->selectRaw("(select r.reference_value from customer_external_references r where r.customer_id = c.id and r.reference_type = 'IDPEL' order by r.created_at desc limit 1) as idpel")
             ->selectRaw("(select p.proposal_number from proposal_applications pa join proposals p on p.id = pa.proposal_id where pa.application_id = a.id and pa.released_at is null and p.status = 'OPEN' limit 1) as proposal_number")
-            ->selectRaw("(select s.survey_number from application_surveys s where s.application_id = ".self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) as survey_number")
-            ->selectRaw("(select s.status from application_surveys s where s.application_id = ".self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) as survey_status")
+            ->selectRaw('(select s.survey_number from application_surveys s where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) as survey_number")
+            ->selectRaw('(select s.status from application_surveys s where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) as survey_status")
             ->selectRaw("(select case when sv.requires_network_extension is true then 'EXTENSION' when sv.requires_network_extension is false then 'NO_EXTENSION' end from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = ".self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1) as survey_outcome")
             ->paginate(max(1, min((int) $request->query('per_page', 25), 100)));
 
@@ -221,7 +223,7 @@ class ApplicationController extends Controller
     /** The live proposal the application belongs to, as the drawer needs it: `issued` is false while it is only a collective survey request (no usulan number yet). @return array<string,mixed>|null */
     private function proposalSummary(string $applicationId): ?array
     {
-        $p = \App\Services\Proposals\ProposalService::liveFor($applicationId);
+        $p = ProposalService::liveFor($applicationId);
         if ($p === null) {
             return null;
         }
@@ -235,7 +237,7 @@ class ApplicationController extends Controller
     /** @return array<string,mixed>|null */
     private function surveySummary(object $a): ?array
     {
-        $s = \App\Services\Surveys\SurveyService::latestOutcome($a->id);
+        $s = SurveyService::latestOutcome($a->id);
 
         return $s === null ? null : $s + ['ready_to_install' => self::readyToInstall($a->current_status, $s['status'], $s['outcome'])];
     }

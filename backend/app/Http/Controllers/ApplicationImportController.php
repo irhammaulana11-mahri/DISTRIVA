@@ -82,7 +82,7 @@ class ApplicationImportController extends Controller
         $scope = $this->authorizer->authorizeScope($request->user(), 'applications.import');
         $data = Validator::make($request->query(), ['before' => ['required', 'date_format:Y-m-d']])->validate();
         $q = DB::table('applications as a')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')->where('a.source_type', 'BOT_DAFTUNG')
-            ->whereNotIn('a.current_status', ['CONNECTION_DONE', 'CANCELLED', 'REFUNDED'])->whereNotNull('a.source_created_at')->where('a.source_created_at', '<', $data['before']);
+            ->whereNotIn('a.current_status', ['CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'])->whereNotNull('a.source_created_at')->where('a.source_created_at', '<', $data['before']);
         if (! $scope['unrestricted']) {
             $q->whereIn('a.organizational_unit_id', $scope['units']);
         }

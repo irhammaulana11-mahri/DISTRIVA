@@ -31,9 +31,9 @@ class EisImportService
 
     private const TYPE_MAP = ['PASANG BARU' => 'PB', 'PERUBAHAN DAYA' => 'PD'];
 
-    private const TERMINAL = ['CANCELLED', 'REFUNDED'];
+    private const TERMINAL = ['COMPLETED', 'CANCELLED', 'REFUNDED'];
 
-    private const POST_PAYMENT = ['PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS', 'CONNECTION_DONE'];
+    private const POST_PAYMENT = ['PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS', 'CONNECTION_DONE', 'COMPLETED'];
 
     public function __construct(private readonly ApplicationService $applications) {}
 

@@ -152,7 +152,7 @@ class SubstationAnalysisService
         $pipelineCount = 0;
         foreach ($rows as $r) {
             $kva = round((float) $r->added_power_kva * (float) ($r->load_factor ?? 0.8), 3);
-            if ($r->current_status === 'CONNECTION_DONE') {
+            if (in_array($r->current_status, ['CONNECTION_DONE', 'COMPLETED'], true)) {
                 $realized[] = ['application_number' => $r->application_number, 'date' => CarbonImmutable::parse($r->completed_at ?? $r->updated_at)->toDateString(), 'kva' => $kva];
             } else {
                 $pipeline += $kva;
