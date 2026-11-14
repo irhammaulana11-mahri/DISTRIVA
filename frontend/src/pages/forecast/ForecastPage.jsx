@@ -9,7 +9,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
-import { IconChart, IconRefresh } from '../../components/icons.jsx'
+import { IconChart, IconRefresh, IconZap, IconActivity, IconLayers } from '../../components/icons.jsx'
 
 /**
  * Forecast beban gardu (docs/11; deep learning, keputusan pemilik Nov 2026): satu jaringan saraf bersama memprakirakan beban kVA gardu terhadap kapasitas trafo pada 1, 3, dan 5 tahun ke depan,
@@ -94,19 +94,71 @@ const TABS = [
 export default function ForecastPage() {
   const [tab, setTab] = useState('gardu')
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Forecast</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Prakiraan dengan deep learning: beban gardu, pertumbuhan pelanggan dan daya (VA), serta pemakaian material. Rekomendasi untuk perencana, bukan keputusan.</p>
+    <div className="space-y-6">
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
+              <span>DISTRIVA</span>
+              <span className="opacity-40">/</span>
+              <span>PERENCANAAN</span>
+              <span className="opacity-40">/</span>
+              <span className="text-white">FORECAST &amp; PREDIKSI BEBAN</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
+                <IconChart size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                  Forecast Beban Gardu &amp; Kebutuhan
+                </h1>
+                <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl mt-0.5">
+                  Prakiraan berbasis deep learning (ansambel kuantil GRU 1–5 tahun): evaluasi beban gardu, pertumbuhan pelanggan &amp; daya (VA), serta proyeksi kebutuhan material PLN.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 backdrop-blur-md px-3.5 py-2 text-xs text-blue-200 border border-white/10 shadow-xs">
+              <IconZap size={14} className="text-amber-400" />
+              <span>Model: <strong className="text-white font-semibold">Ansambel GRU</strong></span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 backdrop-blur-md px-3.5 py-2 text-xs text-blue-200 border border-white/10 shadow-xs">
+              <IconActivity size={14} className="text-emerald-400" />
+              <span>Horizon: <strong className="text-white font-semibold">1 – 5 Tahun</strong></span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div role="tablist" aria-label="Jenis forecast" className="flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-700">
-        {TABS.map((t) => (
-          <button key={t.key} role="tab" aria-selected={tab === t.key} type="button" onClick={() => setTab(t.key)}
-            className={`whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 -mb-px cursor-pointer ${tab === t.key ? 'border-brand-600 text-brand-700 dark:text-brand-300' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-            {t.label}
-          </button>
-        ))}
+
+      {/* Navigasi Tab */}
+      <div className="border-b border-slate-200 dark:border-slate-800">
+        <div role="tablist" aria-label="Jenis forecast" className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {TABS.map((t) => {
+            const isActive = tab === t.key
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={isActive}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`flex items-center gap-2 whitespace-nowrap rounded-t-xl px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-all cursor-pointer ${
+                  isActive
+                    ? 'border-blue-600 bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'
+                }`}
+              >
+                <span>{t.label}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
+
       {tab === 'gardu' ? <GarduForecast /> : tab === 'derived' ? <DerivedNeed /> : <DemandForecast key={tab} kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']} />}
     </div>
   )
@@ -328,10 +380,10 @@ function DemandView({ run, kinds }) {
 
 function Stat({ label, value, hint }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
-      <dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="text-xl font-bold text-slate-900 dark:text-slate-100">{value}</dd>
-      {hint && <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{hint}</p>}
+    <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+      <dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="mt-1 text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</dd>
+      {hint && <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{hint}</p>}
     </div>
   )
 }
