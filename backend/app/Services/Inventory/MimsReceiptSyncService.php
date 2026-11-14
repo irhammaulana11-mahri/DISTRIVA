@@ -29,12 +29,12 @@ class MimsReceiptSyncService
             return $finish('SKIPPED', 'Gudang belum memiliki plant dan storage location ERP.');
         }
         $base = rtrim((string) config('distriva.mims.base_url'), '/');
-        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->timeout((int) config('distriva.mims.timeout_seconds'));
+        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.timeout_seconds'));
         $since = CarbonImmutable::now((string) config('distriva.business_timezone'))->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
         try {
             $res = $http()->get($base.strtr((string) config('distriva.mims.receipt_list_path'), ['{plant}' => rawurlencode((string) $wh->plant), '{stor_loc}' => rawurlencode((string) $wh->stor_loc)]));
-        } catch (\Throwable) {
-            return $finish('FAILED', 'Tidak dapat terhubung ke MIMS.');
+        } catch (\Throwable $e) {
+            return $finish('FAILED', MimsStockSyncService::connectionMessage($e));
         }
         if (! $res->successful()) {
             return $finish('FAILED', 'MIMS menjawab status HTTP '.$res->status().($res->status() === 401 || $res->status() === 403 ? ' (token ditolak atau kedaluwarsa).' : '.'));
@@ -60,8 +60,8 @@ class MimsReceiptSyncService
             if ($status === 'DITERIMA') {
                 try {
                     $detail = $http()->get($base.strtr((string) config('distriva.mims.receipt_detail_path'), ['{document}' => rawurlencode($doc)]));
-                } catch (\Throwable) {
-                    return $finish('FAILED', 'Koneksi ke MIMS terputus di tengah penarikan.', $docs, $lines);
+                } catch (\Throwable $e) {
+                    return $finish('FAILED', MimsStockSyncService::connectionMessage($e), $docs, $lines);
                 }
                 if (in_array($detail->status(), [401, 403], true)) {
                     return $finish('FAILED', 'MIMS menjawab status HTTP '.$detail->status().' (token ditolak atau kedaluwarsa).', $docs, $lines);

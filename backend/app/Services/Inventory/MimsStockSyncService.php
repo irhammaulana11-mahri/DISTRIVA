@@ -34,6 +34,23 @@ class MimsStockSyncService
 
     public function __construct(private readonly StockService $stock, private readonly WorkflowNotifier $flow, private readonly MimsIssueSyncService $issues, private readonly MimsReceiptSyncService $receipts) {}
 
+    /** Why MIMS could not be reached, without anything secret (the message of a cURL error names the host and the cause, never the headers). */
+    public static function connectionMessage(\Throwable $e): string
+    {
+        $m = $e->getMessage();
+        if (stripos($m, 'certificate') !== false || stripos($m, 'SSL') !== false) {
+            return 'Tidak dapat terhubung ke MIMS: sertifikat SSL server MIMS kedaluwarsa atau tidak tepercaya. Minta pengelola MIMS memperbaruinya (atau, sementara, atur DISTRIVA_MIMS_VERIFY_SSL=false dengan sadar akan risikonya).';
+        }
+        if (stripos($m, 'resolve host') !== false) {
+            return 'Tidak dapat terhubung ke MIMS: nama server tidak dikenali (periksa DISTRIVA_MIMS_BASE_URL dan DNS/jaringan server).';
+        }
+        if (stripos($m, 'timed out') !== false) {
+            return 'Tidak dapat terhubung ke MIMS: waktu tunggu habis (jaringan atau MIMS lambat).';
+        }
+
+        return 'Tidak dapat terhubung ke MIMS: '.mb_substr(preg_replace('/\s+/', ' ', $m), 0, 200);
+    }
+
     public function configured(): bool
     {
         return filled(config('distriva.mims.base_url')) && filled(config('distriva.mims.auth_token'));
@@ -136,9 +153,9 @@ class MimsStockSyncService
         }
         $url = rtrim((string) config('distriva.mims.base_url'), '/').strtr((string) config('distriva.mims.stock_path'), ['{regional}' => (string) config('distriva.mims.regional'), '{unit_upi}' => (string) config('distriva.mims.unit_upi'), '{plant}' => $wh->plant, '{stor_loc}' => $wh->stor_loc, '{valuation}' => (string) config('distriva.mims.valuation')]);
         try {
-            $res = Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->timeout((int) config('distriva.mims.timeout_seconds'))->get($url);
-        } catch (\Throwable) {
-            return $finish('FAILED', 'Tidak dapat terhubung ke MIMS.');
+            $res = Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.timeout_seconds'))->get($url);
+        } catch (\Throwable $e) {
+            return $finish('FAILED', self::connectionMessage($e));
         }
         if (! $res->successful()) {
             return $finish('FAILED', 'MIMS menjawab status HTTP '.$res->status().($res->status() === 401 || $res->status() === 403 ? ' (token ditolak atau kedaluwarsa).' : '.'));

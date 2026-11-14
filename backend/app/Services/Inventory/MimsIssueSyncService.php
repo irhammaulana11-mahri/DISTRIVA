@@ -30,12 +30,12 @@ class MimsIssueSyncService
             return $finish('SKIPPED', 'Gudang belum memiliki plant dan storage location ERP.');
         }
         $base = rtrim((string) config('distriva.mims.base_url'), '/');
-        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->timeout((int) config('distriva.mims.timeout_seconds'));
+        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.timeout_seconds'));
         $since = CarbonImmutable::now((string) config('distriva.business_timezone'))->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
         try {
             $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => 'S', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => '', 'tanggal_akhir' => '']);
-        } catch (\Throwable) {
-            return $finish('FAILED', 'Tidak dapat terhubung ke MIMS.');
+        } catch (\Throwable $e) {
+            return $finish('FAILED', MimsStockSyncService::connectionMessage($e));
         }
         if (! $res->successful()) {
             return $finish('FAILED', 'MIMS menjawab status HTTP '.$res->status().($res->status() === 401 || $res->status() === 403 ? ' (token ditolak atau kedaluwarsa).' : '.'));
@@ -63,8 +63,8 @@ class MimsIssueSyncService
             try {
                 $detail = $http()->get($base.strtr((string) config('distriva.mims.issue_detail_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
                 $map = $http()->get($base.strtr((string) config('distriva.mims.issue_mapping_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
-            } catch (\Throwable) {
-                return $finish('FAILED', 'Koneksi ke MIMS terputus di tengah penarikan.', $docs, $lines, $matched);
+            } catch (\Throwable $e) {
+                return $finish('FAILED', MimsStockSyncService::connectionMessage($e), $docs, $lines, $matched);
             }
             foreach ([$detail, $map] as $r) {
                 if (in_array($r->status(), [401, 403], true)) {

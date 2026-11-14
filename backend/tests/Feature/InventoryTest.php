@@ -6,8 +6,10 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Inventory\MimsIssueSyncService;
 use App\Services\Inventory\MimsReceiptSyncService;
+use App\Services\Inventory\MimsStockSyncService;
 use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Carbon;
@@ -352,6 +354,26 @@ class InventoryTest extends PostgresTestCase
         Http::fake(['mims-receipt-expired.test/*' => Http::response([], 403)]);
         config(['distriva.mims.base_url' => 'https://mims-receipt-expired.test']);
         $this->assertStringContainsString('token ditolak', $svc->syncWarehouse($row, $secret, $this->konstruksi)['message']);
+    }
+
+    #[Test]
+    public function an_unreachable_mims_is_explained_without_secrets_and_certificate_checking_follows_the_setting(): void
+    {
+        $wh = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $wh, 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $row = DB::table('warehouses')->where('id', $wh)->first();
+        config(['distriva.mims.base_url' => 'https://mims-down.test']);
+        Http::fake(fn () => throw new ConnectionException('cURL error 60: SSL certificate OpenSSL verify result: certificate has expired (10) for https://mims-down.test'));
+
+        foreach ([app(MimsIssueSyncService::class), app(MimsReceiptSyncService::class)] as $svc) {
+            $r = $svc->syncWarehouse($row, 'rahasia-token-x', $this->konstruksi);
+            $this->assertSame('FAILED', $r['status']);
+            $this->assertStringContainsString('sertifikat SSL', $r['message']);
+            $this->assertStringNotContainsString('rahasia-token-x', $r['message']);
+        }
+        $this->assertStringContainsString('nama server tidak dikenali', MimsStockSyncService::connectionMessage(new \RuntimeException('cURL error 6: Could not resolve host: x')));
+
+        $this->assertTrue((bool) config('distriva.mims.verify_ssl'));                                              // on by default
     }
 
     #[Test]
