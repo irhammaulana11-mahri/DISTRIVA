@@ -530,6 +530,26 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_scheduled_pull_fetches_only_what_was_chosen_and_at_least_one_must_stay_on(): void
+    {
+        DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-choice.test']);
+        Http::fake(['mims-choice.test/*getDataPengirimanForPenerimaan*' => Http::response(['data' => []]), 'mims-choice.test/*' => Http::response(['data' => []])]);
+        $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync', ['token' => 'rahasia-pilihan-123', 'save_token' => true, 'dry_run' => true])->assertOk();
+        $put = fn (array $body) => $this->as($this->konstruksi)->putJson('/api/master-data/stock-sync/settings', $body + ['auto_enabled' => true, 'auto_time' => '00:00']);
+
+        $put(['auto_stock' => false, 'auto_issues' => false, 'auto_receipts' => false])->assertStatus(409);               // nothing chosen
+        $put(['auto_stock' => false, 'auto_issues' => true, 'auto_receipts' => false])->assertOk()
+            ->assertJsonPath('data.auto_stock', false)->assertJsonPath('data.auto_issues', true)->assertJsonPath('data.auto_receipts', false);
+        $this->artisan('distriva:mims-sync-auto')->assertSuccessful();
+        Http::assertSent(fn ($q) => str_contains($q->url(), 'getDataPengeluaranHeader'));
+        Http::assertNotSent(fn ($q) => str_contains($q->url(), 'getDataPengirimanForPenerimaan'));                      // receipts were not chosen
+        $this->assertSame(0, DB::table('stock_snapshots')->count());                                                     // nor stock
+        $this->assertSame(1, DB::table('mims_issue_sync_runs')->count());
+        $this->assertSame(0, DB::table('mims_receipt_sync_runs')->count());
+    }
+
+    #[Test]
     public function the_scheduled_mims_pull_uses_the_saved_token_of_the_user_who_switched_it_on_once_a_day(): void
     {
         $secret = 'rahasia-token-otomatis';

@@ -82,16 +82,22 @@ class MimsStockSyncService
         $s = DB::table('mims_sync_settings')->where('id', 1)->first();
         $name = $s->auto_user_id ? DB::table('users')->where('id', $s->auto_user_id)->value('name') : null;
 
-        return ['auto_enabled' => (bool) $s->auto_enabled, 'auto_time' => (string) $s->auto_time, 'auto_user_id' => $s->auto_user_id, 'auto_user_name' => $name, 'last_auto_date' => $s->last_auto_date];
+        return ['auto_enabled' => (bool) $s->auto_enabled, 'auto_time' => (string) $s->auto_time, 'auto_user_id' => $s->auto_user_id, 'auto_user_name' => $name, 'last_auto_date' => $s->last_auto_date, 'auto_stock' => (bool) $s->auto_stock, 'auto_issues' => (bool) $s->auto_issues, 'auto_receipts' => (bool) $s->auto_receipts];
     }
 
     /** Turning it on needs a MIMS token saved by the actor (it is the one used every day). */
-    public function saveAutoSettings(User $actor, bool $enabled, string $time): array
+    /** @param array{stock?:bool,issues?:bool,receipts?:bool}|null $what what to pull each day (null = keep the current choice; at least one must stay on) */
+    public function saveAutoSettings(User $actor, bool $enabled, string $time, ?array $what = null): array
     {
+        $current = $this->autoSettings();
+        $pick = ['auto_stock' => (bool) ($what['stock'] ?? $current['auto_stock']), 'auto_issues' => (bool) ($what['issues'] ?? $current['auto_issues']), 'auto_receipts' => (bool) ($what['receipts'] ?? $current['auto_receipts'])];
+        if (! in_array(true, $pick, true)) {
+            throw new AssignmentRuleViolation('Pilih minimal satu data untuk tarik otomatis: stok, pengeluaran, atau penerimaan.');
+        }
         if ($enabled && ! DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->exists()) {
             throw new AssignmentRuleViolation('Simpan token MIMS Anda lebih dulu (tarik stok sekali dengan centang "Simpan token"); token itu dipakai untuk tarik otomatis.');
         }
-        DB::table('mims_sync_settings')->where('id', 1)->update(['auto_enabled' => $enabled, 'auto_time' => $time, 'auto_user_id' => $enabled ? $actor->getKey() : DB::raw('auto_user_id'), 'updated_at' => now()]);
+        DB::table('mims_sync_settings')->where('id', 1)->update(['auto_enabled' => $enabled, 'auto_time' => $time, 'auto_user_id' => $enabled ? $actor->getKey() : DB::raw('auto_user_id'), 'updated_at' => now()] + $pick);
 
         return $this->autoSettings();
     }
@@ -123,13 +129,16 @@ class MimsStockSyncService
         $count = 0;
         $rejected = false;
         foreach (DB::table('warehouses')->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code')->get() as $wh) {
-            $r = $this->syncWarehouse($wh, $user, null, false, $token, $user);
             $count++;
-            if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
-                $rejected = true;
-                break;
+            if ($s->auto_stock) {
+                $r = $this->syncWarehouse($wh, $user, null, false, $token, $user);
+                if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
+                    $rejected = true;
+                    break;
+                }
             }
-            foreach ([$this->issues->syncWarehouse($wh, $token, $user), $this->receipts->syncWarehouse($wh, $token, $user)] as $m) {
+            $mirrors = array_values(array_filter([$s->auto_issues ? $this->issues->syncWarehouse($wh, $token, $user) : null, $s->auto_receipts ? $this->receipts->syncWarehouse($wh, $token, $user) : null]));
+            foreach ($mirrors as $m) {
                 if ($m['status'] === 'FAILED' && str_contains((string) $m['message'], 'token ditolak')) {
                     $rejected = true;
                 }

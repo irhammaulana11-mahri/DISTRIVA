@@ -404,9 +404,10 @@ class InventoryController extends Controller
     {
         $actor = $request->user();
         $this->authorizer->authorize($actor, 'stock.import');
-        $d = Validator::make($request->all(), ['auto_enabled' => ['required', 'boolean'], 'auto_time' => ['required', 'date_format:H:i']])->validate();
+        $d = Validator::make($request->all(), ['auto_enabled' => ['required', 'boolean'], 'auto_time' => ['required', 'date_format:H:i'], 'auto_stock' => ['sometimes', 'boolean'], 'auto_issues' => ['sometimes', 'boolean'], 'auto_receipts' => ['sometimes', 'boolean']])->validate();
+        $what = array_filter(['stock' => $d['auto_stock'] ?? null, 'issues' => $d['auto_issues'] ?? null, 'receipts' => $d['auto_receipts'] ?? null], fn ($v) => $v !== null);
 
-        return response()->json(['data' => $this->mims->saveAutoSettings($actor, (bool) $d['auto_enabled'], $d['auto_time'])]);
+        return response()->json(['data' => $this->mims->saveAutoSettings($actor, (bool) $d['auto_enabled'], $d['auto_time'], $what ?: null)]);
     }
 
     /** GET /stock-sync/token — whether the user keeps a MIMS token (never the token itself). */
