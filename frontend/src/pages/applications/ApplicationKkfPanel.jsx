@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import ServiceSlaBadge from '../../components/ServiceSlaBadge.jsx'
 import { Link } from 'react-router-dom'
 import { kkfRunsApi, kkoApi, drawingApi, mtoApi } from '../../services/api.js'
 import Button from '../../components/Button.jsx'
@@ -326,6 +327,7 @@ export default function ApplicationKkfPanel({
             <p className="text-xs text-slate-500 mt-0.5">
               Evaluasi parameter finansial investasi distribusi: IRR, NPV, B/C Ratio, dan Payback Period (PBP).
             </p>
+            <ServiceSlaBadge applicationId={application?.id} className="mt-1" />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-mono text-slate-400">

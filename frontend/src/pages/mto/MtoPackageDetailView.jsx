@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import ServiceSlaBadge from '../../components/ServiceSlaBadge.jsx'
 import { mtoApi, masterDataApi, rabRunsApi } from '../../services/api.js'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -527,6 +528,7 @@ export default function MtoPackageDetailView({
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Permohonan: <strong className="text-slate-700 dark:text-slate-300">{mto.application?.application_number}</strong> · Versi Gambar: v{mto.drawing_version?.version_number} ({mto.drawing_version?.status})
           </p>
+          <ServiceSlaBadge applicationId={mto.application?.id} className="mt-1" />
         </div>
 
         {/* Global Action Buttons */}

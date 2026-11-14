@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import ServiceSlaBadge from '../../components/ServiceSlaBadge.jsx'
 import { kkoApi, drawingApi, mtoApi } from '../../services/api.js'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
@@ -310,6 +311,7 @@ export default function ApplicationKkoPanel({ application, canRecord, canDecide,
 
   return (
     <div className="space-y-4" data-testid="kko-panel">
+      <ServiceSlaBadge applicationId={application?.id} />
       {error && <Alert kind="error">{error}</Alert>}
       {ok && <Alert kind="success">{ok}</Alert>}
       {customerLinkInfo && (

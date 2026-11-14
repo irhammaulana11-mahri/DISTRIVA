@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import ServiceSlaBadge from '../../components/ServiceSlaBadge.jsx'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { applicationApi, workOrdersApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -85,6 +86,7 @@ export default function WorkOrderAgendaPage() {
           <div>
             <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{row?.agenda_number ? `Agenda ${row.agenda_number}` : row ? `Permohonan ${row.application_number}` : 'Agenda SPK / WO'}</h1>
             {row && <p className="text-xs text-slate-500 mt-0.5">{row.customer_name} · {row.unit_name}</p>}
+            {row && <ServiceSlaBadge applicationId={row.application_id} className="mt-1" />}
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
             {row?.network && <StatusBadge status={row.network.status} />}

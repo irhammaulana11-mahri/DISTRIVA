@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import ServiceSlaBadge from '../../components/ServiceSlaBadge.jsx'
 import { useNavigate } from 'react-router-dom'
 import { surveyApi, kkoApi } from '../../services/api.js'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
@@ -435,6 +436,7 @@ export default function SurveyDetailView({ surveyId, isEmbedded = false, onBack,
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Permohonan: <span className="font-semibold text-slate-700 dark:text-slate-300">{survey.application?.application_number}</span> · Surveyor: <span className="font-semibold text-slate-700 dark:text-slate-300">{survey.surveyor?.name}</span> ({survey.surveyor?.email})
           </p>
+          <ServiceSlaBadge applicationId={survey.application?.id} className="mt-1" />
         </div>
 
         {/* Top Actions */}

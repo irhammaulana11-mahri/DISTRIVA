@@ -204,7 +204,7 @@ function TaskRow({ task, busy, actions, onAction }) {
       <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 sm:grid-cols-3">
         <div><dt className="inline text-slate-400">Penerima: </dt><dd className="inline">{task.assignee_name}</dd></div>
         <div><dt className="inline text-slate-400">Diberikan oleh: </dt><dd className="inline">{task.assigned_by_name}</dd></div>
-        <div><dt className="inline text-slate-400">Tenggat: </dt><dd className="inline">{formatDue(task.due_at)}</dd></div>
+        <div><dt className="inline text-slate-400">Tenggat: </dt><dd className="inline">{formatDue(task.due_at)}{task.due_basis === 'TMP' && task.due_at ? ' (mengikuti SLA TMP)' : ''}</dd></div>
       </dl>
       {task.description && <p className="mt-2 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line">{task.description}</p>}
       {task.review_note && task.status !== 'COMPLETED' && <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Catatan pemeriksa: {task.review_note}</p>}

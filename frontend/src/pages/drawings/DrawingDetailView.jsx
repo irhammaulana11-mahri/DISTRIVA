@@ -1,4 +1,5 @@
 import { Fragment, useState, useEffect, useCallback } from 'react'
+import ServiceSlaBadge from '../../components/ServiceSlaBadge.jsx'
 import { Link, useNavigate } from 'react-router-dom'
 import { drawingApi, documentApi, mtoApi, applicationApi } from '../../services/api.js'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
@@ -573,6 +574,7 @@ export default function DrawingDetailView({
             )}
             {' '}· Penyusun: <span className="font-semibold text-slate-700 dark:text-slate-300">{drawing.author?.name}</span> ({drawing.author?.email})
           </p>
+          <ServiceSlaBadge applicationId={drawing.application?.id} className="mt-1" />
         </div>
 
         {/* Action Buttons */}

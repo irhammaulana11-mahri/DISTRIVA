@@ -279,7 +279,7 @@ class TaskController extends Controller
     {
         return ['id' => $t->id, 'application_id' => $t->application_id, 'application_number' => $t->application_number, 'task_type' => $t->task_type, 'type_label' => $t->type_label, 'title' => $t->title,
             'description' => $t->description, 'status' => $t->status, 'assignee_id' => $t->assignee_id, 'assignee_name' => $t->assignee_name, 'assigned_by' => $t->assigned_by, 'assigned_by_name' => $t->assigned_by_name,
-            'sla_working_days' => $t->sla_working_days, 'due_at' => $t->due_at, 'is_overdue' => $this->tasks->isOverdue($t), 'is_due_soon' => $this->tasks->isDueSoon($t),
+            'sla_working_days' => $t->sla_working_days, 'due_at' => $t->due_at, 'due_basis' => $t->due_basis, 'is_overdue' => $this->tasks->isOverdue($t), 'is_due_soon' => $this->tasks->isDueSoon($t),
             'met_deadline' => $t->due_at !== null && $t->submitted_at !== null ? strtotime((string) $t->submitted_at) <= strtotime((string) $t->due_at) : null,
             'assigned_at' => $t->assigned_at, 'accepted_at' => $t->accepted_at, 'started_at' => $t->started_at, 'submitted_at' => $t->submitted_at, 'completed_at' => $t->completed_at, 'cancelled_at' => $t->cancelled_at,
             'review_note' => $t->review_note];

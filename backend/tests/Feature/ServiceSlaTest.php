@@ -221,4 +221,32 @@ class ServiceSlaTest extends PostgresTestCase
         $task = $this->as($this->manager)->postJson("/api/applications/{$app}/tasks", ['task_type' => 'LAYANAN_JTR', 'title' => 'x', 'assignee_id' => $this->teknik->getKey()]);
         $task->assertStatus(409);                                                                       // a service SLA is not a task type
     }
+
+    #[Test]
+    public function a_stage_task_never_ends_after_the_running_service_sla_and_a_task_without_days_takes_its_deadline(): void
+    {
+        $make = fn (string $app, string $type) => $this->as($this->manager)->postJson("/api/applications/{$app}/tasks", ['task_type' => $type, 'title' => 'Tahap', 'assignee_id' => $this->teknik->getKey()])->assertCreated()->json('data');
+
+        $roomy = $this->application(['SUTR'], 'PAID', '2026-11-12');                                   // service SLA ends in December: the survey's own 3 working days are shorter
+        $t = $make($roomy, 'SURVEI');
+        $this->assertSame('TASK', $t['due_basis']);
+        $this->assertStringStartsWith('2026-11-18 23:59:59', $t['due_at']);
+
+        $tight = $this->application(['SUTR'], 'PAID', '2026-10-28');                                   // service SLA ends Tue 17 Nov, before Wed 18 Nov (own deadline)
+        $t = $make($tight, 'SURVEI');
+        $this->assertSame('TMP', $t['due_basis']);
+        $this->assertStringStartsWith('2026-11-17 23:59:59', $t['due_at']);
+        $this->assertSame('TMP', $make($tight, 'GAMBAR')['due_basis']);                                  // no days of its own: takes the service deadline
+
+        $late = $this->application(['SUTR'], 'PAID', '2026-10-01');                                    // already overdue: a new task is born late, with the reason
+        $t = $make($late, 'GAMBAR');
+        $this->assertSame('TMP', $t['due_basis']);
+        $this->assertTrue($t['is_overdue']);
+
+        $unpaid = $this->application(['SUTR'], 'APPROVED', null);                                      // the clock has not started: only the task's own SLA counts
+        $this->assertSame('TASK', $make($unpaid, 'SURVEI')['due_basis']);
+        $this->assertNull($make($unpaid, 'GAMBAR')['due_at']);
+
+        $this->assertSame(2, $this->sla($tight)->json('data.working_days_left'));                       // Mon 16 and Tue 17 after Sat 14
+    }
 }

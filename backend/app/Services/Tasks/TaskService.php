@@ -21,7 +21,7 @@ class TaskService
 
     public const OWING = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'];
 
-    public function __construct(private readonly BusinessCalendar $calendar, private readonly InAppNotifier $inbox) {}
+    public function __construct(private readonly BusinessCalendar $calendar, private readonly InAppNotifier $inbox, private readonly ServiceSlaService $service) {}
 
     public function create(string $applicationId, string $type, string $title, ?string $description, string $assigneeId, User $actor): string
     {
@@ -37,9 +37,20 @@ class TaskService
         $now = now();
         $days = $sla->is_active && $sla->working_days !== null ? (int) $sla->working_days : null;
         $id = (string) Str::uuid();
-        DB::transaction(function () use ($id, $app, $type, $title, $description, $assigneeId, $actor, $now, $days): void {
+        $due = $days === null ? null : $this->calendar->dueAt($now, $days);
+        $basis = 'TASK';
+        // The stage work (survey, drawing, KKO, KKF, WO ...) must fit inside the running service SLA of the network extension: the task never ends after it (a task type without days of its own takes it).
+        $tmp = $this->service->compute([$app->id])[$app->id] ?? null;
+        if ($tmp !== null && $tmp['due_at'] !== null && in_array($tmp['status'], ['ON_TRACK', 'DUE_SOON', 'OVERDUE'], true)) {
+            $tmpDue = CarbonImmutable::parse($tmp['due_at']);
+            if ($due === null || $tmpDue->lt($due)) {
+                $due = $tmpDue;
+                $basis = 'TMP';
+            }
+        }
+        DB::transaction(function () use ($id, $app, $type, $title, $description, $assigneeId, $actor, $now, $days, $due, $basis): void {
             DB::table('application_tasks')->insert(['id' => $id, 'application_id' => $app->id, 'task_type' => $type, 'title' => trim($title), 'description' => $description === null ? null : trim($description),
-                'status' => 'ASSIGNED', 'assignee_id' => $assigneeId, 'assigned_by' => $actor->getKey(), 'sla_working_days' => $days, 'due_at' => $days === null ? null : $this->calendar->dueAt($now, $days),
+                'status' => 'ASSIGNED', 'assignee_id' => $assigneeId, 'assigned_by' => $actor->getKey(), 'sla_working_days' => $days, 'due_at' => $due, 'due_basis' => $basis,
                 'assigned_at' => $now, 'created_at' => $now, 'updated_at' => $now]);
             $this->event($id, 'ASSIGNED', $actor, null);
         });

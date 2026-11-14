@@ -145,6 +145,7 @@ class ServiceSlaService
     private function row(string $id, object $a, string $category, object $cfg, ?CarbonImmutable $start, ?string $basis, ?CarbonImmutable $due, string $status, ?CarbonImmutable $finished, ?int $lateDays): array
     {
         return ['application_id' => $id, 'unit_id' => $a->organizational_unit_id, 'application_status' => $a->current_status, 'category' => $category, 'category_label' => $cfg->label, 'working_days' => (int) $cfg->working_days,
-            'start_at' => $start?->toIso8601String(), 'start_basis' => $basis, 'due_at' => $due?->toIso8601String(), 'status' => $status, 'finished_at' => $finished?->toIso8601String(), 'late_working_days' => $lateDays];
+            'start_at' => $start?->toIso8601String(), 'start_basis' => $basis, 'due_at' => $due?->toIso8601String(), 'status' => $status, 'finished_at' => $finished?->toIso8601String(), 'late_working_days' => $lateDays,
+            'working_days_left' => $due !== null && $finished === null && $status !== 'OVERDUE' ? $this->calendar->workingDaysLeft($due) : null];
     }
 }
