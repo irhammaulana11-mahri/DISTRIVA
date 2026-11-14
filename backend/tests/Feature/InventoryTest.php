@@ -338,7 +338,7 @@ class InventoryTest extends PostgresTestCase
 
         $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);
         $this->assertSame(['OK', 2, 2], [$r['status'], $r['documents_new'], $r['lines']]);                                // the 2020 delivery is outside the window; the pending one has no lines yet
-        Http::assertSent(fn ($q) => $q->method() === 'GET' && $q->hasHeader('auth-token', $secret) && str_contains($q->url(), '/getDataPengirimanForPenerimaan/5118&&2810&&&&S&&/'));
+        Http::assertSent(fn ($q) => $q->method() === 'GET' && $q->hasHeader('auth-token', $secret) && str_contains($q->url(), '/getDataPengirimanForPenerimaan/5118&&2810&'.now(config('distriva.business_timezone'))->subDays(90)->format('d-m-Y').'&'.now(config('distriva.business_timezone'))->format('d-m-Y').'&&S&&/'));
         $one = DB::table('mims_receipt_documents')->where('delivery_document', '51MJK0001')->first();
         $this->assertSame('DITERIMA', $one->status);
         $this->assertSame('2080', $one->origin_stor_loc);

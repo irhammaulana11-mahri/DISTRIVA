@@ -128,8 +128,8 @@ return [
         'issue_header_path' => env('DISTRIVA_MIMS_ISSUE_HEADER_PATH', '/project-i-agodist-api//getDataPengeluaranHeader/'),
         'issue_detail_path' => env('DISTRIVA_MIMS_ISSUE_DETAIL_PATH', '/project-i-agodist-api//getDataPengeluaranAll/{reservation}/'),
         'issue_mapping_path' => env('DISTRIVA_MIMS_ISSUE_MAPPING_PATH', '/project-i-agodist-api//getDataReservasiMapping/{reservation}/'),
-        // material receipts (penerimaan): GET list of the deliveries to the warehouse, then the detail per delivery document
-        'receipt_list_path' => env('DISTRIVA_MIMS_RECEIPT_LIST_PATH', '/project-i-agodist-api//getDataPengirimanForPenerimaan/{plant}&&{stor_loc}&&&&S&&/'),
+        // material receipts (penerimaan): GET list of the deliveries to the warehouse in a date range ({from}/{to} as d-m-Y), then the detail per delivery document
+        'receipt_list_path' => env('DISTRIVA_MIMS_RECEIPT_LIST_PATH', '/project-i-agodist-api//getDataPengirimanForPenerimaan/{plant}&&{stor_loc}&{from}&{to}&&S&&/'),
         'receipt_detail_path' => env('DISTRIVA_MIMS_RECEIPT_DETAIL_PATH', '/project-i-agodist-api//getDataPenerimaanAll/{document}/'),
         'issue_days' => (int) env('DISTRIVA_MIMS_ISSUE_DAYS', 90),
         // Verifying the server certificate stays ON. Only switch it off (false) temporarily when MIMS' own certificate is expired/untrusted and cannot be fixed yet: the token is then sent without proof of who is answering.

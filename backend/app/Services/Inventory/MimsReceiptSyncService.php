@@ -30,9 +30,10 @@ class MimsReceiptSyncService
         }
         $base = rtrim((string) config('distriva.mims.base_url'), '/');
         $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.mirror_timeout_seconds'));
-        $since = CarbonImmutable::now((string) config('distriva.business_timezone'))->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
+        $since = $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
         try {
-            $res = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.receipt_list_path'), ['{plant}' => rawurlencode((string) $wh->plant), '{stor_loc}' => rawurlencode((string) $wh->stor_loc)]));
+            $res = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.receipt_list_path'), ['{plant}' => rawurlencode((string) $wh->plant), '{stor_loc}' => rawurlencode((string) $wh->stor_loc), '{from}' => CarbonImmutable::parse($since)->format('d-m-Y'), '{to}' => $now->format('d-m-Y')]));
         } catch (\Throwable $e) {
             return $finish('FAILED', MimsStockSyncService::connectionMessage($e));
         }
