@@ -22,7 +22,7 @@ const empty = {
 }
 
 const selectStyle =
-  'mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-xs focus-ring'
+  'mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-base sm:text-sm shadow-xs focus-ring'
 
 export default function NewUserPage() {
   const { notify } = useNotifications()

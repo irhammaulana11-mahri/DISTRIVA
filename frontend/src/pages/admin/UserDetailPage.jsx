@@ -137,14 +137,14 @@ export default function UserDetailPage() {
         ) : canWrite['users.change_status'] ? (
           <div className="mt-4 flex flex-wrap items-end gap-3 pt-2">
             <div>
-              <label htmlFor="new-status" className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="new-status" className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                 Ubah status menjadi
               </label>
               <select
                 id="new-status"
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value)}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm shadow-xs focus-ring"
+                className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-1.5 text-base sm:text-sm shadow-xs focus-ring"
               >
                 {STATUSES.filter(([v]) => v !== user.account_status).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
@@ -154,7 +154,7 @@ export default function UserDetailPage() {
             <button
               type="button"
               onClick={() => setDialog({ type: 'status', status: newStatus })}
-              className="rounded-md border border-slate-300 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 active:bg-slate-100 focus-ring"
+              className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 px-3.5 py-1.5 text-sm font-semibold shadow-xs active:bg-slate-100 focus-ring"
             >
               Ubah status…
             </button>
@@ -293,7 +293,7 @@ function AssignForm({ userId, onDone }) {
     }
   }
 
-  const select = 'mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-xs focus-ring'
+  const select = 'mt-1 block w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-base sm:text-sm shadow-xs focus-ring'
 
   return (
     <Card>

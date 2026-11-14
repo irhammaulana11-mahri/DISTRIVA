@@ -428,7 +428,7 @@ export default function CategoriesPage() {
                         setCatPage(1)
                       }}
                       placeholder="Cari kode atau nama kategori…"
-                      className="block w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+                      className="block w-full pl-10 pr-4 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
                     />
                   </div>
 
@@ -1170,7 +1170,7 @@ export function CreateCategoryDrawer({ asPage = false, parentCategory, existingC
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder={isSubcategory ? 'Contoh: TRF_1PH' : 'Contoh: TRAFO_DISTRIBUSI'}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none uppercase font-mono"
+                className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none uppercase font-mono"
                 required
               />
             </div>
@@ -1183,7 +1183,7 @@ export function CreateCategoryDrawer({ asPage = false, parentCategory, existingC
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={isSubcategory ? 'Contoh: Trafo 1 Fasa' : 'Contoh: Trafo Distribusi 20 kV'}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
                 required
               />
             </div>
@@ -1195,7 +1195,7 @@ export function CreateCategoryDrawer({ asPage = false, parentCategory, existingC
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
               />
             </div>
           </form>
@@ -1496,7 +1496,7 @@ export function EditCategoryDrawer({ asPage = false, category, categoryMap, onCl
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+            className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
             required
           />
         </div>
@@ -1508,7 +1508,7 @@ export function EditCategoryDrawer({ asPage = false, category, categoryMap, onCl
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+            className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
           />
         </div>
         <div className="pt-2">
@@ -1823,7 +1823,7 @@ export function CreateUnitDrawer({ asPage = false, existingUnits, onClose, onSuc
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="Contoh: MTR"
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none uppercase font-mono"
+                className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none uppercase font-mono"
                 required
               />
             </div>
@@ -1836,7 +1836,7 @@ export function CreateUnitDrawer({ asPage = false, existingUnits, onClose, onSuc
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Contoh: Meter"
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
                 required
               />
             </div>
@@ -1849,7 +1849,7 @@ export function CreateUnitDrawer({ asPage = false, existingUnits, onClose, onSuc
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
                 placeholder="Contoh: m"
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
               />
             </div>
           </form>
@@ -2131,7 +2131,7 @@ export function EditUnitDrawer({ asPage = false, unit, onClose, onSuccess }) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+            className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
             required
           />
         </div>
@@ -2143,7 +2143,7 @@ export function EditUnitDrawer({ asPage = false, unit, onClose, onSuccess }) {
             type="text"
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
-            className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+            className="w-full px-3 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
           />
         </div>
         <div className="pt-2">
