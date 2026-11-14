@@ -23,7 +23,21 @@ import {
   IconZap,
   IconClock,
   IconAlertCircle,
+  IconCalculator,
+  IconActivity,
+  IconCalendar,
 } from '../../components/icons.jsx'
+
+const REPORT_TAB_ICONS = {
+  overview: IconChart,
+  pipeline: IconActivity,
+  sla: IconClock,
+  costVariance: IconCalculator,
+  vendorPerformance: IconUsers,
+  criticalStock: IconTruck,
+  kkfFeasibility: IconZap,
+  erpAnomalies: IconAlertCircle,
+}
 
 const SLUG_TO_TAB_ID = {
   overview: 'overview',
@@ -621,194 +635,210 @@ export default function ReportsPage() {
   }, [kkfData, kkfFilterStatus])
 
   const pageInfo = REPORT_PAGE_INFO[activeTab] || REPORT_PAGE_INFO.overview
+  const CurrentReportIcon = REPORT_TAB_ICONS[activeTab] || IconChart
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Laporan & Monitoring</span>
-            {pageInfo?.crumb && (
-              <>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">{pageInfo.crumb}</span>
-              </>
-            )}
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            {pageInfo?.title || 'Pusat Laporan & Analitika Eksekutif'}
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {pageInfo?.subtitle || 'Ringkasan KPI operasional penyambungan (PB/PD), SLA siklus waktu, realisasi biaya, dan evaluasi kinerja vendor.'}
-          </p>
-        </div>
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-lg">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1.5">
+            <nav className="flex items-center gap-1.5 text-xs text-indigo-300">
+              <span className="hover:text-white transition">DISTRIVA</span>
+              <span>/</span>
+              <span className="hover:text-white transition">Laporan & Monitoring</span>
+              {pageInfo?.crumb && (
+                <>
+                  <span>/</span>
+                  <span className="text-white font-medium">{pageInfo.crumb}</span>
+                </>
+              )}
+            </nav>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+                <CurrentReportIcon className="h-6 w-6 text-blue-400" />
+                <span>{pageInfo?.title || 'Pusat Laporan & Analitika Eksekutif'}</span>
+              </h1>
+              <span className="inline-flex items-center rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-semibold text-blue-200 border border-blue-400/30">
+                Pusat Analitika Eksekutif
+              </span>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-200 border border-emerald-400/30">
+                {scopeInfo.scope === 'GLOBAL' ? 'Seluruh Unit (Global)' : scopeInfo.scope === 'UP3' ? 'Tingkat UP3' : 'Tingkat ULP'}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-indigo-200/80 max-w-3xl">
+              {pageInfo?.subtitle || 'Ringkasan KPI operasional penyambungan (PB/PD), SLA siklus waktu, realisasi biaya, dan evaluasi kinerja vendor.'}
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {(activeTab === 'vendorPerformance' || activeTab === 'criticalStock') && reportSettings && (
-            <Button variant="secondary" size="sm" onClick={() => setSettingsOpen(true)}>Pengaturan</Button>
-          )}
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={IconDownload}
-            loading={downloading}
-            onClick={handleDownloadXlsx}
-          >
-            Unduh XLSX
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={IconRefresh}
-            onClick={refreshCurrentTab}
-          >
-            Segarkan
-          </Button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {(activeTab === 'vendorPerformance' || activeTab === 'criticalStock') && reportSettings && (
+              <Button variant="secondary" size="sm" onClick={() => setSettingsOpen(true)}>
+                Pengaturan
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconDownload}
+              loading={downloading}
+              onClick={handleDownloadXlsx}
+            >
+              Unduh XLSX
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={refreshCurrentTab}
+            >
+              Segarkan
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Filter Bar */}
-      {true && (
-        <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-600 dark:text-slate-400">Dari:</span>
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-600 dark:text-slate-400">Sampai:</span>
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            {/* Filter UP3 */}
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-600 dark:text-slate-400">Unit UP3:</span>
-              <select
-                aria-label="Filter Unit UP3"
-                value={up3Id}
-                disabled={scopeInfo.scope === 'UP3' || scopeInfo.scope === 'ULP'}
-                onChange={(e) => handleUp3Change(e.target.value)}
-                className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
-                  scopeInfo.scope !== 'GLOBAL'
-                    ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
-                    : ''
-                }`}
-              >
-                {scopeInfo.scope === 'GLOBAL' ? (
-                  <>
-                    <option value="">Semua UP3 (Seluruh Unit)</option>
-                    {scopeInfo.up3_units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.code} - {u.name}
-                      </option>
-                    ))}
-                  </>
-                ) : scopeInfo.scope === 'UP3' ? (
-                  <option value={scopeInfo.default_up3_id}>
-                    {scopeInfo.up3_units[0]
-                      ? `${scopeInfo.up3_units[0].code} - ${scopeInfo.up3_units[0].name} (UP3 Terkait)`
-                      : 'UP3 Terkait'}
-                  </option>
-                ) : (
-                  <option value={scopeInfo.default_up3_id}>
-                    {scopeInfo.up3_units[0]
-                      ? `${scopeInfo.up3_units[0].code} - ${scopeInfo.up3_units[0].name} (UP3 Induk)`
-                      : 'UP3 Induk'}
-                  </option>
-                )}
-              </select>
-            </div>
-
-            {/* Filter ULP */}
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-600 dark:text-slate-400">Unit ULP:</span>
-              <select
-                aria-label="Filter Unit ULP"
-                value={unitId}
-                disabled={scopeInfo.scope === 'ULP'}
-                onChange={(e) => setUnitId(e.target.value)}
-                className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
-                  scopeInfo.scope === 'ULP'
-                    ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
-                    : ''
-                }`}
-              >
-                {scopeInfo.scope === 'ULP' ? (
-                  <option value={scopeInfo.default_unit_id}>
-                    {scopeInfo.ulp_units[0]
-                      ? `${scopeInfo.ulp_units[0].code} - ${scopeInfo.ulp_units[0].name} (Terkunci)`
-                      : 'ULP Terkait'}
-                  </option>
-                ) : (
-                  <>
-                    <option value="">
-                      {up3Id
-                        ? `Semua ULP di ${selectedUp3 ? selectedUp3.name : 'UP3 Terpilih'}`
-                        : 'Semua ULP (Seluruh Wilayah)'}
-                    </option>
-                    {filteredUlps.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.code} - {u.name}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-            </div>
+      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Dari:</span>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
           </div>
 
-          <div className="flex items-center gap-2">
-            {canReset && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs underline cursor-pointer"
-              >
-                Reset Filter
-              </button>
-            )}
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={refreshCurrentTab}
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Sampai:</span>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          {/* Filter UP3 */}
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Unit UP3:</span>
+            <select
+              aria-label="Filter Unit UP3"
+              value={up3Id}
+              disabled={scopeInfo.scope === 'UP3' || scopeInfo.scope === 'ULP'}
+              onChange={(e) => handleUp3Change(e.target.value)}
+              className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
+                scopeInfo.scope !== 'GLOBAL'
+                  ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
+                  : ''
+              }`}
             >
-              Terapkan Filter
-            </Button>
+              {scopeInfo.scope === 'GLOBAL' ? (
+                <>
+                  <option value="">Semua UP3 (Seluruh Unit)</option>
+                  {scopeInfo.up3_units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.code} - {u.name}
+                    </option>
+                  ))}
+                </>
+              ) : scopeInfo.scope === 'UP3' ? (
+                <option value={scopeInfo.default_up3_id}>
+                  {scopeInfo.up3_units[0]
+                    ? `${scopeInfo.up3_units[0].code} - ${scopeInfo.up3_units[0].name} (UP3 Terkait)`
+                    : 'UP3 Terkait'}
+                </option>
+              ) : (
+                <option value={scopeInfo.default_up3_id}>
+                  {scopeInfo.up3_units[0]
+                    ? `${scopeInfo.up3_units[0].code} - ${scopeInfo.up3_units[0].name} (UP3 Induk)`
+                    : 'UP3 Induk'}
+                </option>
+              )}
+            </select>
+          </div>
+
+          {/* Filter ULP */}
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Unit ULP:</span>
+            <select
+              aria-label="Filter Unit ULP"
+              value={unitId}
+              disabled={scopeInfo.scope === 'ULP'}
+              onChange={(e) => setUnitId(e.target.value)}
+              className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
+                scopeInfo.scope === 'ULP'
+                  ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
+                  : ''
+              }`}
+            >
+              {scopeInfo.scope === 'ULP' ? (
+                <option value={scopeInfo.default_unit_id}>
+                  {scopeInfo.ulp_units[0]
+                    ? `${scopeInfo.ulp_units[0].code} - ${scopeInfo.ulp_units[0].name} (Terkunci)`
+                    : 'ULP Terkait'}
+                </option>
+              ) : (
+                <>
+                  <option value="">
+                    {up3Id
+                      ? `Semua ULP di ${selectedUp3 ? selectedUp3.name : 'UP3 Terpilih'}`
+                      : 'Semua ULP (Seluruh Wilayah)'}
+                  </option>
+                  {filteredUlps.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.code} - {u.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
           </div>
         </div>
-      )}
+
+        <div className="flex items-center gap-2">
+          {canReset && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs underline cursor-pointer"
+            >
+              Reset Filter
+            </button>
+          )}
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={refreshCurrentTab}
+          >
+            Terapkan Filter
+          </Button>
+        </div>
+      </div>
 
       {/* Tabs Nav (Hanya ditampilkan pada mode all-in-one / fallback testing; saat diakses mandiri dari sub-halaman sidebar, tab redundan disembunyikan) */}
       {showTabs && (
         <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
-          {visibleTabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActiveTab(t.id)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                activeTab === t.id
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {visibleTabs.map((t) => {
+            const TabIcon = REPORT_TAB_ICONS[t.id] || IconChart
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveTab(t.id)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  activeTab === t.id
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800'
+                }`}
+              >
+                <TabIcon className="h-3.5 w-3.5" />
+                <span>{t.label}</span>
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -827,12 +857,17 @@ export default function ReportsPage() {
             </div>
           ) : (
             <div className="space-y-5">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                    Total Permohonan
-                  </span>
-                  <div className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                      Total Permohonan
+                    </span>
+                    <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      <IconFileText className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-2">
                     {appStats.total ?? 0}
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500">
@@ -842,35 +877,50 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                    Total Nilai Investasi (RAB)
-                  </span>
-                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                <div className="p-4 bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/10 dark:bg-emerald-950/10 rounded-2xl shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                      Total Nilai Investasi (RAB)
+                    </span>
+                    <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+                      <IconCalculator className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
                     Rp {Math.round(rabStats.total_value ?? 0).toLocaleString('id-ID')}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-2">
+                  <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500/70 mt-2">
                     {rabStats.applications_with_run ?? 0} permohonan telah dihitung RAB
                   </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                    Total SPK Konstruksi (WO)
-                  </span>
-                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                <div className="p-4 bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/10 dark:bg-blue-950/10 rounded-2xl shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
+                      Total SPK Konstruksi (WO)
+                    </span>
+                    <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+                      <IconWrench className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">
                     {Object.values(woStats.by_status || {}).reduce((a, b) => a + Number(b), 0)} WO
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-2">
+                  <div className="text-[11px] text-blue-600/70 dark:text-blue-500/70 mt-2">
                     Aktif: {(woStats.by_status?.ISSUED ?? 0) + (woStats.by_status?.IN_PROGRESS ?? 0)} · Selesai: {woStats.by_status?.COMPLETED ?? 0}
                   </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                    Evaluasi Kelayakan (KKF)
-                  </span>
-                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1 flex items-baseline gap-2">
+                <div className="p-4 bg-white dark:bg-slate-900 border border-purple-200/80 dark:border-purple-900/60 bg-purple-50/10 dark:bg-purple-950/10 rounded-2xl shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
+                      Evaluasi Kelayakan (KKF)
+                    </span>
+                    <div className="rounded-lg p-1.5 bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400">
+                      <IconZap className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-2 flex items-baseline gap-2">
                     <span className="text-emerald-600">{kkfStats.feasible ?? 0} Layak</span>
                     <span className="text-xs text-slate-400">/</span>
                     <span className="text-rose-600">{kkfStats.not_feasible ?? 0} Tidak</span>
@@ -878,6 +928,90 @@ export default function ReportsPage() {
                   <div className="text-[11px] text-amber-600 mt-2">
                     {kkfStats.extended_required ?? 0} butuh persetujuan khusus
                   </div>
+                </div>
+              </div>
+
+              {/* Rincian Operasional & Distribusi */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Status Permohonan
+                    </h3>
+                    <span className="text-[11px] font-mono text-slate-400">Pelanggan</span>
+                  </div>
+                  <dl className="mt-3 space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Selesai Tersambung</dt>
+                      <dd className="font-bold text-emerald-600">{appStats.by_status?.COMPLETED ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Sedang Berjalan</dt>
+                      <dd className="font-bold text-blue-600">{appStats.by_status?.IN_PROGRESS ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Sumber Integrasi SIP3</dt>
+                      <dd className="font-medium text-slate-700 dark:text-slate-300">{appStats.by_source?.SIP3 ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Sumber Input Manual</dt>
+                      <dd className="font-medium text-slate-700 dark:text-slate-300">{appStats.by_source?.MANUAL ?? 0}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Konstruksi & BASTP
+                    </h3>
+                    <span className="text-[11px] font-mono text-slate-400">Realisasi</span>
+                  </div>
+                  <dl className="mt-3 space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">SPK Diterbitkan (Issued)</dt>
+                      <dd className="font-bold text-slate-800 dark:text-slate-200">{woStats.by_status?.ISSUED ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">SPK Dalam Pengerjaan</dt>
+                      <dd className="font-bold text-blue-600">{woStats.by_status?.IN_PROGRESS ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">SPK Selesai Fisik</dt>
+                      <dd className="font-bold text-emerald-600">{woStats.by_status?.COMPLETED ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">BASTP Ditutup Resmi</dt>
+                      <dd className="font-bold text-indigo-600">{bastpStats.by_status?.CLOSED ?? 0}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Logistik Material (Outbox)
+                    </h3>
+                    <span className="text-[11px] font-mono text-slate-400">Gudang</span>
+                  </div>
+                  <dl className="mt-3 space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Permintaan Terkirim (Sent)</dt>
+                      <dd className="font-bold text-emerald-600">{requestStats.by_status?.SENT ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Permintaan Tertunda (Pending)</dt>
+                      <dd className="font-bold text-amber-600">{requestStats.by_status?.PENDING ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Perlu Tindak Lanjut</dt>
+                      <dd className="font-bold text-rose-600">{requestStats.needs_followup ?? 0}</dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-slate-500">Usulan Survei Berjalan</dt>
+                      <dd className="font-medium text-slate-700 dark:text-slate-300">{proposalStats.open ?? 0}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
             </div>
@@ -889,6 +1023,51 @@ export default function ReportsPage() {
       {activeTab === 'pipeline' && (
         <div className="space-y-4">
           {pipelineError && <Alert kind="error">{pipelineError}</Alert>}
+
+          {/* KPI Ringkasan Funnel Agregat */}
+          {pipelineData.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                  Total Permohonan Masuk
+                </span>
+                <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.applications) || 0), 0).toLocaleString('id-ID')} Agenda`}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Akumulasi seluruh ULP</p>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/10 dark:bg-blue-950/10 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
+                  Survei Dilakukan
+                </span>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.with_survey) || 0), 0).toLocaleString('id-ID')} Lokasi`}
+                </div>
+                <p className="text-[11px] text-blue-600/70 dark:text-blue-500/70 mt-1">Telah disurvei lapangan</p>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/10 dark:bg-amber-950/10 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                  SPK Konstruksi (WO)
+                </span>
+                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.wo_issued) || 0), 0).toLocaleString('id-ID')} WO`}
+                </div>
+                <p className="text-[11px] text-amber-600/70 dark:text-amber-500/70 mt-1">Diterbitkan ke vendor</p>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/10 dark:bg-emerald-950/10 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                  BASTP Ditutup Resmi
+                </span>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.bastp_closed) || 0), 0).toLocaleString('id-ID')} BASTP`}
+                </div>
+                <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/70 mt-1">Selesai tersambung 100%</p>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             {loadingPipeline ? (
@@ -1139,6 +1318,51 @@ export default function ReportsPage() {
       {activeTab === 'costVariance' && (
         <div className="space-y-4">
           {costError && <Alert kind="error">{costError}</Alert>}
+
+          {/* KPI Ringkasan Biaya */}
+          {safeCostList.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/10 dark:bg-emerald-950/10 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                  Total Biaya RAB Terencana
+                </span>
+                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  Rp {Math.round(safeCostList.reduce((acc, r) => acc + (Number(r.rab_total) || 0), 0)).toLocaleString('id-ID')}
+                </div>
+                <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/70 mt-1">Estimasi biaya investasi</p>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                  Permohonan Berbiaya
+                </span>
+                <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                  {safeCostList.length.toLocaleString('id-ID')} <span className="text-xs font-normal text-slate-400">Agenda</span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Telah dihitung RAB</p>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/10 dark:bg-blue-950/10 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
+                  SPK Konstruksi Terbit
+                </span>
+                <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                  {safeCostList.filter((r) => r.wo_number).length.toLocaleString('id-ID')} <span className="text-xs font-normal text-blue-400">WO</span>
+                </div>
+                <p className="text-[11px] text-blue-600/70 dark:text-blue-500/70 mt-1">Dalam proses / selesai</p>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/10 dark:bg-indigo-950/10 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block">
+                  Realisasi BASTP Ditutup
+                </span>
+                <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                  {safeCostList.filter((r) => r.bastp_number).length.toLocaleString('id-ID')} <span className="text-xs font-normal text-indigo-400">BASTP</span>
+                </div>
+                <p className="text-[11px] text-indigo-600/70 dark:text-indigo-500/70 mt-1">Pekerjaan diserahterimakan</p>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             {loadingCost ? (
