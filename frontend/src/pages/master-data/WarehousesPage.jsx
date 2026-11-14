@@ -313,15 +313,6 @@ export default function WarehousesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={IconRefresh}
-              onClick={loadWarehouses}
-              aria-label="Segarkan"
-            >
-              Segarkan
-            </Button>
             {canImportStock && (
               <>
                 <Button
@@ -332,16 +323,25 @@ export default function WarehousesPage() {
                 >
                   Pengaturan Tarik
                 </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={IconRefresh}
+                  onClick={() => setMimsModalOpen(true)}
+                >
+                  Tarik Stok dari MIMS
+                </Button>
                 <Link
                   to="/master-data/warehouses/tarik-mims"
                   className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  title="Buka Formulir Tarik MIMS Layar Penuh"
                 >
                   <IconRefresh size={14} />
                   <span>Halaman Tarik MIMS</span>
                 </Link>
               </>
             )}
-            {canManage ? (
+            {canManage && (
               <button
                 type="button"
                 aria-label="Tambah Gudang / Impor Gudang ERP"
@@ -351,16 +351,7 @@ export default function WarehousesPage() {
                 <IconPlus size={16} />
                 <span>Tambah Gudang</span>
               </button>
-            ) : canImportStock ? (
-              <button
-                type="button"
-                onClick={() => setMimsModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-              >
-                <IconRefresh size={16} />
-                <span>Tarik Stok dari MIMS</span>
-              </button>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
@@ -495,17 +486,6 @@ export default function WarehousesPage() {
             Reservasi MIMS
           </button>
         </div>
-
-        {canManage && canImportStock && activeTab !== 'sync-runs' && (
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={IconRefresh}
-            onClick={() => setMimsModalOpen(true)}
-          >
-            Tarik Stok dari MIMS
-          </Button>
-        )}
       </div>
 
       {error && <Alert kind="error">{error}</Alert>}
@@ -513,6 +493,21 @@ export default function WarehousesPage() {
       {/* TAB 1: Warehouses List */}
       {activeTab === 'warehouses' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+          <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Daftar Gudang ERP Terdaftar ({warehouses.length})
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              loading={loading}
+              onClick={loadWarehouses}
+              aria-label="Segarkan daftar gudang"
+            >
+              Segarkan
+            </Button>
+          </div>
           {loading ? (
             <div className="py-20 text-center text-slate-500">
               <Spinner size="lg" label="Memuat daftar gudang..." />
@@ -654,8 +649,9 @@ export default function WarehousesPage() {
                   loading={loadingPositions}
                   onClick={handleQueryPositions}
                   icon={IconRefresh}
+                  aria-label="Segarkan dan Hitung Posisi Stok"
                 >
-                  Hitung Posisi
+                  Segarkan / Hitung Posisi
                 </Button>
               </div>
             </div>
@@ -875,29 +871,10 @@ export default function WarehousesPage() {
                 icon={IconRefresh}
                 loading={syncLoading}
                 onClick={loadSyncRuns}
+                aria-label="Segarkan riwayat sinkronisasi"
               >
                 Segarkan
               </Button>
-              {canImportStock && (
-                <>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon={IconSettings}
-                    onClick={() => setMimsSettingsOpen(true)}
-                  >
-                    Pengaturan
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={IconRefresh}
-                    onClick={() => setMimsModalOpen(true)}
-                  >
-                    Tarik Stok dari MIMS
-                  </Button>
-                </>
-              )}
             </div>
           </div>
 

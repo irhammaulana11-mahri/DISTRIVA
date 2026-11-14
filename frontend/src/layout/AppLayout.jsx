@@ -75,12 +75,11 @@ const operationsNav = [
   { to: '/work-orders', label: 'Surat Perintah Kerja (SPK / WO)', anyOf: ['wo.view', 'pole_wo.view', 'vendor.portal'], icon: IconWrench },
 ]
 
-// 3. Perencanaan & Logistik (RKM, Forecast Beban Gardu, Gudang & Stok, Tarik Stok MIMS)
+// 3. Perencanaan & Logistik (RKM, Forecast Beban Gardu, Gudang & Stok Material)
 const planningNav = [
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecast Beban Gardu', capability: 'forecast.view', icon: IconChart },
   { to: '/master-data/warehouses', label: 'Gudang & Stok Material', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconBuilding },
-  { to: '/master-data/warehouses/tarik-mims', label: 'Tarik Stok MIMS', capability: 'stock.import', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconRefresh },
 ]
 
 // 3. Master Data (Dikelompokkan secara logis & disaring kewenangan)

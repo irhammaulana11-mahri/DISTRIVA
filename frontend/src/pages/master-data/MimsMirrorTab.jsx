@@ -4,6 +4,8 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
+import Button from '../../components/Button.jsx'
+import { IconRefresh } from '../../components/icons.jsx'
 
 const fmtDate = (v) => (v ? String(v).slice(0, 10).split('-').reverse().join('-') : '-')
 const fmtQty = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 3 })
@@ -90,6 +92,16 @@ export default function MimsMirrorTab({ kind, warehouses }) {
           placeholder={isReservations ? 'Cari reservasi, keterangan, agenda' : isIssues ? 'Cari dokumen, reservasi, material, agenda' : 'Cari pengiriman, permintaan, material'}
           className={`${field} min-w-64`}
         />
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={IconRefresh}
+          loading={loading}
+          onClick={load}
+          aria-label="Segarkan data MIMS"
+        >
+          Segarkan
+        </Button>
       </div>
 
       {error && <Alert kind="error">{error}</Alert>}
