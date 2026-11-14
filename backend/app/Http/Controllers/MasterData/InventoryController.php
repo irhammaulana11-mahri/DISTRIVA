@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Authorization\CatalogAuthorizer;
 use App\Services\Inventory\KhsMaterialMapService;
 use App\Services\Inventory\MimsIssueSyncService;
+use App\Services\Inventory\MimsReceiptSyncService;
 use App\Services\Inventory\MimsStockSyncService;
 use App\Services\Inventory\PoleContractService;
 use App\Services\Inventory\StockService;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\Validator;
 /** Warehouses, stock snapshots and pole contracts / Kontrak Rinci (docs/62 §30). Violations -> 409, authorization -> 403/404. */
 class InventoryController extends Controller
 {
-    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims, private readonly MimsIssueSyncService $issueMirror) {}
+    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims, private readonly MimsIssueSyncService $issueMirror, private readonly MimsReceiptSyncService $receiptMirror) {}
 
     public function warehouses(Request $request): JsonResponse
     {
@@ -252,7 +253,8 @@ class InventoryController extends Controller
             }
             if ($request->boolean('include_issues') && ! $request->boolean('dry_run')) {
                 $row['issues'] = $this->issueMirror->syncWarehouse($wh, $token, $actor);
-                if ($row['issues']['status'] === 'FAILED' && str_contains((string) $row['issues']['message'], 'token ditolak')) {
+                $row['receipts'] = $this->receiptMirror->syncWarehouse($wh, $token, $actor);
+                if (collect([$row['issues'], $row['receipts']])->contains(fn ($m) => $m['status'] === 'FAILED' && str_contains((string) $m['message'], 'token ditolak'))) {
                     $results[] = $row;
                     break;
                 }
@@ -260,7 +262,7 @@ class InventoryController extends Controller
             $results[] = $row;
         }
 
-        $rejected = collect($results)->contains(fn ($r) => ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) || (($r['issues']['status'] ?? '') === 'FAILED' && str_contains((string) $r['issues']['message'], 'token ditolak')));
+        $rejected = collect($results)->contains(fn ($r) => ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'FAILED' && str_contains((string) $m['message'], 'token ditolak')));
         $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true));
         if (! $useSaved && $request->boolean('save_token') && ! $rejected) {
             DB::table('user_mims_tokens')->upsert([['user_id' => $actor->getKey(), 'token_encrypted' => Crypt::encryptString($token), 'saved_at' => now(), 'last_used_at' => now(), 'last_result' => 'OK']], ['user_id'], ['token_encrypted', 'saved_at', 'last_used_at', 'last_result']);

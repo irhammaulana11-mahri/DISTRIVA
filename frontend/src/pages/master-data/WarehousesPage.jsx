@@ -1441,7 +1441,7 @@ export default function WarehousesPage() {
                 className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60"
               />
               <label htmlFor="mims-issues" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                Sertakan pengeluaran material (riwayat pemakaian, baca-saja)
+                Sertakan pengeluaran dan penerimaan material (riwayat, baca-saja)
               </label>
             </div>
 
@@ -1557,6 +1557,11 @@ export default function WarehousesPage() {
                           </td>
                           <td className="py-2 px-3 text-slate-600 dark:text-slate-400 text-[11px]">
                             {r.message || '-'}
+                            {r.receipts && (
+                              <span className="block text-slate-500">
+                                Penerimaan: {r.receipts.status === 'OK' ? `${r.receipts.documents_new} dokumen baru, ${r.receipts.lines} baris material` : r.receipts.message || r.receipts.status}
+                              </span>
+                            )}
                             {r.issues && (
                               <span className="block text-slate-500">
                                 Pengeluaran: {r.issues.status === 'OK' ? `${r.issues.documents_new} dokumen baru, ${r.issues.lines} baris material, ${r.issues.matched} pelanggan cocok permohonan` : r.issues.message || r.issues.status}

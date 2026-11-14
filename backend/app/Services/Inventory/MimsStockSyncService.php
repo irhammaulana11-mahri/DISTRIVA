@@ -32,7 +32,7 @@ class MimsStockSyncService
         'warehouse' => ['namastorloc', 'gudang', 'warehouse', 'storlocname'],
     ];
 
-    public function __construct(private readonly StockService $stock, private readonly WorkflowNotifier $flow, private readonly MimsIssueSyncService $issues) {}
+    public function __construct(private readonly StockService $stock, private readonly WorkflowNotifier $flow, private readonly MimsIssueSyncService $issues, private readonly MimsReceiptSyncService $receipts) {}
 
     public function configured(): bool
     {
@@ -97,9 +97,12 @@ class MimsStockSyncService
                 $rejected = true;
                 break;
             }
-            $i = $this->issues->syncWarehouse($wh, $token, $user);
-            if ($i['status'] === 'FAILED' && str_contains((string) $i['message'], 'token ditolak')) {
-                $rejected = true;
+            foreach ([$this->issues->syncWarehouse($wh, $token, $user), $this->receipts->syncWarehouse($wh, $token, $user)] as $m) {
+                if ($m['status'] === 'FAILED' && str_contains((string) $m['message'], 'token ditolak')) {
+                    $rejected = true;
+                }
+            }
+            if ($rejected) {
                 break;
             }
         }

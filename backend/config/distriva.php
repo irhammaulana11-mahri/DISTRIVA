@@ -128,6 +128,9 @@ return [
         'issue_header_path' => env('DISTRIVA_MIMS_ISSUE_HEADER_PATH', '/project-i-agodist-api//getDataPengeluaranHeader/'),
         'issue_detail_path' => env('DISTRIVA_MIMS_ISSUE_DETAIL_PATH', '/project-i-agodist-api//getDataPengeluaranAll/{reservation}/'),
         'issue_mapping_path' => env('DISTRIVA_MIMS_ISSUE_MAPPING_PATH', '/project-i-agodist-api//getDataReservasiMapping/{reservation}/'),
+        // material receipts (penerimaan): GET list of the deliveries to the warehouse, then the detail per delivery document
+        'receipt_list_path' => env('DISTRIVA_MIMS_RECEIPT_LIST_PATH', '/project-i-agodist-api//getDataPengirimanForPenerimaan/{plant}&&{stor_loc}&&&&S&&/'),
+        'receipt_detail_path' => env('DISTRIVA_MIMS_RECEIPT_DETAIL_PATH', '/project-i-agodist-api//getDataPenerimaanAll/{document}/'),
         'issue_days' => (int) env('DISTRIVA_MIMS_ISSUE_DAYS', 90),
         'timeout_seconds' => (int) env('DISTRIVA_MIMS_TIMEOUT', 60),
         'sync_user_email' => env('DISTRIVA_MIMS_SYNC_USER_EMAIL'),       // the account recorded as the creator of automatic snapshots

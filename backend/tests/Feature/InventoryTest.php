@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Inventory\MimsIssueSyncService;
+use App\Services\Inventory\MimsReceiptSyncService;
 use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
@@ -309,6 +310,48 @@ class InventoryTest extends PostgresTestCase
         $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);
         $this->assertSame('FAILED', $r['status']);
         $this->assertStringContainsString('token ditolak', $r['message']);
+    }
+
+    #[Test]
+    public function the_mims_receipt_mirror_keeps_received_deliveries_with_their_lines_and_picks_up_pending_ones_when_received(): void
+    {
+        $secret = 'rahasia-token-penerimaan';
+        $wh = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $wh, 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-receipt.test']);
+        $today = now(config('distriva.business_timezone'))->format('d-m-Y');
+        $head = fn (string $doc, string $status, ?string $date = null) => ['material_document' => $doc, 'stor_loc_asal' => '2080', 'stor_loc_asal_name' => 'PLN Area Mojokerto', 'material_document_permintaan' => '514532611113105', 'material_document_penerimaan' => $status === 'DITERIMA' ? '514532611125697' : null,
+            'tgl_pengiriman' => $date ?? $today, 'status_penerimaan' => $status, 'mat_doc_sap' => '4933722307'];
+        $detail = ['Detail' => ['data' => [['material_no' => '000000000003110025', 'material_desc' => 'CABLE', 'satuan' => 'M', 'qty_pengiriman' => '6000', 'qty_penerimaan' => '5990'], ['material_no' => '000000000003250058', 'material_desc' => 'MCB', 'satuan' => 'BH', 'qty_pengiriman' => '15', 'qty_penerimaan' => '15']]],
+            'Header' => ['data' => [['material_document' => '514532611125697', 'tgl_penerimaan' => $today]]]];
+        Http::fake([
+            'mims-receipt.test/*getDataPengirimanForPenerimaan/5118&&2810*' => Http::sequence()
+                ->push(['data' => [$head('51MJK0001', 'DITERIMA'), $head('51MJK0002', 'BELUM'), $head('51MJK0003', 'DITERIMA', '01-01-2020')], 'msg' => '1'])
+                ->push(['data' => [$head('51MJK0001', 'DITERIMA'), $head('51MJK0002', 'DITERIMA')], 'msg' => '1']),
+            'mims-receipt.test/*getDataPenerimaanAll/*' => Http::response($detail),
+        ]);
+        $svc = app(MimsReceiptSyncService::class);
+        $row = DB::table('warehouses')->where('id', $wh)->first();
+
+        $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);
+        $this->assertSame(['OK', 2, 2], [$r['status'], $r['documents_new'], $r['lines']]);                                // the 2020 delivery is outside the window; the pending one has no lines yet
+        Http::assertSent(fn ($q) => $q->method() === 'GET' && $q->hasHeader('auth-token', $secret) && str_contains($q->url(), '/getDataPengirimanForPenerimaan/5118&&2810&&&&S&&/'));
+        $one = DB::table('mims_receipt_documents')->where('delivery_document', '51MJK0001')->first();
+        $this->assertSame('DITERIMA', $one->status);
+        $this->assertSame('2080', $one->origin_stor_loc);
+        $this->assertEquals([5990.0, 6000.0], [(float) DB::table('mims_receipt_lines')->where('material_no', '3110025')->value('quantity_received'), (float) DB::table('mims_receipt_lines')->where('material_no', '3110025')->value('quantity_sent')]);
+        $this->assertSame('BELUM', DB::table('mims_receipt_documents')->where('delivery_document', '51MJK0002')->value('status'));
+        $this->assertSame(0, DB::table('mims_receipt_lines')->where('delivery_document', '51MJK0002')->count());
+
+        $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);                                                       // the pending one is now received: its lines arrive, nothing is duplicated
+        $this->assertSame(['OK', 0, 2], [$r['status'], $r['documents_new'], $r['lines']]);
+        $this->assertSame(2, DB::table('mims_receipt_documents')->count());
+        $this->assertSame(4, DB::table('mims_receipt_lines')->count());
+        $this->assertStringNotContainsString($secret, json_encode(DB::table('mims_receipt_sync_runs')->get()));
+
+        Http::fake(['mims-receipt-expired.test/*' => Http::response([], 403)]);
+        config(['distriva.mims.base_url' => 'https://mims-receipt-expired.test']);
+        $this->assertStringContainsString('token ditolak', $svc->syncWarehouse($row, $secret, $this->konstruksi)['message']);
     }
 
     #[Test]
