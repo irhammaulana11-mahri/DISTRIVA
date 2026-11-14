@@ -316,6 +316,29 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function an_explicit_date_range_goes_to_mims_and_keeps_documents_outside_it_out_for_issues_and_receipts(): void
+    {
+        $wh = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $wh, 'code' => '5118-2080', 'name' => 'PLN Area Mojokerto', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2080', 'kind' => 'GI', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-range.test']);
+        $row = DB::table('warehouses')->where('id', $wh)->first();
+        $h = fn (string $d, string $date) => ['material_document' => $d, 'no_pemesanan' => 'R'.$d, 'tgl_pengeluaran' => $date, 'tgl_pengiriman' => $date, 'status_penerimaan' => 'BELUM'];
+        Http::fake([
+            'mims-range.test/*getDataPengeluaranHeader*' => Http::response(['data' => [$h('A1', '05-10-2026'), $h('A2', '20-10-2026')]]),
+            'mims-range.test/*getDataPengeluaranAll/*' => Http::response(['detail' => ['data' => []]]),
+            'mims-range.test/*getDataReservasiMapping/*' => Http::response(['data' => []]),
+            'mims-range.test/*getDataPengirimanForPenerimaan/*' => Http::response(['data' => [$h('B1', '05-10-2026'), $h('B2', '20-10-2026')]]),
+        ]);
+
+        $this->assertSame(1, app(MimsIssueSyncService::class)->syncWarehouse($row, 't-rentang-123', $this->konstruksi, null, '2026-10-01', '2026-10-10')['documents_new']);
+        $this->assertSame(1, app(MimsReceiptSyncService::class)->syncWarehouse($row, 't-rentang-123', $this->konstruksi, null, '2026-10-01', '2026-10-10')['documents_new']);
+        Http::assertSent(fn ($q) => $q->method() === 'POST' && $q['tanggal'] === '01-10-2026' && $q['tanggal_akhir'] === '10-10-2026');
+        Http::assertSent(fn ($q) => str_contains($q->url(), '/getDataPengirimanForPenerimaan/5118&&2080&01-10-2026&10-10-2026&&S&&/'));
+        $this->assertSame(['A1'], DB::table('mims_issue_documents')->pluck('material_document')->all());
+        $this->assertSame(['B1'], DB::table('mims_receipt_documents')->pluck('delivery_document')->all());
+    }
+
+    #[Test]
     public function the_mims_receipt_mirror_keeps_received_deliveries_with_their_lines_and_picks_up_pending_ones_when_received(): void
     {
         $secret = 'rahasia-token-penerimaan';

@@ -15,6 +15,7 @@ use App\Services\Inventory\StockService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -329,7 +330,7 @@ class InventoryController extends Controller
         if (! $useSaved && $request->boolean('save_token')) {
             $this->rememberToken($request, $actor, false, $token, false, true);
         }
-        $id = $this->pulls->start($actor, ['sync_stock' => $opts['stock'], 'sync_issues' => $opts['issues'], 'sync_receipts' => $opts['receipts'], 'dry_run' => $opts['dry_run'], 'date' => $opts['date'], 'warehouse_ids' => $warehouses->pluck('id')->all(), 'use_saved_token' => $useSaved]);
+        $id = $this->pulls->start($actor, ['sync_stock' => $opts['stock'], 'sync_issues' => $opts['issues'], 'sync_receipts' => $opts['receipts'], 'dry_run' => $opts['dry_run'], 'date' => $opts['date'], 'issues_from' => $opts['from'], 'issues_to' => $opts['to'], 'warehouse_ids' => $warehouses->pluck('id')->all(), 'use_saved_token' => $useSaved]);
         $this->pulls->launch($id, $useSaved ? null : $token);
 
         return response()->json(['data' => $this->pulls->show($id)], 202);
@@ -351,12 +352,15 @@ class InventoryController extends Controller
      */
     private function pullInput(Request $request, User $actor): array
     {
-        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'sync_stock' => ['sometimes', 'boolean'], 'sync_issues' => ['sometimes', 'boolean'], 'sync_receipts' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'dry_run' => ['sometimes', 'boolean']])->validate();
+        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'sync_stock' => ['sometimes', 'boolean'], 'sync_issues' => ['sometimes', 'boolean'], 'sync_receipts' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'issues_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'issues_to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', 'after_or_equal:issues_from'], 'dry_run' => ['sometimes', 'boolean']])->validate();
+        if (isset($d['issues_from']) && Carbon::parse($d['issues_from'])->diffInDays(Carbon::parse($d['issues_to'] ?? 'today')) > 366) {
+            throw new AssignmentRuleViolation('Rentang tanggal pengeluaran/penerimaan paling lama 366 hari.');
+        }
         if (! $this->mims->baseUrlConfigured()) {
             throw new AssignmentRuleViolation('Alamat dasar MIMS (DISTRIVA_MIMS_BASE_URL) belum diisi di server.');
         }
         // what to pull: stock (default), issues and receipts (each only when asked); a dry run only exists for stock
-        $opts = ['stock' => $request->boolean('sync_stock', true), 'issues' => $request->boolean('sync_issues'), 'receipts' => $request->boolean('sync_receipts'), 'dry_run' => $request->boolean('dry_run'), 'date' => $d['date'] ?? null];
+        $opts = ['stock' => $request->boolean('sync_stock', true), 'issues' => $request->boolean('sync_issues'), 'receipts' => $request->boolean('sync_receipts'), 'dry_run' => $request->boolean('dry_run'), 'date' => $d['date'] ?? null, 'from' => $d['issues_from'] ?? null, 'to' => $d['issues_to'] ?? null];
         if (! $opts['stock'] && ! $opts['issues'] && ! $opts['receipts']) {
             throw new AssignmentRuleViolation('Pilih minimal satu: stok, pengeluaran, atau penerimaan.');
         }

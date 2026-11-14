@@ -98,6 +98,8 @@ export default function WarehousesPage() {
   const [mimsSaveToken, setMimsSaveToken] = useState(false)
   const [mimsWarehouseIds, setMimsWarehouseIds] = useState([])
   const [mimsDate, setMimsDate] = useState('')
+  const [mimsFrom, setMimsFrom] = useState('')
+  const [mimsTo, setMimsTo] = useState('')
   const [mimsDryRun, setMimsDryRun] = useState(false)
   const [mimsDoStock, setMimsDoStock] = useState(true)
   const [mimsDoIssues, setMimsDoIssues] = useState(true)
@@ -233,6 +235,8 @@ export default function WarehousesPage() {
         ...(mimsUseSaved ? { use_saved_token: true } : { token: tokenToSend, ...(mimsSaveToken && { save_token: true }) }),
         warehouse_ids: mimsWarehouseIds.length > 0 ? mimsWarehouseIds : undefined,
         date: mimsDate || undefined,
+        issues_from: (mimsDoIssues || mimsDoReceipts) && mimsFrom ? mimsFrom : undefined,
+        issues_to: (mimsDoIssues || mimsDoReceipts) && mimsFrom && mimsTo ? mimsTo : undefined,
         dry_run: (mimsDryRun && mimsDoStock) || undefined,
         sync_stock: mimsDoStock,
         sync_issues: mimsDoIssues,
@@ -437,6 +441,8 @@ export default function WarehousesPage() {
                 setMimsToken('')
                 setMimsWarehouseIds([])
                 setMimsDate('')
+                setMimsFrom('')
+                setMimsTo('')
                 setMimsDryRun(false)
                 setMimsResults(null)
                 setMimsError('')
@@ -525,6 +531,8 @@ export default function WarehousesPage() {
               setMimsToken('')
               setMimsWarehouseIds([])
               setMimsDate('')
+              setMimsFrom('')
+              setMimsTo('')
               setMimsDryRun(false)
               setMimsResults(null)
               setMimsError('')
@@ -914,6 +922,8 @@ export default function WarehousesPage() {
                     setMimsToken('')
                     setMimsWarehouseIds([])
                     setMimsDate('')
+                    setMimsFrom('')
+                    setMimsTo('')
                     setMimsDryRun(false)
                     setMimsResults(null)
                     setMimsError('')
@@ -1432,6 +1442,37 @@ export default function WarehousesPage() {
                 />
                 <p className="mt-0.5 text-[10px] text-slate-400">
                   Kosongkan untuk menarik stok hari ini.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Rentang Pengeluaran / Penerimaan (Opsional)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    aria-label="Rentang dari"
+                    disabled={mimsPulling}
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={mimsFrom}
+                    onChange={(e) => setMimsFrom(e.target.value)}
+                    className="block w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60"
+                  />
+                  <span className="text-slate-500">s/d</span>
+                  <input
+                    type="date"
+                    aria-label="Rentang sampai"
+                    disabled={mimsPulling || !mimsFrom}
+                    min={mimsFrom || undefined}
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={mimsTo}
+                    onChange={(e) => setMimsTo(e.target.value)}
+                    className="block w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60"
+                  />
+                </div>
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  Kosongkan untuk 90 hari terakhir sampai hari ini. Paling lama 366 hari. Tidak berlaku untuk stok.
                 </p>
               </div>
 

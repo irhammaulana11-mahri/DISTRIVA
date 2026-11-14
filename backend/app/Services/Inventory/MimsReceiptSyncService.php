@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 class MimsReceiptSyncService
 {
     /** @return array{status:string,message:?string,documents_new:int,lines:int} */
-    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null): array
+    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null, ?string $from = null, ?string $to = null): array
     {
         $started = now();
         $finish = function (string $status, ?string $message, int $docs = 0, int $lines = 0) use ($wh, $started, $triggeredBy): array {
@@ -33,9 +33,10 @@ class MimsReceiptSyncService
         $http = fn () => $make((int) config('distriva.mims.mirror_timeout_seconds'));
         $one = fn () => $make((int) config('distriva.mims.detail_timeout_seconds'));
         $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
-        $since = $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $since = $from ?? $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $until = $to ?? $now->toDateString();
         try {
-            $res = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.receipt_list_path'), ['{plant}' => rawurlencode((string) $wh->plant), '{stor_loc}' => rawurlencode((string) $wh->stor_loc), '{from}' => CarbonImmutable::parse($since)->format('d-m-Y'), '{to}' => $now->format('d-m-Y')]));
+            $res = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.receipt_list_path'), ['{plant}' => rawurlencode((string) $wh->plant), '{stor_loc}' => rawurlencode((string) $wh->stor_loc), '{from}' => CarbonImmutable::parse($since)->format('d-m-Y'), '{to}' => CarbonImmutable::parse($until)->format('d-m-Y')]));
         } catch (\Throwable $e) {
             return $finish('FAILED', MimsStockSyncService::connectionMessage($e, 'mengambil daftar penerimaan'));
         }
@@ -56,7 +57,7 @@ class MimsReceiptSyncService
             $doc = trim((string) ($h['material_document'] ?? ''));
             $delivered = $this->date($h['tgl_pengiriman'] ?? $h['tgl_transaksi'] ?? null);
             $status = mb_strtoupper(trim((string) ($h['status_penerimaan'] ?? '')));
-            if ($doc === '' || $delivered === null || $delivered < $since || $status === '' || (isset($known[$doc]) && $known[$doc] === $status)) {
+            if ($doc === '' || $delivered === null || $delivered < $since || $delivered > $until || $status === '' || (isset($known[$doc]) && $known[$doc] === $status)) {
                 continue;
             }
             $received = null;

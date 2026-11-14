@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 class MimsIssueSyncService
 {
     /** @return array{status:string,message:?string,documents_new:int,lines:int,matched:int} */
-    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null): array
+    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null, ?string $from = null, ?string $to = null): array
     {
         $started = now();
         $finish = function (string $status, ?string $message, int $docs = 0, int $lines = 0, int $matched = 0) use ($wh, $started, $triggeredBy): array {
@@ -34,11 +34,12 @@ class MimsIssueSyncService
         $http = fn () => $make((int) config('distriva.mims.mirror_timeout_seconds'));
         $one = fn () => $make((int) config('distriva.mims.detail_timeout_seconds'));
         $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
-        $since = $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $since = $from ?? $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $until = $to ?? $now->toDateString();
         // The date range goes into the payload (`tanggal` / `tanggal_akhir`, format d-m-Y as the MIMS screen sends it), so MIMS answers with the window only, not the whole history.
         $payload = fn (string $from, string $to) => ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => 'S', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => $from, 'tanggal_akhir' => $to];
         try {
-            $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), $payload(CarbonImmutable::parse($since)->format('d-m-Y'), $now->format('d-m-Y')));
+            $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), $payload(CarbonImmutable::parse($since)->format('d-m-Y'), CarbonImmutable::parse($until)->format('d-m-Y')));
             if (in_array($res->status(), [400, 422, 500], true)) {
                 $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), $payload('', ''));   // MIMS did not accept the dates: ask without them (filtered here instead)
             }
@@ -59,7 +60,7 @@ class MimsIssueSyncService
             $doc = trim((string) ($h['material_document'] ?? ''));
             $reservation = trim((string) ($h['no_pemesanan'] ?? ''));
             $date = $this->date($h['tgl_pengeluaran'] ?? $h['tgl_transaksi'] ?? null);
-            if ($doc === '' || $reservation === '' || $date === null || $date < $since || isset($known[$doc])) {
+            if ($doc === '' || $reservation === '' || $date === null || $date < $since || $date > $until || isset($known[$doc])) {
                 continue;
             }
             $new[$doc] = ['doc' => $doc, 'h' => $h, 'reservation' => $reservation, 'date' => $date];
