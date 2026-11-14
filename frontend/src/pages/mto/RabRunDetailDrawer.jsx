@@ -147,7 +147,7 @@ export default function RabRunDetailDrawer({
 
               {/* Snapshot Hash */}
               <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] font-mono text-slate-500">
-                <span className="truncate max-w-md">Snapshot: {run.snapshot_hash}</span>
+                <span className="truncate max-w-md">Kode Hash Validasi: {run.snapshot_hash}</span>
                 <span className="text-slate-400">{new Date(run.created_at).toLocaleString('id-ID')}</span>
               </div>
             </div>

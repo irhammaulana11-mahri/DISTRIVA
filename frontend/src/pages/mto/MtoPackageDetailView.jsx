@@ -622,7 +622,7 @@ export default function MtoPackageDetailView({
         </div>
 
         <div>
-          <span className="text-slate-400 block mb-0.5">Validitas & Snapshot Hash:</span>
+          <span className="text-slate-400 block mb-0.5">Validitas & Kode Hash Data:</span>
           {mto.snapshot_hash ? (
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="font-mono font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
@@ -631,7 +631,7 @@ export default function MtoPackageDetailView({
               <span className="text-[10px] text-emerald-600 font-bold">Terkunci</span>
             </div>
           ) : (
-            <span className="text-slate-500 italic">Draf Dinamis (Belum dibekukan)</span>
+            <span className="text-slate-500 italic">Draf Dinamis (Belum dikunci)</span>
           )}
           {mto.valid_on && (
             <span className="text-[10px] text-slate-400 block mt-0.5">
@@ -1095,7 +1095,7 @@ export default function MtoPackageDetailView({
               <span>Kalkulasi & Riwayat Run RAB ({rabRuns.length} tersimpan)</span>
             </h4>
             <p className="text-[11px] text-slate-500">
-              Kalkulasi anggaran biaya berdasarkan snapshot MTO disetujui, buku harga kontrak, dan zona UP3.
+              Kalkulasi anggaran biaya berdasarkan data paket MTO disetujui, buku harga kontrak, dan zona UP3.
             </p>
           </div>
 
@@ -1108,7 +1108,7 @@ export default function MtoPackageDetailView({
                   type="date"
                   value={rabReferenceDate}
                   onChange={(e) => setRabReferenceDate(e.target.value)}
-                  className="px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                  className="px-2 py-1 text-base sm:text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                   title="Tanggal acuan buku harga (bawaan: hari ini)"
                 />
               </div>
@@ -1728,7 +1728,7 @@ export default function MtoPackageDetailView({
         onClose={() => setVerifyConfirmOpen(false)}
         onConfirm={handleConfirmVerify}
         title="Verifikasi Paket MTO"
-        description="Verifikasi paket MTO? Seluruh isian jumlah konstruksi akan dibekukan (immutable snapshot) dan diteruskan ke Manager ULP untuk persetujuan."
+        description="Verifikasi paket MTO? Seluruh isian jumlah konstruksi akan dikunci secara permanen dan diteruskan ke Manager ULP untuk persetujuan."
         confirmLabel="Verifikasi Sekarang"
         variant="warning"
         loading={verifying}

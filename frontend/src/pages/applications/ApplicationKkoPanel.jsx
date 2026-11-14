@@ -10,7 +10,7 @@ import OutputDocumentModal from '../../components/OutputDocumentModal.jsx'
 import { buildKkoDocument } from '../../utils/kkoDocumentBuilder.js'
 
 const inputCls =
-  'w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500'
+  'w-full px-3 py-2 text-base sm:text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500'
 
 const CLASS_STYLE = {
   UNDERLOAD: { label: 'Underload', cls: 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200' },

@@ -587,38 +587,41 @@ export default function ProposalKkfPanel({
               Konfigurasi Meter Pelanggan (Perubahan Daya ke Pascabayar)
             </span>
             <div className="space-y-1.5">
-              {members.map((m) => (
-                <div key={m.application_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px]">
-                  <div className="min-w-0">
-                    <strong className="text-slate-900 dark:text-slate-100">{m.customer_name}</strong>
-                    <span className="text-slate-500 font-mono ml-2">({m.application_number} · IDPEL: {m.idpel || '-'})</span>
-                    <span className="text-slate-400 block text-[10px]">
-                      Paket SAR: {m.sar_package || '-'} · Jenis: {m.application_type}
-                    </span>
-                  </div>
+              {members.map((m, idx) => {
+                const memberKey = m.application_id || m.id || `member-${idx}`
+                return (
+                  <div key={memberKey} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px]">
+                    <div className="min-w-0">
+                      <strong className="text-slate-900 dark:text-slate-100">{m.customer_name}</strong>
+                      <span className="text-slate-500 font-mono ml-2">({m.application_number} · IDPEL: {m.idpel || '-'})</span>
+                      <span className="text-slate-400 block text-[10px]">
+                        Paket SAR: {m.sar_package || '-'} · Jenis: {m.application_type}
+                      </span>
+                    </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <label htmlFor={`meter-prev-${m.application_id}`} className="text-[10px] text-slate-500">
-                      Meter Sebelumnya:
-                    </label>
-                    <select
-                      id={`meter-prev-${m.application_id}`}
-                      value={memberMeterModes[m.application_id] || ''}
-                      onChange={(e) =>
-                        setMemberMeterModes((prev) => ({
-                          ...prev,
-                          [m.application_id]: e.target.value || undefined,
-                        }))
-                      }
-                      className="px-2 py-1 text-[11px] rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
-                    >
-                      <option value="">(Otomatis dari Sistem)</option>
-                      <option value="PRABAYAR">PRABAYAR</option>
-                      <option value="PASCABAYAR">PASCABAYAR</option>
-                    </select>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label htmlFor={`meter-prev-${memberKey}`} className="text-[10px] text-slate-500">
+                        Meter Sebelumnya:
+                      </label>
+                      <select
+                        id={`meter-prev-${memberKey}`}
+                        value={memberMeterModes[m.application_id || m.id] || ''}
+                        onChange={(e) =>
+                          setMemberMeterModes((prev) => ({
+                            ...prev,
+                            [m.application_id || m.id]: e.target.value || undefined,
+                          }))
+                        }
+                        className="px-2 py-1 text-base sm:text-[11px] rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
+                      >
+                        <option value="">(Otomatis dari Sistem)</option>
+                        <option value="PRABAYAR">PRABAYAR</option>
+                        <option value="PASCABAYAR">PASCABAYAR</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

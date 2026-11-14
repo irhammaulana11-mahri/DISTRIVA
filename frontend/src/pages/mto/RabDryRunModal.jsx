@@ -168,7 +168,7 @@ export default function RabDryRunModal({
         {/* Snapshot Hash */}
         {data.snapshot_hash && (
           <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-500 break-all">
-            <span className="font-semibold text-slate-700 dark:text-slate-300">Snapshot Hash: </span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">Kode Hash Validasi: </span>
             {data.snapshot_hash}
           </div>
         )}

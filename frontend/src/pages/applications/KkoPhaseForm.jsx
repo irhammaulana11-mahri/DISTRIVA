@@ -1,6 +1,6 @@
 import { PHASES, phaseResult } from '../../utils/kkoPhase.js'
 
-const cell = 'w-full px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-right'
+const cell = 'w-full px-2 py-1 text-base sm:text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-right'
 const th = 'px-2 py-1.5 text-left text-[11px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60'
 const fmt = (v, d = 2) => (v === null || v === undefined ? '-' : Number(v).toLocaleString('id-ID', { maximumFractionDigits: d }))
 

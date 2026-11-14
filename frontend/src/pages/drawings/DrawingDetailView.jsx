@@ -1149,7 +1149,7 @@ export default function DrawingDetailView({
                 <strong className="text-slate-800 dark:text-slate-200">{mtoPackage.items?.length || 0} jenis konstruksi terdaftar</strong>
               </div>
               <div>
-                <span className="text-slate-400 block text-[11px] mb-0.5">Snapshot Terkunci:</span>
+                <span className="text-slate-400 block text-[11px] mb-0.5">Status Validasi Data:</span>
                 <span className="text-slate-700 dark:text-slate-300 font-mono">
                   {mtoPackage.snapshot_hash ? `${mtoPackage.snapshot_hash.slice(0, 8)}… (Terkunci)` : 'Draf Dinamis (Belum diverifikasi)'}
                 </span>
