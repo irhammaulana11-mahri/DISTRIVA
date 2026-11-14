@@ -29,13 +29,15 @@ class MimsReceiptSyncService
             return $finish('SKIPPED', 'Gudang belum memiliki plant dan storage location ERP.');
         }
         $base = rtrim((string) config('distriva.mims.base_url'), '/');
-        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.mirror_timeout_seconds'));
+        $make = fn (int $seconds) => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout($seconds);
+        $http = fn () => $make((int) config('distriva.mims.mirror_timeout_seconds'));
+        $one = fn () => $make((int) config('distriva.mims.detail_timeout_seconds'));
         $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
         $since = $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
         try {
             $res = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.receipt_list_path'), ['{plant}' => rawurlencode((string) $wh->plant), '{stor_loc}' => rawurlencode((string) $wh->stor_loc), '{from}' => CarbonImmutable::parse($since)->format('d-m-Y'), '{to}' => $now->format('d-m-Y')]));
         } catch (\Throwable $e) {
-            return $finish('FAILED', MimsStockSyncService::connectionMessage($e));
+            return $finish('FAILED', MimsStockSyncService::connectionMessage($e, 'mengambil daftar penerimaan'));
         }
         if (! $res->successful()) {
             return $finish('FAILED', 'MIMS menjawab status HTTP '.$res->status().($res->status() === 401 || $res->status() === 403 ? ' (token ditolak atau kedaluwarsa).' : '.'));
@@ -48,6 +50,7 @@ class MimsReceiptSyncService
         $docs = 0;
         $lines = 0;
         $skipped = [];
+        $slow = 0;
         foreach ($headers as $h) {
             $h = (array) $h;
             $doc = trim((string) ($h['material_document'] ?? ''));
@@ -61,9 +64,15 @@ class MimsReceiptSyncService
             $receiptDoc = $this->str($h['material_document_penerimaan'] ?? null, 30);
             if ($status === 'DITERIMA') {
                 try {
-                    $detail = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.receipt_detail_path'), ['{document}' => rawurlencode($doc)]));
+                    $detail = MimsStockSyncService::fetch($one, $base.strtr((string) config('distriva.mims.receipt_detail_path'), ['{document}' => rawurlencode($doc)]));
+                    $slow = 0;
                 } catch (\Throwable $e) {
-                    return $finish('FAILED', MimsStockSyncService::connectionMessage($e), $docs, $lines);
+                    $skipped[] = 'dokumen '.$doc.': '.MimsStockSyncService::connectionMessage($e, 'mengambil detail penerimaan');
+                    if (++$slow >= 2) {
+                        return $finish($docs > 0 ? 'OK' : 'FAILED', 'MIMS tidak menjawab detail penerimaan dua kali berturut-turut ('.implode(' | ', array_slice($skipped, -2)).'). Sisanya ditarik pada penarikan berikutnya.', $docs, $lines);
+                    }
+
+                    continue;
                 }
                 if (in_array($detail->status(), [401, 403], true)) {
                     return $finish('FAILED', 'MIMS menjawab status HTTP '.$detail->status().' (token ditolak atau kedaluwarsa).', $docs, $lines);

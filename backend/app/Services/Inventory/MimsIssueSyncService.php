@@ -30,7 +30,9 @@ class MimsIssueSyncService
             return $finish('SKIPPED', 'Gudang belum memiliki plant dan storage location ERP.');
         }
         $base = rtrim((string) config('distriva.mims.base_url'), '/');
-        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.mirror_timeout_seconds'));
+        $make = fn (int $seconds) => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout($seconds);
+        $http = fn () => $make((int) config('distriva.mims.mirror_timeout_seconds'));
+        $one = fn () => $make((int) config('distriva.mims.detail_timeout_seconds'));
         $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
         $since = $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
         // The date range goes into the payload (`tanggal` / `tanggal_akhir`, format d-m-Y as the MIMS screen sends it), so MIMS answers with the window only, not the whole history.
@@ -41,7 +43,7 @@ class MimsIssueSyncService
                 $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), $payload('', ''));   // MIMS did not accept the dates: ask without them (filtered here instead)
             }
         } catch (\Throwable $e) {
-            return $finish('FAILED', MimsStockSyncService::connectionMessage($e));
+            return $finish('FAILED', MimsStockSyncService::connectionMessage($e, 'mengambil daftar pengeluaran'));
         }
         if (! $res->successful()) {
             return $finish('FAILED', 'MIMS menjawab status HTTP '.$res->status().($res->status() === 401 || $res->status() === 403 ? ' (token ditolak atau kedaluwarsa).' : '.'));
@@ -66,12 +68,20 @@ class MimsIssueSyncService
         $lines = 0;
         $matched = 0;
         $skipped = [];
+        $slow = 0;
         foreach (collect($new)->groupBy('reservation') as $reservation => $group) {
             try {
-                $detail = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.issue_detail_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
-                $map = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.issue_mapping_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
+                $detail = MimsStockSyncService::fetch($one, $base.strtr((string) config('distriva.mims.issue_detail_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
+                $map = MimsStockSyncService::fetch($one, $base.strtr((string) config('distriva.mims.issue_mapping_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
+                $slow = 0;
             } catch (\Throwable $e) {
-                return $finish('FAILED', MimsStockSyncService::connectionMessage($e), $docs, $lines, $matched);
+                // a slow or broken reservation is skipped; two in a row mean MIMS itself is not answering, and the rest is left for the next pull
+                $skipped[] = 'reservasi '.$reservation.': '.MimsStockSyncService::connectionMessage($e, 'mengambil detail reservasi');
+                if (++$slow >= 2) {
+                    return $finish($docs > 0 ? 'OK' : 'FAILED', 'MIMS tidak menjawab detail reservasi dua kali berturut-turut ('.implode(' | ', array_slice($skipped, -2)).'). Sisanya ditarik pada penarikan berikutnya.', $docs, $lines, $matched);
+                }
+
+                continue;
             }
             foreach ([$detail, $map] as $r) {
                 if (in_array($r->status(), [401, 403], true)) {

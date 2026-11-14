@@ -432,6 +432,31 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_slow_reservation_is_skipped_two_in_a_row_stop_the_warehouse_and_the_message_names_the_call(): void
+    {
+        DB::table('warehouses')->insert(['id' => $wh = (string) Str::uuid(), 'code' => '5118-2800', 'name' => 'Gd Ry Kota', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2800', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-slow.test']);
+        $today = fn () => now(config('distriva.business_timezone'))->format('d-m-Y');
+        Http::fake(function ($request) use ($today) {
+            $url = $request->url();
+            if (str_contains($url, 'getDataPengeluaranHeader')) {
+                return Http::response(['data' => array_map(fn ($n) => ['material_document' => "D{$n}", 'no_pemesanan' => "R{$n}", 'tgl_pengeluaran' => $today()], [1, 2, 3, 4])]);
+            }
+            if (str_contains($url, 'R1') || str_contains($url, 'R2')) {
+                throw new ConnectionException('cURL error 28: Operation timed out after 60001 milliseconds');
+            }
+
+            return str_contains($url, 'getDataPengeluaranAll') ? Http::response(['detail' => ['data' => [['material_no' => '3250050', 'jumlah' => '1', 'satuan' => 'BH']]]]) : Http::response(['data' => []]);
+        });
+
+        $r = app(MimsIssueSyncService::class)->syncWarehouse(DB::table('warehouses')->where('id', $wh)->first(), 'token-uji-123456', $this->konstruksi);
+        $this->assertSame('FAILED', $r['status']);                                                                       // R1 and R2 timed out in a row: stop, nothing stored
+        $this->assertStringContainsString('dua kali berturut-turut', $r['message']);
+        $this->assertStringContainsString('saat mengambil detail reservasi', $r['message']);
+        $this->assertSame(0, DB::table('mims_issue_documents')->count());
+    }
+
+    #[Test]
     public function the_manual_pull_lets_the_user_choose_stock_issues_and_receipts(): void
     {
         DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);

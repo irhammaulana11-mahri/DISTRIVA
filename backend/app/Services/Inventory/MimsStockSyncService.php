@@ -49,20 +49,21 @@ class MimsStockSyncService
     }
 
     /** Why MIMS could not be reached, without anything secret (the message of a cURL error names the host and the cause, never the headers). */
-    public static function connectionMessage(\Throwable $e): string
+    public static function connectionMessage(\Throwable $e, ?string $during = null): string
     {
         $m = $e->getMessage();
+        $at = $during === null ? '' : " (saat {$during})";
         if (stripos($m, 'certificate') !== false || stripos($m, 'SSL') !== false) {
-            return 'Tidak dapat terhubung ke MIMS: sertifikat SSL server MIMS kedaluwarsa atau tidak tepercaya. Minta pengelola MIMS memperbaruinya (atau, sementara, atur DISTRIVA_MIMS_VERIFY_SSL=false dengan sadar akan risikonya).';
+            return 'Tidak dapat terhubung ke MIMS'.$at.': sertifikat SSL server MIMS kedaluwarsa atau tidak tepercaya. Minta pengelola MIMS memperbaruinya (atau, sementara, atur DISTRIVA_MIMS_VERIFY_SSL=false dengan sadar akan risikonya).';
         }
         if (stripos($m, 'resolve host') !== false) {
-            return 'Tidak dapat terhubung ke MIMS: nama server tidak dikenali (periksa DISTRIVA_MIMS_BASE_URL dan DNS/jaringan server).';
+            return 'Tidak dapat terhubung ke MIMS'.$at.': nama server tidak dikenali (periksa DISTRIVA_MIMS_BASE_URL dan DNS/jaringan server).';
         }
         if (stripos($m, 'timed out') !== false) {
-            return 'Tidak dapat terhubung ke MIMS: waktu tunggu habis (jaringan atau MIMS lambat).';
+            return 'Tidak dapat terhubung ke MIMS'.$at.': waktu tunggu habis (jaringan atau MIMS lambat).';
         }
 
-        return 'Tidak dapat terhubung ke MIMS: '.mb_substr(preg_replace('/\s+/', ' ', $m), 0, 200);
+        return 'Tidak dapat terhubung ke MIMS'.$at.': '.mb_substr(preg_replace('/\s+/', ' ', $m), 0, 200);
     }
 
     public function configured(): bool
