@@ -7,6 +7,7 @@ import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import SubstationAnalysis, { FlagChips } from './SubstationAnalysis.jsx'
@@ -42,7 +43,7 @@ export function ReadingBadge({ status }) {
 
 export const loadingText = (r) => (r?.loading_pct === null || r?.loading_pct === undefined ? '-' : `${fmt(r.loading_pct)}%`)
 
-function Detail({ id, canReading, canViewFeeders, feedersList = [], onClose, onChanged }) {
+export function SubstationMeasurementDrawer({ id, asPage = false, canReading, canViewFeeders, feedersList = [], onClose, onChanged }) {
   const { notify } = useNotifications()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -133,228 +134,262 @@ function Detail({ id, canReading, canViewFeeders, feedersList = [], onClose, onC
     }
   }
 
-  if (loading) return <div className="py-10 flex justify-center"><Spinner /></div>
-  if (error) return <div className="py-10"><Alert kind="error">{error}</Alert></div>
-  if (!data?.substation) return null
-
-  const s = data.substation
+  const s = data?.substation
   const feeder = feedersList.find((f) => f.code === s?.feeder_code || f.id === s?.feeder_id)
   const feederText = s?.feeder_code
     ? (feeder?.name ? `${s.feeder_code} - ${feeder.name}` : s.feeder_code)
     : '-'
 
+  const title = `Kondisi & Analisis Gardu: ${s?.code || s?.name || s?.gadis_number || id}`
+  const subtitle = s?.unit_name ? `Unit: ${s.unit_name} · Kapasitas: ${fmt(s.capacity_kva, 0)} kVA · Penyulang: ${feederText}` : 'Kondisi beban, analisis teknis, dan riwayat pengukuran'
+
   return (
-    <div className="space-y-5 text-xs" data-testid="substation-measurement-detail">
-      {/* Tombol ke Data Induk Gardu */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
-        <div>
-          <div className="font-bold text-slate-900 dark:text-slate-100">
-            Data Induk Gardu: {s.gadis_number || s.code}
+    <PanelShell
+      asPage={asPage}
+      isOpen={true}
+      onClose={onClose}
+      onBack={onClose}
+      title={title}
+      subtitle={subtitle}
+      size="max-w-3xl"
+      width="max-w-3xl"
+    >
+      {loading ? (
+        <div className="py-10 flex justify-center"><Spinner /></div>
+      ) : error ? (
+        <div className="py-10"><Alert kind="error">{error}</Alert></div>
+      ) : !data?.substation ? null : (
+        <div className="space-y-5 text-xs" data-testid="substation-measurement-detail">
+          {/* Banner Pratinjau (Hanya di Drawer Preview asPage = false) */}
+          {!asPage && (
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900">
+              <div>
+                <div className="font-bold text-blue-950 dark:text-blue-100">Pratinjau Analisis & Pengukuran</div>
+                <div className="text-[11px] text-blue-700 dark:text-blue-300">
+                  Drawer ini hanya menampilkan data analisis & riwayat (read-only). Tambah pembacaan dilakukan di Halaman Analisis.
+                </div>
+              </div>
+              <Link
+                to={`/master-data/substation-measurements/${s.id}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer"
+              >
+                Buka Halaman Analisis & Pengukuran →
+              </Link>
+            </div>
+          )}
+
+          {/* Tombol ke Data Induk Gardu */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div>
+              <div className="font-bold text-slate-900 dark:text-slate-100">
+                Data Induk Gardu: {s.gadis_number || s.code}
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                Nama Gardu: {s.code || s.name || '-'} · Kapasitas {fmt(s.capacity_kva, 0)} kVA · Unit {s.unit_name || s.unit_code} · Penyulang {feederText}
+              </div>
+            </div>
+            <Link
+              to={`/master-data/substations?open=${s.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-2xs transition cursor-pointer"
+            >
+              Data induk →
+            </Link>
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-            Nama Gardu: {s.code || s.name || '-'} · Kapasitas {fmt(s.capacity_kva, 0)} kVA · Unit {s.unit_name || s.unit_code} · Penyulang {feederText}
+
+          {/* Tabs */}
+          <div className="flex gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('analysis')}
+              className={`px-3 py-1.5 rounded-lg font-semibold cursor-pointer ${
+                activeTab === 'analysis'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Analisis Gardu
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('readings')}
+              className={`px-3 py-1.5 rounded-lg font-semibold cursor-pointer ${
+                activeTab === 'readings'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Riwayat Pembacaan ({data.readings?.length ?? 0})
+            </button>
           </div>
-        </div>
-        <Link
-          to={`/master-data/substations?open=${s.id}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-2xs transition cursor-pointer"
-        >
-          Data induk →
-        </Link>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('analysis')}
-          className={`px-3 py-1.5 rounded-lg font-semibold cursor-pointer ${
-            activeTab === 'analysis'
-              ? 'bg-blue-600 text-white'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          Analisis Gardu
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('readings')}
-          className={`px-3 py-1.5 rounded-lg font-semibold cursor-pointer ${
-            activeTab === 'readings'
-              ? 'bg-blue-600 text-white'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          Riwayat Pembacaan ({data.readings?.length ?? 0})
-        </button>
-      </div>
+          {activeTab === 'analysis' && <SubstationAnalysis id={id} />}
 
-      {activeTab === 'analysis' && <SubstationAnalysis id={id} />}
-
-      {activeTab === 'readings' && (
-        <div className="space-y-4">
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 text-[11px] text-slate-600 dark:text-slate-400">
-                  <th className="py-2 px-3">Tanggal & jam</th>
-                  <th className="py-2 px-3 text-right">Kapasitas (kVA)</th>
-                  <th className="py-2 px-3 text-right">R / S / T (A)</th>
-                  <th className="py-2 px-3 text-right">Beban (kVA)</th>
-                  <th className="py-2 px-3 text-right">Pembebanan</th>
-                  <th className="py-2 px-3 text-right">Teg. Ujung (V)</th>
-                  <th className="py-2 px-3">Sumber</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {!data.readings || data.readings.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-4 text-center text-slate-400">
-                      Belum ada riwayat pembacaan operasional.
-                    </td>
-                  </tr>
-                ) : (
-                  data.readings.map((r, i) => (
-                    <tr key={`${r.measured_on}-${r.source}-${i}`}>
-                      <td className="py-2 px-3 font-mono" data-testid="reading-time">{readingTime(r)}</td>
-                      <td className="py-2 px-3 text-right font-mono">{fmt(r.capacity_kva, 0)}</td>
-                      <td className="py-2 px-3 text-right font-mono">
-                        {r.current_r_a === null && r.current_max_a !== null
-                          ? `maks ${fmt(r.current_max_a)}`
-                          : `${fmt(r.current_r_a)} / ${fmt(r.current_s_a)} / ${fmt(r.current_t_a)}`}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono">{fmt(r.load_kva, 2)}</td>
-                      <td className="py-2 px-3 text-right font-mono">{loadingText(r)}</td>
-                      <td className="py-2 px-3 text-right font-mono">{fmt(r.end_voltage_v)}</td>
-                      <td className="py-2 px-3">{r.source}</td>
+          {activeTab === 'readings' && (
+            <div className="space-y-4">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 text-[11px] text-slate-600 dark:text-slate-400">
+                      <th className="py-2 px-3">Tanggal & jam</th>
+                      <th className="py-2 px-3 text-right">Kapasitas (kVA)</th>
+                      <th className="py-2 px-3 text-right">R / S / T (A)</th>
+                      <th className="py-2 px-3 text-right">Beban (kVA)</th>
+                      <th className="py-2 px-3 text-right">Pembebanan</th>
+                      <th className="py-2 px-3 text-right">Teg. Ujung (V)</th>
+                      <th className="py-2 px-3">Sumber</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-[11px] text-slate-500">
-            Nilai 0 dianggap tidak terukur dan tidak disimpan. Koreksi dilakukan dengan menambah pembacaan baru.
-          </p>
-        </div>
-      )}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {!data.readings || data.readings.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-4 text-center text-slate-400">
+                          Belum ada riwayat pembacaan operasional.
+                        </td>
+                      </tr>
+                    ) : (
+                      data.readings.map((r, i) => (
+                        <tr key={`${r.measured_on}-${r.source}-${i}`}>
+                          <td className="py-2 px-3 font-mono" data-testid="reading-time">{readingTime(r)}</td>
+                          <td className="py-2 px-3 text-right font-mono">{fmt(r.capacity_kva, 0)}</td>
+                          <td className="py-2 px-3 text-right font-mono">
+                            {r.current_r_a === null && r.current_max_a !== null
+                              ? `maks ${fmt(r.current_max_a)}`
+                              : `${fmt(r.current_r_a)} / ${fmt(r.current_s_a)} / ${fmt(r.current_t_a)}`}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono">{fmt(r.load_kva, 2)}</td>
+                          <td className="py-2 px-3 text-right font-mono">{loadingText(r)}</td>
+                          <td className="py-2 px-3 text-right font-mono">{fmt(r.end_voltage_v)}</td>
+                          <td className="py-2 px-3">{r.source}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Nilai 0 dianggap tidak terukur dan tidak disimpan. Koreksi dilakukan dengan menambah pembacaan baru.
+              </p>
+            </div>
+          )}
 
-      {/* Form Tambah Pembacaan */}
-      {canReading && s.pickable && (
-        <div className="rounded-xl border border-blue-200 dark:border-blue-900 p-4 space-y-3 bg-blue-50/40 dark:bg-blue-950/20" data-testid="reading-form">
-          <div className="font-bold text-sm text-blue-900 dark:text-blue-300">Tambah Pembacaan Operasional</div>
-          {readingError && <Alert kind="error">{readingError}</Alert>}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <label className="font-semibold text-slate-700 dark:text-slate-300">
-              Tanggal
-              <input
-                aria-label="Tanggal pembacaan"
-                type="date"
-                className={`${inputCls} w-full mt-1`}
-                value={form.measured_on}
-                onChange={setFormField('measured_on')}
-              />
-            </label>
-            <label className="font-semibold text-slate-700 dark:text-slate-300">
-              Jam (opsional)
-              <input aria-label="Jam pembacaan" type="time" className={`${inputCls} w-full mt-1`} value={form.measured_time || ''} onChange={setFormField('measured_time')} />
-            </label>
-            {[
-              ['current_r_a', 'Arus R (A)'],
-              ['current_s_a', 'Arus S (A)'],
-              ['current_t_a', 'Arus T (A)'],
-              ['loading_pct', 'Pembebanan (%)'],
-              ['end_voltage_v', 'Tegangan ujung (V)'],
-              ['base_voltage_r_v', 'Tegangan pangkal R-N (V)'],
-              ['base_voltage_s_v', 'Tegangan pangkal S-N (V)'],
-              ['base_voltage_t_v', 'Tegangan pangkal T-N (V)'],
-            ].map(([k, label]) => (
-              <label key={k} className="font-semibold text-slate-700 dark:text-slate-300">
-                {label}
-                <input
-                  aria-label={label}
-                  type="number"
-                  min="0"
-                  className={`${inputCls} w-full mt-1`}
-                  value={form[k]}
-                  onChange={setFormField(k)}
-                />
-              </label>
-            ))}
-          </div>
-
-          <div className="space-y-1 pt-1" data-testid="feeder-rows">
-            <div className="font-semibold text-slate-700 dark:text-slate-300">Arus per jurusan (opsional)</div>
-            {feederRows.map((f, i) => (
-              <div key={i} className="grid grid-cols-6 gap-1">
-                {[
-                  ['label', 'Jurusan', 'text'],
-                  ['current_r_a', 'R (A)', 'number'],
-                  ['current_s_a', 'S (A)', 'number'],
-                  ['current_t_a', 'T (A)', 'number'],
-                  ['current_n_a', 'N (A)', 'number'],
-                  ['end_voltage_v', 'Ujung (V)', 'number'],
-                ].map(([k, label, type]) => (
+          {/* Form Tambah Pembacaan (Hanya di Drawer Page asPage = true, bebas CRUD di drawer preview) */}
+          {asPage && canReading && s.pickable && (
+            <div className="rounded-xl border border-blue-200 dark:border-blue-900 p-4 space-y-3 bg-blue-50/40 dark:bg-blue-950/20" data-testid="reading-form">
+              <div className="font-bold text-sm text-blue-900 dark:text-blue-300">Tambah Pembacaan Operasional</div>
+              {readingError && <Alert kind="error">{readingError}</Alert>}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  Tanggal
                   <input
-                    key={k}
-                    aria-label={`${label} jurusan ${i + 1}`}
-                    placeholder={label}
-                    type={type}
-                    min={type === 'number' ? '0' : undefined}
-                    className={inputCls}
-                    value={f[k]}
-                    onChange={(e) =>
-                      setFeederRows((all) =>
-                        all.map((x, xi) => (xi === i ? { ...x, [k]: e.target.value } : x))
-                      )
-                    }
+                    aria-label="Tanggal pembacaan"
+                    type="date"
+                    className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+                    value={form.measured_on}
+                    onChange={setFormField('measured_on')}
                   />
+                </label>
+                <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  Jam (opsional)
+                  <input aria-label="Jam pembacaan" type="time" className={`${inputCls} w-full mt-1 text-base sm:text-xs`} value={form.measured_time || ''} onChange={setFormField('measured_time')} />
+                </label>
+                {[
+                  ['current_r_a', 'Arus R (A)'],
+                  ['current_s_a', 'Arus S (A)'],
+                  ['current_t_a', 'Arus T (A)'],
+                  ['loading_pct', 'Pembebanan (%)'],
+                  ['end_voltage_v', 'Tegangan ujung (V)'],
+                  ['base_voltage_r_v', 'Tegangan pangkal R-N (V)'],
+                  ['base_voltage_s_v', 'Tegangan pangkal S-N (V)'],
+                  ['base_voltage_t_v', 'Tegangan pangkal T-N (V)'],
+                ].map(([k, label]) => (
+                  <label key={k} className="font-semibold text-slate-700 dark:text-slate-300">
+                    {label}
+                    <input
+                      aria-label={label}
+                      type="number"
+                      min="0"
+                      className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+                      value={form[k]}
+                      onChange={setFormField(k)}
+                    />
+                  </label>
                 ))}
               </div>
-            ))}
-            <div className="flex gap-3 pt-1">
-              <button
-                type="button"
-                className="text-blue-700 dark:text-blue-300 underline cursor-pointer"
-                onClick={() =>
-                  setFeederRows((all) => [
-                    ...all,
-                    {
-                      label: String.fromCharCode(65 + all.length),
-                      current_r_a: '',
-                      current_s_a: '',
-                      current_t_a: '',
-                      current_n_a: '',
-                      end_voltage_v: '',
-                    },
-                  ])
-                }
-              >
-                + Tambah jurusan
-              </button>
-              {feederRows.length > 0 && (
-                <button
-                  type="button"
-                  className="text-slate-500 underline cursor-pointer"
-                  onClick={() => setFeederRows((all) => all.slice(0, -1))}
-                >
-                  Hapus jurusan terakhir
-                </button>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Bila arus R/S/T gardu dikosongkan, arus gardu dihitung dari jumlah seluruh jurusan.
-            </p>
-          </div>
 
-          <div className="pt-2 flex justify-end">
-            <Button size="sm" loading={savingReading} onClick={handleAddReading}>
-              Simpan pembacaan
-            </Button>
-          </div>
+              <div className="space-y-1 pt-1" data-testid="feeder-rows">
+                <div className="font-semibold text-slate-700 dark:text-slate-300">Arus per jurusan (opsional)</div>
+                {feederRows.map((f, i) => (
+                  <div key={i} className="grid grid-cols-6 gap-1">
+                    {[
+                      ['label', 'Jurusan', 'text'],
+                      ['current_r_a', 'R (A)', 'number'],
+                      ['current_s_a', 'S (A)', 'number'],
+                      ['current_t_a', 'T (A)', 'number'],
+                      ['current_n_a', 'N (A)', 'number'],
+                      ['end_voltage_v', 'Ujung (V)', 'number'],
+                    ].map(([k, label, type]) => (
+                      <input
+                        key={k}
+                        aria-label={`${label} jurusan ${i + 1}`}
+                        placeholder={label}
+                        type={type}
+                        min={type === 'number' ? '0' : undefined}
+                        className={`${inputCls} text-base sm:text-xs`}
+                        value={f[k]}
+                        onChange={(e) =>
+                          setFeederRows((all) =>
+                            all.map((x, xi) => (xi === i ? { ...x, [k]: e.target.value } : x))
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                ))}
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    className="text-blue-700 dark:text-blue-300 underline cursor-pointer text-xs"
+                    onClick={() =>
+                      setFeederRows((all) => [
+                        ...all,
+                        {
+                          label: String.fromCharCode(65 + all.length),
+                          current_r_a: '',
+                          current_s_a: '',
+                          current_t_a: '',
+                          current_n_a: '',
+                          end_voltage_v: '',
+                        },
+                      ])
+                    }
+                  >
+                    + Tambah jurusan
+                  </button>
+                  {feederRows.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-slate-500 underline cursor-pointer text-xs"
+                      onClick={() => setFeederRows((all) => all.slice(0, -1))}
+                    >
+                      Hapus jurusan terakhir
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Bila arus R/S/T gardu dikosongkan, arus gardu dihitung dari jumlah seluruh jurusan.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Button size="sm" loading={savingReading} onClick={handleAddReading}>
+                  Simpan pembacaan
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </PanelShell>
   )
 }
 
@@ -850,26 +885,20 @@ export default function SubstationMeasurementsPage() {
         />
       </div>
 
-      <Drawer
-        isOpen={Boolean(openId)}
-        onClose={handleCloseDrawer}
-        title="Kondisi & Analisis Gardu"
-        width="max-w-3xl"
-      >
-        {openId && (
-          <Detail
-            id={openId}
-            canReading={canReading}
-            canViewFeeders={canViewFeeders}
-            feedersList={feedersList}
-            onClose={handleCloseDrawer}
-            onChanged={() => {
-              load()
-              loadSummary()
-            }}
-          />
-        )}
-      </Drawer>
+      {openId && (
+        <SubstationMeasurementDrawer
+          id={openId}
+          asPage={false}
+          canReading={canReading}
+          canViewFeeders={canViewFeeders}
+          feedersList={feedersList}
+          onClose={handleCloseDrawer}
+          onChanged={() => {
+            load()
+            loadSummary()
+          }}
+        />
+      )}
     </div>
   )
 }

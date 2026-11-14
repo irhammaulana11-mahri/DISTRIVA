@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SubstationImportPage } from './ImportPages.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
-import SubstationsPage from './SubstationsPage.jsx'
+import SubstationsPage, { SubstationEditDrawer } from './SubstationsPage.jsx'
 import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
@@ -282,20 +282,33 @@ describe('Master Gardu — SubstationsPage (docs/80 §15)', () => {
       },
     })
 
-    // Case 1: Tanpa izin substations.manage
+    // Case 1: Tanpa izin substations.manage di drawer pratinjau
     const { unmount } = renderPage({ 'substations.view': true, 'substations.manage': false })
     await userEvent.click((await screen.findAllByTestId('substation-row'))[0])
     expect(await screen.findByTestId('substation-detail')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ubah Data Induk/i })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('edit-substation-form')).not.toBeInTheDocument()
     unmount()
 
-    // Case 2: Dengan izin substations.manage
-    renderPage({ 'substations.view': true, 'substations.manage': true })
+    // Case 2: Dengan izin substations.manage, drawer pratinjau menyediakan link ke drawer page ubah
+    const { unmount: unmountPreview } = renderPage({ 'substations.view': true, 'substations.manage': true })
     await userEvent.click((await screen.findAllByTestId('substation-row'))[0])
     const btnUbah = await screen.findByRole('button', { name: /Ubah Data Induk/i })
-    await userEvent.click(btnUbah)
+    expect(btnUbah).toHaveAttribute('href', '/master-data/substations/s1/ubah')
+    // Drawer pratinjau murni read-only (tidak ada inline CRUD form)
+    expect(screen.queryByTestId('edit-substation-form')).not.toBeInTheDocument()
+    unmountPreview()
 
-    expect(screen.getByTestId('edit-substation-form')).toBeInTheDocument()
+    // Case 3: Pengujian proses CRUD pada Drawer Page Ubah Data Induk (SubstationEditDrawer asPage)
+    render(
+      <MemoryRouter>
+        <NotificationProvider>
+          <SubstationEditDrawer id="s1" asPage onClose={() => {}} onSuccess={() => {}} />
+        </NotificationProvider>
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByTestId('edit-substation-form')).toBeInTheDocument()
 
     // Submit tanpa alasan (< 3 karakter)
     const btnSimpan = screen.getByRole('button', { name: /Simpan Perubahan/i })

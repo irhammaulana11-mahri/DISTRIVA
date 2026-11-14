@@ -7,6 +7,7 @@ import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
@@ -27,14 +28,16 @@ const inputCls =
 
 const fmt = (v, d = 1) => (v === null || v === undefined ? '-' : Number(v).toLocaleString('id-ID', { maximumFractionDigits: d }))
 
-function Detail({ id, canManage, canViewFeeders, canViewCustomers, feedersList = [], onClose, onChanged }) {
+/**
+ * Formulir pengubahan data induk gardu aset (CRUD).
+ * Dipakai pada Drawer Page (/master-data/substations/:id/ubah).
+ */
+export function SubstationEditDrawer({ id, asPage = false, onClose, onSuccess }) {
   const { notify } = useNotifications()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Edit form state
-  const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
     name: '',
     area_note: '',
@@ -119,9 +122,7 @@ function Detail({ id, canManage, canViewFeeders, canViewCustomers, feedersList =
         desc: `Perubahan gardu ${data?.substation?.code || ''} berhasil disimpan.`,
         tag: 'GARDU',
       })
-      setEditing(false)
-      await load()
-      onChanged?.()
+      onSuccess?.()
     } catch (err) {
       setSaveError(err?.message || 'Gagal memperbarui data gardu.')
     } finally {
@@ -129,393 +130,492 @@ function Detail({ id, canManage, canViewFeeders, canViewCustomers, feedersList =
     }
   }
 
-  if (loading) return <div className="py-10 flex justify-center"><Spinner /></div>
-  if (error) return <div className="py-10"><Alert kind="error">{error}</Alert></div>
-  if (!data?.substation) return null
-
-  const s = data.substation
+  const s = data?.substation
+  const title = `Ubah Data Induk: ${s?.code || s?.name || id}`
+  const subtitle = s?.unit_name ? `Unit: ${s.unit_name} · Kapasitas: ${fmt(s.capacity_kva, 0)} kVA` : 'Perubahan data induk gardu aset distribusi'
 
   return (
-    <div className="space-y-5 text-xs" data-testid="substation-detail">
-      {/* Tombol ke Pengukuran Gardu */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900">
-        <div>
-          <div className="font-bold text-blue-950 dark:text-blue-100">Kondisi & Pembacaan Operasional</div>
-          <div className="text-[11px] text-blue-700 dark:text-blue-300">
-            Lihat pembebanan, tegangan ujung, keseimbangan fasa, dan riwayat analisis gardu ini.
-          </div>
-        </div>
-        <Link
-          to={`/master-data/substation-measurements?open=${s.id}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer"
-        >
-          Lihat pengukuran →
-        </Link>
-      </div>
-
-      {s.needs_review && (
-        <Alert kind="warning">
-          Gardu ini tidak ada pada berkas lengkap terakhir. Periksa apakah masih beroperasi.
-        </Alert>
-      )}
-      {!s.pickable && (
-        <Alert kind="info">
-          {s.ownership !== 'PLN'
-            ? 'Gardu milik pelanggan: tersimpan, tidak dapat dipilih pada KKO.'
-            : 'Gardu nonaktif: tidak dapat dipilih pada KKO.'}
-        </Alert>
-      )}
-
-      {/* Ringkasan Data Induk */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-          <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Data Induk Aset</h3>
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditing(!editing)
-                setSaveError('')
-              }}
-              className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
-            >
-              <IconPencil size={13} />
-              {editing ? 'Batal Ubah' : 'Ubah Data Induk'}
-            </button>
-          )}
-        </div>
-
-        {editing ? (
-          <form onSubmit={handleUpdate} className="space-y-3 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800" data-testid="edit-substation-form">
-            {saveError && <div data-testid="edit-substation-error"><Alert kind="error">{saveError}</Alert></div>}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Nama Gardu
-                <input
-                  type="text"
-                  aria-label="Nama Gardu"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                />
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Catatan Lokasi
-                <input
-                  type="text"
-                  aria-label="Catatan Lokasi"
-                  value={form.area_note}
-                  onChange={(e) => setForm((f) => ({ ...f, area_note: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                />
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Lintang (Latitude)
-                <input
-                  type="number"
-                  step="any"
-                  aria-label="Lintang"
-                  value={form.latitude}
-                  onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                />
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Bujur (Longitude)
-                <input
-                  type="number"
-                  step="any"
-                  aria-label="Bujur"
-                  value={form.longitude}
-                  onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                />
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Kapasitas (kVA)
-                <input
-                  type="number"
-                  min="1"
-                  aria-label="Kapasitas"
-                  value={form.capacity_kva}
-                  onChange={(e) => setForm((f) => ({ ...f, capacity_kva: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                />
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Kepemilikan
-                <select
-                  aria-label="Kepemilikan Form"
-                  value={form.ownership}
-                  onChange={(e) => setForm((f) => ({ ...f, ownership: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                >
-                  <option value="PLN">PLN</option>
-                  <option value="PELANGGAN">PELANGGAN</option>
-                </select>
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Peruntukan
-                <select
-                  aria-label="Peruntukan"
-                  value={form.usage}
-                  onChange={(e) => setForm((f) => ({ ...f, usage: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                >
-                  <option value="">- Belum dipilih -</option>
-                  <option value="UMUM">UMUM</option>
-                  <option value="KHUSUS">KHUSUS</option>
-                  <option value="CAMPURAN">CAMPURAN</option>
-                </select>
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Tipe Gardu
-                <input
-                  type="text"
-                  aria-label="Tipe Gardu"
-                  value={form.type_code}
-                  onChange={(e) => setForm((f) => ({ ...f, type_code: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                />
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Kode Penyulang
-                <input
-                  type="text"
-                  aria-label="Kode Penyulang"
-                  value={form.feeder_code}
-                  onChange={(e) => setForm((f) => ({ ...f, feeder_code: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                />
-              </label>
-
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Status Operasi
-                <select
-                  aria-label="Status Operasi"
-                  value={form.status}
-                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                  className={`${inputCls} w-full mt-1`}
-                >
-                  <option value="AKTIF">AKTIF</option>
-                  <option value="NONAKTIF">NONAKTIF</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="pt-1">
-              <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
-                <input
-                  type="checkbox"
-                  aria-label="Perlu Ditinjau Form"
-                  checked={form.needs_review}
-                  onChange={(e) => setForm((f) => ({ ...f, needs_review: e.target.checked }))}
-                />
-                Perlu ditinjau (hilang dari berkas penuh / anomali)
-              </label>
-            </div>
-
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 pt-1">
-              Alasan Perubahan <span className="text-rose-500">*</span>
-              <textarea
-                aria-label="Alasan Perubahan"
-                rows={2}
-                placeholder="Tuliskan alasan perubahan data induk gardu (min. 3 karakter)..."
-                value={form.reason}
-                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-                className={`${inputCls} w-full mt-1`}
+    <PanelShell
+      asPage={asPage}
+      isOpen={true}
+      onClose={onClose}
+      onBack={onClose}
+      title={title}
+      subtitle={subtitle}
+      size="max-w-3xl"
+      width="max-w-3xl"
+    >
+      {loading ? (
+        <div className="py-10 flex justify-center"><Spinner /></div>
+      ) : error ? (
+        <div className="py-10"><Alert kind="error">{error}</Alert></div>
+      ) : (
+        <form onSubmit={handleUpdate} className="space-y-4" data-testid="edit-substation-form">
+          {saveError && <div data-testid="edit-substation-error"><Alert kind="error">{saveError}</Alert></div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Nama Gardu
+              <input
+                type="text"
+                aria-label="Nama Gardu"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
               />
             </label>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(false)}>
-                Batal
-              </Button>
-              <Button type="submit" size="sm" loading={saving}>
-                Simpan Perubahan
-              </Button>
-            </div>
-          </form>
-        ) : (() => {
-          const feeder = feedersList.find((f) => f.code === s.feeder_code || f.id === s.feeder_id)
-          const feederText = s.feeder_code
-            ? (feeder?.name ? `${s.feeder_code} - ${feeder.name}` : s.feeder_code)
-            : '-'
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Catatan Lokasi
+              <input
+                type="text"
+                aria-label="Catatan Lokasi"
+                value={form.area_note}
+                onChange={(e) => setForm((f) => ({ ...f, area_note: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              />
+            </label>
 
-          return (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-              {[
-                ['Kode Gardu', s.gadis_number || s.code],
-                ['Nama Gardu', s.code || s.name || '-'],
-                ['Lokasi', s.name || s.area_note || '-'],
-                ['Alamat', s.address || '-'],
-                ['Catatan Lokasi', s.area_note || '-'],
-                ['Unit', `${s.unit_code || ''} ${s.unit_name || ''}`.trim() || '-'],
-                [
-                  'Penyulang',
-                  s.feeder_code ? (
-                    canViewFeeders ? (
-                      <Link
-                        to={`/master-data/feeders?q=${s.feeder_code}`}
-                        className="text-blue-600 dark:text-blue-400 font-mono font-bold hover:underline"
-                      >
-                        {feederText}
-                      </Link>
-                    ) : (
-                      <span className="font-mono font-bold">{feederText}</span>
-                    )
-                  ) : (
-                    '-'
-                  ),
-                ],
-                ['Tipe', s.type_code || '-'],
-                ['Peruntukan', s.usage || '-'],
-                ['Kapasitas', s.capacity_kva ? `${fmt(s.capacity_kva, 0)} kVA (${s.transformer_count ?? 1} trafo)` : '-'],
-                ['Kepemilikan', s.ownership || '-'],
-                ['Wilayah', [s.kelurahan, s.kecamatan, s.kabupaten].filter(Boolean).join(', ') || '-'],
-                [
-                  'Koordinat',
-                  s.latitude !== null && s.longitude !== null ? (
-                    <span className="inline-flex items-center gap-1 font-mono">
-                      {s.latitude}, {s.longitude}
-                      <a
-                        href={`https://www.google.com/maps?q=${s.latitude},${s.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 font-sans hover:underline ml-1"
-                      >
-                        (peta)
-                      </a>
-                    </span>
-                  ) : (
-                    '-'
-                  ),
-                ],
-                ['No. Aset', s.asset_number || '-'],
-                ['Kode Lokasi', s.location_code || '-'],
-                ['No. GADIS', s.gadis_number || '-'],
-                ['Status', s.status || '-'],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <dt className="text-[11px] text-slate-500">{k}</dt>
-                  <dd className="font-semibold text-slate-800 dark:text-slate-200">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          )
-        })()}
-      </div>
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Lintang (Latitude)
+              <input
+                type="number"
+                step="any"
+                aria-label="Lintang"
+                value={form.latitude}
+                onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              />
+            </label>
 
-      {/* Kartu Pelanggan Terhubung (docs/81) */}
-      {canViewCustomers && data.customers && (
-        <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-2" data-testid="substation-customers-card">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-              <IconUsers size={14} className="text-emerald-500" />
-              Pelanggan Terhubung
-            </h3>
-            <Link
-              to={`/master-data/customers?substation_id=${s.id}`}
-              className="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline"
-            >
-              Lihat pelanggan gardu ini →
-            </Link>
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Bujur (Longitude)
+              <input
+                type="number"
+                step="any"
+                aria-label="Bujur"
+                value={form.longitude}
+                onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              />
+            </label>
+
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Kapasitas (kVA)
+              <input
+                type="number"
+                min="1"
+                aria-label="Kapasitas"
+                value={form.capacity_kva}
+                onChange={(e) => setForm((f) => ({ ...f, capacity_kva: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              />
+            </label>
+
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Kepemilikan
+              <select
+                aria-label="Kepemilikan Form"
+                value={form.ownership}
+                onChange={(e) => setForm((f) => ({ ...f, ownership: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              >
+                <option value="PLN">PLN</option>
+                <option value="PELANGGAN">PELANGGAN</option>
+              </select>
+            </label>
+
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Peruntukan
+              <select
+                aria-label="Peruntukan"
+                value={form.usage}
+                onChange={(e) => setForm((f) => ({ ...f, usage: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              >
+                <option value="">- Belum dipilih -</option>
+                <option value="UMUM">UMUM</option>
+                <option value="KHUSUS">KHUSUS</option>
+                <option value="CAMPURAN">CAMPURAN</option>
+              </select>
+            </label>
+
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Tipe Gardu
+              <input
+                type="text"
+                aria-label="Tipe Gardu"
+                value={form.type_code}
+                onChange={(e) => setForm((f) => ({ ...f, type_code: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              />
+            </label>
+
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Kode Penyulang
+              <input
+                type="text"
+                aria-label="Kode Penyulang"
+                value={form.feeder_code}
+                onChange={(e) => setForm((f) => ({ ...f, feeder_code: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              />
+            </label>
+
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Status Operasi
+              <select
+                aria-label="Status Operasi"
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+              >
+                <option value="AKTIF">AKTIF</option>
+                <option value="NONAKTIF">NONAKTIF</option>
+              </select>
+            </label>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center pt-1">
-            <div className="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-              <div className="text-[10px] text-slate-500">Pelanggan Aktif</div>
-              <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200">
-                {fmt(data.customers.active_customers, 0)}
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-              <div className="text-[10px] text-slate-500">Daya Tersambung</div>
-              <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200">
-                {fmt(data.customers.connected_kva, 0)} kVA
-              </div>
-              <div className="text-[9px] text-slate-400 font-mono">
-                {fmt(data.customers.connected_va, 0)} VA
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-              <div className="text-[10px] text-slate-500">Pelanggan Besar (≥ 6.600 VA)</div>
-              <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200">
-                {fmt(data.customers.large_customers, 0)}
-              </div>
-            </div>
+
+          <div className="pt-1">
+            <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                aria-label="Perlu Ditinjau Form"
+                checked={form.needs_review}
+                onChange={(e) => setForm((f) => ({ ...f, needs_review: e.target.checked }))}
+              />
+              Perlu ditinjau (hilang dari berkas penuh / anomali)
+            </label>
           </div>
-          <p className="text-[10px] text-slate-400 pt-1">
-            * Catatan: Daya tersambung adalah total kontrak pelanggan, bukan beban gardu dan tidak dibandingkan dengan kapasitas trafo.
-          </p>
-        </div>
+
+          <label className="block font-semibold text-xs text-slate-700 dark:text-slate-300 pt-1">
+            Alasan Perubahan <span className="text-rose-500">*</span>
+            <textarea
+              aria-label="Alasan Perubahan"
+              rows={2}
+              placeholder="Tuliskan alasan perubahan data induk gardu (min. 3 karakter)..."
+              value={form.reason}
+              onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+              className={`${inputCls} w-full mt-1 text-base sm:text-xs`}
+            />
+          </label>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              Batal
+            </Button>
+            <Button type="submit" size="sm" loading={saving}>
+              Simpan Perubahan
+            </Button>
+          </div>
+        </form>
       )}
+    </PanelShell>
+  )
+}
 
-      {/* Daftar Trafo */}
-      <div>
-        <h3 className="font-bold mb-1 text-slate-900 dark:text-slate-100">Daftar Trafo</h3>
-        {!data.transformers || data.transformers.length === 0 ? (
-          <p className="text-slate-500">Belum ada data trafo.</p>
-        ) : (
-          <ul className="space-y-1">
-            {data.transformers.map((t) => (
-              <li
-                key={t.slot}
-                className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 font-mono text-slate-800 dark:text-slate-200"
-              >
-                <span className="font-bold">Slot #{t.slot}</span> · {fmt(t.capacity_kva, 0)} kVA{' '}
-                {t.brand ? `· ${t.brand}` : ''} {t.year_made ? `· Tahun ${t.year_made}` : ''}{' '}
-                {t.serial_number ? `· No. Seri ${t.serial_number}` : ''}{' '}
-                {t.phase_count ? `· ${t.phase_count} Fasa` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+/**
+ * Panel Detail Master Gardu (Read-Only di Drawer Preview, atau Full-Page di Drawer Page).
+ */
+export function SubstationDetailDrawer({
+  id,
+  asPage = false,
+  canManage,
+  canViewFeeders,
+  canViewCustomers,
+  feedersList = [],
+  onClose,
+  onChanged,
+}) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-      {/* Riwayat Perubahan Data Induk */}
-      <div className="space-y-2">
-        <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-          <IconHistory size={14} className="text-slate-500" />
-          Riwayat Perubahan Data Induk
-        </h3>
-        {!data.history || data.history.length === 0 ? (
-          <p className="text-slate-500">Belum ada riwayat perubahan data induk tercatat.</p>
-        ) : (
-          <div className="space-y-2" data-testid="substation-history-list">
-            {data.history.map((h, i) => (
-              <div
-                key={i}
-                className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1 text-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{h.action}</span>
-                  <span className="text-[11px] text-slate-400 font-mono">{h.created_at}</span>
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await substationsApi.get(id)
+      setData(res?.data || null)
+    } catch (err) {
+      setError(err?.message || 'Gagal memuat gardu.')
+    } finally {
+      setLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const s = data?.substation
+  const title = `Detail Master Gardu: ${s?.code || s?.name || id}`
+  const subtitle = s?.unit_name ? `Unit: ${s.unit_name} · Kapasitas: ${fmt(s.capacity_kva, 0)} kVA` : 'Data induk dan aset teknis gardu distribusi'
+
+  return (
+    <PanelShell
+      asPage={asPage}
+      isOpen={true}
+      onClose={onClose}
+      onBack={onClose}
+      title={title}
+      subtitle={subtitle}
+      size="max-w-3xl"
+      width="max-w-3xl"
+    >
+      {loading ? (
+        <div className="py-10 flex justify-center"><Spinner /></div>
+      ) : error ? (
+        <div className="py-10"><Alert kind="error">{error}</Alert></div>
+      ) : !data?.substation ? null : (
+        <div className="space-y-5 text-xs" data-testid="substation-detail">
+          {/* Banner Pratinjau / Navigasi Halaman */}
+          {!asPage && (
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div>
+                <div className="font-bold text-slate-800 dark:text-slate-200">Pratinjau Data Gardu</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Drawer ini hanya menampilkan data aset (read-only). Untuk mengubah data induk, buka halaman ubah.
                 </div>
-                <div className="text-slate-600 dark:text-slate-400">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">Oleh:</span> {h.changed_by_name || '-'}
-                </div>
-                <div className="text-slate-600 dark:text-slate-400">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">Alasan:</span> {h.reason}
-                </div>
-                {h.after && (
-                  <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 font-mono">
-                    Perubahan: {Object.keys(h.after).map((k) => `${k}: ${h.before?.[k] ?? '-'} → ${h.after[k]}`).join(', ')}
-                  </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/master-data/substations/${s.id}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-2xs transition cursor-pointer"
+                >
+                  Halaman Lengkap →
+                </Link>
+                {canManage && (
+                  <Link
+                    to={`/master-data/substations/${s.id}/ubah`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer"
+                  >
+                    <IconPencil size={12} />
+                    Buka Form Ubah →
+                  </Link>
                 )}
               </div>
-            ))}
+            </div>
+          )}
+
+          {/* Tombol ke Pengukuran Gardu */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900">
+            <div>
+              <div className="font-bold text-blue-950 dark:text-blue-100">Kondisi & Pembacaan Operasional</div>
+              <div className="text-[11px] text-blue-700 dark:text-blue-300">
+                Lihat pembebanan, tegangan ujung, keseimbangan fasa, dan riwayat analisis gardu ini.
+              </div>
+            </div>
+            <Link
+              to={`/master-data/substation-measurements?open=${s.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer"
+            >
+              Lihat pengukuran →
+            </Link>
           </div>
-        )}
-      </div>
-    </div>
+
+          {s.needs_review && (
+            <Alert kind="warning">
+              Gardu ini tidak ada pada berkas lengkap terakhir. Periksa apakah masih beroperasi.
+            </Alert>
+          )}
+          {!s.pickable && (
+            <Alert kind="info">
+              {s.ownership !== 'PLN'
+                ? 'Gardu milik pelanggan: tersimpan, tidak dapat dipilih pada KKO.'
+                : 'Gardu nonaktif: tidak dapat dipilih pada KKO.'}
+            </Alert>
+          )}
+
+          {/* Ringkasan Data Induk */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Data Induk Aset</h3>
+              {canManage && (
+                <Link
+                  to={`/master-data/substations/${s.id}/ubah`}
+                  role="button"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
+                >
+                  <IconPencil size={13} />
+                  Ubah Data Induk
+                </Link>
+              )}
+            </div>
+
+            {(() => {
+              const feeder = feedersList.find((f) => f.code === s.feeder_code || f.id === s.feeder_id)
+              const feederText = s.feeder_code
+                ? (feeder?.name ? `${s.feeder_code} - ${feeder.name}` : s.feeder_code)
+                : '-'
+
+              return (
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  {[
+                    ['Kode Gardu', s.gadis_number || s.code],
+                    ['Nama Gardu', s.code || s.name || '-'],
+                    ['Lokasi', s.name || s.area_note || '-'],
+                    ['Alamat', s.address || '-'],
+                    ['Catatan Lokasi', s.area_note || '-'],
+                    ['Unit', `${s.unit_code || ''} ${s.unit_name || ''}`.trim() || '-'],
+                    [
+                      'Penyulang',
+                      s.feeder_code ? (
+                        canViewFeeders ? (
+                          <Link
+                            to={`/master-data/feeders?q=${s.feeder_code}`}
+                            className="text-blue-600 dark:text-blue-400 font-mono font-bold hover:underline"
+                          >
+                            {feederText}
+                          </Link>
+                        ) : (
+                          <span className="font-mono font-bold">{feederText}</span>
+                        )
+                      ) : (
+                        '-'
+                      ),
+                    ],
+                    ['Tipe', s.type_code || '-'],
+                    ['Peruntukan', s.usage || '-'],
+                    ['Kapasitas', s.capacity_kva ? `${fmt(s.capacity_kva, 0)} kVA (${s.transformer_count ?? 1} trafo)` : '-'],
+                    ['Kepemilikan', s.ownership || '-'],
+                    ['Wilayah', [s.kelurahan, s.kecamatan, s.kabupaten].filter(Boolean).join(', ') || '-'],
+                    [
+                      'Koordinat',
+                      s.latitude !== null && s.longitude !== null ? (
+                        <span className="inline-flex items-center gap-1 font-mono">
+                          {s.latitude}, {s.longitude}
+                          <a
+                            href={`https://www.google.com/maps?q=${s.latitude},${s.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 font-sans hover:underline ml-1"
+                          >
+                            (peta)
+                          </a>
+                        </span>
+                      ) : (
+                        '-'
+                      ),
+                    ],
+                    ['No. Aset', s.asset_number || '-'],
+                    ['Kode Lokasi', s.location_code || '-'],
+                    ['No. GADIS', s.gadis_number || '-'],
+                    ['Status', s.status || '-'],
+                  ].map(([k, v]) => (
+                    <div key={k}>
+                      <dt className="text-[11px] text-slate-500">{k}</dt>
+                      <dd className="font-semibold text-slate-800 dark:text-slate-200">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )
+            })()}
+          </div>
+
+          {/* Kartu Pelanggan Terhubung (docs/81) */}
+          {canViewCustomers && data.customers && (
+            <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-2" data-testid="substation-customers-card">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <IconUsers size={14} className="text-emerald-500" />
+                  Pelanggan Terhubung
+                </h3>
+                <Link
+                  to={`/master-data/customers?substation_id=${s.id}`}
+                  className="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+                >
+                  Lihat pelanggan gardu ini →
+                </Link>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                <div className="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <div className="text-[10px] text-slate-500">Pelanggan Aktif</div>
+                  <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200">
+                    {fmt(data.customers.active_customers, 0)}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <div className="text-[10px] text-slate-500">Daya Tersambung</div>
+                  <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200">
+                    {fmt(data.customers.connected_kva, 0)} kVA
+                  </div>
+                  <div className="text-[9px] text-slate-400 font-mono">
+                    {fmt(data.customers.connected_va, 0)} VA
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <div className="text-[10px] text-slate-500">Pelanggan Besar (≥ 6.600 VA)</div>
+                  <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200">
+                    {fmt(data.customers.large_customers, 0)}
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 pt-1">
+                * Catatan: Daya tersambung adalah total kontrak pelanggan, bukan beban gardu dan tidak dibandingkan dengan kapasitas trafo.
+              </p>
+            </div>
+          )}
+
+          {/* Daftar Trafo */}
+          <div>
+            <h3 className="font-bold mb-1 text-slate-900 dark:text-slate-100">Daftar Trafo</h3>
+            {!data.transformers || data.transformers.length === 0 ? (
+              <p className="text-slate-500">Belum ada data trafo.</p>
+            ) : (
+              <ul className="space-y-1">
+                {data.transformers.map((t) => (
+                  <li
+                    key={t.slot}
+                    className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 font-mono text-slate-800 dark:text-slate-200"
+                  >
+                    <span className="font-bold">Slot #{t.slot}</span> · {fmt(t.capacity_kva, 0)} kVA{' '}
+                    {t.brand ? `· ${t.brand}` : ''} {t.year_made ? `· Tahun ${t.year_made}` : ''}{' '}
+                    {t.serial_number ? `· No. Seri ${t.serial_number}` : ''}{' '}
+                    {t.phase_count ? `· ${t.phase_count} Fasa` : ''}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Riwayat Perubahan Data Induk */}
+          <div className="space-y-2">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <IconHistory size={14} className="text-slate-500" />
+              Riwayat Perubahan Data Induk
+            </h3>
+            {!data.history || data.history.length === 0 ? (
+              <p className="text-slate-500">Belum ada riwayat perubahan data induk tercatat.</p>
+            ) : (
+              <div className="space-y-2" data-testid="substation-history-list">
+                {data.history.map((h, i) => (
+                  <div
+                    key={i}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{h.action}</span>
+                      <span className="text-[11px] text-slate-400 font-mono">{h.created_at}</span>
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-400">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Oleh:</span> {h.changed_by_name || '-'}
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-400">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Alasan:</span> {h.reason}
+                    </div>
+                    {h.after && (
+                      <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 font-mono">
+                        Perubahan: {Object.keys(h.after).map((k) => `${k}: ${h.before?.[k] ?? '-'} → ${h.after[k]}`).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </PanelShell>
   )
 }
 
@@ -1058,24 +1158,18 @@ export default function SubstationsPage() {
         />
       </div>
 
-      <Drawer
-        isOpen={Boolean(openId)}
-        onClose={handleCloseDrawer}
-        title="Detail Master Gardu"
-        width="max-w-3xl"
-      >
-        {openId && (
-          <Detail
-            id={openId}
-            canManage={canManage}
-            canViewFeeders={canViewFeeders}
-            canViewCustomers={canViewCustomers}
-            feedersList={feedersList}
-            onClose={handleCloseDrawer}
-            onChanged={load}
-          />
-        )}
-      </Drawer>
+      {openId && (
+        <SubstationDetailDrawer
+          id={openId}
+          asPage={false}
+          canManage={canManage}
+          canViewFeeders={canViewFeeders}
+          canViewCustomers={canViewCustomers}
+          feedersList={feedersList}
+          onClose={handleCloseDrawer}
+          onChanged={load}
+        />
+      )}
     </div>
   )
 }

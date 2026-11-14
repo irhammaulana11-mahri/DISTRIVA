@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SubstationReadingsImportPage } from './ImportPages.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
-import SubstationMeasurementsPage from './SubstationMeasurementsPage.jsx'
+import SubstationMeasurementsPage, { SubstationMeasurementDrawer } from './SubstationMeasurementsPage.jsx'
 import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
@@ -353,16 +353,38 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
     substationsApi.analysis.mockResolvedValue(analysisMock())
     substationsApi.addReading.mockResolvedValue({ data: {} })
 
-    // Tanpa izin substations.reading
+    // Tanpa izin substations.reading di drawer pratinjau
     const { unmount } = renderPage({ 'substations.view': true, 'substations.reading': false })
     await userEvent.click((await screen.findAllByTestId('substation-measurement-row'))[0])
     expect(await screen.findByTestId('substation-measurement-detail')).toBeInTheDocument()
     expect(screen.queryByTestId('reading-form')).not.toBeInTheDocument()
     unmount()
 
-    // Dengan izin substations.reading
-    renderPage({ 'substations.view': true, 'substations.reading': true })
+    // Dengan izin substations.reading: Drawer preview tetap read-only tanpa CRUD form
+    const { unmount: unmountPreview } = renderPage({ 'substations.view': true, 'substations.reading': true })
     await userEvent.click((await screen.findAllByTestId('substation-measurement-row'))[0])
+    expect(await screen.findByTestId('substation-measurement-detail')).toBeInTheDocument()
+    expect(screen.queryByTestId('reading-form')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Buka Halaman Analisis & Pengukuran/i })).toHaveAttribute('href', '/master-data/substation-measurements/s1')
+    unmountPreview()
+
+    // Pengujian CRUD form pada Drawer Page (SubstationMeasurementDrawer asPage)
+    render(
+      <MemoryRouter>
+        <NotificationProvider>
+          <SubstationMeasurementDrawer
+            id="s1"
+            asPage
+            canReading
+            canViewFeeders
+            feedersList={[]}
+            onClose={() => {}}
+            onChanged={() => {}}
+          />
+        </NotificationProvider>
+      </MemoryRouter>
+    )
+
     expect(await screen.findByTestId('reading-form')).toBeInTheDocument()
 
     await userEvent.type(screen.getByLabelText('Tegangan pangkal R-N (V)'), '228')
@@ -469,7 +491,7 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
       },
     })
     substationsApi.addReading.mockResolvedValue({ data: {} })
-    renderPage({ 'substations.view': true, 'substations.reading': true })
+    const { unmount } = renderPage({ 'substations.view': true, 'substations.reading': true })
     await userEvent.click((await screen.findAllByTestId('substation-measurement-row'))[0])
     const times = await screen.findAllByTestId('history-time')
     expect(times.map((t) => t.textContent)).toEqual(['2026-10-01 09:05', '2026-09-01 17:19'])             // newest first, with the time of day
@@ -480,7 +502,26 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
 
     await userEvent.click(screen.getByRole('button', { name: /Riwayat Pembacaan/ }))
     expect((await screen.findAllByTestId('reading-time'))[0]).toHaveTextContent('2026-10-05 08:15')
-    await userEvent.type(screen.getByLabelText('Jam pembacaan'), '14:30')
+    unmount()
+
+    // Pengujian kirim form jam manual di Drawer Page
+    render(
+      <MemoryRouter>
+        <NotificationProvider>
+          <SubstationMeasurementDrawer
+            id="s1"
+            asPage
+            canReading
+            canViewFeeders
+            feedersList={[]}
+            onClose={() => {}}
+            onChanged={() => {}}
+          />
+        </NotificationProvider>
+      </MemoryRouter>
+    )
+
+    await userEvent.type(await screen.findByLabelText('Jam pembacaan'), '14:30')
     await userEvent.type(screen.getByLabelText('Tegangan pangkal R-N (V)'), '228')
     await userEvent.click(screen.getByRole('button', { name: 'Simpan pembacaan' }))
     await waitFor(() => expect(substationsApi.addReading).toHaveBeenCalled())

@@ -58,6 +58,7 @@ import { ConstructionImportPage, KkfParameterCreatePage, KkfParameterEditPage } 
 import { KhsDraftEditPage, KhsImportPage } from './pages/master-data/KhsPages.jsx'
 import { MaterialEditPage, MaterialImportPage } from './pages/master-data/MaterialPages.jsx'
 import { CategoryCreatePage, CategoryEditPage, UomCreatePage, UomEditPage } from './pages/master-data/CategoryPages.jsx'
+import { SubstationDetailPage, SubstationEditPage, SubstationMeasurementDetailPage } from './pages/master-data/SubstationPages.jsx'
 import { UnitCreatePage, UnitEditPage } from './pages/admin/UnitPages.jsx'
 import { BomImportPage, PriceBookImportPage, SubstationImportPage, SubstationReadingsImportPage, TariffBookImportPage } from './pages/master-data/ImportPages.jsx'
 import { ApplicationCreatePage, ApplicationDetailPage, ApplicationImportPage, EisSyncPage } from './pages/applications/ApplicationPages.jsx'
@@ -143,8 +144,11 @@ export default function App() {
         <Route path="master-data/vendors/:id/edit" element={<RequireCapability capability="vendors.manage"><VendorFormPage /></RequireCapability>} />
         <Route path="master-data/substations" element={<RequireCapability capability="substations.view"><SubstationsPage /></RequireCapability>} />
         <Route path="master-data/substations/impor" element={<RequireCapability capability="substations.import"><SubstationImportPage /></RequireCapability>} />
+        <Route path="master-data/substations/:id" element={<RequireCapability capability="substations.view"><SubstationDetailPage /></RequireCapability>} />
+        <Route path="master-data/substations/:id/ubah" element={<RequireCapability capability="substations.manage"><SubstationEditPage /></RequireCapability>} />
         <Route path="master-data/substation-measurements" element={<RequireCapability capability="substations.view"><SubstationMeasurementsPage /></RequireCapability>} />
         <Route path="master-data/substation-measurements/impor" element={<RequireCapability capability="substations.view"><SubstationReadingsImportPage /></RequireCapability>} />
+        <Route path="master-data/substation-measurements/:id" element={<RequireCapability capability="substations.view"><SubstationMeasurementDetailPage /></RequireCapability>} />
         <Route path="master-data/feeders" element={<RequireCapability capability="feeders.view"><FeedersPage /></RequireCapability>} />
         <Route path="master-data/customers" element={<RequireCapability capability="customers.view"><CustomersPage /></RequireCapability>} />
         <Route path="master-data/warehouses" element={<RequireCapability capability="master_data.view"><WarehousesPage /></RequireCapability>} />
