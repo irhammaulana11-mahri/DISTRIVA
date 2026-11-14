@@ -20,6 +20,9 @@ import {
   IconPower,
   IconEye,
   IconPencil,
+  IconCheckCircle,
+  IconShield,
+  IconUsers,
 } from '../../components/icons.jsx'
 
 const DASH = <span className="text-slate-400">-</span>
@@ -209,37 +212,122 @@ export default function VendorsPage() {
   const pageRows = filtered.slice((page - 1) * perPage, page * perPage)
   const todayIso = new Date().toISOString().slice(0, 10)
 
+  const totalVendors = vendors.length
+  const activeVendors = vendors.filter((v) => v.status === 'ACTIVE').length
+  const totalAccounts = vendors.reduce((acc, v) => acc + (v.accounts?.length || 0), 0)
+  const networkScopeCount = vendors.filter((v) => ['JARINGAN', 'KEDUANYA'].includes(v.work_scope || v.profile?.work_scope)).length
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Master Data</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Mitra & Vendor</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <span>Mitra & Perusahaan Vendor</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Pengelolaan mitra penyedia konstruksi, status operasional perusahaan vendor, dan penautan akun pengguna vendor (docs/62 §32).
-          </p>
-        </div>
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
+              <span>DISTRIVA</span>
+              <span className="opacity-40">/</span>
+              <span>ADMINISTRASI</span>
+              <span className="opacity-40">/</span>
+              <span className="text-white">MITRA &amp; VENDOR</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
+                <IconTruck size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                  Mitra Konstruksi &amp; Perusahaan Vendor
+                </h1>
+                <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl mt-0.5">
+                  Direktori penyedia jasa konstruksi, penugasan lingkup tiang &amp; jaringan, pemantauan status operasional, serta integrasi penautan akun pengguna vendor.
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {canManage && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-md px-3.5 py-2 text-xs text-blue-200 border border-white/10 shadow-xs">
+              <IconShield size={14} className="text-blue-300" />
+              <span>Kewenangan: <strong className="text-white font-semibold">vendors.manage</strong></span>
+            </div>
+
             <button
               type="button"
-              onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              onClick={loadVendors}
+              disabled={loading}
+              title="Segarkan Data Vendor"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3.5 py-2 text-xs sm:text-sm font-semibold transition border border-white/15 cursor-pointer disabled:opacity-50"
             >
-              <IconPlus size={16} />
-              <span>Tambah Vendor</span>
+              <IconRefresh size={15} className={loading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Segarkan</span>
             </button>
-          )}
+
+            {canManage && (
+              <button
+                type="button"
+                onClick={openCreate}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition cursor-pointer"
+              >
+                <IconPlus size={16} />
+                <span>Tambah Vendor</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Statistic Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Total Mitra</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+              <IconTruck size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {totalVendors}
+          </div>
+          <span className="text-[11px] text-slate-400 mt-0.5 block">Perusahaan vendor terdaftar</span>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20 shadow-xs">
+          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Vendor Aktif</span>
+            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-emerald-700 dark:text-emerald-300">
+            {activeVendors}
+          </div>
+          <span className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5 block">Dapat menerima SPK &amp; WO</span>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-xs">
+          <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Lingkup Jaringan</span>
+            <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400">
+              <IconTruck size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-indigo-700 dark:text-indigo-300">
+            {networkScopeCount}
+          </div>
+          <span className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 mt-0.5 block">Mencakup pekerjaan jaringan</span>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Akun Pelaksana</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+              <IconUsers size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {totalAccounts}
+          </div>
+          <span className="text-[11px] text-slate-400 mt-0.5 block">Akun petugas vendor tertaut</span>
         </div>
       </div>
 

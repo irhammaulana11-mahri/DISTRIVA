@@ -89,53 +89,72 @@ export default function UserDetailPage() {
   }
 
   return (
-    <div className="space-y-5 w-full">
-      <div>
-        <Link to="/admin/users" className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 underline">
+    <div className="space-y-6 w-full">
+      {/* Breadcrumb Navigation & Back Link */}
+      <div className="flex items-center justify-between">
+        <Link
+          to="/admin/users"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        >
           <IconArrowLeft size={16} />
-          <span>← Kembali ke daftar</span>
+          <span>Kembali ke Daftar Pengguna</span>
         </Link>
+        <div className="text-xs text-slate-400 font-medium">
+          ID: <span className="font-mono">{user.id}</span>
+        </div>
       </div>
 
-      <Card>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between border-b border-slate-100 pb-5">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-bold text-lg">
+      {/* Hero Profile Banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-extrabold text-2xl shadow-lg border border-white/20">
               {user.name.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">{user.name}</h2>
-              <p className="text-xs text-slate-500 font-mono">{user.email}</p>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-slate-500">Status:</span>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-white">{user.name}</h1>
                 <StatusBadge status={user.account_status} />
+              </div>
+              <p className="text-xs sm:text-sm text-blue-200/90 font-mono">{user.email}</p>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-blue-300/80 pt-1">
+                {user.nip && <span>NIP: <strong className="text-white font-mono">{user.nip}</strong></span>}
+                {user.phone && <span>Telp: <strong className="text-white font-mono">{user.phone}</strong></span>}
+                <span>Terdaftar: <strong className="text-white">{user.created_at ? new Date(user.created_at).toLocaleDateString('id-ID') : '—'}</strong></span>
               </div>
             </div>
           </div>
 
-          {user.account_status === 'PENDING_ACTIVATION' && canWrite['users.create'] && (
-            <div className="rounded-lg bg-amber-50 p-3.5 border border-amber-200">
-              <p className="text-xs font-semibold text-amber-800">
-                Pengguna belum mengaktifkan akun. Aktivasi dilakukan sendiri oleh pengguna dengan kode OTP.
-              </p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {user.account_status === 'PENDING_ACTIVATION' && canWrite['users.create'] && (
               <button
                 type="button"
                 onClick={() => setDialog({ type: 'invite' })}
-                className="mt-2 inline-flex items-center gap-1 rounded border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-xs hover:bg-amber-100/50 focus-ring"
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition cursor-pointer"
               >
-                <IconKey size={14} />
+                <IconKey size={15} />
                 <span>Kirim ulang undangan aktivasi…</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Account Status Control Card */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">
+          Kontrol Status Akun &amp; Keamanan
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Status akun menentukan hak login pengguna. Penonaktifan akun tetap mencatat audit trail permanen tanpa penghapusan fisik.
+        </p>
 
         {isSelf ? (
-          <div className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 border border-amber-200">
+          <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3.5 text-xs text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-900/60">
             Anda tidak dapat mengubah status akun sendiri untuk mencegah terkunci dari sistem (<em>anti-lockout policy</em>).
           </div>
         ) : canWrite['users.change_status'] ? (
-          <div className="mt-4 flex flex-wrap items-end gap-3 pt-2">
+          <div className="flex flex-wrap items-end gap-3">
             <div>
               <label htmlFor="new-status" className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                 Ubah status menjadi
@@ -144,7 +163,7 @@ export default function UserDetailPage() {
                 id="new-status"
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value)}
-                className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-1.5 text-base sm:text-sm shadow-xs focus-ring"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm shadow-xs focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
               >
                 {STATUSES.filter(([v]) => v !== user.account_status).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
@@ -154,15 +173,15 @@ export default function UserDetailPage() {
             <button
               type="button"
               onClick={() => setDialog({ type: 'status', status: newStatus })}
-              className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 px-3.5 py-1.5 text-sm font-semibold shadow-xs active:bg-slate-100 focus-ring"
+              className="rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-xs transition cursor-pointer"
             >
               Ubah status…
             </button>
           </div>
         ) : (
-          <p className="mt-3 text-xs text-slate-500">Anda tidak memiliki hak mengubah status akun ini.</p>
+          <p className="text-xs text-slate-500">Anda tidak memiliki hak mengubah status akun ini.</p>
         )}
-      </Card>
+      </div>
 
       <Card noPadding>
         <div className="p-5 border-b border-slate-100">

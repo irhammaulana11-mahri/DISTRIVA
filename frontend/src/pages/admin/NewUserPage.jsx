@@ -78,12 +78,44 @@ export default function NewUserPage() {
   }
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="space-y-6 w-full">
+      {/* Breadcrumb Navigation & Back Link */}
       <div>
-        <Link to="/admin/users" className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 underline">
+        <Link
+          to="/admin/users"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        >
           <IconArrowLeft size={16} />
-          <span>← Kembali ke daftar</span>
+          <span>Kembali ke Daftar Pengguna</span>
         </Link>
+      </div>
+
+      {/* Hero Banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
+              <span>DISTRIVA</span>
+              <span className="opacity-40">/</span>
+              <span>ADMINISTRASI</span>
+              <span className="opacity-40">/</span>
+              <span className="text-white">TAMBAH PENGGUNA</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
+                <IconUsers size={24} />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+                  Pendaftaran Pengguna Baru
+                </h1>
+                <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl mt-0.5">
+                  Pengguna menerima undangan aktivasi OTP secara mandiri. Administrator tidak pernah mengetahui kata sandi pengguna (Zero-Knowledge Credentials).
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {created && (
@@ -96,18 +128,11 @@ export default function NewUserPage() {
       )}
 
       <Card>
-        <div className="mb-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-              <IconUsers size={22} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Tambah pengguna</h2>
-              <p className="text-xs text-slate-500">
-                Pengguna menerima undangan lewat email/WhatsApp, lalu mengaktifkan akunnya sendiri dengan kode OTP dan membuat password sendiri. Administrator tidak pernah mengetahui password.
-              </p>
-            </div>
-          </div>
+        <div className="mb-5 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Formulir Identitas &amp; Penugasan Peran</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Pastikan email dan nomor ponsel aktif untuk penerimaan kode One-Time Password (OTP).
+          </p>
         </div>
 
         <form onSubmit={onSubmit} noValidate className="grid gap-4 sm:grid-cols-2">

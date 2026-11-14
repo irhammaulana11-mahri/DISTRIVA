@@ -4,7 +4,7 @@ import BackupSummaryTab from '../../features/backup/BackupSummaryTab.jsx'
 import BackupHistoryTab from '../../features/backup/BackupHistoryTab.jsx'
 import BackupSettingsTab from '../../features/backup/BackupSettingsTab.jsx'
 import BackupRestoresTab from '../../features/backup/BackupRestoresTab.jsx'
-import { IconDatabase, IconClipboard, IconCog, IconRefresh } from '../../components/icons.jsx'
+import { IconDatabase, IconClipboard, IconCog, IconRefresh, IconShield } from '../../components/icons.jsx'
 
 const TABS = [
   { id: 'summary', label: 'Ringkasan', icon: IconDatabase },
@@ -24,28 +24,48 @@ export default function BackupPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-              <IconDatabase size={20} />
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
+              <span>DISTRIVA</span>
+              <span className="opacity-40">/</span>
+              <span>PENGATURAN</span>
+              <span className="opacity-40">/</span>
+              <span className="text-white">BACKUP &amp; PEMULIHAN SISTEM</span>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                Backup & Pemulihan Sistem
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Pengelolaan cadangan database PostgreSQL dan arsip dokumen fisik secara privat, terverifikasi, dan terjadwal.
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
+                <IconDatabase size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                  Backup &amp; Pemulihan Sistem
+                </h1>
+                <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl mt-0.5">
+                  Pengelolaan cadangan database PostgreSQL, verifikasi checksum SHA-256, simulasi restorasi snapshot, dan penjadwalan retensi berkas privat.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-            Kewenangan SYS_ADMIN
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-md px-3.5 py-2 text-xs text-blue-200 border border-white/10 shadow-xs">
+              <IconShield size={14} className="text-blue-300" />
+              <span>Otoritas: <strong className="text-white font-semibold">SYS_ADMIN</strong></span>
+            </div>
+
+            <button
+              type="button"
+              onClick={reloadSummary}
+              title="Segarkan Ringkasan"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3.5 py-2 text-xs sm:text-sm font-semibold transition border border-white/15 cursor-pointer"
+            >
+              <IconRefresh size={15} />
+              <span className="hidden sm:inline">Segarkan</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -67,9 +87,9 @@ export default function BackupPage() {
                 aria-selected={isActive}
                 aria-controls={`panel-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors cursor-pointer shrink-0 ${
+                className={`flex items-center gap-2 py-3 px-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer shrink-0 ${
                   isActive
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-bold'
                     : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >

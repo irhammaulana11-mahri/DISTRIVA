@@ -225,7 +225,16 @@ export default function MfaPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-3 text-xs">
+            {isVerified && (
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold transition-colors cursor-pointer"
+              >
+                <span>← Kembali ke Aplikasi</span>
+              </button>
+            )}
             <div className="hidden sm:flex flex-col text-right">
               <span className="font-semibold text-slate-900 dark:text-slate-100">{user?.name}</span>
               <span className="text-slate-400 font-mono text-[11px]">{user?.email}</span>

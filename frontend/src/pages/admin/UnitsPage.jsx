@@ -26,6 +26,7 @@ import {
   IconHistory,
   IconSearch,
   IconChevronDown,
+  IconCheckCircle,
 } from '../../components/icons.jsx'
 
 export default function UnitsPage() {
@@ -337,40 +338,121 @@ export default function UnitsPage() {
     reloadAll()
   }
 
+  const totalUnitsCount = state.meta?.total ?? state.rows.length
+  const up3Count = state.rows.filter((u) => u.unit_type === 'UP3').length
+  const activeUnitsCount = state.rows.filter((u) => u.is_active).length
+
   return (
     <div className="space-y-6">
-      {/* Standard Page Header (Above card, matching reference layout) */}
-
-      {/* Standard Page Header (Above card, matching reference layout) */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            DISTRIVA / ADMINISTRASI
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
-            Unit organisasi
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Kelola hierarki unit kerja PLN (Pusat, UID, UP3, ULP). Struktur penugasan menentukan boundary otoritas data operasional SAME_UNIT.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="hidden lg:inline-flex items-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-            <IconShield size={14} className="text-slate-400 dark:text-slate-500" />
-            <span>Scope: <strong>user_role_assignments</strong></span>
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
+              <span>DISTRIVA</span>
+              <span className="opacity-40">/</span>
+              <span>ADMINISTRASI</span>
+              <span className="opacity-40">/</span>
+              <span className="text-white">UNIT ORGANISASI</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
+                <IconBuilding size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                  Hierarki Unit Organisasi
+                </h1>
+                <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl mt-0.5">
+                  Pengelolaan struktur hierarki unit kerja PLN (Kantor Pusat, UID, UP3, ULP). Struktur penugasan menentukan batas boundary data SAME_UNIT.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {access.canCreate && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-md px-3.5 py-2 text-xs text-blue-200 border border-white/10 shadow-xs">
+              <IconShield size={14} className="text-blue-300" />
+              <span>Scope: <strong className="text-white font-semibold">user_role_assignments</strong></span>
+            </div>
+
             <button
               type="button"
-              onClick={() => navigate('/admin/units/baru')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              onClick={reloadAll}
+              disabled={state.loading}
+              title="Segarkan data unit"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3.5 py-2 text-xs sm:text-sm font-semibold transition border border-white/15 cursor-pointer disabled:opacity-50"
             >
-              <IconPlus size={16} />
-              <span>Tambah Unit</span>
+              <IconRefresh size={15} className={state.loading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Segarkan</span>
             </button>
-          )}
+
+            {access.canCreate && (
+              <button
+                type="button"
+                onClick={() => navigate('/admin/units/baru')}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition cursor-pointer"
+              >
+                <IconPlus size={16} />
+                <span>Tambah Unit</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Statistic Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Total Unit Terdaftar</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+              <IconBuilding size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {`${totalUnitsCount} Entitas`}
+          </div>
+          <span className="text-[11px] text-slate-400 mt-0.5 block">Seluruh cabang dalam database</span>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-xs">
+          <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Unit UP3 Induk</span>
+            <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400">
+              <IconBuilding size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-indigo-700 dark:text-indigo-300">
+            {`${up3Count} UP3`}
+          </div>
+          <span className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 mt-0.5 block">Unit Pelaksana Pelayanan</span>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20 shadow-xs">
+          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Unit Aktif</span>
+            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-emerald-700 dark:text-emerald-300">
+            {`${activeUnitsCount} Aktif`}
+          </div>
+          <span className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5 block">Operasional aktif di sistem</span>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-wider">Hierarki Otoritas</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+              <IconShield size={18} />
+            </div>
+          </div>
+          <div className="mt-2 text-base font-bold text-slate-900 dark:text-slate-100">
+            SAME_UNIT
+          </div>
+          <span className="text-[11px] text-slate-400 mt-0.5 block">Boundary isolasi data aktif</span>
         </div>
       </div>
 
