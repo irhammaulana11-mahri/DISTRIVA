@@ -432,6 +432,33 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_mims_mirror_can_be_browsed_by_warehouse_date_and_search_with_lines_and_matched_customers(): void
+    {
+        $wh = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $wh, 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $doc = fn (string $d, string $res, string $on) => ['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => $d, 'reservation_no' => $res, 'issued_on' => $on, 'fetched_at' => now()];
+        DB::table('mims_issue_documents')->insert([$doc('5145A', 'R1', '2026-11-10'), $doc('5145B', 'R2', '2026-10-01')]);
+        DB::table('mims_issue_lines')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'reservation_no' => 'R1', 'material_no' => '3250050', 'material_name' => 'MCB', 'quantity' => 4, 'unit' => 'BH']);
+        DB::table('mims_issue_customers')->insert(['id' => (string) Str::uuid(), 'reservation_no' => 'R1', 'agenda_no' => 'AG-1']);
+        DB::table('mims_receipt_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'delivery_document' => '51MJK1', 'status' => 'DITERIMA', 'delivered_on' => '2026-11-11', 'received_on' => '2026-11-12', 'fetched_at' => now()]);
+        DB::table('mims_receipt_lines')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'delivery_document' => '51MJK1', 'material_no' => '3110025', 'material_name' => 'CABLE', 'quantity_sent' => 6000, 'quantity_received' => 5990, 'unit' => 'M']);
+
+        $all = $this->as($this->konstruksi)->getJson('/api/master-data/mims-issues')->assertOk();
+        $this->assertSame(['5145A', '5145B'], array_column($all->json('data'), 'material_document'));
+        $this->assertSame('MCB', $all->json('data.0.lines.0.material_name'));
+        $this->assertSame('AG-1', $all->json('data.0.customers.0.agenda_no'));
+        $this->assertFalse($all->json('data.0.customers.0.matched'));
+        $this->assertSame(['5145A'], array_column($this->as($this->konstruksi)->getJson('/api/master-data/mims-issues?from=2026-11-01')->json('data'), 'material_document'));
+        $this->assertSame(['5145A'], array_column($this->as($this->konstruksi)->getJson('/api/master-data/mims-issues?search=AG-1')->json('data'), 'material_document'));
+        $this->assertSame([], $this->as($this->konstruksi)->getJson('/api/master-data/mims-issues?search=tidak-ada')->json('data'));
+
+        $rc = $this->as($this->konstruksi)->getJson('/api/master-data/mims-receipts?search=cable')->assertOk();
+        $this->assertEquals([5990.0, 6000.0], [$rc->json('data.0.lines.0.quantity_received'), $rc->json('data.0.lines.0.quantity_sent')]);
+        $this->assertSame([], $this->as($this->konstruksi)->getJson('/api/master-data/mims-receipts?to=2026-11-01')->json('data'));
+        $this->as($this->vendor)->getJson('/api/master-data/mims-receipts')->assertForbidden();
+    }
+
+    #[Test]
     public function a_slow_reservation_is_skipped_two_in_a_row_stop_the_warehouse_and_the_message_names_the_call(): void
     {
         DB::table('warehouses')->insert(['id' => $wh = (string) Str::uuid(), 'code' => '5118-2800', 'name' => 'Gd Ry Kota', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2800', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);

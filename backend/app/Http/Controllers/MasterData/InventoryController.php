@@ -222,6 +222,78 @@ class InventoryController extends Controller
     }
 
     /**
+     * GET /master-data/mims-issues — browse the read-only MIMS issue mirror (pengeluaran): one row per issue document with its
+     * lines and the customers (agenda numbers) tied to the reservation. Filters: warehouse_id, from/to (issue date), search
+     * (document, reservation, material, agenda).
+     */
+    public function mimsIssues(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $this->mirrorFilters($request);
+        $q = DB::table('mims_issue_documents as d')->join('warehouses as w', 'w.id', '=', 'd.warehouse_id')->orderByDesc('d.issued_on')->orderByDesc('d.material_document')
+            ->select('d.*', 'w.code as warehouse_code', 'w.name as warehouse_name');
+        $this->applyMirrorFilters($q, $d, 'd.issued_on', 'd.material_document', 'd.reservation_no', fn ($s, $like) => $s
+            ->orWhereExists(fn ($x) => $x->select(DB::raw(1))->from('mims_issue_lines as l')->whereColumn('l.reservation_no', 'd.reservation_no')->where(fn ($m) => $m->where('l.material_no', 'ilike', $like)->orWhere('l.material_name', 'ilike', $like)))
+            ->orWhereExists(fn ($x) => $x->select(DB::raw(1))->from('mims_issue_customers as c')->whereColumn('c.reservation_no', 'd.reservation_no')->where('c.agenda_no', 'ilike', $like)));
+        $page = $q->paginate((int) ($d['per_page'] ?? 25));
+        $items = collect($page->items());
+        $res = $items->pluck('reservation_no')->unique()->all();
+        $lines = DB::table('mims_issue_lines')->whereIn('reservation_no', $res)->orderBy('material_no')->get()->groupBy('reservation_no');
+        $customers = DB::table('mims_issue_customers')->whereIn('reservation_no', $res)->orderBy('agenda_no')->get()->groupBy('reservation_no');
+
+        return response()->json(['data' => $items->map(fn ($r) => [
+            'id' => $r->id, 'warehouse_code' => $r->warehouse_code, 'warehouse_name' => $r->warehouse_name, 'material_document' => $r->material_document, 'reservation_no' => $r->reservation_no,
+            'sap_document' => $r->sap_document, 'issued_on' => $r->issued_on, 'work_type_name' => $r->work_type_name, 'wbs' => $r->wbs, 'text' => $r->text, 'origin' => $r->origin,
+            'lines' => ($lines[$r->reservation_no] ?? collect())->map(fn ($l) => ['material_no' => $l->material_no, 'material_name' => $l->material_name, 'quantity' => (float) $l->quantity, 'unit' => $l->unit])->values()->all(),
+            'customers' => ($customers[$r->reservation_no] ?? collect())->map(fn ($c) => ['agenda_no' => $c->agenda_no, 'id_pel' => $c->id_pel, 'power_va' => $c->power_va, 'paid_on' => $c->paid_on, 'matched' => $c->application_id !== null])->values()->all(),
+        ])->all(), 'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
+    }
+
+    /** GET /master-data/mims-receipts — browse the read-only MIMS receipt mirror (penerimaan): deliveries with their lines (sent vs received). */
+    public function mimsReceipts(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $this->mirrorFilters($request);
+        $q = DB::table('mims_receipt_documents as d')->join('warehouses as w', 'w.id', '=', 'd.warehouse_id')->orderByDesc('d.delivered_on')->orderByDesc('d.delivery_document')
+            ->select('d.*', 'w.code as warehouse_code', 'w.name as warehouse_name');
+        $this->applyMirrorFilters($q, $d, 'd.delivered_on', 'd.delivery_document', 'd.request_document', fn ($s, $like) => $s
+            ->orWhere('d.receipt_document', 'ilike', $like)->orWhere('d.sap_document', 'ilike', $like)
+            ->orWhereExists(fn ($x) => $x->select(DB::raw(1))->from('mims_receipt_lines as l')->whereColumn('l.delivery_document', 'd.delivery_document')->where(fn ($m) => $m->where('l.material_no', 'ilike', $like)->orWhere('l.material_name', 'ilike', $like))));
+        $page = $q->paginate((int) ($d['per_page'] ?? 25));
+        $items = collect($page->items());
+        $lines = DB::table('mims_receipt_lines')->whereIn('delivery_document', $items->pluck('delivery_document')->all())->orderBy('material_no')->get()->groupBy('delivery_document');
+
+        return response()->json(['data' => $items->map(fn ($r) => [
+            'id' => $r->id, 'warehouse_code' => $r->warehouse_code, 'warehouse_name' => $r->warehouse_name, 'delivery_document' => $r->delivery_document, 'receipt_document' => $r->receipt_document,
+            'request_document' => $r->request_document, 'origin_name' => $r->origin_name, 'status' => $r->status, 'delivered_on' => $r->delivered_on, 'received_on' => $r->received_on,
+            'lines' => ($lines[$r->delivery_document] ?? collect())->map(fn ($l) => ['material_no' => $l->material_no, 'material_name' => $l->material_name, 'quantity_sent' => (float) $l->quantity_sent, 'quantity_received' => (float) $l->quantity_received, 'unit' => $l->unit])->values()->all(),
+        ])->all(), 'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
+    }
+
+    /** @return array<string,mixed> */
+    private function mirrorFilters(Request $request): array
+    {
+        return $request->validate(['warehouse_id' => ['nullable', 'uuid'], 'from' => ['nullable', 'date'], 'to' => ['nullable', 'date'], 'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+    }
+
+    private function applyMirrorFilters($q, array $d, string $dateCol, string $docCol, string $refCol, \Closure $extra): void
+    {
+        if (isset($d['warehouse_id'])) {
+            $q->where('d.warehouse_id', $d['warehouse_id']);
+        }
+        if (isset($d['from'])) {
+            $q->where($dateCol, '>=', $d['from']);
+        }
+        if (isset($d['to'])) {
+            $q->where($dateCol, '<=', $d['to']);
+        }
+        if (filled($d['search'] ?? null)) {
+            $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], trim($d['search'])).'%';
+            $q->where(fn ($s) => $extra($s->where($docCol, 'ilike', $like)->orWhere($refCol, 'ilike', $like), $like));
+        }
+    }
+
+    /**
      * POST /master-data/stock-sync — pull the ERP (MIMS) stock NOW with the signed-in user's own MIMS token (the token of his session, copied from the MIMS application). The token is used for these
      * calls only: it is not stored, logged or returned. Without `warehouse_ids` every active warehouse with a plant and storage location is pulled.
      */

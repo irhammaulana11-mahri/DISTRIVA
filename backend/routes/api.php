@@ -334,6 +334,8 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/stock-snapshots/{snapshot}', [InventoryController::class, 'snapshot'])->whereUuid('snapshot');
         Route::get('/stock-position', [InventoryController::class, 'position']);
         Route::get('/stock-sync-runs', [InventoryController::class, 'syncRuns']);
+        Route::get('/mims-issues', [InventoryController::class, 'mimsIssues']);
+        Route::get('/mims-receipts', [InventoryController::class, 'mimsReceipts']);
         Route::post('/stock-sync', [InventoryController::class, 'mimsPull']);
         Route::post('/stock-sync/runs', [InventoryController::class, 'mimsRunStart']);
         Route::get('/stock-sync/runs/{run}', [InventoryController::class, 'mimsRunShow'])->whereUuid('run');

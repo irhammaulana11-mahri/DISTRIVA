@@ -11,6 +11,7 @@ import Modal from '../../components/Modal.jsx'
 import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
+import MimsMirrorTab from './MimsMirrorTab.jsx'
 import {
   IconPlus,
   IconRefresh,
@@ -490,6 +491,28 @@ export default function WarehousesPage() {
           >
             Riwayat Sinkronisasi
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('mims-issues')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              activeTab === 'mims-issues'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            Pengeluaran MIMS
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('mims-receipts')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              activeTab === 'mims-receipts'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            Penerimaan MIMS
+          </button>
         </div>
 
         {canManage && canImportStock && activeTab !== 'sync-runs' && (
@@ -834,6 +857,9 @@ export default function WarehousesPage() {
           </div>
         </div>
       )}
+
+      {activeTab === 'mims-issues' && <MimsMirrorTab kind="issues" warehouses={warehouses} />}
+      {activeTab === 'mims-receipts' && <MimsMirrorTab kind="receipts" warehouses={warehouses} />}
 
       {/* TAB 3: Auto-Sync Runs */}
       {activeTab === 'sync-runs' && (
@@ -1567,12 +1593,12 @@ export default function WarehousesPage() {
                             {r.message || '-'}
                             {r.receipts && (
                               <span className="block text-slate-500">
-                                Penerimaan: {r.receipts.status === 'OK' ? `${r.receipts.documents_new} dokumen baru, ${r.receipts.lines} baris material` : r.receipts.message || r.receipts.status}
+                                Penerimaan: {r.receipts.status === 'OK' ? (r.receipts.documents_new === 0 ? 'tidak ada dokumen baru (yang sudah tercatat tidak ditarik ulang)' : `${r.receipts.documents_new} dokumen baru, ${r.receipts.lines} baris material`) : r.receipts.message || r.receipts.status}
                               </span>
                             )}
                             {r.issues && (
                               <span className="block text-slate-500">
-                                Pengeluaran: {r.issues.status === 'OK' ? `${r.issues.documents_new} dokumen baru, ${r.issues.lines} baris material, ${r.issues.matched} pelanggan cocok permohonan` : r.issues.message || r.issues.status}
+                                Pengeluaran: {r.issues.status === 'OK' ? (r.issues.documents_new === 0 ? 'tidak ada dokumen baru (yang sudah tercatat tidak ditarik ulang)' : `${r.issues.documents_new} dokumen baru, ${r.issues.lines} baris material, ${r.issues.matched} pelanggan cocok permohonan`) : r.issues.message || r.issues.status}
                               </span>
                             )}
                             {r.message && (r.message.includes('token ditolak') || r.message.includes('kedaluwarsa')) && (

@@ -315,6 +315,12 @@ export const warehousesApi = {
     const s = q.toString()
     return request(`/master-data/stock-snapshots/${snapshotId}/unmapped${s ? '?' + s : ''}`)
   },
+  mimsMirror: (kind, params = {}) => {
+    const q = new URLSearchParams()
+    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') q.append(k, v)
+    const s = q.toString()
+    return request(`/master-data/${kind === 'issues' ? 'mims-issues' : 'mims-receipts'}${s ? '?' + s : ''}`)
+  },
   syncRuns: (params = {}) => {
     const q = new URLSearchParams()
     if (params.warehouse_id) q.append('warehouse_id', params.warehouse_id)
