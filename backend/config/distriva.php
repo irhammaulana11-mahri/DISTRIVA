@@ -120,6 +120,19 @@ return [
         'groups' => ['SUTR' => 'LAYANAN_JTR', 'SUTM' => 'LAYANAN_JTM_TRAFO', 'MVTIC' => 'LAYANAN_JTM_TRAFO', 'SKTM' => 'LAYANAN_JTM_TRAFO', 'GTT_KHUSUS' => 'LAYANAN_JTM_TRAFO', 'GTT_UMUM' => 'LAYANAN_JTM_TRAFO', 'KUBIKEL' => 'LAYANAN_KUBIKEL'],
     ],
 
+    /**
+     * Forecast service (docs/11, D-005): Python + PyTorch in `tools/forecast`, called by `distriva:forecast-execute` with CSV files in and a JSON out (no database access, no secret).
+     * Empty `python` = tools/forecast/.venv/bin/python.
+     */
+    'forecast' => [
+        'python' => env('DISTRIVA_FORECAST_PYTHON'),
+        'script' => env('DISTRIVA_FORECAST_SCRIPT'),
+        'timeout_seconds' => (int) env('DISTRIVA_FORECAST_TIMEOUT', 3600),
+        'threads' => (int) env('DISTRIVA_FORECAST_THREADS', 8),
+        'seeds' => (int) env('DISTRIVA_FORECAST_SEEDS', 3),
+        'detach' => true,                                                  // false only in tests: the run is then executed by the caller
+    ],
+
     /** PDF of output documents and reports: headless Chrome/Chromium prints an HTML page built by `PdfRenderer`. Empty binary = look for google-chrome / chromium on the PATH. */
     'pdf' => [
         'binary' => env('DISTRIVA_PDF_BINARY'),

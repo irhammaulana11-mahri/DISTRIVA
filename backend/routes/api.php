@@ -12,6 +12,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DrawingController;
 use App\Http\Controllers\EisSyncController;
 use App\Http\Controllers\FeederController;
+use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\KkfController;
 use App\Http\Controllers\KkoController;
 use App\Http\Controllers\MasterData\BomController;
@@ -165,6 +166,14 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::put('/eis-sync/settings', [EisSyncController::class, 'save']);
     Route::post('/eis-sync/runs', [EisSyncController::class, 'start']);
     Route::get('/eis-sync/runs/{run}', [EisSyncController::class, 'showRun'])->whereUuid('run');
+    // Forecast of the substation load (docs/11)
+    Route::middleware('throttle:admin')->group(function () {
+        Route::get('/forecast/runs', [ForecastController::class, 'runs']);
+        Route::post('/forecast/runs', [ForecastController::class, 'start']);
+        Route::get('/forecast/runs/{run}', [ForecastController::class, 'show'])->whereUuid('run');
+        Route::get('/forecast/runs/{run}/substations', [ForecastController::class, 'substations'])->whereUuid('run');
+        Route::post('/forecast/runs/{run}/review', [ForecastController::class, 'review'])->whereUuid('run');
+    });
     // Application tasks and internal SLA (docs/24 §8)
     Route::middleware('throttle:admin')->group(function () {
         Route::get('/tasks', [TaskController::class, 'index']);

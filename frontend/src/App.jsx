@@ -46,6 +46,7 @@ import RkmPlansPage from './pages/rkm/RkmPlansPage.jsx'
 import RkmVersionDetailPage from './pages/rkm/RkmVersionDetailPage.jsx'
 import ReportsPage from './pages/reports/ReportsPage.jsx'
 import TasksPage from './pages/tasks/TasksPage.jsx'
+import ForecastPage from './pages/forecast/ForecastPage.jsx'
 import CategoriesPage from './pages/master-data/CategoriesPage.jsx'
 import ApplicationsPage from './pages/applications/ApplicationsPage.jsx'
 import KhsMaterialMapImportPage from './pages/master-data/KhsMaterialMapImportPage.jsx'
@@ -170,6 +171,7 @@ export default function App() {
         <Route path="permohonan/impor" element={<RequireCapability capability="applications.import"><ApplicationImportPage /></RequireCapability>} />
         <Route path="permohonan/sinkronisasi-eis" element={<RequireCapability capability="eis_sync.manage"><EisSyncPage /></RequireCapability>} />
         <Route path="permohonan/:applicationId" element={<RequireCapability capability="applications.view"><ApplicationDetailPage /></RequireCapability>} />
+        <Route path="forecast" element={<RequireCapability capability="forecast.view"><ForecastPage /></RequireCapability>} />
         <Route path="tugas" element={<RequireCapability capability="tasks.view"><TasksPage /></RequireCapability>} />
         <Route path="tugas/:taskId" element={<RequireCapability capability="tasks.view"><TasksPage /></RequireCapability>} />
         <Route path="usulan" element={<RequireCapability capability="proposals.view"><ProposalsPage /></RequireCapability>} />

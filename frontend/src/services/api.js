@@ -828,6 +828,15 @@ export const backupApi = {
   },
 }
 
+// Forecast beban gardu (docs/11; deep learning)
+export const forecastApi = {
+  runs: () => request('/forecast/runs'),
+  run: (id) => request(`/forecast/runs/${id}`),
+  substations: (id, params = {}) => request(`/forecast/runs/${id}/substations${qs(params)}`),
+  start: () => request('/forecast/runs', { method: 'POST' }),
+  review: (id, note) => request(`/forecast/runs/${id}/review`, { method: 'POST', body: { note: note || null } }),
+}
+
 // Tugas permohonan dan SLA internal (docs/24 §8)
 export const tasksApi = {
   list: (params = {}) => request(`/tasks${qs(params)}`),

@@ -94,7 +94,7 @@ return [
     'applications_descendant_keys' => [
         'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
         'drawings.view', 'drawings.review_perencanaan', 'drawings.review_konstruksi', 'drawings.approve_asman_perencanaan', 'drawings.approve_asman_niaga', 'drawings.approve_asman_konstruksi',
-        'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings', 'tasks.view',
+        'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings', 'tasks.view', 'forecast.view',
     ],
 
     /*
@@ -194,6 +194,10 @@ return [
         'tasks.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
         'tasks.assign' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'sla.manage' => ['SYS_ADMIN'],
+        // Forecast (docs/11; deep learning, owner Nov 2026): the planning side runs it, the UP3 side reviews it, everyone who plans or builds reads it within their scope.
+        'forecast.view' => ['MANAGER_ULP', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'forecast.run' => ['PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'forecast.review' => ['ASMAN_PERENCANAAN', 'UP3_MANAGER', 'SYS_ADMIN'],
         'sla.note' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'TEKNIK', 'SYS_ADMIN'],              // writes the explanation of a delay beyond the service SLA (ULP staff)
         'reports.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
     ],

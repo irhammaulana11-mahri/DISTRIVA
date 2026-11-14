@@ -40,3 +40,6 @@ Permintaan pemilik: tahap survei, gambar, KKO, KKF, dan penerbitan WO harus memp
 - **Sisa SLA TMP tampil di tahap:** lencana "SLA TMP … sisa N hari kerja (tenggat …)" / "Melewati SLA TMP N hari kerja" di detail survei, gambar, MTO, KKO, KKF, dan agenda SPK/WO (komponen `ServiceSlaBadge`; tersembunyi bila permohonan tak punya SLA layanan atau pengguna tak berhak).
 - **Belum diputuskan pemilik:** pembagian anggaran waktu per tahap (mis. survei x hari, gambar y hari dari 14/24/100). Bila ingin, hari per jenis tugas diisi di Pengaturan SLA; tenggat TMP tetap menjadi batas atasnya.
 
+## 9. Tahap 10 — Forecast beban gardu (14 Nov 2026)
+Dimulai atas arahan pemilik: forecast mencakup beban gardu, memakai deep learning saja. Terbangun: layanan `tools/forecast` (PyTorch), perintah `distriva:forecast-execute`, tabel `forecast_runs`/`forecast_gardu_results`, API `/forecast/*`, dan halaman `/forecast` (rincian, hasil uji, dan keterbatasan di docs/11 addendum). Hasil nyata pertama sudah tersimpan di `distriva_db`. **Belum:** konversi gardu berisiko → pekerjaan → material (BOM), forecast volume permohonan, dan penjadwalan berkala.
+
