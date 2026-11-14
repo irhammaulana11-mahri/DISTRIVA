@@ -298,7 +298,8 @@ class InventoryTest extends PostgresTestCase
 
         $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);
         $this->assertSame(['OK', 1, 2, 0], [$r['status'], $r['documents_new'], $r['lines'], $r['matched']]);          // the 2020 document is outside the window, the blank one is skipped
-        Http::assertSent(fn ($q) => $q->method() === 'POST' && $q->hasHeader('auth-token', $secret) && $q['plant'] === '5118' && $q['stor_loc'] === '2810' && $q['status_sap'] === 'S');
+        Http::assertSent(fn ($q) => $q->method() === 'POST' && $q->hasHeader('auth-token', $secret) && $q['plant'] === '5118' && $q['stor_loc'] === '2810' && $q['status_sap'] === 'S'
+            && $q['tanggal'] === now(config('distriva.business_timezone'))->subDays(90)->format('d-m-Y') && $q['tanggal_akhir'] === now(config('distriva.business_timezone'))->format('d-m-Y'));
         $this->assertSame(['3250050', '2190224'], DB::table('mims_issue_lines')->where('reservation_no', '514532611125828')->pluck('material_no')->all());
         $this->assertSame(1, DB::table('mims_issue_customers')->count());
         $this->assertStringNotContainsString('JANGAN DISIMPAN', json_encode(DB::table('mims_issue_customers')->get()));   // no name or address

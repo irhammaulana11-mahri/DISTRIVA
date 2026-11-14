@@ -31,9 +31,15 @@ class MimsIssueSyncService
         }
         $base = rtrim((string) config('distriva.mims.base_url'), '/');
         $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.mirror_timeout_seconds'));
-        $since = CarbonImmutable::now((string) config('distriva.business_timezone'))->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
+        $since = $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        // The date range goes into the payload (`tanggal` / `tanggal_akhir`, format d-m-Y as the MIMS screen sends it), so MIMS answers with the window only, not the whole history.
+        $payload = fn (string $from, string $to) => ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => 'S', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => $from, 'tanggal_akhir' => $to];
         try {
-            $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => 'S', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => '', 'tanggal_akhir' => '']);
+            $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), $payload(CarbonImmutable::parse($since)->format('d-m-Y'), $now->format('d-m-Y')));
+            if (in_array($res->status(), [400, 422, 500], true)) {
+                $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), $payload('', ''));   // MIMS did not accept the dates: ask without them (filtered here instead)
+            }
         } catch (\Throwable $e) {
             return $finish('FAILED', MimsStockSyncService::connectionMessage($e));
         }
