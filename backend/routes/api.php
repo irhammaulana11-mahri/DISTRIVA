@@ -39,6 +39,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RkmController;
 use App\Http\Controllers\SubstationController;
 use App\Http\Controllers\SurveyController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\WorkOrderController;
 use App\Http\Middleware\EnsureActiveAccount;
 use Illuminate\Support\Facades\Route;
@@ -163,6 +164,24 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::put('/eis-sync/settings', [EisSyncController::class, 'save']);
     Route::post('/eis-sync/runs', [EisSyncController::class, 'start']);
     Route::get('/eis-sync/runs/{run}', [EisSyncController::class, 'showRun'])->whereUuid('run');
+    // Application tasks and internal SLA (docs/24 §8)
+    Route::middleware('throttle:admin')->group(function () {
+        Route::get('/tasks', [TaskController::class, 'index']);
+        Route::get('/tasks/summary', [TaskController::class, 'summary']);
+        Route::get('/tasks/{task}', [TaskController::class, 'show'])->whereUuid('task');
+        foreach (['accept', 'start', 'submit', 'complete', 'cancel', 'reassign'] as $step) {
+            Route::post("/tasks/{task}/{$step}", [TaskController::class, $step])->whereUuid('task');
+        }
+        Route::post('/tasks/{task}/return', [TaskController::class, 'returnBack'])->whereUuid('task');
+        Route::get('/applications/{application}/tasks', [TaskController::class, 'forApplication'])->whereUuid('application');
+        Route::get('/applications/{application}/tasks/assignees', [TaskController::class, 'assignees'])->whereUuid('application');
+        Route::post('/applications/{application}/tasks', [TaskController::class, 'store'])->whereUuid('application');
+        Route::get('/sla/configurations', [TaskController::class, 'slaIndex']);
+        Route::put('/sla/configurations/{type}', [TaskController::class, 'slaUpdate']);
+        Route::get('/sla/holidays', [TaskController::class, 'holidays']);
+        Route::post('/sla/holidays', [TaskController::class, 'addHoliday']);
+        Route::delete('/sla/holidays/{date}', [TaskController::class, 'removeHoliday']);
+    });
     // Dashboard and reports (docs/62 §41)
     Route::middleware('throttle:admin')->group(function () {
         Route::get('/reports/units', [ReportController::class, 'units']);

@@ -94,7 +94,7 @@ return [
     'applications_descendant_keys' => [
         'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
         'drawings.view', 'drawings.review_perencanaan', 'drawings.review_konstruksi', 'drawings.approve_asman_perencanaan', 'drawings.approve_asman_niaga', 'drawings.approve_asman_konstruksi',
-        'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings',
+        'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings', 'tasks.view',
     ],
 
     /*
@@ -190,6 +190,10 @@ return [
         'material_requests.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI_UP3', 'ASMAN_KONSTRUKSI', 'UP3_MANAGER', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
         'material_requests.manage' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
         'reports.settings' => ['SYS_ADMIN'],
+        // Application tasks and internal SLA (docs/24 §8): everyone who sees applications sees the tasks of their scope; the ULP manager assigns and reviews; only SYS_ADMIN edits the SLA and the holidays.
+        'tasks.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'tasks.assign' => ['MANAGER_ULP', 'SYS_ADMIN'],
+        'sla.manage' => ['SYS_ADMIN'],
         'reports.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
     ],
 

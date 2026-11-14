@@ -91,6 +91,22 @@ return [
      * Output documents (stage 5D, docs/62 §28): header lines of the PLN forms and the REKAP rows in workbook order. `volume_rows` = BOM rows (workbook cells REKAP!D14:D23:
      * SUTM!H11, MVTIC!H11, SKTM!H11+H24, GTT KHUSUS!H25, GTT UMUM!H25, KUBIKEL!H16, SUTR!H11, 53-197!H10, 6,6-41,5!H10) whose quantity is the group volume; SR1PH volume = row 13 (total SR 1 phase customers, SDES-1 + SDES-2).
      */
+    /**
+     * Task types of the application tasks (docs/24 §8). `default_days` = working-day deadline seeded into `sla_configurations` (editable there; null = no deadline). Only the survey has a
+     * documented standard (the SLA report flags a survey older than 3 days); the owner sets the others. `due_soon_days` = working days before the deadline when the reminder is sent.
+     */
+    'tasks' => [
+        'types' => [
+            'ADMINISTRASI' => ['label' => 'Pemeriksaan administrasi', 'default_days' => null],
+            'SURVEI' => ['label' => 'Survei lapangan', 'default_days' => 3],
+            'GAMBAR' => ['label' => 'Penyusunan gambar', 'default_days' => null],
+            'MTO_RAB' => ['label' => 'MTO dan RAB', 'default_days' => null],
+            'PEMASANGAN' => ['label' => 'Pemasangan dan bukti meter', 'default_days' => null],
+            'LAINNYA' => ['label' => 'Lainnya', 'default_days' => null],
+        ],
+        'due_soon_days' => 1,
+    ],
+
     /** PDF of output documents and reports: headless Chrome/Chromium prints an HTML page built by `PdfRenderer`. Empty binary = look for google-chrome / chromium on the PATH. */
     'pdf' => [
         'binary' => env('DISTRIVA_PDF_BINARY'),

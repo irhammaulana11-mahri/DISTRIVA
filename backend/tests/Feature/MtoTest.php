@@ -1755,6 +1755,7 @@ class MtoTest extends PostgresTestCase
         $this->as($asman)->postJson("/api/bastp/{$bastp}/close", ['password' => 'secret-password'])->assertOk();   // ASMAN_KONSTRUKSI closes = completes the WO
         $this->assertSame('COMPLETED', DB::table('work_orders')->where('id', $wo)->value('status'));
         $this->assertSame('COMPLETED', DB::table('applications')->where('id', $app)->value('current_status'));   // the BASTP closing also completes the application
+        $this->assertNotNull(DB::table('applications')->where('id', $app)->value('completed_at'));
         $this->assertSame('COMPLETED', DB::table('application_status_histories')->where('application_id', $app)->orderByDesc('seq')->value('to_status'));
         $progress($t, 'late', 100)->assertStatus(409);                                                           // completed: no more progress
         $this->as($konstruksi)->postJson($url)->assertStatus(409);                                               // and no second WO

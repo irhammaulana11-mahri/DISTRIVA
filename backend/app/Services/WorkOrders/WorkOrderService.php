@@ -234,7 +234,7 @@ class WorkOrderService
     private function completeApplications(array $applicationIds, string $woNumber, User $actor): void
     {
         foreach (DB::table('applications')->whereIn('id', $applicationIds)->whereNotIn('current_status', ['COMPLETED', 'CANCELLED', 'REFUNDED'])->lockForUpdate()->get(['id', 'current_status']) as $app) {
-            DB::table('applications')->where('id', $app->id)->update(['current_status' => 'COMPLETED', 'updated_at' => now()]);
+            DB::table('applications')->where('id', $app->id)->update(['current_status' => 'COMPLETED', 'completed_at' => now(), 'updated_at' => now()]);
             DB::table('application_status_histories')->insert(['id' => (string) Str::uuid(), 'application_id' => $app->id, 'from_status' => $app->current_status, 'to_status' => 'COMPLETED',
                 'changed_by' => $actor->getKey(), 'changed_at' => now(), 'reason' => "Selesai: BASTP ditutup (WO {$woNumber})."]);
         }

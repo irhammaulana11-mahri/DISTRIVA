@@ -66,6 +66,7 @@ const nav = [
 // 2. Operasional Jaringan (PB/PD, Pengukuran, SPK, Outbox, Gudang & Stok, RKM)
 const operationsNav = [
   { to: '/permohonan', label: 'Permohonan (PB/PD)', capability: 'applications.view', icon: IconFileText },
+  { to: '/tugas', label: 'Tugas & SLA', capability: 'tasks.view', icon: IconClipboard },
   { to: '/survei', label: 'Usulan Survei', capability: 'surveys.view', icon: IconClipboard },
   { to: '/usulan', label: 'Usulan Perluasan', capability: 'proposals.view', icon: IconUsers },
   { to: '/master-data/substation-measurements', label: 'Pengukuran Gardu', capability: 'substations.view', icon: IconActivity },

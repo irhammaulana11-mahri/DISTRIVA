@@ -828,6 +828,25 @@ export const backupApi = {
   },
 }
 
+// Tugas permohonan dan SLA internal (docs/24 §8)
+export const tasksApi = {
+  list: (params = {}) => request(`/tasks${qs(params)}`),
+  summary: () => request('/tasks/summary'),
+  get: (id) => request(`/tasks/${id}`),
+  forApplication: (appId) => request(`/applications/${appId}/tasks`),
+  assignees: (appId) => request(`/applications/${appId}/tasks/assignees`),
+  create: (appId, body) => request(`/applications/${appId}/tasks`, { method: 'POST', body }),
+  step: (id, step, body = {}) => request(`/tasks/${id}/${step}`, { method: 'POST', body }),
+}
+
+export const slaApi = {
+  configurations: () => request('/sla/configurations'),
+  update: (type, body) => request(`/sla/configurations/${type}`, { method: 'PUT', body }),
+  holidays: (params = {}) => request(`/sla/holidays${qs(params)}`),
+  addHoliday: (body) => request('/sla/holidays', { method: 'POST', body }),
+  removeHoliday: (date) => request(`/sla/holidays/${date}`, { method: 'DELETE' }),
+}
+
 export const notificationsApi = {
   list: (params = {}) => request(`/notifications${qs(params)}`),
   markRead: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),

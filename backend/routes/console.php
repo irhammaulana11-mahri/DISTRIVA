@@ -26,3 +26,6 @@ Schedule::command('distriva:eis-sync-scheduled')->everyMinute()->withoutOverlapp
 
 // Automatic MIMS stock pull with the token saved by the user who switched it on (docs/82 §19.15).
 Schedule::command('distriva:mims-sync-auto')->everyMinute()->withoutOverlapping();
+
+// Task reminders (docs/24 §8): once when a task is about to be due, once when overdue. Needs the usual `* * * * * php artisan schedule:run` cron entry.
+Schedule::command('distriva:tasks-remind')->hourly()->withoutOverlapping();

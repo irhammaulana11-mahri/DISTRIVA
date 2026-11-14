@@ -83,6 +83,51 @@ class WorkflowNotifier
         });
     }
 
+    // ---- tugas (docs/24 §8) -----------------------------------------------------------------------------------
+
+    public function taskAssigned(string $taskId, User $actor): void
+    {
+        $this->safely(function () use ($taskId, $actor): void {
+            $t = $this->task($taskId);
+            $due = $t->due_at === null ? 'Tanpa tenggat.' : 'Tenggat '.date('d-m-Y', strtotime((string) $t->due_at)).'.';
+            $this->inbox->toUsers($this->others([(string) $t->assignee_id], $actor), 'info', "Tugas baru: {$t->title}", "Permohonan {$t->application_number}. {$due}", 'Tugas', "/tugas/{$taskId}");
+        });
+    }
+
+    /** The task was submitted (tell the assigner) or reviewed (tell the assignee: done or returned). */
+    public function taskStep(string $taskId, string $step, User $actor): void
+    {
+        $this->safely(function () use ($taskId, $step, $actor): void {
+            $t = $this->task($taskId);
+            [$to, $level, $title] = match ($step) {
+                'SUBMITTED' => [(string) $t->assigned_by, 'info', "Tugas menunggu pemeriksaan: {$t->title}"],
+                'COMPLETED' => [(string) $t->assignee_id, 'success', "Tugas diterima: {$t->title}"],
+                'RETURNED' => [(string) $t->assignee_id, 'warning', "Tugas dikembalikan: {$t->title}"],
+                'CANCELLED' => [(string) $t->assignee_id, 'warning', "Tugas dibatalkan: {$t->title}"],
+                default => [null, 'info', ''],
+            };
+            if ($to !== null) {
+                $this->inbox->toUsers($this->others([$to], $actor), $level, $title, "Permohonan {$t->application_number}.", 'Tugas', "/tugas/{$taskId}");
+            }
+        });
+    }
+
+    /** Reminder from the scheduler: `$kind` is due_soon or overdue. Returns nothing; never throws. */
+    public function taskDeadline(string $taskId, string $kind): void
+    {
+        $this->safely(function () use ($taskId, $kind): void {
+            $t = $this->task($taskId);
+            $late = $kind === 'overdue';
+            $this->inbox->toUsers(array_values(array_unique([(string) $t->assignee_id, (string) $t->assigned_by])), $late ? 'warning' : 'info',
+                ($late ? 'Tugas melewati tenggat: ' : 'Tugas segera jatuh tempo: ').$t->title, "Permohonan {$t->application_number}. Tenggat ".date('d-m-Y', strtotime((string) $t->due_at)).'.', 'Tugas', "/tugas/{$taskId}");
+        });
+    }
+
+    private function task(string $id): object
+    {
+        return DB::table('application_tasks as t')->join('applications as a', 'a.id', '=', 't.application_id')->where('t.id', $id)->first(['t.*', 'a.application_number']);
+    }
+
     public function surveySubmitted(string $surveyId, User $actor): void
     {
         $this->safely(function () use ($surveyId, $actor): void {
