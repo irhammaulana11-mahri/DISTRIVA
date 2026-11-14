@@ -34,8 +34,14 @@ class BusinessCalendar
     /** Working days still to run after today up to and including the day of `$due` (0 when the deadline is today or past). */
     public function workingDaysLeft(CarbonInterface $due, ?CarbonInterface $now = null): int
     {
-        $day = CarbonImmutable::parse($now ?? now())->setTimezone($this->zone())->startOfDay();
-        $end = CarbonImmutable::parse($due)->setTimezone($this->zone())->startOfDay();
+        return $this->workingDaysBetween($now ?? now(), $due);
+    }
+
+    /** Working days in the span after the day of `$from` up to and including the day of `$to` (0 when `$to` is not later). */
+    public function workingDaysBetween(CarbonInterface $from, CarbonInterface $to): int
+    {
+        $day = CarbonImmutable::parse($from)->setTimezone($this->zone())->startOfDay();
+        $end = CarbonImmutable::parse($to)->setTimezone($this->zone())->startOfDay();
         $count = 0;
         while ($day->lt($end)) {
             $day = $day->addDay();

@@ -123,6 +123,14 @@ class WorkflowNotifier
         });
     }
 
+    /** An application went past its service SLA (14/24/100 working days): the ULP staff who write the explanation are told once. */
+    public function serviceSlaOverdue(string $applicationId, string $unitId, string $number, string $label): void
+    {
+        $this->safely(function () use ($applicationId, $unitId, $number, $label): void {
+            $this->inbox->toUsers($this->inbox->holdersOf('sla.note', $unitId), 'warning', "Permohonan {$number} melewati SLA layanan", "{$label}. Isi keterangan keterlambatan (mis. material belum lengkap).", 'SLA', "/permohonan/{$applicationId}");
+        });
+    }
+
     private function task(string $id): object
     {
         return DB::table('application_tasks as t')->join('applications as a', 'a.id', '=', 't.application_id')->where('t.id', $id)->first(['t.*', 'a.application_number']);

@@ -176,7 +176,7 @@ class TaskController extends Controller
     {
         $this->authorizer->authorizeScope($request->user(), 'tasks.view');
 
-        return response()->json(['data' => DB::table('sla_configurations')->orderBy('task_type')->get(['task_type', 'label', 'working_days', 'is_active', 'updated_at'])->all(),
+        return response()->json(['data' => DB::table('sla_configurations')->orderBy('task_type')->get(['task_type', 'label', 'kind', 'working_days', 'is_active', 'updated_at'])->all(),
             'can' => ['manage' => $this->catalog->allows($request->user(), 'sla.manage'), 'assign' => $this->canAssign($request->user())]]);
     }
 

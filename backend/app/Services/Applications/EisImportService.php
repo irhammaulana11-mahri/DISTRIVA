@@ -385,6 +385,11 @@ class EisImportService
             $changes['service_days'] = ['old' => $app->service_days, 'new' => $n['service_days'], 'review' => false];
         }
 
+        // the payment date (TGLBAYAR) starts the service SLA: filled once when DISTRIVA does not have it yet, never replaced
+        if ($n['paid_at'] !== null && $app->paid_at === null) {
+            $changes['paid_at'] = ['old' => null, 'new' => $n['paid_at'], 'review' => false];
+        }
+
         // external status: always recorded once (history); moves the internal status only when newer, mapped and not terminal
         $changes['__history'] = false;
         $changes['__status'] = false;
@@ -481,6 +486,7 @@ class EisImportService
             'old_power_value' => $n['old_power'], 'old_power_unit' => $n['old_power'] === null ? null : 'VA', 'new_power_value' => $n['new_power'], 'new_power_unit' => $n['new_power'] === null ? null : 'VA',
             'sar_package' => $n['sar_package'] ?: null, 'total_cost' => $n['total_cost'], 'service_criteria' => $n['service_criteria'] ?: null,
             'source_created_at' => $n['requested_at'] === null ? null : CarbonImmutable::parse($n['requested_at'], config('distriva.business_timezone'))->toDateTimeString(),
+            'paid_at' => $n['paid_at'],
         ], fn ($v) => $v !== null);
         $status = $n['internal_status'] ?? 'APPROVED';
         $id = $this->applications->createImported($unit, $customerId, $n['type'], $fields, $status, $n['agenda'], $actor, "Diimpor dari EIS (batch {$batchId}), status eksternal: ".($n['ext_status'] ?: 'tidak ada').'.');

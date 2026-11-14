@@ -37,6 +37,7 @@ use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\RabController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RkmController;
+use App\Http\Controllers\ServiceSlaController;
 use App\Http\Controllers\SubstationController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\TaskController;
@@ -176,6 +177,10 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/applications/{application}/tasks', [TaskController::class, 'forApplication'])->whereUuid('application');
         Route::get('/applications/{application}/tasks/assignees', [TaskController::class, 'assignees'])->whereUuid('application');
         Route::post('/applications/{application}/tasks', [TaskController::class, 'store'])->whereUuid('application');
+        Route::get('/service-sla', [ServiceSlaController::class, 'index']);
+        Route::get('/service-sla/summary', [ServiceSlaController::class, 'summary']);
+        Route::get('/applications/{application}/service-sla', [ServiceSlaController::class, 'show'])->whereUuid('application');
+        Route::post('/applications/{application}/service-sla/notes', [ServiceSlaController::class, 'addNote'])->whereUuid('application');
         Route::get('/sla/configurations', [TaskController::class, 'slaIndex']);
         Route::put('/sla/configurations/{type}', [TaskController::class, 'slaUpdate']);
         Route::get('/sla/holidays', [TaskController::class, 'holidays']);

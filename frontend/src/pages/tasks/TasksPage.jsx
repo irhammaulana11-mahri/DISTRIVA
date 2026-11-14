@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { applicationApi, slaApi, tasksApi } from '../../services/api.js'
+import { applicationApi, serviceSlaApi, slaApi, tasksApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -34,6 +34,7 @@ const TABS = [
   { key: 'review', label: 'Perlu diperiksa', params: { status: 'SUBMITTED' }, assignOnly: true },
   { key: 'late', label: 'Terlambat', params: { overdue: 1 } },
   { key: 'all', label: 'Semua tugas', params: {} },
+  { key: 'service', label: 'SLA layanan' },
   { key: 'sla', label: 'Pengaturan SLA' },
 ]
 
@@ -84,7 +85,7 @@ export default function TasksPage() {
   const current = tabs.find((t) => t.key === tab) || tabs[0]
 
   const load = useCallback(async () => {
-    if (current.key === 'sla') return
+    if (current.key === 'sla' || current.key === 'service') return
     setState((s) => ({ ...s, loading: true, error: '' }))
     try {
       const [list, sum] = await Promise.all([tasksApi.list({ ...current.params, page, per_page: perPage }), tasksApi.summary()])
@@ -147,7 +148,7 @@ export default function TasksPage() {
         ))}
       </div>
 
-      {current.key === 'sla' ? <SlaPanel /> : (
+      {current.key === 'sla' ? <SlaPanel /> : current.key === 'service' ? <ServiceSlaPanel /> : (
         <>
           {state.error && <Alert variant="error">{state.error}</Alert>}
           {state.loading ? (
@@ -259,7 +260,7 @@ function CreateModal({ onClose, onDone }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { slaApi.configurations().then((r) => setTypes(r?.data || [])).catch(() => {}) }, [])
+  useEffect(() => { slaApi.configurations().then((r) => setTypes((r?.data || []).filter((t) => t.kind !== 'SERVICE'))).catch(() => {}) }, [])
   useEffect(() => {
     if (debounced.trim().length < 2) return
     applicationApi.list({ search: debounced.trim(), per_page: 20 }).then((r) => setApps(r?.data || [])).catch(() => setApps([]))
@@ -382,12 +383,12 @@ function SlaPanel() {
     <div className="space-y-6">
       {state.error && <Alert variant="error">{state.error}</Alert>}
       <section aria-labelledby="sla-h" className="space-y-2">
-        <h2 id="sla-h" className="text-base font-semibold text-slate-900 dark:text-slate-100">Tenggat per jenis tugas</h2>
+        <h2 id="sla-h" className="text-base font-semibold text-slate-900 dark:text-slate-100">Tenggat tugas dan SLA layanan</h2>
         <p className="text-xs text-slate-500">Dihitung dalam hari kerja (Senin–Jumat, di luar hari libur di bawah) sejak tugas diberikan. Kosong = tanpa tenggat. Perubahan hanya berlaku untuk tugas baru.</p>
         <ul className="divide-y divide-slate-200 dark:divide-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
           {state.rows.map((r) => (
             <li key={r.task_type} className="flex flex-wrap items-center justify-between gap-2 p-3">
-              <span className="text-sm text-slate-800 dark:text-slate-200">{r.label}</span>
+              <span className="text-sm text-slate-800 dark:text-slate-200">{r.label}{r.kind === 'SERVICE' && <span className="ml-2 text-xs text-slate-500">(sejak tanggal bayar)</span>}</span>
               {state.canManage ? (
                 <span className="flex items-center gap-2">
                   <input type="number" min={1} max={365} inputMode="numeric" aria-label={`Hari kerja ${r.label}`} value={draft[r.task_type] ?? (r.working_days ?? '')}
@@ -424,5 +425,179 @@ function SlaPanel() {
         )}
       </section>
     </div>
+  )
+}
+
+const SERVICE_STATUS = {
+  NOT_STARTED: { label: 'Belum bayar', cls: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
+  ON_TRACK: { label: 'Dalam SLA', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60' },
+  DUE_SOON: { label: 'Segera jatuh tempo', cls: 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60' },
+  OVERDUE: { label: 'Melewati SLA', cls: 'bg-red-50 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800/60' },
+  MET: { label: 'Selesai tepat waktu', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60' },
+  MET_LATE: { label: 'Selesai terlambat', cls: 'bg-red-50 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800/60' },
+}
+const BASIS = { PAID: 'sejak tanggal bayar', STATUS_BAYAR: 'sejak status Bayar tercatat (tanggal bayar belum ada)', REQUESTED: 'sejak tanggal permohonan (tanggal bayar belum ada)' }
+const SERVICE_FILTERS = [
+  { v: 'RUNNING', label: 'Sedang berjalan' }, { v: 'OVERDUE', label: 'Melewati SLA' }, { v: 'DUE_SOON', label: 'Segera jatuh tempo' },
+  { v: 'MET_LATE', label: 'Selesai terlambat' }, { v: 'MET', label: 'Selesai tepat waktu' }, { v: 'NOT_STARTED', label: 'Belum bayar' }, { v: '', label: 'Semua' },
+]
+
+/** SLA layanan perluasan jaringan (14/24/100 hari kerja sejak bayar) dan keterangan keterlambatan, mis. material belum lengkap. */
+function ServiceSlaPanel() {
+  const [filter, setFilter] = useState('RUNNING')
+  const [needsNote, setNeedsNote] = useState(false)
+  const [search, setSearch] = useState('')
+  const debounced = useDebounce(search, 350)
+  const [page, setPage] = useState(1)
+  const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
+  const [summary, setSummary] = useState(null)
+  const [openFor, setOpenFor] = useState(null)
+
+  const load = useCallback(async () => {
+    setState((s) => ({ ...s, loading: true, error: '' }))
+    try {
+      const [list, sum] = await Promise.all([serviceSlaApi.list({ status: filter, needs_note: needsNote ? 1 : '', search: debounced.trim(), page, per_page: 25 }), serviceSlaApi.summary()])
+      setState({ loading: false, error: '', rows: list?.data || [], meta: list?.meta || null })
+      setSummary(sum?.data || null)
+    } catch (err) {
+      setState({ loading: false, error: err?.message || 'Gagal memuat SLA layanan.', rows: [], meta: null })
+    }
+  }, [filter, needsNote, debounced, page])
+  useEffect(() => { load() }, [load])
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-600 dark:text-slate-300">Perluasan jaringan: 14 hari kerja (tiang JTR saja), 24 hari kerja (JTM / trafo), 100 hari kerja (kubikel), dihitung sejak tanggal bayar. Permohonan yang melewati SLA perlu diberi keterangan, misalnya material belum lengkap.</p>
+      {summary && (
+        <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label="Melewati SLA" value={summary.overdue} danger />
+          <Stat label="Segera jatuh tempo" value={summary.due_soon} />
+          <Stat label="Dalam SLA" value={summary.on_track} />
+          <Stat label="Selesai terlambat" value={summary.met_late} danger />
+        </dl>
+      )}
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label htmlFor="svc-filter" className="block text-xs text-slate-500">Tampilkan</label>
+          <select id="svc-filter" value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1) }} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
+            {SERVICE_FILTERS.map((f) => <option key={f.v} value={f.v}>{f.label}</option>)}
+          </select>
+        </div>
+        <div className="flex-1 min-w-48">
+          <label htmlFor="svc-search" className="block text-xs text-slate-500">Cari</label>
+          <input id="svc-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="No. permohonan atau nama pelanggan" className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-sm" />
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 pb-2">
+          <input type="checkbox" checked={needsNote} onChange={(e) => { setNeedsNote(e.target.checked); setPage(1) }} /> Belum ada keterangan
+        </label>
+      </div>
+      {state.error && <Alert variant="error">{state.error}</Alert>}
+      {state.loading ? <div className="flex justify-center py-12"><Spinner /></div> : state.rows.length === 0 ? (
+        <EmptyState icon={IconClipboard} title="Tidak ada permohonan" description="Hanya permohonan perluasan jaringan yang sudah memiliki MTO yang punya SLA layanan." />
+      ) : (
+        <div className="space-y-3">
+          {state.rows.map((r) => {
+            const st = SERVICE_STATUS[r.status] || SERVICE_STATUS.ON_TRACK
+            return (
+              <article key={r.application_id} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      <Link className="text-brand-700 dark:text-brand-300 hover:underline" to={`/permohonan/${r.application_id}`}>{r.application_number}</Link> · {r.customer_name}
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{r.category_label} · {r.working_days} hari kerja · {r.unit_name}</p>
+                  </div>
+                  <span className={`${pill} ${st.cls}`}>{st.label}{r.late_working_days > 0 ? ` ${r.late_working_days} hari kerja` : ''}</span>
+                </div>
+                <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                  {r.due_at ? <>Tenggat {formatDue(r.due_at)} ({BASIS[r.start_basis]})</> : 'SLA mulai berjalan setelah pelanggan membayar.'}
+                </p>
+                {r.last_note ? <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">Keterangan: {r.last_note.note}</p>
+                  : ['OVERDUE', 'MET_LATE'].includes(r.status) && <p className="mt-2 text-sm text-red-700 dark:text-red-300">Belum ada keterangan keterlambatan.</p>}
+                <div className="mt-3"><Button size="sm" variant={['OVERDUE', 'MET_LATE'].includes(r.status) && !r.last_note ? 'primary' : 'outline'} onClick={() => setOpenFor(r)}>Keterangan &amp; material</Button></div>
+              </article>
+            )
+          })}
+          {state.meta && <TableFooter itemCount={state.rows.length} total={state.meta.total} entityLabel="permohonan" page={state.meta.current_page} perPage={25} onPage={setPage} onPerPage={() => {}} perPageOptions={[25]} />}
+        </div>
+      )}
+      {openFor && <ServiceNoteModal row={openFor} onClose={() => setOpenFor(null)} onSaved={load} />}
+    </div>
+  )
+}
+
+function ServiceNoteModal({ row, onClose, onSaved }) {
+  const { notify } = useNotifications()
+  const [state, setState] = useState({ loading: true, error: '', data: null, canNote: false })
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = useCallback(async () => {
+    try {
+      const r = await serviceSlaApi.forApplication(row.application_id)
+      setState({ loading: false, error: '', data: r?.data || null, canNote: Boolean(r?.can?.note) })
+    } catch (err) {
+      setState({ loading: false, error: err?.message || 'Gagal memuat rincian.', data: null, canNote: false })
+    }
+  }, [row.application_id])
+  useEffect(() => { load() }, [load])
+
+  const save = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      await serviceSlaApi.addNote(row.application_id, note.trim())
+      notify({ type: 'success', title: 'Keterangan disimpan', desc: row.application_number, tag: 'SLA' })
+      setNote('')
+      await load()
+      onSaved?.()
+    } catch (err) {
+      setState((s) => ({ ...s, error: err?.message || 'Gagal menyimpan keterangan.' }))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const d = state.data
+  const shortfall = d?.materials?.shortfall || []
+  return (
+    <Modal open title="Keterangan SLA layanan" subtitle={`${row.application_number} · ${row.customer_name}`} onClose={onClose} footer={<Button variant="secondary" onClick={onClose}>Tutup</Button>}>
+      {state.loading ? <div className="flex justify-center py-8"><Spinner /></div> : (
+        <div className="space-y-4">
+          {state.error && <Alert variant="error">{state.error}</Alert>}
+          {d && (
+            <section aria-labelledby="mat-h">
+              <h3 id="mat-h" className="text-sm font-semibold text-slate-900 dark:text-slate-100">Kelengkapan material</h3>
+              {!d.materials.known ? <p className="text-sm text-slate-500">MTO belum disetujui, kelengkapan material belum dapat dinilai.</p>
+                : d.materials.complete ? <p className="text-sm text-emerald-700 dark:text-emerald-300">Semua material PLN sudah dialokasikan.</p>
+                  : shortfall.length === 0 ? <p className="text-sm text-amber-700 dark:text-amber-300">Ada material yang belum dialokasikan (rinciannya tampil bila permohonan sudah mendekati atau melewati SLA).</p>
+                    : (
+                      <>
+                        <p className="text-sm text-amber-700 dark:text-amber-300">Material belum dialokasikan:</p>
+                        <ul className="mt-1 divide-y divide-slate-200 dark:divide-slate-700 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">
+                          {shortfall.map((m) => <li key={m.khs_code} className="flex justify-between gap-3 p-2"><span className="min-w-0 break-words">{m.khs_code} · {m.khs_name}</span><span className="whitespace-nowrap">kurang {m.remaining} {m.unit_text}</span></li>)}
+                        </ul>
+                      </>
+                    )}
+            </section>
+          )}
+          <section aria-labelledby="note-h" className="space-y-2">
+            <h3 id="note-h" className="text-sm font-semibold text-slate-900 dark:text-slate-100">Keterangan keterlambatan</h3>
+            {(d?.notes || []).length === 0 ? <p className="text-sm text-slate-500">Belum ada keterangan.</p> : (
+              <ul className="space-y-2">
+                {d.notes.map((n) => <li key={n.id} className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2 text-sm"><p className="whitespace-pre-line">{n.note}</p><p className="mt-1 text-xs text-slate-500">{n.author} · {formatDue(n.created_at)}</p></li>)}
+              </ul>
+            )}
+            {state.canNote && (
+              <form onSubmit={save} className="space-y-2">
+                <label htmlFor="sla-note" className="block text-sm font-medium text-slate-700 dark:text-slate-200">Tambah keterangan</label>
+                <textarea id="sla-note" rows={3} maxLength={1000} required value={note} onChange={(e) => setNote(e.target.value)} placeholder="Contoh: kabel TIC 3x70 belum tersedia di gudang, menunggu pengiriman."
+                  className="block w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-sm" />
+                <Button type="submit" loading={busy} disabled={!note.trim()}>Simpan keterangan</Button>
+              </form>
+            )}
+          </section>
+        </div>
+      )}
+    </Modal>
   )
 }

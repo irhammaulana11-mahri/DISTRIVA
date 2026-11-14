@@ -839,6 +839,13 @@ export const tasksApi = {
   step: (id, step, body = {}) => request(`/tasks/${id}/${step}`, { method: 'POST', body }),
 }
 
+export const serviceSlaApi = {
+  list: (params = {}) => request(`/service-sla${qs(params)}`),
+  summary: () => request('/service-sla/summary'),
+  forApplication: (appId) => request(`/applications/${appId}/service-sla`),
+  addNote: (appId, note) => request(`/applications/${appId}/service-sla/notes`, { method: 'POST', body: { note } }),
+}
+
 export const slaApi = {
   configurations: () => request('/sla/configurations'),
   update: (type, body) => request(`/sla/configurations/${type}`, { method: 'PUT', body }),

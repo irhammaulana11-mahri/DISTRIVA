@@ -310,7 +310,7 @@ class ApplicationService
     {
         $id = (string) Str::uuid();
         $row = $this->power($type, $fields);
-        $extra = array_intersect_key($fields, ['source_created_at' => 1]);
+        $extra = array_intersect_key($fields, ['source_created_at' => 1, 'paid_at' => 1]);
         DB::table('applications')->insert($row + $extra + [
             'id' => $id, 'application_number' => $this->nextNumber($unit), 'application_type' => $type, 'customer_id' => $customerId, 'organizational_unit_id' => $unit->id,
             'source_type' => 'BOT_DAFTUNG', 'source_reference_id' => $sourceReferenceId, 'imported_at' => now(), 'current_status' => $status, 'created_by' => $actor->getKey(),

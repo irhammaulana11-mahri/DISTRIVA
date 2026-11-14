@@ -194,6 +194,7 @@ return [
         'tasks.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
         'tasks.assign' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'sla.manage' => ['SYS_ADMIN'],
+        'sla.note' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'TEKNIK', 'SYS_ADMIN'],              // writes the explanation of a delay beyond the service SLA (ULP staff)
         'reports.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
     ],
 

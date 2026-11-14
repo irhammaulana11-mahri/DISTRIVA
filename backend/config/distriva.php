@@ -107,6 +107,19 @@ return [
         'due_soon_days' => 1,
     ],
 
+    /**
+     * Service SLA of network extension (owner, Nov 2026), counted in working days from the payment date. The category follows the construction groups of the application's MTO; when several apply the
+     * longest SLA wins. The days seeded here are editable in `sla_configurations` (kind SERVICE). Groups not listed (APP/PBPD, SR 1 phase) add no category.
+     */
+    'service_sla' => [
+        'categories' => [
+            'LAYANAN_JTR' => ['label' => 'Layanan: tambah tiang JTR saja', 'days' => 14],
+            'LAYANAN_JTM_TRAFO' => ['label' => 'Layanan: tambah JTM / trafo', 'days' => 24],
+            'LAYANAN_KUBIKEL' => ['label' => 'Layanan: tambah kubikel', 'days' => 100],
+        ],
+        'groups' => ['SUTR' => 'LAYANAN_JTR', 'SUTM' => 'LAYANAN_JTM_TRAFO', 'MVTIC' => 'LAYANAN_JTM_TRAFO', 'SKTM' => 'LAYANAN_JTM_TRAFO', 'GTT_KHUSUS' => 'LAYANAN_JTM_TRAFO', 'GTT_UMUM' => 'LAYANAN_JTM_TRAFO', 'KUBIKEL' => 'LAYANAN_KUBIKEL'],
+    ],
+
     /** PDF of output documents and reports: headless Chrome/Chromium prints an HTML page built by `PdfRenderer`. Empty binary = look for google-chrome / chromium on the PATH. */
     'pdf' => [
         'binary' => env('DISTRIVA_PDF_BINARY'),

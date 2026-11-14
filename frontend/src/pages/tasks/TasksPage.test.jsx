@@ -6,11 +6,12 @@ import { AuthContext } from '../../features/auth/AuthContext.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import TasksPage, { taskActions, formatDue } from './TasksPage.jsx'
-import { tasksApi, slaApi } from '../../services/api.js'
+import { tasksApi, slaApi, serviceSlaApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   tasksApi: { list: vi.fn(), summary: vi.fn(), step: vi.fn(), assignees: vi.fn(), create: vi.fn() },
   slaApi: { configurations: vi.fn(), holidays: vi.fn(), update: vi.fn(), addHoliday: vi.fn(), removeHoliday: vi.fn() },
+  serviceSlaApi: { list: vi.fn(), summary: vi.fn(), forApplication: vi.fn(), addNote: vi.fn() },
   applicationApi: { list: vi.fn() },
   notificationsApi: { list: vi.fn().mockResolvedValue({ data: [] }), markRead: vi.fn(), markAllRead: vi.fn() },
 }))
@@ -87,5 +88,30 @@ describe('Halaman Tugas & SLA', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Pengaturan SLA' }))
     expect(await screen.findByText('3 hari kerja')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Simpan' })).not.toBeInTheDocument()
+  })
+
+  it('SLA layanan menandai permohonan yang melewati SLA, menampilkan material kurang, dan menyimpan keterangan', async () => {
+    serviceSlaApi.summary.mockResolvedValue({ data: { overdue: 1, due_soon: 0, on_track: 2, met_late: 0 } })
+    serviceSlaApi.list.mockResolvedValue({
+      data: [{ application_id: 'a-1', application_number: 'PBPD-1', customer_name: 'SITI', unit_name: 'ULP Jombang', category_label: 'Layanan: tambah tiang JTR saja', working_days: 14, status: 'OVERDUE', late_working_days: 3,
+        due_at: '2026-11-10T16:59:59Z', start_basis: 'PAID', last_note: null }],
+      meta: { current_page: 1, last_page: 1, total: 1 },
+    })
+    serviceSlaApi.forApplication.mockResolvedValue({
+      data: { materials: { known: true, complete: false, shortfall: [{ khs_code: 'JTR001', khs_name: 'Kabel TIC 3x70', remaining: 120, unit_text: 'ms' }] }, notes: [] },
+      can: { note: true },
+    })
+    serviceSlaApi.addNote.mockResolvedValue({ data: {} })
+    renderPage()
+    await screen.findByText('Survei lokasi pelanggan')
+    await userEvent.click(screen.getByRole('tab', { name: 'SLA layanan' }))
+    expect(await screen.findByText(/Melewati SLA 3 hari kerja/)).toBeInTheDocument()
+    expect(screen.getByText('Belum ada keterangan keterlambatan.')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Keterangan & material/ }))
+    expect(await screen.findByText(/JTR001/)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Tambah keterangan'), 'Kabel belum tersedia')
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan keterangan' }))
+    expect(serviceSlaApi.addNote).toHaveBeenCalledWith('a-1', 'Kabel belum tersedia')
   })
 })

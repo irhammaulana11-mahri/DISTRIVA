@@ -29,7 +29,7 @@ class TaskService
         if (in_array($app->current_status, ['COMPLETED', 'CANCELLED', 'REFUNDED'], true)) {
             throw new AssignmentRuleViolation("Permohonan berstatus {$app->current_status}; tugas baru tidak dapat dibuat.");
         }
-        $sla = DB::table('sla_configurations')->where('task_type', $type)->first() ?? throw new AssignmentRuleViolation('Jenis tugas tidak dikenal.');
+        $sla = DB::table('sla_configurations')->where('task_type', $type)->where('kind', 'TASK')->first() ?? throw new AssignmentRuleViolation('Jenis tugas tidak dikenal.');
         if (trim($title) === '') {
             throw new AssignmentRuleViolation('Judul tugas wajib diisi.');
         }
