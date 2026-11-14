@@ -9,7 +9,7 @@ export default function SurveyDetailPage() {
     <div className="w-full">
       <SurveyDetailView
         surveyId={id}
-        onBack={() => navigate('/permohonan')}
+        onBack={() => (window.history.length > 1 ? navigate(-1) : navigate('/survei'))}
       />
     </div>
   )

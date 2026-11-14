@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { surveyApi, proposalsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -10,7 +10,20 @@ import EmptyState from '../../components/EmptyState.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
 import { useDebounce } from '../../utils/useDebounce.js'
-import { IconClipboard, IconPlus, IconRefresh, IconSearch, IconEye, IconUser, IconUsers } from '../../components/icons.jsx'
+import {
+  IconClipboard,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconEye,
+  IconUser,
+  IconUsers,
+  IconCheckCircle,
+  IconClock,
+  IconArrowRight,
+  IconFileText,
+  IconZap,
+} from '../../components/icons.jsx'
 
 /**
  * Usulan Survei (docs/82 §11): daftar permintaan survei, perorangan (satu pelanggan) atau kolektif (beberapa pelanggan, satu survei) beserta hasilnya.
@@ -57,6 +70,7 @@ export default function SurveyRequestsPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
   const [pickMode, setPickMode] = useState(mulaiParam && canStart ? 'individual' : null) // 'individual' | 'collective'
+
   const closePick = () => {
     setPickMode(null)
     if (searchParams.get('mulai')) {
@@ -65,6 +79,7 @@ export default function SurveyRequestsPage() {
       setSearchParams(p, { replace: true })
     }
   }
+
   const [issuingId, setIssuingId] = useState(null)
   const canIssue = Boolean(can['proposals.manage'] || isSysAdmin)
 
@@ -72,10 +87,20 @@ export default function SurveyRequestsPage() {
     setIssuingId(r.id)
     try {
       const res = await proposalsApi.issue(r.application?.id)
-      notify({ type: 'success', title: 'Usulan Dibuat', desc: `Usulan ${res?.data?.proposal_number || ''} berhasil dibuat dari survei ${r.survey_number}.`, tag: 'Usulan' })
+      notify({
+        type: 'success',
+        title: 'Usulan Dibuat',
+        desc: `Usulan ${res?.data?.proposal_number || ''} berhasil dibuat dari survei ${r.survey_number}.`,
+        tag: 'Usulan',
+      })
       load()
     } catch (err) {
-      notify({ type: 'error', title: 'Gagal Membuat Usulan', desc: err?.message || 'Terjadi kesalahan.', tag: 'Usulan' })
+      notify({
+        type: 'error',
+        title: 'Gagal Membuat Usulan',
+        desc: err?.message || 'Terjadi kesalahan.',
+        tag: 'Usulan',
+      })
     } finally {
       setIssuingId(null)
     }
@@ -105,45 +130,147 @@ export default function SurveyRequestsPage() {
 
   const onStarted = (created) => {
     const surveyId = created?.survey_id || created?.id
-    notify({ type: 'success', title: 'Survei Dimulai', desc: `Survei ${created?.survey_number || ''} berhasil dimulai.`.replace('  ', ' '), tag: 'Survei' })
+    notify({
+      type: 'success',
+      title: 'Survei Dimulai',
+      desc: `Survei ${created?.survey_number || ''} berhasil dimulai.`.replace('  ', ' '),
+      tag: 'Survei',
+    })
     load()
     if (surveyId) navigate(`/survei/${surveyId}`)
   }
 
-  const inputCls = 'px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+  const stats = useMemo(() => {
+    const rows = state.rows || []
+    return {
+      total: state.meta?.total ?? rows.length,
+      pending: rows.filter((r) => r.outcome === 'PENDING').length,
+      extension: rows.filter((r) => r.outcome === 'EXTENSION').length,
+      noExtension: rows.filter((r) => r.outcome === 'NO_EXTENSION').length,
+    }
+  }, [state.rows, state.meta?.total])
+
+  const inputCls = 'px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-brand-500'
 
   return (
-    <div className="space-y-5" data-testid="survey-requests">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Usulan Survei</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Survei lapangan perorangan atau kolektif. Hasil survei menentukan: perlu perluasan (nomor usulan terbit, alur teknis berlanjut) atau tanpa perluasan (langsung siap pasang).
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button type="button" variant="secondary" size="sm" onClick={load} className="inline-flex items-center gap-1.5">
-            <IconRefresh size={13} />
-            <span>Segarkan</span>
-          </Button>
-          {canStart && (
-            <>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPickMode('individual')} className="inline-flex items-center gap-1.5">
-                <IconUser size={13} />
-                <span>Tambah Survei Perorangan</span>
-              </Button>
-              <Button type="button" variant="primary" size="sm" onClick={() => setPickMode('collective')} className="inline-flex items-center gap-1.5">
-                <IconPlus size={14} />
-                <span>Tambah Survei Kolektif</span>
-              </Button>
-            </>
-          )}
+    <div className="space-y-6" data-testid="survey-requests">
+      {/* Header Modul Usulan Survei */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-brand-600 p-2.5 text-white shadow-xs">
+              <IconClipboard className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Usulan Survei
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Teknik &amp; Operasional
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Survei lapangan perorangan atau kolektif. Hasil survei menentukan: perlu perluasan (nomor usulan terbit, alur teknis berlanjut) atau tanpa perluasan (langsung siap pasang).
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={load}
+              icon={IconRefresh}
+              aria-label="Segarkan"
+            >
+              Segarkan
+            </Button>
+            {canStart && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPickMode('individual')}
+                  icon={IconUser}
+                >
+                  Tambah Survei Perorangan
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setPickMode('collective')}
+                  icon={IconPlus}
+                >
+                  Tambah Survei Kolektif
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* KPI Ringkasan Metrik Usulan Survei */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Usulan Survei</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconClipboard className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Tercatat di sistem</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Menunggu Hasil</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconClock className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {stats.pending}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Dalam proses lapangan</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Perlu Perluasan</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.extension}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Lanjut ke alur teknis</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Tanpa Perluasan</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.noExtension}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Langsung siap pasang</p>
+        </div>
+      </dl>
+
       {state.error && <Alert kind="error">{state.error}</Alert>}
 
-      <div className="flex flex-col lg:flex-row lg:items-center gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+      {/* Filter & Bar Pencarian */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
         <div className="relative flex-1">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
             <IconSearch size={14} />
@@ -156,31 +283,34 @@ export default function SurveyRequestsPage() {
               setPage(1)
             }}
             placeholder="Cari nomor survei, nomor permohonan, atau nama pelanggan…"
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-brand-500"
           />
         </div>
-        <select aria-label="Jenis survei" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className={inputCls}>
-          <option value="">Semua jenis</option>
-          <option value="INDIVIDUAL">Perorangan</option>
-          <option value="COLLECTIVE">Kolektif</option>
-        </select>
-        <select aria-label="Hasil survei" value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1) }} className={inputCls}>
-          <option value="">Semua hasil</option>
-          <option value="PENDING">Menunggu hasil</option>
-          <option value="EXTENSION">Perlu perluasan</option>
-          <option value="NO_EXTENSION">Tanpa perluasan</option>
-        </select>
-        <select aria-label="Status survei" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className={inputCls}>
-          <option value="">Semua status</option>
-          <option value="ACTIVE">Berjalan</option>
-          <option value="ACCEPTED">Disetujui</option>
-          <option value="CANCELLED">Dibatalkan</option>
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <select aria-label="Jenis survei" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className={inputCls}>
+            <option value="">Semua jenis</option>
+            <option value="INDIVIDUAL">Perorangan</option>
+            <option value="COLLECTIVE">Kolektif</option>
+          </select>
+          <select aria-label="Hasil survei" value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1) }} className={inputCls}>
+            <option value="">Semua hasil</option>
+            <option value="PENDING">Menunggu hasil</option>
+            <option value="EXTENSION">Perlu perluasan</option>
+            <option value="NO_EXTENSION">Tanpa perluasan</option>
+          </select>
+          <select aria-label="Status survei" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className={inputCls}>
+            <option value="">Semua status</option>
+            <option value="ACTIVE">Berjalan</option>
+            <option value="ACCEPTED">Disetujui</option>
+            <option value="CANCELLED">Dibatalkan</option>
+          </select>
+        </div>
       </div>
 
-      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+      {/* Tabel Usulan Survei */}
+      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-xs">
         {state.loading ? (
-          <div className="py-12 text-center">
+          <div className="py-16 text-center">
             <Spinner size="md" label="Memuat usulan survei…" />
           </div>
         ) : state.rows.length === 0 ? (
@@ -214,34 +344,44 @@ export default function SurveyRequestsPage() {
                   const o = OUTCOME[r.outcome] || OUTCOME.PENDING
                   const extra = r.members_count - (r.customer_names?.length || 0)
                   return (
-                    <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition" data-testid="survey-request-row">
+                    <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors" data-testid="survey-request-row">
                       <td className="py-3 px-3.5 font-mono font-bold text-blue-700 dark:text-blue-400">
                         <Link to={`/survei/${r.id}`} className="hover:underline">{r.survey_number}</Link>
-                        <span className="block text-[10px] font-normal text-slate-400">{r.created_at?.slice(0, 10)}</span>
+                        <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{r.created_at?.slice(0, 10)}</span>
                       </td>
                       <td className="py-3 px-3.5">
-                        <span className="inline-flex items-center gap-1 font-semibold">
-                          {r.kind === 'COLLECTIVE' ? <IconUsers size={12} /> : <IconUser size={12} />}
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                          {r.kind === 'COLLECTIVE' ? <IconUsers size={12} className="text-blue-600" /> : <IconUser size={12} className="text-slate-500" />}
                           {r.kind === 'COLLECTIVE' ? `Kolektif · ${r.members_count}` : 'Perorangan'}
                         </span>
                       </td>
                       <td className="py-3 px-3.5 max-w-[16rem]">
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">{(r.customer_names || []).join(', ')}{extra > 0 ? ` +${extra}` : ''}</span>
-                        <span className="block text-[10px] text-slate-400 font-mono">{r.application?.application_number}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 block truncate">
+                          {(r.customer_names || []).join(', ')}{extra > 0 ? ` +${extra}` : ''}
+                        </span>
+                        <span className="block text-[10px] text-slate-400 font-mono mt-0.5">{r.application?.application_number}</span>
                       </td>
                       <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400">{r.unit?.name}</td>
-                      <td className="py-3 px-3.5">{progress(r)}</td>
                       <td className="py-3 px-3.5">
-                        <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${o.cls}`}>{r.status === 'CANCELLED' ? 'Dibatalkan' : o.label}</span>
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">{progress(r)}</span>
+                      </td>
+                      <td className="py-3 px-3.5">
+                        <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${o.cls}`}>
+                          {r.status === 'CANCELLED' ? 'Dibatalkan' : o.label}
+                        </span>
                       </td>
                       <td className="py-3 px-3.5 font-mono">
                         {r.proposal?.issued ? (
-                          <Link to={`/usulan/${r.proposal.id}`} className="text-blue-700 dark:text-blue-400 hover:underline">{r.proposal.proposal_number}</Link>
+                          <Link to={`/usulan/${r.proposal.id}`} className="text-blue-700 dark:text-blue-400 hover:underline font-semibold">
+                            {r.proposal.proposal_number}
+                          </Link>
                         ) : (
-                          <span className="text-slate-400">{r.outcome === 'NO_EXTENSION' ? 'tidak diperlukan' : r.outcome === 'EXTENSION' ? 'belum dibuat' : 'belum terbit'}</span>
+                          <span className="text-slate-400">
+                            {r.outcome === 'NO_EXTENSION' ? 'tidak diperlukan' : r.outcome === 'EXTENSION' ? 'belum dibuat' : 'belum terbit'}
+                          </span>
                         )}
                       </td>
-                      <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400">{r.surveyor_name}</td>
+                      <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400">{r.surveyor_name || '-'}</td>
                       <td className="py-3 px-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Button size="xs" variant="secondary" onClick={() => navigate(`/survei/${r.id}`)} className="inline-flex items-center gap-1">
@@ -280,7 +420,15 @@ export default function SurveyRequestsPage() {
         />
       </div>
 
-      {pickMode && <ProposalSelectableModal open surveyMode={pickMode} initialSearch={pickMode === 'individual' ? mulaiParam : ''} onClose={closePick} onSuccess={onStarted} />}
+      {pickMode && (
+        <ProposalSelectableModal
+          open
+          surveyMode={pickMode}
+          initialSearch={pickMode === 'individual' ? mulaiParam : ''}
+          onClose={closePick}
+          onSuccess={onStarted}
+        />
+      )}
     </div>
   )
 }

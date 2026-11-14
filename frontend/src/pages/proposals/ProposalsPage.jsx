@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { proposalsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -20,6 +20,8 @@ import {
   IconFileText,
   IconUser,
   IconBuilding,
+  IconZap,
+  IconCheckCircle,
 } from '../../components/icons.jsx'
 
 /**
@@ -83,53 +85,124 @@ export default function ProposalsPage() {
     return true
   })
 
+  // KPI Summary Stats
+  const stats = useMemo(() => {
+    const list = proposals || []
+    return {
+      total: list.length,
+      active: list.filter((p) => p.status === 'OPEN').length,
+      noExtension: list.filter((p) => p.status === 'COMPLETED_NO_EXTENSION').length,
+      totalCustomers: list.reduce((sum, p) => sum + (Number(p.members_count) || 1), 0),
+    }
+  }, [proposals])
+
   return (
     <div className="space-y-6">
-      {/* Top Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">
-              <IconUsers size={20} />
-            </span>
+      {/* Header Modul Usulan Perluasan */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconUsers className="h-6 w-6" />
+            </div>
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-                Usulan Perluasan
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Usulan Perluasan
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  3 Fasa &amp; Kolektif
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
                 Satu atau beberapa pelanggan dikaji dalam satu proses: survei, gambar, MTO, RAB, alokasi, SPK, dan KKF gabungan.
               </p>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={loadProposals}
-            className="inline-flex items-center gap-1.5"
-          >
-            <IconRefresh size={13} />
-            <span>Segarkan</span>
-          </Button>
-
-          {canManage && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              variant="primary"
+              variant="secondary"
               size="sm"
-              onClick={() => setCreateModalOpen(true)}
-              aria-label="Buat Usulan Baru (Usulan Perluasan)"
-              className="bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center gap-1.5 shadow-xs"
+              onClick={loadProposals}
+              icon={IconRefresh}
+              aria-label="Segarkan"
             >
-              <IconPlus size={14} />
-              <span>Buat Usulan Perluasan</span>
+              Segarkan
             </Button>
-          )}
+
+            {canManage && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setCreateModalOpen(true)}
+                aria-label="Buat Usulan Baru (Usulan Perluasan)"
+                className="bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center gap-1.5 shadow-xs"
+              >
+                <IconPlus size={14} />
+                <span>Buat Usulan Perluasan</span>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik Usulan Perluasan */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Usulan</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconUsers className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Berkas usulan terbit</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Usulan Aktif (OPEN)</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.active}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Dalam siklus konstruksi/KKF</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Tanpa Perluasan</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.noExtension}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Selesai tanpa perluasan</p>
+        </div>
+
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-indigo-700 dark:text-indigo-400">Pelanggan Terkait</dt>
+            <div className="rounded-lg p-1.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+              <IconBuilding className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+            {stats.totalCustomers}
+          </dd>
+          <p className="mt-1 text-xs text-indigo-600/70 dark:text-indigo-500/70">Total pemohon dalam usulan</p>
+        </div>
+      </dl>
 
       {error && (
         <Alert variant="danger">
@@ -137,7 +210,7 @@ export default function ProposalsPage() {
         </Alert>
       )}
 
-      {/* Filters Bar */}
+      {/* Filter & Bar Pencarian */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
         <div className="relative flex-1">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -148,19 +221,19 @@ export default function ProposalsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nomor usulan, judul, permohonan utama, atau ULP..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-brand-500"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <label htmlFor="filter-status-usulan" className="text-xs text-slate-500 shrink-0">
+          <label htmlFor="filter-status-usulan" className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
             Status:
           </label>
           <select
             id="filter-status-usulan"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
+            className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold focus:outline-hidden focus:border-brand-500"
           >
             <option value="">Semua Status</option>
             <option value="OPEN">Aktif (OPEN)</option>
@@ -170,13 +243,13 @@ export default function ProposalsPage() {
         </div>
       </div>
 
-      {/* Proposals List Table (Note: NO customer table here before "Buat Usulan" is clicked) */}
-      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
+      {/* Tabel Usulan Pelanggan */}
+      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-xs">
         {loading ? (
-          <div className="py-12 text-center text-slate-400">
+          <div className="py-16 text-center text-slate-400">
             <div className="flex flex-col items-center justify-center gap-2">
               <Spinner size="md" />
-              <span>Memuat daftar usulan pelanggan...</span>
+              <span className="text-xs">Memuat daftar usulan pelanggan...</span>
             </div>
           </div>
         ) : filteredProposals.length === 0 ? (
@@ -186,7 +259,7 @@ export default function ProposalsPage() {
             description={
               search || statusFilter
                 ? 'Tidak ada usulan yang sesuai dengan filter pencarian atau status yang dipilih.'
-                : 'Belum ada usulan banyak pelanggan yang dibuat. Klik tombol "Buat Usulan Baru" di atas untuk memilih pelanggan 3 fasa dan membentuk usulan kelompok.'
+                : 'Belum ada usulan banyak pelanggan yang dibuat. Klik tombol "Buat Usulan Perluasan" di atas untuk memilih pelanggan 3 fasa dan membentuk usulan kelompok.'
             }
           />
         ) : (
@@ -208,7 +281,7 @@ export default function ProposalsPage() {
                 {filteredProposals
                   .slice((page - 1) * perPage, page * perPage)
                   .map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                  <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-3.5 font-mono font-bold text-blue-700 dark:text-blue-400">
                       <Link to={`/usulan/${p.id}`} className="hover:underline">
                         {p.proposal_number}
@@ -224,7 +297,9 @@ export default function ProposalsPage() {
                       {p.representative_number || '-'}
                     </td>
                     <td className="py-3 px-3.5 text-center font-bold text-blue-600 dark:text-blue-400 font-mono">
-                      {p.members_count}
+                      <span className="inline-flex items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950 px-2 py-0.5 text-xs">
+                        {p.members_count}
+                      </span>
                     </td>
                     <td className="py-3 px-3.5 text-center">
                       <StatusBadge status={p.status} />
@@ -280,7 +355,7 @@ export default function ProposalsPage() {
         />
       </div>
 
-      {/* Create Proposal Modal (Opens only on user intent) */}
+      {/* Modal Pemilihan Pelanggan Usulan (Hanya terbuka saat diminta) */}
       {createModalOpen && (
         <ProposalSelectableModal
           open={true}
