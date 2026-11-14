@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Bom\BomCalculator;
 use App\Services\Forecast\ForecastService;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\PlanningPermissionSeeder;
@@ -308,5 +309,68 @@ SH);
         $this->assertSame(6, json_decode($run->data_window, true)['coverage']['CUSTOMERS_ADDED']['months']);
         $this->assertSame(0, DB::table('forecast_series_results')->where('run_id', $thin)->count());
         $this->as($this->planner)->postJson('/api/forecast/runs', ['kind' => 'DEMAND'])->assertStatus(202);                  // an insufficient run frees the next one
+    }
+
+    #[Test]
+    public function the_derived_need_replaces_transformers_above_80_percent_by_the_next_step_and_counts_only_pln_material_for_the_new_customers(): void
+    {
+        $this->app->instance(BomCalculator::class, new class extends BomCalculator
+        {
+            public function calculate(string $headerId, array $inputs, array $params = []): array
+            {
+                $row = fn (string $code, float $qty) => ['sequence' => 1, 'khs_code' => $code, 'aggregate' => false, 'description' => null, 'material' => $qty, 'install' => 0.0, 'remove' => 0.0, 'return' => 0.0];
+                if (isset($params['PBPD:PSG_1'])) {
+                    return [$row('SRM', (float) $params['PBPD:PSG_1']), $row('SRX', 3.0 * (float) $params['PBPD:PSG_1'])];
+                }
+
+                return [$row('T160', array_sum(array_column($inputs, 'psg')))];
+            }
+        });
+        $user = $this->planner;
+        $khs = [];
+        foreach (['T160' => 'Trafo Distribusi 20 KV 3 Phasa 160 KVA', 'T315' => 'Trafo Distribusi 20 KV 3 Phasa 315 KVA', 'SRM' => 'kWh Meter 1 Phs', 'SRX' => 'Paku Beton'] as $code => $name) {
+            $khs[$code] = (string) Str::uuid();
+            DB::table('khs_items')->insert(['id' => $khs[$code], 'code' => $code, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('khs_item_versions')->insert(['id' => (string) Str::uuid(), 'khs_item_id' => $khs[$code], 'version_number' => 1, 'name' => $name, 'unit_text' => 'BH', 'valid_from' => '2025-01-01', 'status' => 'APPROVED',
+                'created_by' => $user->getKey(), 'approved_by' => $this->asman->getKey(), 'approved_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $book = (string) Str::uuid();
+        DB::table('price_books')->insert(['id' => $book, 'name' => 'Kontrak uji', 'valid_from' => '2025-01-01', 'status' => 'DRAFT', 'created_by' => $user->getKey(), 'created_at' => now(), 'updated_at' => now()]);
+        foreach (['T160' => 'PLN', 'T315' => 'PLN', 'SRM' => 'PLN', 'SRX' => 'PRICED'] as $code => $status) {
+            DB::table('price_book_items')->insert(['id' => (string) Str::uuid(), 'price_book_id' => $book, 'khs_item_id' => $khs[$code], 'material_status' => $status, 'material_price' => $status === 'PRICED' ? 100 : null, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        DB::table('price_books')->where('id', $book)->update(['status' => 'APPROVED', 'approved_by' => $this->asman->getKey(), 'approved_at' => now()]);
+        $type = (string) Str::uuid();
+        DB::table('construction_types')->insert(['id' => $type, 'group_code' => 'GTT_UMUM', 'code' => 'GTT_UMUM-07', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('construction_type_versions')->insert(['id' => (string) Str::uuid(), 'construction_type_id' => $type, 'version_number' => 1, 'name' => 'Trf. 160 kVA', 'valid_from' => '2025-01-01', 'status' => 'APPROVED',
+            'created_by' => $user->getKey(), 'approved_by' => $this->asman->getKey(), 'approved_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        foreach (['GTT_UMUM', 'SR1PH'] as $group) {
+            DB::table('bom_headers')->insert(['id' => (string) Str::uuid(), 'group_code' => $group, 'version_number' => 1, 'name' => $group, 'valid_from' => '2025-01-01', 'status' => 'APPROVED', 'parameters' => '[]',
+                'created_by' => $user->getKey(), 'approved_by' => $this->asman->getKey(), 'approved_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        $payload = $this->payload();
+        $payload['results'][1]['capacity_kva'] = 250.0;
+        $payload['results'][1]['last_ratio'] = 0.9;
+        $payload['results'][2]['last_ratio'] = 0.95;                                         // A3 is stale: never counted
+        $run = $this->as($user)->postJson('/api/forecast/runs')->assertStatus(202)->json('data.id');
+        app(ForecastService::class)->store($run, $payload);
+        $demand = $this->as($user)->postJson('/api/forecast/runs', ['kind' => 'DEMAND'])->assertStatus(202)->json('data.id');
+        $d = $this->demandPayload();
+        $d['results'][2]['item_label'] = 'Tiang Beton 9m - 200 daN';
+        app(ForecastService::class)->storeDemand($demand, $d);
+
+        $a = $this->as($this->teknikA)->getJson('/api/forecast/derived')->assertOk()->assertJsonPath('data.gardu.trigger_count', 2)->assertJsonPath('data.customers.status', 'SUCCEEDED');
+        $this->assertEquals(480.0, $a->json('data.customers.new_customers.p50'));
+        $byCode = collect($a->json('data.materials'))->keyBy('code');
+        $this->assertSame(['SRM', 'T160', 'T315'], $byCode->keys()->sort()->values()->all());     // the contractor's material (SRX) is left out
+        $this->assertEquals(1.0, $byCode['T160']['gardu']);                                       // 100 kVA -> 160 kVA
+        $this->assertEquals(1.0, $byCode['T315']['gardu']);                                       // 250 kVA -> 315 kVA (no construction row: the transformer alone)
+        $this->assertEquals([384.0, 480.0, 624.0], [$byCode['SRM']['total']['p10'], $byCode['SRM']['total']['p50'], $byCode['SRM']['total']['p90']]);
+        $this->assertSame([], $a->json('data.poles'));
+
+        $b = $this->as($this->teknikB)->getJson('/api/forecast/derived')->assertOk()->assertJsonPath('data.gardu.trigger_count', 0);
+        $this->assertSame(['Tiang Beton 9m - 200 daN'], array_column($b->json('data.poles'), 'item_label'));
+        $this->as($this->vendor)->getJson('/api/forecast/derived')->assertForbidden();
     }
 }

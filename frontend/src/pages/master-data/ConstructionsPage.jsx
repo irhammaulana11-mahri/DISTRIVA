@@ -10,6 +10,7 @@ import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import Drawer from '../../components/Drawer.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
+import Modal from '../../components/Modal.jsx'
 import { useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import { downloadCsv, CONSTRUCTION_TYPES_TEMPLATE, CONSTRUCTION_BOM_TEMPLATE } from '../../utils/csvTemplates.js'
@@ -23,6 +24,9 @@ import {
   IconUpload,
   IconDownload,
   IconClock,
+  IconPencil,
+  IconAlertCircle,
+  IconZap,
 } from '../../components/icons.jsx'
 
 const CONSTRUCTION_GROUPS = [
@@ -55,6 +59,7 @@ export default function ConstructionsPage() {
   // Drawer / modal
   const [detailTarget, setDetailTarget] = useState(null)
   const [approveTarget, setApproveTarget] = useState(null)
+  const [editDraftTarget, setEditDraftTarget] = useState(null)
 
   // Bulk approval: ids of draft versions ticked by the user (server accepts up to 500 per request).
   const BULK_MAX = 500
@@ -166,33 +171,126 @@ export default function ConstructionsPage() {
     loadConstructions()
   }
 
+  const stats = useMemo(() => {
+    const total = state.meta?.total ?? state.rows.length
+    const activeCount = state.rows.filter((r) => r.current).length
+    const draftCount = state.rows.filter((r) => r.draft?.id).length
+    const groupsCount = CONSTRUCTION_GROUPS.filter((g) => g.code !== '').length
+    return {
+      total,
+      activeCount,
+      draftCount,
+      groupsCount,
+    }
+  }, [state.rows, state.meta])
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            DISTRIVA / MASTER DATA
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
-            Standar Konstruksi Distribusi & BOM
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Standar tipe konstruksi tiang, trafo, SUTM/SUTR, dan matriks pemetaan koefisien kebutuhan material KHS rujukan.
-          </p>
-        </div>
+      {/* Header Modul Standar Konstruksi */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconLayers className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Master Data</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Standar Konstruksi &amp; BOM</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Standar Konstruksi Distribusi &amp; BOM
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Standar Enjiniring PLN
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Standar tipe konstruksi tiang, trafo, SUTM/SUTR, dan matriks pemetaan koefisien kebutuhan material KHS rujukan.
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => navigate('/master-data/constructions/impor')}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-          >
-            <IconUpload size={16} />
-            <span>Impor Standar (CSV)</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={loadConstructions}
+              aria-label="Segarkan"
+            >
+              Segarkan
+            </Button>
+            <button
+              type="button"
+              onClick={() => navigate('/master-data/constructions/impor')}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
+            >
+              <IconUpload size={14} />
+              <span>Impor Standar (CSV)</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik Standar Konstruksi */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Konstruksi</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconLayers className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Tipe konstruksi terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Versi Aktif</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.activeCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Status APPROVED mengikat</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Draf Tertunda</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconClock className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {stats.draftCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Perlu ditinjau / disetujui</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Kelompok Jaringan</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.groupsCount}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">SUTM, SUTR, GTT, dsb</p>
+        </div>
+      </dl>
 
       {/* Group Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -384,6 +482,18 @@ export default function ConstructionsPage() {
                           {t.draft && (
                             <button
                               type="button"
+                              onClick={() => setEditDraftTarget(t)}
+                              aria-label="Ubah Draf Standar"
+                              title="Ubah Rincian Draf Standar Konstruksi"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                            >
+                              <IconPencil size={17} />
+                            </button>
+                          )}
+
+                          {t.draft && (
+                            <button
+                              type="button"
                               onClick={() => setApproveTarget(t)}
                               aria-label="Setujui Versi"
                               title="Setujui Versi Aktif"
@@ -429,6 +539,16 @@ export default function ConstructionsPage() {
         />
       )}
 
+      {/* Edit Draft Modal */}
+      {editDraftTarget && (
+        <ConstructionEditDraftModal
+          open={Boolean(editDraftTarget)}
+          target={editDraftTarget}
+          onClose={() => setEditDraftTarget(null)}
+          onSaved={loadConstructions}
+        />
+      )}
+
       {/* Approval Modal */}
       {approveTarget && (
         <ConfirmationModal
@@ -459,6 +579,153 @@ export default function ConstructionsPage() {
         />
       )}
     </div>
+  )
+}
+
+function ConstructionEditDraftModal({ open, target, onClose, onSaved }) {
+  const { notify } = useNotifications()
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [referenceSymbol, setReferenceSymbol] = useState('')
+  const [validFrom, setValidFrom] = useState('')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (target?.draft) {
+      setName(target.draft.name || target.name || '')
+      setDescription(target.draft.description || '')
+      setReferenceSymbol(target.draft.reference_symbol || '')
+      setValidFrom(target.draft.valid_from ? target.draft.valid_from.slice(0, 10) : new Date().toISOString().slice(0, 10))
+      setReason('')
+      setError('')
+    }
+  }, [target, open])
+
+  if (!open || !target?.draft) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!reason.trim()) {
+      setError('Alasan perubahan draf standar konstruksi wajib diisi.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await masterDataApi.updateConstructionDraft(target.draft.id, {
+        name: name.trim() || undefined,
+        description: description.trim() || null,
+        reference_symbol: referenceSymbol.trim() || null,
+        valid_from: validFrom || undefined,
+        reason: reason.trim(),
+      })
+      notify({
+        type: 'success',
+        title: 'Draf Standar Konstruksi Diperbarui',
+        desc: `Perubahan draf standar ${target.code} berhasil disimpan.`,
+        tag: 'Konstruksi',
+      })
+      onSaved?.()
+      onClose?.()
+    } catch (err) {
+      setError(err?.message || 'Gagal menyimpan perubahan draf standar konstruksi.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Ubah Draf Standar Konstruksi: ${target.code}`}
+      subtitle={`Versi Draf v${target.draft.version_number ?? 1} · Kelompok ${target.group}`}
+      width="max-w-lg"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <Alert kind="error">{error}</Alert>}
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Nama Tipe Konstruksi
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Nama tipe standar konstruksi"
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Simbol / Rujukan
+            </label>
+            <input
+              type="text"
+              value={referenceSymbol}
+              onChange={(e) => setReferenceSymbol(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Misal: TM-1, TR-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Tanggal Berlaku
+            </label>
+            <input
+              type="date"
+              value={validFrom}
+              onChange={(e) => setValidFrom(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Deskripsi / Catatan Enjiniring
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Uraian spesifikasi teknis dan peruntukan konstruksi..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Alasan Perubahan <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Misal: Penyesuaian nama tipe sesuai Kepdir Enjiniring 2026"
+            required
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+            Batal
+          </Button>
+          <Button type="submit" variant="primary" disabled={saving}>
+            {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

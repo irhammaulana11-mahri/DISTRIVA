@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { bomApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -20,6 +20,11 @@ import {
   IconExclamation,
   IconTrash,
   IconFileText,
+  IconPencil,
+  IconAlertCircle,
+  IconCheckCircle,
+  IconRefresh,
+  IconZap,
 } from '../../components/icons.jsx'
 
 export const BOM_GROUPS = [
@@ -68,6 +73,9 @@ export default function BomPage() {
   const [retireReason, setRetireReason] = useState('')
   const [retiring, setRetiring] = useState(false)
   const [retireError, setRetireError] = useState('')
+
+  // Edit Draft Modal
+  const [editDraftTarget, setEditDraftTarget] = useState(null)
 
   const canManage = Boolean(can['bom.manage'])
   const canApprove = Boolean(can['bom.approve'])
@@ -197,35 +205,128 @@ export default function BomPage() {
     }
   }
 
+  const stats = useMemo(() => {
+    const total = boms.length
+    const approvedCount = boms.filter((b) => b.status === 'APPROVED').length
+    const draftCount = draftBoms.length
+    const groupsCount = BOM_GROUPS.length
+    return {
+      total,
+      approvedCount,
+      draftCount,
+      groupsCount,
+    }
+  }, [boms, draftBoms])
+
   return (
     <div className="w-full space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            DISTRIVA / MASTER DATA
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
-            Bill of Materials (BOM) Distribusi
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Rumus kebutuhan material dan jasa KHS per kelompok jaringan distribusi dan pekerjaan Pasang Baru / Perubahan Daya (PB/PD).
-          </p>
-        </div>
+      {/* Header Modul BOM Distribusi */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-indigo-600 p-2.5 text-white shadow-xs">
+              <IconLayers className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Master Data</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">BOM Distribusi</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Bill of Materials (BOM) Distribusi
+                </h1>
+                <span className="rounded-full bg-indigo-100 dark:bg-indigo-950 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                  Formula MTO / KHS
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Rumus kebutuhan material dan jasa KHS per kelompok jaringan distribusi dan pekerjaan Pasang Baru / Perubahan Daya (PB/PD).
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => navigate('/master-data/bom/impor')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={loadBoms}
+              aria-label="Segarkan"
             >
-              <IconUpload size={16} />
-              <span>Impor BOM (JSON)</span>
-            </button>
-          )}
+              Segarkan
+            </Button>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => navigate('/master-data/bom/impor')}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
+              >
+                <IconUpload size={14} />
+                <span>Impor BOM (JSON)</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik BOM */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Versi BOM</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconLayers className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Versi formula terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">BOM Disetujui</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.approvedCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Formula aktif mengikat RAB</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Draf Menunggu</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconClock className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {stats.draftCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Perlu persetujuan UP3</p>
+        </div>
+
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-indigo-700 dark:text-indigo-400">Kelompok Jaringan</dt>
+            <div className="rounded-lg p-1.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+            {stats.groupsCount}
+          </dd>
+          <p className="mt-1 text-xs text-indigo-600/70 dark:text-indigo-500/70">Klasifikasi MTO terdaftar</p>
+        </div>
+      </dl>
 
       {error && <Alert kind="error">{error}</Alert>}
 
@@ -547,6 +648,18 @@ export default function BomPage() {
                             <span>Kalkulator</span>
                           </Link>
 
+                          {bom.status === 'DRAFT' && canManage && (
+                            <button
+                              type="button"
+                              onClick={() => setEditDraftTarget(bom)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition cursor-pointer"
+                              title="Ubah Rincian Draf BOM"
+                            >
+                              <IconPencil size={13} />
+                              <span>Ubah</span>
+                            </button>
+                          )}
+
                           {bom.status === 'DRAFT' && canApprove && (
                             <button
                               type="button"
@@ -703,6 +816,145 @@ export default function BomPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Edit Draft Modal */}
+      {editDraftTarget && (
+        <BomEditDraftModal
+          open={Boolean(editDraftTarget)}
+          target={editDraftTarget}
+          onClose={() => setEditDraftTarget(null)}
+          onSaved={loadBoms}
+        />
+      )}
     </div>
+  )
+}
+
+function BomEditDraftModal({ open, target, onClose, onSaved }) {
+  const { notify } = useNotifications()
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [validFrom, setValidFrom] = useState('')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (target) {
+      setName(target.name || '')
+      setDescription(target.description || '')
+      setValidFrom(target.valid_from ? target.valid_from.slice(0, 10) : new Date().toISOString().slice(0, 10))
+      setReason('')
+      setError('')
+    }
+  }, [target, open])
+
+  if (!open || !target) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!reason.trim()) {
+      setError('Alasan perubahan draf BOM wajib diisi.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await bomApi.updateDraft(target.id, {
+        name: name.trim() || undefined,
+        description: description.trim() || null,
+        valid_from: validFrom || undefined,
+        reason: reason.trim(),
+      })
+      notify({
+        type: 'success',
+        title: 'Draf BOM Diperbarui',
+        desc: `Perubahan draf BOM ${target.group} v${target.version_number} berhasil disimpan.`,
+        tag: 'BOM',
+      })
+      onSaved?.()
+      onClose?.()
+    } catch (err) {
+      setError(err?.message || 'Gagal menyimpan perubahan draf BOM.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Ubah Draf BOM: ${target.group} v${target.version_number}`}
+      subtitle={target.name || 'Formula kebutuhan material & jasa KHS'}
+      width="max-w-lg"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <Alert kind="error">{error}</Alert>}
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Nama / Judul BOM
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Judul formula BOM"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Tanggal Berlaku
+          </label>
+          <input
+            type="date"
+            value={validFrom}
+            onChange={(e) => setValidFrom(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Deskripsi / Catatan Perubahan
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Uraian perubahan formula dan parameter rujukan..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Alasan Perubahan <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Misal: Penyesuaian koefisien tarikan konduktor 2026"
+            required
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+            Batal
+          </Button>
+          <Button type="submit" variant="primary" disabled={saving}>
+            {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }

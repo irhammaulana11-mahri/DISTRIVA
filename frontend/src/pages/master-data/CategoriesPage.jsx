@@ -27,6 +27,8 @@ import {
   IconRefresh,
   IconFolder,
   IconTag,
+  IconCheckCircle,
+  IconLayers,
 } from '../../components/icons.jsx'
 
 function readFileText(file) {
@@ -311,46 +313,130 @@ export default function CategoriesPage() {
   const pagedParents = filteredParents.slice((catPage - 1) * catPerPage, catPage * catPerPage)
   const pagedUnits = units.slice((unitPage - 1) * unitPerPage, unitPage * unitPerPage)
 
+  const totalMaterialsCount = useMemo(() => {
+    return categories.reduce((sum, c) => sum + (Number(c.materials_count) || 0), 0)
+  }, [categories])
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            DISTRIVA / MASTER DATA
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
-            Kategori & Satuan Pengukuran
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Referensi struktur kategori material dua tingkat (kategori & subkategori) standar PLN ERP dan satuan pengukuran logistik (UoM).
-          </p>
-        </div>
+      {/* Header Modul Kategori & Satuan */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconFolder className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Master Data</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Kategori &amp; Satuan Pengukuran</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Kategori &amp; Satuan Pengukuran
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Struktur Logistik &amp; Satuan
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Referensi struktur kategori material dua tingkat (kategori &amp; subkategori) standar PLN ERP dan satuan pengukuran logistik (UoM).
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          {tab === 'categories' ? (
-            canManage && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={loadData}
+              aria-label="Segarkan"
+            >
+              Segarkan
+            </Button>
+            {tab === 'categories' ? (
+              canManage && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/master-data/categories/baru')}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
+                >
+                  <IconPlus size={14} />
+                  <span>Tambah Kategori</span>
+                </button>
+              )
+            ) : (
               <button
                 type="button"
-                onClick={() => navigate('/master-data/categories/baru')}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+                onClick={() => navigate('/master-data/categories/satuan/baru')}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
-                <IconPlus size={16} />
-                <span>Tambah Kategori</span>
+                <IconPlus size={14} />
+                <span>Tambah Satuan</span>
               </button>
-            )
-          ) : (
-            <button
-              type="button"
-              onClick={() => navigate('/master-data/categories/satuan/baru')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-            >
-              <IconPlus size={16} />
-              <span>Tambah Satuan</span>
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik Kategori & Satuan */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Kategori Utama (L1)</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconFolder className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {activeCategoriesCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Kelompok induk material PLN</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Subkategori (L2)</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {activeSubcategoriesCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Sub-kelompok spesifikasi aktif</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Satuan Pengukuran</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconTag className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {units.length.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Unit of measure (UoM) aktif</p>
+        </div>
+
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-indigo-700 dark:text-indigo-400">Material Terkategori</dt>
+            <div className="rounded-lg p-1.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+              <IconLayers className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+            {totalMaterialsCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-indigo-600/70 dark:text-indigo-500/70">Total SKU dinaungi</p>
+        </div>
+      </dl>
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-6 text-sm font-semibold">

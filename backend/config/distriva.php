@@ -134,6 +134,12 @@ return [
         'detach' => true,                                                  // false only in tests: the run is then executed by the caller
     ],
 
+    /** Derived material need from the forecast (owner Nov 2026): a PLN transformer already above `gardu_threshold` of its capacity is replaced by the next step of `kva_steps`. */
+    'derived_demand' => [
+        'gardu_threshold' => 0.8,
+        'kva_steps' => [25, 50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000],
+    ],
+
     /** PDF of output documents and reports: headless Chrome/Chromium prints an HTML page built by `PdfRenderer`. Empty binary = look for google-chrome / chromium on the PATH. */
     'pdf' => [
         'binary' => env('DISTRIVA_PDF_BINARY'),

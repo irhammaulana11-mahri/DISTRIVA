@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Models\User;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Authorization\CatalogAuthorizer;
+use App\Services\Forecast\DerivedDemandService;
 use App\Services\Forecast\ForecastService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class ForecastController extends Controller
     /** Risk class from the forecast load / capacity (docs/11 §7: the planner decides). KRITIS = already over, or the median passes 100 % within a year; TINGGI = within 3 years; WASPADA = within 5 years or the upper range passes it within 3. */
     private const RISK_SQL = "case when r.last_ratio >= 1 or r.h1_p50 >= 1 then 'KRITIS' when r.h3_p50 >= 1 then 'TINGGI' when r.h5_p50 >= 1 or r.h3_p90 >= 1 then 'WASPADA' else 'AMAN' end";
 
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly CatalogAuthorizer $catalog, private readonly ForecastService $forecast) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly CatalogAuthorizer $catalog, private readonly ForecastService $forecast, private readonly DerivedDemandService $derived) {}
 
     public function runs(Request $request): JsonResponse
     {
@@ -97,6 +98,12 @@ class ForecastController extends Controller
             'history_months' => (int) $r->history_months, 'last_12_months' => (float) $r->last_12_months, 'months' => json_decode($r->months, true),
             'totals' => collect([3, 6, 12])->mapWithKeys(fn ($n) => [(string) $n => ['p10' => (float) $r->{"t{$n}_p10"}, 'p50' => (float) $r->{"t{$n}_p50"}, 'p90' => (float) $r->{"t{$n}_p90"}]])->all()])->all(),
             'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()]]);
+    }
+
+    /** Material PLN supplies, derived from the substation and customer forecasts and the approved BOM (read within the unit scope). */
+    public function derived(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->derived->compute($this->scope($request->user()))]);
     }
 
     public function start(Request $request): JsonResponse

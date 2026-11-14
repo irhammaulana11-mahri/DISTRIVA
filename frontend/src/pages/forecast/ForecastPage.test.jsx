@@ -9,7 +9,7 @@ import ForecastPage, { exceedText, pct } from './ForecastPage.jsx'
 import { forecastApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
-  forecastApi: { runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
+  forecastApi: { derived: vi.fn(), runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
   notificationsApi: { list: vi.fn().mockResolvedValue({ data: [] }), markRead: vi.fn(), markAllRead: vi.fn() },
 }))
 
@@ -142,5 +142,23 @@ describe('Forecast permintaan (pelanggan, VA, material)', () => {
     expect(screen.getByText(/lookback/)).toBeInTheDocument()
     expect(forecastApi.series).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Jalankan forecast' })).not.toBeInTheDocument()
+  })
+  it('tab Kebutuhan material PLN menampilkan trafo pengganti, material pelanggan baru, dan tiang', async () => {
+    forecastApi.derived.mockResolvedValue({ data: {
+      threshold: 0.8,
+      gardu: { run_id: 'g-1', trigger_count: 12, without_capacity_step: 0, steps: [], without_bom: [{ kva: 315, count: 2 }] },
+      customers: { run_id: 'd-1', status: 'SUCCEEDED', new_customers: { p10: 384, p50: 480, p90: 624 }, basis: 'SR 1 fasa' },
+      materials: [{ code: 'JTMR625', name: 'Trafo Distribusi 20 KV 3 Phasa 160 KVA', unit: 'S', gardu: 10, customers: { p10: 0, p50: 0, p90: 0 }, total: { p10: 10, p50: 10, p90: 10 } },
+        { code: 'JTMR949', name: 'kWh Meter Electronic 1 Phs', unit: 'BH', gardu: 0, customers: { p10: 384, p50: 480, p90: 624 }, total: { p10: 384, p50: 480, p90: 624 } }],
+      poles: [{ unit_code: '1', unit_name: 'ULP Jombang', item_code: 'JTMR934', item_label: 'Tiang Beton 9m - 200 daN', last_12_months: 40, next_12_months: { p10: 30, p50: 45, p90: 60 } }],
+      assumptions: ['Hanya material berstatus PLN pada buku harga yang berlaku hari ini.'],
+    } })
+    renderPage()
+    await userEvent.click(screen.getByRole('tab', { name: 'Kebutuhan material PLN' }))
+    expect(await screen.findByText('Trafo Distribusi 20 KV 3 Phasa 160 KVA')).toBeInTheDocument()
+    expect(screen.getAllByText('480 (384-624)', { selector: 'td' })).toHaveLength(2)
+    expect(screen.getByText('Tiang Beton 9m - 200 daN')).toBeInTheDocument()
+    expect(screen.getByText(/315 kVA \(2 gardu\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Hanya material berstatus PLN/)).toBeInTheDocument()
   })
 })

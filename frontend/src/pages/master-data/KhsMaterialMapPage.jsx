@@ -339,35 +339,59 @@ export default function KhsMaterialMapPage() {
 
   return (
     <div className="space-y-5">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Master Data</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Pemetaan Material (SKU↔KHS)</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Meja Kerja Pemetaan Material ERP ke KHS
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Menghubungkan nomor material logistik ERP (SKU) dengan kode item standar KHS yang dipakai pada BOM dan MTO.
-          </p>
-        </div>
+      {/* Header Modul Pemetaan Material ERP ke KHS */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconClipboard className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Master Data</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Pemetaan Material (SKU↔KHS)</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Meja Kerja Pemetaan Material ERP ke KHS
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Sinkronisasi SKU ↔ KHS
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Menghubungkan nomor material logistik ERP (SKU) dengan kode item standar KHS yang dipakai pada BOM dan MTO.
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => navigate('/master-data/mapping/impor')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={() => {
+                loadCoverage()
+                loadWorkbench()
+              }}
+              aria-label="Segarkan"
             >
-              <IconUpload size={16} />
-              <span>Impor CSV Pemetaan</span>
-            </button>
-          )}
+              Segarkan
+            </Button>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => navigate('/master-data/mapping/impor')}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
+              >
+                <IconUpload size={14} />
+                <span>Impor CSV Pemetaan</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

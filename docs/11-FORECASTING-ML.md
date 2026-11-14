@@ -121,3 +121,12 @@ Histori yang tersedia saat ini adalah histori permohonan/aplikasi, bukan histori
 - **Alur:** tombol "Jalankan forecast" di tab Pelanggan & daya / Material (jenis run `DEMAND`; satu run per jenis pada satu waktu); tabel `forecast_series_results` (12 bulan p10/p50/p90 + jumlah 3/6/12 bulan; rentang jumlah = jumlah rentang bulanan, sengaja lebar). Halaman `/forecast` kini bertab: Beban gardu · Pelanggan & daya (VA) · Material.
 - **Belum dibangun (butuh keputusan pemilik):** material **turunan** (pelanggan baru → SR/APP per pelanggan; VA/gardu berisiko → trafo/JTR) lewat BOM: perlu pemetaan jenis konstruksi per pekerjaan, ambang pemicu pekerjaan dari gardu, dan kapasitas trafo pengganti.
 
+
+## Addendum: kebutuhan material turunan (keputusan pemilik, 15 Nov 2026)
+
+Prakiraan diturunkan menjadi kebutuhan material **yang disediakan PLN** (status PLN pada buku harga yang berlaku hari ini) lewat BOM yang berlaku, tanpa model baru (`DerivedDemandService`, `GET /api/forecast/derived`, tab "Kebutuhan material PLN").
+
+- **Gardu:** trafo milik PLN, aktif, pembacaan terakhir tidak lebih tua dari 3 tahun, beban terakhir **di atas 80%** kapasitas. Diganti trafo **satu tingkat kapasitas di atasnya** (tangga di `distriva.derived_demand.kva_steps`). Material dari baris konstruksi "Trf. x kVA" pada BOM GTT_UMUM; kapasitas tanpa baris konstruksi (50 dan 315 kVA) hanya dihitung trafonya, dan hanya bila ada di KHS dan berstatus PLN.
+- **Pelanggan baru:** total prakiraan 12 bulan (p10/p50/p90) dikali BOM SR 1 fasa rentang 450-5500 VA, dihitung pada total karena BOM membulatkan agregat. Baru tersedia setelah prakiraan pelanggan berhasil (butuh riwayat ≥ 24 bulan).
+- **Tiang:** daftar dari prakiraan pemakaian tiang di MIMS (deret materialnya sendiri). Tidak diturunkan dari pelanggan karena belum ada rasio pelanggan terhadap tiang.
+- Rekomendasi, bukan keputusan pengadaan.

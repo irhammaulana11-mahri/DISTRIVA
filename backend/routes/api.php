@@ -169,6 +169,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     // Forecast of the substation load (docs/11)
     Route::middleware('throttle:admin')->group(function () {
         Route::get('/forecast/runs', [ForecastController::class, 'runs']);
+        Route::get('/forecast/derived', [ForecastController::class, 'derived']);
         Route::post('/forecast/runs', [ForecastController::class, 'start']);
         Route::get('/forecast/runs/{run}', [ForecastController::class, 'show'])->whereUuid('run');
         Route::get('/forecast/runs/{run}/substations', [ForecastController::class, 'substations'])->whereUuid('run');

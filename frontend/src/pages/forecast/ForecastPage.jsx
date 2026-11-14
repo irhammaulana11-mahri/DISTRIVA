@@ -88,6 +88,7 @@ const TABS = [
   { key: 'gardu', label: 'Beban gardu' },
   { key: 'customers', label: 'Pelanggan & daya (VA)' },
   { key: 'material', label: 'Material' },
+  { key: 'derived', label: 'Kebutuhan material PLN' },
 ]
 
 export default function ForecastPage() {
@@ -106,7 +107,7 @@ export default function ForecastPage() {
           </button>
         ))}
       </div>
-      {tab === 'gardu' ? <GarduForecast /> : <DemandForecast key={tab} kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']} />}
+      {tab === 'gardu' ? <GarduForecast /> : tab === 'derived' ? <DerivedNeed /> : <DemandForecast key={tab} kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']} />}
     </div>
   )
 }
@@ -459,5 +460,62 @@ function SubstationRow({ row }) {
       </dl>
       <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">Melewati 80%: {exceedText(row.exceed_80)} · melewati 100%: {exceedText(row.exceed_100)} · dasar prakiraan {row.history_readings} pembacaan</p>
     </article>
+  )
+}
+
+const range = (r) => (r ? `${num(r.p50)} (${num(r.p10)}-${num(r.p90)})` : '-')
+
+/** Kebutuhan material yang disediakan PLN, diturunkan dari forecast beban gardu dan pelanggan baru lewat BOM yang berlaku (keputusan pemilik Nov 2026). */
+function DerivedNeed() {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let live = true
+    forecastApi.derived().then((r) => { if (live) setData(r?.data || null) }).catch((e) => { if (live) setError(e.message || 'Gagal memuat.') })
+    return () => { live = false }
+  }, [])
+  if (error) return <Alert variant="error">{error}</Alert>
+  if (!data) return <div className="flex justify-center py-12"><Spinner /></div>
+  const { gardu, customers, materials, poles } = data
+  return (
+    <div className="space-y-5">
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stat label={`Gardu di atas ${Math.round(data.threshold * 100)}%`} value={num(gardu.trigger_count)} hint="Trafo PLN aktif; diganti satu tingkat kapasitas di atasnya" />
+        <Stat label="Pelanggan baru, 12 bulan" value={customers.new_customers ? range(customers.new_customers) : '-'} hint="Median (rentang p10-p90)" />
+        <Stat label="Jenis material PLN" value={num(materials.length)} />
+        <Stat label="Jenis tiang diprakirakan" value={num(new Set(poles.map((p) => p.item_code)).size)} />
+      </dl>
+      {!gardu.run_id && <Alert variant="warning">Forecast beban gardu belum pernah dijalankan, jadi kebutuhan trafo pengganti belum bisa dihitung.</Alert>}
+      {customers.status !== 'SUCCEEDED' && <Alert variant="warning">Kebutuhan material untuk pelanggan baru belum bisa dihitung: forecast pelanggan belum berhasil (riwayat data belum cukup). Lihat tab Pelanggan & daya (VA).</Alert>}
+      {gardu.without_bom?.length > 0 && <Alert variant="info">{`Ukuran trafo pengganti tanpa baris konstruksi di BOM (hanya trafo yang dihitung, bila ada di KHS): ${gardu.without_bom.map((x) => `${x.kva} kVA (${x.count} gardu)`).join(', ')}.`}</Alert>}
+      {materials.length === 0 ? <EmptyState icon={IconChart} title="Belum ada kebutuhan turunan" description="Belum ada gardu di atas ambang atau forecast pelanggan yang berhasil." /> : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <table className="w-full text-left text-sm">
+            <thead><tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700"><th className="px-3 py-2">Kode</th><th className="px-3 py-2">Material (disediakan PLN)</th><th className="px-3 py-2 text-right">Dari gardu</th><th className="px-3 py-2 text-right">Dari pelanggan baru</th><th className="px-3 py-2 text-right">Total 12 bulan</th></tr></thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {materials.map((m) => (
+                <tr key={m.code}><td className="px-3 py-2 font-mono text-xs">{m.code}</td><td className="px-3 py-2">{m.name}</td><td className="px-3 py-2 text-right">{num(m.gardu)}</td><td className="px-3 py-2 text-right">{customers.new_customers ? range(m.customers) : '-'}</td><td className="px-3 py-2 text-right font-medium">{range(m.total)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <section aria-label="Kebutuhan tiang" className="space-y-2">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Kebutuhan tiang</h2>
+        {poles.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">Prakiraan tiang belum ada: dihitung dari pemakaian tiang di MIMS dan butuh riwayat minimal 24 bulan (lihat tab Material).</p> : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+            <table className="w-full text-left text-sm">
+              <thead><tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700"><th className="px-3 py-2">ULP</th><th className="px-3 py-2">Tiang</th><th className="px-3 py-2 text-right">12 bulan terakhir</th><th className="px-3 py-2 text-right">12 bulan ke depan</th></tr></thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {poles.map((p) => (
+                  <tr key={`${p.unit_code}-${p.item_code}`}><td className="px-3 py-2">{p.unit_name}</td><td className="px-3 py-2">{p.item_label}</td><td className="px-3 py-2 text-right">{num(p.last_12_months)}</td><td className="px-3 py-2 text-right font-medium">{range(p.next_12_months)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <ul className="list-disc space-y-1 pl-5 text-xs text-slate-500 dark:text-slate-400">{data.assumptions.map((a) => <li key={a}>{a}</li>)}</ul>
+    </div>
   )
 }
