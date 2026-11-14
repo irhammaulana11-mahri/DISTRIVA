@@ -925,6 +925,13 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
               t4_execution_days: null,
               total_cycle_days: null,
               sla_status: 'OVERDUE',
+              sla_basis: 'LAYANAN',
+              service_category: 'Layanan: tambah tiang JTR saja',
+              service_working_days: 14,
+              service_due_date: '2026-11-10',
+              service_late_working_days: 3,
+              delay_note: null,
+              needs_note: true,
             },
           ],
         },
@@ -948,6 +955,8 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
         expect(screen.getByText('APP-2026-001')).toBeInTheDocument()
         expect(screen.getByText('Pasang Baru PT Maju')).toBeInTheDocument()
         expect(screen.getByText('14.5')).toBeInTheDocument()
+        expect(screen.getByText(/Layanan: tambah tiang JTR saja · 14 hari kerja/)).toBeInTheDocument()
+        expect(screen.getByText('Belum ada keterangan')).toBeInTheDocument()
       })
 
       // Test XLSX download

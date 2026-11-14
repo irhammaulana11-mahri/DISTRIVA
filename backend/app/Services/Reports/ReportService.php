@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Inventory\StockService;
 use App\Services\Rkm\RkmService;
+use App\Services\Tasks\ServiceSlaService;
 use App\Services\WorkOrders\VendorService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -174,6 +175,11 @@ class ReportService
             ->get()
             ->keyBy('application_id');
 
+        // Service SLA of network extension (14/24/100 working days from payment): where it applies it replaces the general rule below.
+        $service = app(ServiceSlaService::class)->compute($appIds);
+        $lastNotes = $service === [] ? collect() : DB::table('application_sla_notes')->whereIn('application_id', array_keys($service))->selectRaw('distinct on (application_id) application_id, note')->orderBy('application_id')->orderByDesc('created_at')->get()->keyBy('application_id');
+        $needsNote = 0;
+
         $rows = [];
         $diffDays = fn ($start, $end) => $start && $end ? max(0, (int) round((strtotime((string) $end) - strtotime((string) $start)) / 86400)) : null;
 
@@ -222,11 +228,17 @@ class ReportService
             $ageDays = $diffDays($created, $now);
 
             // Standar SLA PLN: total > 25 hari atau survei > 3 hari tanpa hasil dianggap OVERDUE
+            $svc = $service[$app->id] ?? null;
             $isOverdue = false;
-            if ($isActive && ($ageDays > 25 || ($srv === null && $ageDays > 3))) {
+            if ($svc !== null) {                                              // TMP: the clock starts at payment; an unpaid application is on track
+                $isOverdue = $isActive && $svc['status'] === 'OVERDUE';
+            } elseif ($isActive && ($ageDays > 25 || ($srv === null && $ageDays > 3))) {
                 $isOverdue = true;
-                $overdueCount++;
             }
+            $isOverdue && $overdueCount++;
+            $note = $lastNotes->get($app->id)?->note;
+            $noteMissing = $svc !== null && in_array($svc['status'], ['OVERDUE', 'MET_LATE'], true) && $note === null;
+            $noteMissing && $needsNote++;
 
             $currentStage = match ($app->current_status) {
                 'DRAFT', 'SUBMITTED' => 'Pendaftaran / Agenda',
@@ -256,6 +268,14 @@ class ReportService
                 't4_execution_days' => $t4,
                 'total_cycle_days' => $total,
                 'sla_status' => $isOverdue ? 'OVERDUE' : 'ON_TRACK',
+                'sla_basis' => $svc !== null ? 'LAYANAN' : 'UMUM',
+                'service_category' => $svc['category_label'] ?? null,
+                'service_working_days' => $svc['working_days'] ?? null,
+                'service_due_date' => isset($svc['due_at']) ? substr((string) $svc['due_at'], 0, 10) : null,
+                'service_status' => $svc['status'] ?? null,
+                'service_late_working_days' => $svc['late_working_days'] ?? null,
+                'delay_note' => $note,
+                'needs_note' => $noteMissing,
             ];
         }
 
@@ -266,6 +286,7 @@ class ReportService
                 'total_applications' => count($apps),
                 'active_applications' => count(array_filter($rows, fn ($r) => ! in_array($r['current_status'], ['COMPLETED', 'CANCELLED'], true))),
                 'overdue_count' => $overdueCount,
+                'needs_note_count' => $needsNote,
                 'average_days_mohon_to_survey' => $avg($t1Durations),
                 'average_days_survey_to_drawing' => $avg($t2Durations),
                 'average_days_drawing_to_wo' => $avg($t3Durations),

@@ -249,4 +249,31 @@ class ServiceSlaTest extends PostgresTestCase
 
         $this->assertSame(2, $this->sla($tight)->json('data.working_days_left'));                       // Mon 16 and Tue 17 after Sat 14
     }
+
+    #[Test]
+    public function the_old_sla_report_uses_the_service_sla_where_it_applies_and_the_general_rule_elsewhere(): void
+    {
+        $over = $this->application(['SUTR'], 'PAID', '2026-10-01');                                    // service SLA overrun
+        $unpaid = $this->application(['SUTM'], 'APPROVED', null);                                      // old, but its clock has not started
+        $plain = $this->application([], 'APPROVED', null);                                             // no category: the general rule (> 25 days) stays
+        $fine = $this->application(['SUTR'], 'PAID', '2026-11-12');
+        DB::table('applications')->whereIn('id', [$unpaid, $plain, $fine])->update(['created_at' => '2026-09-01 08:00:00']);
+        DB::table('applications')->where('id', $over)->update(['created_at' => '2026-09-01 08:00:00']);
+
+        $report = fn () => $this->as($this->teknik)->getJson('/api/reports/sla')->assertOk()->json('data');
+        $by = fn (array $d) => collect($d['rows'])->keyBy('id');
+        $d = $report();
+        $rows = $by($d);
+        $this->assertSame(['OVERDUE', 'LAYANAN', true, 'OVERDUE'], [$rows[$over]['sla_status'], $rows[$over]['sla_basis'], $rows[$over]['needs_note'], $rows[$over]['service_status']]);
+        $this->assertSame(['ON_TRACK', 'LAYANAN'], [$rows[$unpaid]['sla_status'], $rows[$unpaid]['sla_basis']]);
+        $this->assertSame(['OVERDUE', 'UMUM', null], [$rows[$plain]['sla_status'], $rows[$plain]['sla_basis'], $rows[$plain]['service_category']]);
+        $this->assertSame('ON_TRACK', $rows[$fine]['sla_status']);
+        $this->assertSame([2, 1], [$d['summary']['overdue_count'], $d['summary']['needs_note_count']]);
+
+        $this->as($this->teknik)->postJson("/api/applications/{$over}/service-sla/notes", ['note' => 'Trafo belum tersedia'])->assertCreated();
+        $d = $report();
+        $this->assertSame(['Trafo belum tersedia', false, 0], [$by($d)[$over]['delay_note'], $by($d)[$over]['needs_note'], $d['summary']['needs_note_count']]);
+
+        $this->as($this->teknik)->get('/api/reports/sla?format=xlsx')->assertOk()->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
 }

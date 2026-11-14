@@ -103,6 +103,10 @@ class ReportController extends Controller
                     $r['t4_execution_days'] ?? '-',
                     $r['total_cycle_days'] ?? '-',
                     $r['sla_status'],
+                    $r['service_category'] === null ? 'Umum (lebih dari 25 hari / survei lebih dari 3 hari)' : $r['service_category'].' ('.$r['service_working_days'].' hari kerja)',
+                    $r['service_due_date'] ?? '-',
+                    $r['service_status'] === null ? '-' : $r['service_status'],
+                    $r['delay_note'] ?? ($r['needs_note'] ? 'BELUM ADA KETERANGAN' : '-'),
                 ];
             }, $data['rows']);
 
@@ -110,11 +114,12 @@ class ReportController extends Controller
                 ['Periode', ($from ?? 'awal').' s.d. '.($to ?? 'kini')],
                 ['Total Permohonan', $data['summary']['total_applications']],
                 ['Permohonan Melebihi SLA', $data['summary']['overdue_count']],
+                ['Melewati SLA Tanpa Keterangan', $data['summary']['needs_note_count']],
                 ['Rata-rata Siklus Selesai (Hari)', $data['summary']['average_total_cycle_days']],
             ];
 
             return $this->file($this->reports->doc('LAPORAN SLA DAN AGING SIKLUS PENYAMBUNGAN', $meta, [[
-                'columns' => ['NO. PERMOHONAN', 'KODE ULP', 'PELANGGAN', 'TARIF & DAYA', 'TGL MOHON', 'STATUS', 'TAHAPAN', 'UMUR (HARI)', 'T1 MOHON-SURVEI', 'T2 SURVEI-GAMBAR', 'T3 GAMBAR-SPK', 'T4 SPK-NYALA', 'TOTAL SIKLUS', 'STATUS SLA'],
+                'columns' => ['NO. PERMOHONAN', 'KODE ULP', 'PELANGGAN', 'TARIF & DAYA', 'TGL MOHON', 'STATUS', 'TAHAPAN', 'UMUR (HARI)', 'T1 MOHON-SURVEI', 'T2 SURVEI-GAMBAR', 'T3 GAMBAR-SPK', 'T4 SPK-NYALA', 'TOTAL SIKLUS', 'STATUS SLA', 'ACUAN SLA', 'TENGGAT LAYANAN', 'STATUS LAYANAN', 'KETERANGAN KETERLAMBATAN'],
                 'rows' => $rows,
             ]]), 'LAPORAN-SLA');
         }

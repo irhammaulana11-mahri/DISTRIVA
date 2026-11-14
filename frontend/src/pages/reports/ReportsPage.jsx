@@ -1010,6 +1010,7 @@ export default function ReportsPage() {
               <div className="text-xl font-bold text-rose-600 mt-1">
                 {slaData.summary?.overdue_count ?? 0} <span className="text-xs font-normal text-rose-500">Pelanggan</span>
               </div>
+              {slaData.summary?.needs_note_count > 0 && <div className="mt-1 text-[10px] font-semibold text-rose-600">{slaData.summary.needs_note_count} belum diberi keterangan</div>}
             </div>
           </div>
 
@@ -1101,6 +1102,14 @@ export default function ReportsPage() {
                             >
                               {row.sla_status === 'OVERDUE' ? 'Lewat Batas' : 'On Track'}
                             </span>
+                            {row.sla_basis === 'LAYANAN' && (
+                              <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal text-left min-w-40">
+                                <div>{row.service_category} · {row.service_working_days} hari kerja</div>
+                                <div>{row.service_due_date ? `Tenggat ${row.service_due_date}` : 'SLA mulai setelah bayar'}{row.service_late_working_days > 0 ? ` · lewat ${row.service_late_working_days} hari kerja` : ''}</div>
+                                {row.delay_note && <div className="text-slate-700 dark:text-slate-300">Keterangan: {row.delay_note}</div>}
+                                {row.needs_note && <div className="font-semibold text-rose-600">Belum ada keterangan</div>}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}
