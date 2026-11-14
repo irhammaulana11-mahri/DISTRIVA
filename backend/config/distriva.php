@@ -135,6 +135,7 @@ return [
         // Verifying the server certificate stays ON. Only switch it off (false) temporarily when MIMS' own certificate is expired/untrusted and cannot be fixed yet: the token is then sent without proof of who is answering.
         'verify_ssl' => filter_var(env('DISTRIVA_MIMS_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
         'timeout_seconds' => (int) env('DISTRIVA_MIMS_TIMEOUT', 60),
+        'mirror_timeout_seconds' => (int) env('DISTRIVA_MIMS_MIRROR_TIMEOUT', 180),   // the document lists (issues, receipts) are slower than the stock call
         'sync_user_email' => env('DISTRIVA_MIMS_SYNC_USER_EMAIL'),       // the account recorded as the creator of automatic snapshots
         'sync_time' => env('DISTRIVA_MIMS_SYNC_TIME', '02:00'),
     ],

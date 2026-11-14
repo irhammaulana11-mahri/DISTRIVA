@@ -30,7 +30,7 @@ class MimsIssueSyncService
             return $finish('SKIPPED', 'Gudang belum memiliki plant dan storage location ERP.');
         }
         $base = rtrim((string) config('distriva.mims.base_url'), '/');
-        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.timeout_seconds'));
+        $http = fn () => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout((int) config('distriva.mims.mirror_timeout_seconds'));
         $since = CarbonImmutable::now((string) config('distriva.business_timezone'))->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
         try {
             $res = $http()->asJson()->post($base.config('distriva.mims.issue_header_path'), ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => 'S', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => '', 'tanggal_akhir' => '']);
@@ -59,10 +59,11 @@ class MimsIssueSyncService
         $docs = 0;
         $lines = 0;
         $matched = 0;
+        $skipped = [];
         foreach (collect($new)->groupBy('reservation') as $reservation => $group) {
             try {
-                $detail = $http()->get($base.strtr((string) config('distriva.mims.issue_detail_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
-                $map = $http()->get($base.strtr((string) config('distriva.mims.issue_mapping_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
+                $detail = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.issue_detail_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
+                $map = MimsStockSyncService::fetch($http, $base.strtr((string) config('distriva.mims.issue_mapping_path'), ['{reservation}' => rawurlencode((string) $reservation)]));
             } catch (\Throwable $e) {
                 return $finish('FAILED', MimsStockSyncService::connectionMessage($e), $docs, $lines, $matched);
             }
@@ -71,7 +72,9 @@ class MimsIssueSyncService
                     return $finish('FAILED', 'MIMS menjawab status HTTP '.$r->status().' (token ditolak atau kedaluwarsa).', $docs, $lines, $matched);
                 }
                 if (! $r->successful()) {
-                    return $finish('FAILED', 'MIMS menjawab status HTTP '.$r->status().' untuk reservasi '.$reservation.'.', $docs, $lines, $matched);
+                    $skipped[] = 'reservasi '.$reservation.': HTTP '.$r->status();   // one bad reservation does not stop the others; it is fetched again next time
+
+                    continue 2;
                 }
             }
             $rows = (array) ($detail->json('detail.data') ?? []);
@@ -114,6 +117,12 @@ class MimsIssueSyncService
             $docs += $group->count();
             $lines += $l;
             $matched += $m;
+        }
+
+        if ($skipped !== []) {
+            $note = count($skipped).' reservasi dilewati ('.implode('; ', array_slice($skipped, 0, 3)).(count($skipped) > 3 ? '; …' : '').').';
+
+            return $finish($docs > 0 ? 'OK' : 'FAILED', $note, $docs, $lines, $matched);
         }
 
         return $finish('OK', null, $docs, $lines, $matched);

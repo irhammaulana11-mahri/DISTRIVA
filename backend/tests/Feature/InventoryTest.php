@@ -376,6 +376,34 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function mims_endpoints_that_refuse_get_are_retried_as_post_and_one_bad_reservation_does_not_stop_the_rest(): void
+    {
+        DB::table('warehouses')->insert(['id' => $wh = (string) Str::uuid(), 'code' => '5118-2850', 'name' => 'Gd Ry Pacet', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2850', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-405.test']);
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'getDataPengeluaranHeader')) {
+                return Http::response(['data' => [['material_document' => 'D1', 'no_pemesanan' => 'R-POST', 'tgl_pengeluaran' => now(config('distriva.business_timezone'))->format('d-m-Y')], ['material_document' => 'D2', 'no_pemesanan' => 'R-BAD', 'tgl_pengeluaran' => now(config('distriva.business_timezone'))->format('d-m-Y')]]]);
+            }
+            if (str_contains($url, 'R-BAD')) {
+                return Http::response('boom', 500);
+            }
+            if ($request->method() === 'GET') {
+                return Http::response('Method Not Allowed', 405);                                                       // only POST works for this reservation
+            }
+
+            return str_contains($url, 'getDataPengeluaranAll') ? Http::response(['detail' => ['data' => [['material_no' => '0003250050', 'jumlah' => '2', 'satuan' => 'BH']]]]) : Http::response(['data' => []]);
+        });
+
+        $r = app(MimsIssueSyncService::class)->syncWarehouse(DB::table('warehouses')->where('id', $wh)->first(), 'token-uji-123456', $this->konstruksi);
+        $this->assertSame(['OK', 1, 1], [$r['status'], $r['documents_new'], $r['lines']]);                              // the POST retry worked; the 500 reservation was skipped
+        $this->assertStringContainsString('1 reservasi dilewati', $r['message']);
+        $this->assertStringContainsString('R-BAD', $r['message']);
+        $r = app(MimsIssueSyncService::class)->syncWarehouse(DB::table('warehouses')->where('id', $wh)->first(), 'token-uji-123456', $this->konstruksi);
+        $this->assertSame(0, $r['documents_new']);                                                                       // the good one is known; the bad one fails again
+    }
+
+    #[Test]
     public function the_manual_pull_lets_the_user_choose_stock_issues_and_receipts(): void
     {
         DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);

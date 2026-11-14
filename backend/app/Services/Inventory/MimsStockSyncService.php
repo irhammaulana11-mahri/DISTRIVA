@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\Notifications\WorkflowNotifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -33,6 +35,18 @@ class MimsStockSyncService
     ];
 
     public function __construct(private readonly StockService $stock, private readonly WorkflowNotifier $flow, private readonly MimsIssueSyncService $issues, private readonly MimsReceiptSyncService $receipts) {}
+
+    /**
+     * Calls a MIMS endpoint that takes its parameters in the URL: GET first; MIMS answers 405 for some of them, which then are POST (empty body), so that is retried once.
+     *
+     * @param  \Closure(): PendingRequest  $http
+     */
+    public static function fetch(\Closure $http, string $url): Response
+    {
+        $res = $http()->get($url);
+
+        return $res->status() === 405 ? $http()->asJson()->post($url, []) : $res;
+    }
 
     /** Why MIMS could not be reached, without anything secret (the message of a cURL error names the host and the cause, never the headers). */
     public static function connectionMessage(\Throwable $e): string
