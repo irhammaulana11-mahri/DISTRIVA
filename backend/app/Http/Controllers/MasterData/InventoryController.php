@@ -229,9 +229,19 @@ class InventoryController extends Controller
         $actor = $request->user();
         $this->authorizer->authorize($actor, 'stock.import'); // grant first, then validate
         @set_time_limit(600);   // up to one call per warehouse, each with its own timeout: the default web limit (30 s) would cut the request mid-way
-        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'include_issues' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'dry_run' => ['sometimes', 'boolean']])->validate();
+        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'sync_stock' => ['sometimes', 'boolean'], 'sync_issues' => ['sometimes', 'boolean'], 'sync_receipts' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'dry_run' => ['sometimes', 'boolean']])->validate();
         if (! $this->mims->baseUrlConfigured()) {
             throw new AssignmentRuleViolation('Alamat dasar MIMS (DISTRIVA_MIMS_BASE_URL) belum diisi di server.');
+        }
+        // what to pull: stock (default), issues and receipts (each only when asked); a dry run only exists for stock
+        $doStock = $request->boolean('sync_stock', true);
+        $doIssues = $request->boolean('sync_issues');
+        $doReceipts = $request->boolean('sync_receipts');
+        if (! $doStock && ! $doIssues && ! $doReceipts) {
+            throw new AssignmentRuleViolation('Pilih minimal satu: stok, pengeluaran, atau penerimaan.');
+        }
+        if ($request->boolean('dry_run') && ! $doStock) {
+            throw new AssignmentRuleViolation('Uji coba (dry run) hanya berlaku untuk stok.');
         }
         $useSaved = $request->boolean('use_saved_token');
         $token = $useSaved ? $this->savedToken($actor->getKey()) : (string) $d['token'];
@@ -245,16 +255,21 @@ class InventoryController extends Controller
         }
         $results = [];
         foreach ($warehouses as $wh) {
-            $r = $this->mims->syncWarehouse($wh, $actor, $d['date'] ?? null, $request->boolean('dry_run'), $token, $actor);
+            $r = $doStock ? $this->mims->syncWarehouse($wh, $actor, $d['date'] ?? null, $request->boolean('dry_run'), $token, $actor)
+                : ['status' => 'SKIPPED', 'message' => 'Stok tidak ditarik (tidak dipilih).', 'snapshot_id' => null, 'total' => 0, 'mapped' => 0];
             $row = ['warehouse_id' => $wh->id, 'warehouse_code' => $wh->code, 'warehouse_name' => $wh->name] + $r;
             if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
                 $results[] = $row;
                 break;                                                                                  // an expired token fails every warehouse: stop at the first
             }
-            if ($request->boolean('include_issues') && ! $request->boolean('dry_run')) {
-                $row['issues'] = $this->issueMirror->syncWarehouse($wh, $token, $actor);
-                $row['receipts'] = $this->receiptMirror->syncWarehouse($wh, $token, $actor);
-                if (collect([$row['issues'], $row['receipts']])->contains(fn ($m) => $m['status'] === 'FAILED' && str_contains((string) $m['message'], 'token ditolak'))) {
+            if (! $request->boolean('dry_run')) {
+                if ($doIssues) {
+                    $row['issues'] = $this->issueMirror->syncWarehouse($wh, $token, $actor);
+                }
+                if ($doReceipts) {
+                    $row['receipts'] = $this->receiptMirror->syncWarehouse($wh, $token, $actor);
+                }
+                if (collect([$row['issues'] ?? null, $row['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'FAILED' && str_contains((string) $m['message'], 'token ditolak'))) {
                     $results[] = $row;
                     break;
                 }
@@ -263,7 +278,7 @@ class InventoryController extends Controller
         }
 
         $rejected = collect($results)->contains(fn ($r) => ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'FAILED' && str_contains((string) $m['message'], 'token ditolak')));
-        $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true));
+        $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'OK'));
         if (! $useSaved && $request->boolean('save_token') && ! $rejected) {
             DB::table('user_mims_tokens')->upsert([['user_id' => $actor->getKey(), 'token_encrypted' => Crypt::encryptString($token), 'saved_at' => now(), 'last_used_at' => now(), 'last_result' => 'OK']], ['user_id'], ['token_encrypted', 'saved_at', 'last_used_at', 'last_result']);
         } elseif ($useSaved && ($rejected || $worked)) {

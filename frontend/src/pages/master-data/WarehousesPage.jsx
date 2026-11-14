@@ -98,7 +98,9 @@ export default function WarehousesPage() {
   const [mimsWarehouseIds, setMimsWarehouseIds] = useState([])
   const [mimsDate, setMimsDate] = useState('')
   const [mimsDryRun, setMimsDryRun] = useState(false)
-  const [mimsIssues, setMimsIssues] = useState(true)
+  const [mimsDoStock, setMimsDoStock] = useState(true)
+  const [mimsDoIssues, setMimsDoIssues] = useState(true)
+  const [mimsDoReceipts, setMimsDoReceipts] = useState(true)
   const [mimsPulling, setMimsPulling] = useState(false)
   const [mimsResults, setMimsResults] = useState(null)
   const [mimsError, setMimsError] = useState('')
@@ -210,6 +212,10 @@ export default function WarehousesPage() {
   // Handle MIMS Pull
   const handleMimsPull = async (e) => {
     e?.preventDefault?.()
+    if (!mimsDoStock && !mimsDoIssues && !mimsDoReceipts) {
+      setMimsError('Pilih minimal satu: stok, pengeluaran, atau penerimaan.')
+      return
+    }
     if (!mimsUseSaved && !mimsToken.trim()) {
       setMimsError('Token sesi MIMS wajib diisi.')
       return
@@ -226,8 +232,10 @@ export default function WarehousesPage() {
         ...(mimsUseSaved ? { use_saved_token: true } : { token: tokenToSend, ...(mimsSaveToken && { save_token: true }) }),
         warehouse_ids: mimsWarehouseIds.length > 0 ? mimsWarehouseIds : undefined,
         date: mimsDate || undefined,
-        dry_run: mimsDryRun || undefined,
-        include_issues: mimsIssues || undefined,
+        dry_run: (mimsDryRun && mimsDoStock) || undefined,
+        sync_stock: mimsDoStock,
+        sync_issues: mimsDoIssues,
+        sync_receipts: mimsDoReceipts,
       })
       setMimsResults(res?.data || [])
       notify({
@@ -1431,26 +1439,26 @@ export default function WarehousesPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="mims-issues"
-                disabled={mimsPulling}
-                checked={mimsIssues}
-                onChange={(e) => setMimsIssues(e.target.checked)}
-                className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60"
-              />
-              <label htmlFor="mims-issues" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                Sertakan pengeluaran dan penerimaan material (riwayat, baca-saja)
-              </label>
-            </div>
+            <fieldset className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+              <legend className="px-1 text-xs font-semibold text-slate-700 dark:text-slate-300">Data yang ditarik</legend>
+              {[
+                ['mims-do-stock', 'Stok gudang', mimsDoStock, setMimsDoStock],
+                ['mims-do-issues', 'Pengeluaran material (riwayat pemakaian, baca-saja)', mimsDoIssues, setMimsDoIssues],
+                ['mims-do-receipts', 'Penerimaan material (riwayat, baca-saja)', mimsDoReceipts, setMimsDoReceipts],
+              ].map(([id, label, checked, set]) => (
+                <label key={id} htmlFor={id} className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <input type="checkbox" id={id} disabled={mimsPulling} checked={checked} onChange={(e) => set(e.target.checked)} className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60" />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
 
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
                 id="mims-dry-run"
-                disabled={mimsPulling}
-                checked={mimsDryRun}
+                disabled={mimsPulling || !mimsDoStock}
+                checked={mimsDryRun && mimsDoStock}
                 onChange={(e) => setMimsDryRun(e.target.checked)}
                 className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60"
               />

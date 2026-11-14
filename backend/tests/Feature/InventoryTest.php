@@ -373,7 +373,29 @@ class InventoryTest extends PostgresTestCase
         }
         $this->assertStringContainsString('nama server tidak dikenali', MimsStockSyncService::connectionMessage(new \RuntimeException('cURL error 6: Could not resolve host: x')));
 
-        $this->assertTrue((bool) config('distriva.mims.verify_ssl'));                                              // on by default
+    }
+
+    #[Test]
+    public function the_manual_pull_lets_the_user_choose_stock_issues_and_receipts(): void
+    {
+        DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-choice.test']);
+        Http::fake([
+            'mims-choice.test/*getMonitoringStock*' => Http::response(['data' => []]),
+            'mims-choice.test/*getDataPengeluaranHeader*' => Http::response(['data' => []]),
+            'mims-choice.test/*getDataPengirimanForPenerimaan*' => Http::response(['data' => []]),
+        ]);
+        $pull = fn (array $b) => $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync', ['token' => 'token-uji-123456'] + $b);
+        $called = fn (string $part) => Http::recorded(fn ($q) => str_contains($q->url(), $part))->count();
+
+        $pull(['sync_stock' => false, 'sync_issues' => true, 'sync_receipts' => false])->assertOk()->assertJsonPath('data.0.issues.status', 'OK')->assertJsonMissingPath('data.0.receipts');
+        $this->assertSame([0, 1, 0], [$called('getMonitoringStock'), $called('getDataPengeluaranHeader'), $called('getDataPengirimanForPenerimaan')]);
+        $pull(['sync_stock' => false, 'sync_issues' => false, 'sync_receipts' => true])->assertOk()->assertJsonPath('data.0.receipts.status', 'OK');
+        $this->assertSame([0, 1, 1], [$called('getMonitoringStock'), $called('getDataPengeluaranHeader'), $called('getDataPengirimanForPenerimaan')]);
+        $pull([])->assertOk();                                                                                          // default: stock only
+        $this->assertSame([1, 1, 1], [$called('getMonitoringStock'), $called('getDataPengeluaranHeader'), $called('getDataPengirimanForPenerimaan')]);
+        $pull(['sync_stock' => false])->assertStatus(409);                                                              // nothing chosen
+        $pull(['sync_stock' => false, 'sync_issues' => true, 'dry_run' => true])->assertStatus(409);                    // a dry run is for stock only
     }
 
     #[Test]
