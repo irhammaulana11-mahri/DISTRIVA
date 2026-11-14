@@ -118,3 +118,51 @@ body {
 .sidebar-transition {
   transition: width 200ms ease, transform 200ms ease;
 }
+
+/* ─── Print styling ─── */
+@media print {
+  /* Sembunyikan elemen navigasi, topbar, tombol aksi, dan ornamen saat dicetak */
+  aside,
+  header,
+  nav,
+  button,
+  .no-print,
+  [role="dialog"] > div:first-child,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Reset layout kontainer utama ke format cetak bersih */
+  html,
+  body,
+  #root,
+  main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  /* Hilangkan bayangan dan border yang mengganggu saat dicetak */
+  .shadow-xs,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  /* Pastikan pemutusan halaman wajar untuk dokumen resmi PLN (KKF, KKO, RAB, BASTP) */
+  .page-break-inside-avoid,
+  table,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+

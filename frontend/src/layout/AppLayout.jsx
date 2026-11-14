@@ -879,14 +879,17 @@ export default function AppLayout() {
                 aria-expanded={notifOpen}
                 aria-haspopup="true"
                 aria-label="Notifikasi"
-                title="Notifikasi Sistem"
-                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors focus-ring cursor-pointer shadow-2xs"
+                title={unreadCount > 0 ? `Notifikasi Sistem (${unreadCount} belum dibaca)` : 'Notifikasi Sistem'}
+                className="relative flex h-11 w-11 sm:h-9 sm:w-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors focus-ring cursor-pointer shadow-2xs"
               >
                 <IconBell size={18} />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
-                    {unreadCount}
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
+                )}
+                {unreadCount > 0 && (
+                  <span className="sr-only">({unreadCount} belum dibaca)</span>
                 )}
               </button>
 

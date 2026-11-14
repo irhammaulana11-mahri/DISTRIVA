@@ -7,6 +7,7 @@ import Spinner from '../../components/Spinner.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import StatusBadge, { formatStatusLabel } from '../../components/StatusBadge.jsx'
+import { useDebounce } from '../../utils/useDebounce.js'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
@@ -103,6 +104,7 @@ export default function ApplicationsPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 350)
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [up3Filter, setUp3Filter] = useState('')
@@ -145,7 +147,7 @@ export default function ApplicationsPage() {
     const params = {
       page,
       per_page: perPage,
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       type: typeFilter || undefined,
       status: statusFilter || undefined,
       unit_id: unitFilter || undefined,
@@ -156,7 +158,7 @@ export default function ApplicationsPage() {
     applicationApi.list(params)
       .then((d) => setState({ loading: false, error: '', rows: d.data ?? [], meta: d.meta }))
       .catch((e) => setState({ loading: false, error: e.message || 'Gagal memuat data permohonan.', rows: [], meta: null }))
-  }, [page, perPage, search, typeFilter, statusFilter, unitFilter, lifecycleFilter, readyToInstallFilter])
+  }, [page, perPage, debouncedSearch, typeFilter, statusFilter, unitFilter, lifecycleFilter, readyToInstallFilter])
 
   useEffect(() => {
     loadApplications()

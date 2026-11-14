@@ -151,7 +151,7 @@ export default function WarehouseCreatePage() {
         asPage
         onBack={goBack}
         title="Tambah Gudang Penyimpanan"
-        subtitle="Tambahkan gudang baru secara manual atau impor daftar gudang dari payload JSON ERP dengan pratinjau validasi."
+        subtitle="Tambahkan gudang baru secara manual atau impor daftar gudang dari data JSON ERP dengan pratinjau validasi."
         footer={
           warehouseDrawerMode === 'manual' ? (
             <div className="flex items-center justify-between w-full">
@@ -297,9 +297,9 @@ export default function WarehouseCreatePage() {
           ) : (
             <div className="space-y-4 text-xs">
               <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 text-blue-900 dark:text-blue-200 space-y-1">
-                <p className="font-bold">Format Payload JSON Gudang ERP</p>
+                <p className="font-bold">Format Data JSON Gudang ERP</p>
                 <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
-                  Tempel payload JSON daftar gudang ERP (format respons ERP <code className="font-mono">{`{"gudang":{"data":[...]}}`}</code> atau daftar item gudang dengan atribut <code className="font-mono">plant, stor_loc, stor_loc_name, unit, jenis</code>).
+                  Tempel payload JSON daftar gudang ERP (format data respons ERP <code className="font-mono">{`{"gudang":{"data":[...]}}`}</code> atau daftar item gudang dengan atribut <code className="font-mono">plant, stor_loc, stor_loc_name, unit, jenis</code>).
                 </p>
               </div>
 

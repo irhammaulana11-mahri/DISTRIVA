@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { IconX } from './icons.jsx'
 
 const SIZE_CLASSES = {
@@ -32,16 +32,53 @@ export default function Drawer({
   const rawSize = width || size || 'max-w-xl'
   const desktopSizeClass = SIZE_CLASSES[rawSize] || rawSize
 
-  // Close drawer on Escape key press
+  const panelRef = useRef(null)
+
+  // Keyboard navigation: Escape key to close and Tab/Shift+Tab focus trap
   useEffect(() => {
     if (!isDrawerOpen) return
+    const prevFocused = document.activeElement
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         handleClose?.()
+        return
+      }
+      if (e.key === 'Tab' && panelRef.current) {
+        const focusable = Array.from(
+          panelRef.current.querySelectorAll(
+            'button:not([disabled]):not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => !el.hidden && el.getAttribute('aria-hidden') !== 'true')
+
+        if (focusable.length === 0) {
+          e.preventDefault()
+          return
+        }
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
       }
     }
+
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    const initialTarget = panelRef.current?.querySelector('input, select, textarea, button:not([aria-label="Tutup drawer"])')
+    initialTarget?.focus()
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      if (prevFocused && typeof prevFocused.focus === 'function') {
+        try { prevFocused.focus() } catch { /* ignore */ }
+      }
+    }
   }, [isDrawerOpen, handleClose])
 
   if (!isDrawerOpen) return null
@@ -58,6 +95,7 @@ export default function Drawer({
       {/* Drawer Panel Container */}
       <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full justify-end pl-0 sm:pl-10 pointer-events-none">
         <div
+          ref={panelRef}
           role="dialog"
           aria-modal="true"
           className={`pointer-events-auto w-full max-w-full ${desktopSizeClass} bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-300 ease-in-out`}

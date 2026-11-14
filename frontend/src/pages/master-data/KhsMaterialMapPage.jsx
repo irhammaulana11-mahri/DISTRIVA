@@ -454,7 +454,7 @@ export default function KhsMaterialMapPage() {
                   {snapshotMapped}
                 </span>
                 <span className="text-xs text-slate-500">
-                  / {snapshotTotal} SKU fisik
+                  / {snapshotTotal} item material fisik
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 mt-1">

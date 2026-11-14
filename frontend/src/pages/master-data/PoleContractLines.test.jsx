@@ -128,7 +128,7 @@ describe('Kontrak Rinci berbaris', () => {
     renderWithContext(<PoleContractsPage />, { can: { 'poles.manage': true } })
     await userEvent.click(await screen.findByRole('button', { name: 'Ubah' }))
 
-    const submit = screen.getByRole('button', { name: /Simpan Perubahan/i })
+    const submit = await screen.findByRole('button', { name: /Simpan Perubahan/i })
     expect(submit).toBeDisabled()
 
     fireEvent.change(screen.getByPlaceholderText(/Contoh: Penyesuaian adendum/i), {

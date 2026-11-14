@@ -13,6 +13,7 @@ import PanelShell from '../../components/PanelShell.jsx'
 import { useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import { downloadCsv, CONSTRUCTION_TYPES_TEMPLATE, CONSTRUCTION_BOM_TEMPLATE } from '../../utils/csvTemplates.js'
+import { useDebounce } from '../../utils/useDebounce.js'
 import {
   IconSearch,
   IconRefresh,
@@ -47,6 +48,7 @@ export default function ConstructionsPage() {
   const [perPage, setPerPage] = useState(25)
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 350)
   const [group, setGroup] = useState('')
   const [hasDraft, setHasDraft] = useState(false)
 
@@ -79,14 +81,14 @@ export default function ConstructionsPage() {
     const params = {
       page,
       per_page: perPage,
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       group: group || undefined,
       has_draft: hasDraft ? '1' : undefined,
     }
     masterDataApi.constructionTypes(params)
       .then((d) => setState({ loading: false, error: '', rows: d.data ?? [], meta: d.meta }))
       .catch((e) => setState({ loading: false, error: e.message, rows: [], meta: null }))
-  }, [page, perPage, search, group, hasDraft])
+  }, [page, perPage, debouncedSearch, group, hasDraft])
 
   useEffect(() => {
     loadConstructions()

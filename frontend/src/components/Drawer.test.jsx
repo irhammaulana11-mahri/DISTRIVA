@@ -69,4 +69,30 @@ describe('Drawer UI Component (Mobile & Responsive)', () => {
     expect(screen.getByText('Staging preview & validasi integritas')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Aksi Footer' })).toBeInTheDocument()
   })
+
+  it('traps keyboard Tab navigation inside the open drawer', () => {
+    render(
+      <Drawer
+        open={true}
+        title="Focus Trap Drawer"
+        footer={<button type="button">Tombol B</button>}
+      >
+        <button type="button">Tombol A</button>
+      </Drawer>
+    )
+
+    const closeBtn = screen.getByRole('button', { name: /Tutup drawer/i })
+    const btnA = screen.getByRole('button', { name: 'Tombol A' })
+    const btnB = screen.getByRole('button', { name: 'Tombol B' })
+
+    // Simulate Tab when on the last focusable element (btnB) -> wraps to closeBtn
+    btnB.focus()
+    expect(document.activeElement).toBe(btnB)
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(document.activeElement).toBe(closeBtn)
+
+    // Simulate Shift+Tab when on the first focusable element (closeBtn) -> wraps to btnB
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(btnB)
+  })
 })

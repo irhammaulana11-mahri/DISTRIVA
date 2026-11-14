@@ -24,12 +24,48 @@ export default function Modal({
 
   useEffect(() => {
     if (!isModalOpen) return
+    const prevFocused = document.activeElement
+
     const onKey = (e) => {
-      if (e.key === 'Escape') handleCloseRef.current?.()
+      if (e.key === 'Escape') {
+        handleCloseRef.current?.()
+        return
+      }
+      if (e.key === 'Tab' && ref.current) {
+        const focusable = Array.from(
+          ref.current.querySelectorAll(
+            'button:not([disabled]):not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => !el.hidden && el.getAttribute('aria-hidden') !== 'true')
+
+        if (focusable.length === 0) {
+          e.preventDefault()
+          return
+        }
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
     }
+
     document.addEventListener('keydown', onKey)
-    ref.current?.querySelector('input, select, textarea, button:not([data-modal-close])')?.focus()
-    return () => document.removeEventListener('keydown', onKey)
+    const initialTarget = ref.current?.querySelector('input, select, textarea, button:not([data-modal-close])')
+    initialTarget?.focus()
+
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      if (prevFocused && typeof prevFocused.focus === 'function') {
+        try { prevFocused.focus() } catch { /* ignore */ }
+      }
+    }
   }, [isModalOpen])
 
   if (!isModalOpen) return null

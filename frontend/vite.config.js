@@ -11,6 +11,32 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+              return 'vendor-react'
+            }
+            if (id.includes('src/pages/master-data/')) {
+              return 'chunk-master-data'
+            }
+            if (id.includes('src/pages/applications/')) {
+              return 'chunk-applications'
+            }
+            if (id.includes('src/pages/work-orders/')) {
+              return 'chunk-work-orders'
+            }
+            if (id.includes('src/pages/drawings/') || id.includes('src/pages/mto/') || id.includes('src/pages/proposals/') || id.includes('src/pages/surveys/')) {
+              return 'chunk-engineering-proposals'
+            }
+            if (id.includes('src/pages/admin/') || id.includes('src/pages/backup/')) {
+              return 'chunk-admin-system'
+            }
+          },
+        },
+      },
+    },
     server: {
       // Same-origin in dev: no CORS configuration needed on the backend.
       proxy: { '/api': { target, changeOrigin: true } },

@@ -13,6 +13,7 @@ import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
+import { useDebounce } from '../../utils/useDebounce.js'
 import {
   IconBuilding,
   IconShield,
@@ -32,6 +33,7 @@ export default function UnitsPage() {
   const [perPage, setPerPage] = useState(10)
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 350)
   const [typeFilter, setTypeFilter] = useState('')
   const [access, setAccess] = useState({ canCreate: true, canUpdate: true })
   const { notify } = useNotifications() // badge notification toast and bell count
@@ -115,12 +117,12 @@ export default function UnitsPage() {
   const loadUnits = useCallback(() => {
     const reqSeq = ++unitsReqSeqRef.current
     setState((s) => ({ ...s, loading: true, error: '' }))
-    const effectiveTypeFilter = typeFilter || (search.trim() ? '' : 'UP3')
+    const effectiveTypeFilter = typeFilter || (debouncedSearch.trim() ? '' : 'UP3')
     Promise.resolve(
       adminApi.units({
         page,
         per_page: perPage,
-        search: search.trim(),
+        search: debouncedSearch.trim(),
         unit_type: effectiveTypeFilter,
       })
     )
@@ -129,7 +131,7 @@ export default function UnitsPage() {
         const rows = d?.data ?? []
         setState({ loading: false, error: '', rows, meta: d?.meta ?? null })
         const up3Rows = rows.filter((u) => u.unit_type === 'UP3' && u.is_active)
-        if (effectiveTypeFilter === 'UP3' && !search.trim()) {
+        if (effectiveTypeFilter === 'UP3' && !debouncedSearch.trim()) {
           setCachedUp3List(up3Rows)
         } else if (up3Rows.length > 0) {
           setCachedUp3List((prev) => (prev.length > 0 ? prev : up3Rows))
@@ -139,7 +141,7 @@ export default function UnitsPage() {
         if (reqSeq !== unitsReqSeqRef.current) return
         setState({ loading: false, error: e?.message || 'Gagal memuat unit.', rows: [], meta: null })
       })
-  }, [page, perPage, search, typeFilter])
+  }, [page, perPage, debouncedSearch, typeFilter])
 
   useEffect(() => {
     loadUnits()

@@ -13,6 +13,7 @@ import PanelShell from '../../components/PanelShell.jsx'
 import { useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import { downloadCsv, KHS_CATALOG_TEMPLATE } from '../../utils/csvTemplates.js'
+import { useDebounce } from '../../utils/useDebounce.js'
 import {
   IconSearch,
   IconRefresh,
@@ -38,6 +39,7 @@ export default function KhsPage() {
   const [perPage, setPerPage] = useState(25)
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 350)
   const [hasDraftOnly, setHasDraftOnly] = useState(false)
 
   // Drawers and Modals
@@ -70,13 +72,13 @@ export default function KhsPage() {
     const params = {
       page,
       per_page: perPage,
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       has_draft: hasDraftOnly ? '1' : undefined,
     }
     masterDataApi.khsList(params)
       .then((d) => setState({ loading: false, error: '', rows: d.data ?? [], meta: d.meta }))
       .catch((e) => setState({ loading: false, error: e.message, rows: [], meta: null }))
-  }, [page, perPage, search, hasDraftOnly])
+  }, [page, perPage, debouncedSearch, hasDraftOnly])
 
   useEffect(() => {
     loadKhs()

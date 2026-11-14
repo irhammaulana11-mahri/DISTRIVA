@@ -9,6 +9,7 @@ import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
+import { useDebounce } from '../../utils/useDebounce.js'
 import { IconClipboard, IconPlus, IconRefresh, IconSearch, IconEye, IconUser, IconUsers } from '../../components/icons.jsx'
 
 /**
@@ -49,6 +50,7 @@ export default function SurveyRequestsPage() {
 
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
   const [search, setSearch] = useState(searchParams.get('cari') || '')
+  const debouncedSearch = useDebounce(search, 350)
   const [kind, setKind] = useState('')
   const [outcome, setOutcome] = useState('')
   const [status, setStatus] = useState('')
@@ -83,7 +85,7 @@ export default function SurveyRequestsPage() {
     setState((s) => ({ ...s, loading: true, error: '' }))
     try {
       const res = await surveyApi.list({
-        q: search.trim() || undefined,
+        q: debouncedSearch.trim() || undefined,
         kind: kind || undefined,
         outcome: outcome || undefined,
         status: status || undefined,
@@ -94,7 +96,7 @@ export default function SurveyRequestsPage() {
     } catch (err) {
       setState({ loading: false, error: err?.message || 'Gagal memuat daftar usulan survei.', rows: [], meta: null })
     }
-  }, [search, kind, outcome, status, page, perPage])
+  }, [debouncedSearch, kind, outcome, status, page, perPage])
 
   useEffect(() => {
     const t = setTimeout(load, search ? 300 : 0)

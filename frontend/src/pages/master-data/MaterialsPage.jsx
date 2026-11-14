@@ -13,6 +13,7 @@ import PanelShell from '../../components/PanelShell.jsx'
 import { useNavigate } from 'react-router-dom'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import { downloadCsv, MATERIAL_ERP_TEMPLATE } from '../../utils/csvTemplates.js'
+import { useDebounce } from '../../utils/useDebounce.js'
 import {
   IconSearch,
   IconRefresh,
@@ -37,6 +38,7 @@ export default function MaterialsPage() {
   const [perPage, setPerPage] = useState(25)
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 350)
   const [selectedCategory, setSelectedCategory] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
   const [unmappedOnly, setUnmappedOnly] = useState(false)
@@ -102,7 +104,7 @@ export default function MaterialsPage() {
     const params = {
       page,
       per_page: perPage,
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       category_id: selectedCategory || undefined,
       is_active: activeFilter !== '' ? activeFilter : undefined,
       unmapped: unmappedOnly ? '1' : undefined,
@@ -110,7 +112,7 @@ export default function MaterialsPage() {
     masterDataApi.materials(params)
       .then((d) => setState({ loading: false, error: '', rows: d.data ?? [], meta: d.meta }))
       .catch((e) => setState({ loading: false, error: e.message, rows: [], meta: null }))
-  }, [page, perPage, search, selectedCategory, activeFilter, unmappedOnly])
+  }, [page, perPage, debouncedSearch, selectedCategory, activeFilter, unmappedOnly])
 
   useEffect(() => {
     loadMaterials()

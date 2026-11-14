@@ -837,7 +837,7 @@ export default function ProposalKkfPanel({
                     <th className="py-2.5 px-3 w-28">Nomor Run</th>
                     <th className="py-2.5 px-3 w-32">Tanggal</th>
                     <th className="py-2.5 px-3 text-right">Grand Total RAB</th>
-                    <th className="py-2.5 px-3">Snapshot Hash</th>
+                    <th className="py-2.5 px-3" title="Kode hash verifikasi keaslian data kalkulasi">Kode Hash Validasi</th>
                     <th className="py-2.5 px-3 w-40 text-center">Dokumen</th>
                   </tr>
                 </thead>
