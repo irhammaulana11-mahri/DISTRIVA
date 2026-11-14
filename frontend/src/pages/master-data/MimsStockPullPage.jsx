@@ -7,6 +7,7 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
 import MimsSettingsDrawer from './MimsSettingsDrawer.jsx'
+import MimsPullProgress from './MimsPullProgress.jsx'
 import {
   IconRefresh,
   IconCheck,
@@ -52,6 +53,7 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
   // Execution state
   const [mimsPulling, setMimsPulling] = useState(false)
   const [mimsResults, setMimsResults] = useState(null)
+  const [mimsRun, setMimsRun] = useState(null)
   const [mimsError, setMimsError] = useState('')
 
   // Settings drawer state
@@ -91,10 +93,45 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
     }
   }, [])
 
+  // Menampilkan hasil akhir penarikan (berhasil atau gagal) dan membersihkan kemajuan.
+  const finishWatching = useCallback((res) => {
+    setMimsResults(res?.data || [])
+    notify({ type: 'success', title: 'Penarikan Stok Berhasil', desc: `Berhasil memproses ${res?.data?.length || 0} gudang dari MIMS.`, tag: 'MIMS' })
+    loadTokenStatus()
+    onSuccess?.(res?.data)
+  }, [notify, loadTokenStatus, onSuccess])
+
+  const failWatching = useCallback((err) => {
+    loadTokenStatus()
+    const msg = err?.message || 'Gagal menarik stok dari MIMS.'
+    setMimsError(msg)
+    notify({ type: 'error', title: 'Gagal Menarik Stok MIMS', desc: msg, tag: 'MIMS' })
+  }, [notify, loadTokenStatus])
+
+  // Mengikuti penarikan yang sudah berjalan (dibuka belakangan, oleh pengguna lain, atau saat mulai bertabrakan).
+  const attachToActiveRun = useCallback(async () => {
+    const active = await warehousesApi.mimsRunActive?.().catch(() => null)
+    const run = active?.data
+    if (!run) return false
+    setMimsPulling(true)
+    setMimsError('')
+    setMimsRun(run)
+    try {
+      finishWatching(await warehousesApi.watchMimsRun(run, (rows, r) => { setMimsResults(rows); setMimsRun(r) }))
+    } catch (err) {
+      failWatching(err)
+    } finally {
+      setMimsPulling(false)
+      setMimsRun(null)
+    }
+    return true
+  }, [finishWatching, failWatching])
+
   useEffect(() => {
     loadWarehouses()
     loadTokenStatus()
-  }, [loadWarehouses, loadTokenStatus])
+    attachToActiveRun()
+  }, [loadWarehouses, loadTokenStatus, attachToActiveRun])
 
   const handleMimsPull = async (e) => {
     e?.preventDefault?.()
@@ -128,30 +165,15 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
           sync_receipts: mimsDoReceipts,
           sync_reservations: mimsDoReservations || undefined,
         },
-        (rows) => setMimsResults(rows)
+        (rows, run) => { setMimsResults(rows); setMimsRun(run) }
       )
-
-      setMimsResults(res?.data || [])
-      notify({
-        type: 'success',
-        title: 'Penarikan Stok Berhasil',
-        desc: `Berhasil memproses ${res?.data?.length || 0} gudang dari MIMS.`,
-        tag: 'MIMS',
-      })
-      loadTokenStatus()
-      onSuccess?.(res?.data)
+      finishWatching(res)
     } catch (err) {
-      loadTokenStatus()
-      const msg = err?.message || 'Gagal menarik stok dari MIMS.'
-      setMimsError(msg)
-      notify({
-        type: 'error',
-        title: 'Gagal Menarik Stok MIMS',
-        desc: msg,
-        tag: 'MIMS',
-      })
+      if (/sedang berjalan/i.test(err?.message || '') && (await attachToActiveRun())) return
+      failWatching(err)
     } finally {
       setMimsPulling(false)
+      setMimsRun(null)
     }
   }
 
@@ -533,17 +555,7 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
                   4. Eksekusi Penarikan
                 </h3>
 
-                {mimsPulling && (
-                  <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-200 flex items-center gap-3">
-                    <Spinner size="sm" />
-                    <div>
-                      <div className="font-bold">Sedang Menghubungi Server MIMS…</div>
-                      <div className="text-[11px] text-blue-600 dark:text-blue-300">
-                        Proses ini dapat memakan waktu 10-60 detik tergantung jumlah gudang dan volume material.
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {mimsPulling && (mimsRun ? <MimsPullProgress run={mimsRun} /> : <MimsPullProgress run={{ status: 'QUEUED', warehouses_total: 0, results: [] }} />)}
 
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
                   <Button

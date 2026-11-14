@@ -12,6 +12,8 @@ vi.mock('../../services/api.js', () => ({
     mimsTokenStatus: vi.fn(),
     mimsAutoSettings: vi.fn(),
     syncStock: vi.fn(),
+    mimsRunActive: vi.fn(),
+    watchMimsRun: vi.fn(),
   },
 }))
 
@@ -27,6 +29,7 @@ describe('MimsStockPullPage', () => {
     warehousesApi.mimsTokenStatus.mockResolvedValue({
       data: { saved: false },
     })
+    warehousesApi.mimsRunActive.mockResolvedValue({ data: null })
     warehousesApi.mimsAutoSettings.mockResolvedValue({
       data: { auto_enabled: false },
     })
@@ -117,5 +120,28 @@ describe('MimsStockPullPage', () => {
       expect(screen.getAllByText(/Belum Terpetakan/i).length).toBeGreaterThan(0)
       expect(screen.getByText(/SKU Belum Terpetakan →/i)).toBeInTheDocument()
     })
+  })
+  it('menampilkan kemajuan penarikan yang sudah berjalan: gudang ke berapa, langkah, dan perkiraan sisa waktu', async () => {
+    const run = {
+      id: 'run-1', status: 'RUNNING', warehouses_total: 11, warehouses_done: 4, current_warehouse: '5118-2810 - Gd Ry Jombang', current_step: 'ISSUES',
+      started_at: new Date(Date.now() - 120000).toISOString(),
+      results: [{ warehouse_id: 'wh-1', warehouse_code: '5118-2080', warehouse_name: 'PLN Area Mojokerto', status: 'OK' }],
+    }
+    warehousesApi.mimsRunActive.mockResolvedValue({ data: run })
+    warehousesApi.watchMimsRun.mockImplementation((first, onProgress) => { onProgress(first.results, first); return new Promise(() => {}) })
+    render(
+      <MemoryRouter>
+        <NotificationProvider>
+          <MimsStockPullPage asPage={true} />
+        </NotificationProvider>
+      </MemoryRouter>
+    )
+    expect(await screen.findByText('Penarikan MIMS sedang berjalan')).toBeInTheDocument()
+    expect(screen.getByText('4 dari 11 gudang selesai')).toBeInTheDocument()
+    expect(screen.getByText('5118-2810 - Gd Ry Jombang')).toBeInTheDocument()
+    expect(screen.getByText(/menarik pengeluaran/)).toBeInTheDocument()
+    expect(screen.getByText(/Perkiraan sisa/)).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '36')
+    expect(screen.getByRole('button', { name: /Menarik Stok/i })).toBeDisabled()
   })
 })

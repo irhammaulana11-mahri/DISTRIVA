@@ -24,19 +24,24 @@ class MimsPullRunService
      * @param  array{stock:bool,issues:bool,receipts:bool,reservations?:bool,dry_run:bool,date:?string,from?:?string,to?:?string}  $o
      * @return array<string,mixed>
      */
-    public function pullOne(object $wh, User $actor, ?string $token, array $o): array
+    public function pullOne(object $wh, User $actor, ?string $token, array $o, ?callable $step = null): array
     {
+        $step ??= static fn (string $name) => null;
+        $step('STOCK');
         $r = $o['stock'] ? $this->stock->syncWarehouse($wh, $actor, $o['date'], $o['dry_run'], $token, $actor)
             : ['status' => 'SKIPPED', 'message' => 'Stok tidak ditarik (tidak dipilih).', 'snapshot_id' => null, 'total' => 0, 'mapped' => 0];
         $row = ['warehouse_id' => $wh->id, 'warehouse_code' => $wh->code, 'warehouse_name' => $wh->name] + $r;
         if (! $this->rejected($row) && ! $o['dry_run']) {
             if ($o['issues']) {
+                $step('ISSUES');
                 $row['issues'] = $this->issues->syncWarehouse($wh, $token, $actor, null, $o['from'] ?? null, $o['to'] ?? null);
             }
             if ($o['reservations'] ?? false) {
+                $step('RESERVATIONS');
                 $row['reservations'] = $this->reservations->syncWarehouse($wh, $token, $actor, null, $o['from'] ?? null, $o['to'] ?? null);
             }
             if ($o['receipts']) {
+                $step('RECEIPTS');
                 $row['receipts'] = $this->receipts->syncWarehouse($wh, $token, $actor, null, $o['from'] ?? null, $o['to'] ?? null);
             }
         }
@@ -85,7 +90,7 @@ class MimsPullRunService
         $o = json_decode($run->options, true);
         $actor = User::query()->find($run->started_by);
         $fail = function (string $message) use ($runId): void {
-            DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => 'FAILED', 'message' => $message, 'finished_at' => now()]);
+            DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => 'FAILED', 'message' => $message, 'finished_at' => now(), 'current_warehouse' => null, 'current_step' => null]);
         };
         if ($actor === null) {
             $fail('Pengguna pemulai tidak ditemukan.');
@@ -111,13 +116,14 @@ class MimsPullRunService
             $q->whereIn('id', $o['warehouse_ids']);
         }
         $warehouses = $q->get();
-        DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => 'RUNNING', 'warehouses_total' => $warehouses->count()]);
+        DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => 'RUNNING', 'warehouses_total' => $warehouses->count(), 'started_at' => now()]);
         $opts = ['stock' => (bool) $o['sync_stock'], 'issues' => (bool) $o['sync_issues'], 'receipts' => (bool) $o['sync_receipts'], 'reservations' => (bool) ($o['sync_reservations'] ?? false), 'dry_run' => (bool) $o['dry_run'], 'date' => $o['date'] ?? null, 'from' => $o['issues_from'] ?? null, 'to' => $o['issues_to'] ?? null];
         $results = [];
         $rejected = false;
         try {
             foreach ($warehouses as $wh) {
-                $row = $this->pullOne($wh, $actor, $token, $opts);
+                $label = mb_substr(trim("{$wh->code} - {$wh->name}"), 0, 200);
+                $row = $this->pullOne($wh, $actor, $token, $opts, fn (string $name) => DB::table('mims_pull_runs')->where('id', $runId)->update(['current_warehouse' => $label, 'current_step' => $name]));
                 $results[] = $row;
                 DB::table('mims_pull_runs')->where('id', $runId)->update(['results' => json_encode($results)]);
                 if ($this->rejected($row)) {
@@ -137,7 +143,7 @@ class MimsPullRunService
         if ($rejected) {
             $this->flow->mimsTokenRejected();
         }
-        DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => $rejected || ! $worked ? 'FAILED' : 'OK', 'message' => $rejected ? 'Token MIMS ditolak atau kedaluwarsa.' : null, 'finished_at' => now()]);
+        DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => $rejected || ! $worked ? 'FAILED' : 'OK', 'message' => $rejected ? 'Token MIMS ditolak atau kedaluwarsa.' : null, 'finished_at' => now(), 'current_warehouse' => null, 'current_step' => null]);
     }
 
     /** @return array<string,mixed>|null */
@@ -146,6 +152,15 @@ class MimsPullRunService
         $r = DB::table('mims_pull_runs')->where('id', $runId)->first();
 
         return $r === null ? null : ['id' => $r->id, 'status' => $r->status, 'message' => $r->message, 'warehouses_total' => (int) $r->warehouses_total, 'results' => json_decode((string) $r->results, true) ?? [],
-            'options' => json_decode((string) $r->options, true), 'created_at' => $r->created_at, 'finished_at' => $r->finished_at];
+            'options' => json_decode((string) $r->options, true), 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at,
+            'warehouses_done' => count(json_decode((string) $r->results, true) ?? []), 'current_warehouse' => $r->current_warehouse, 'current_step' => $r->current_step];
+    }
+
+    /** The run in progress, if any (so a page opened later, or by someone else, can show it). @return array<string,mixed>|null */
+    public function active(): ?array
+    {
+        $id = DB::table('mims_pull_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '>=', now()->subHours(3))->orderByDesc('created_at')->value('id');
+
+        return $id === null ? null : $this->show($id);
     }
 }

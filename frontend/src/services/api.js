@@ -332,15 +332,21 @@ export const warehousesApi = {
   // Mengembalikan { data: [hasil per gudang] }; onProgress(rows) dipanggil setiap hasil bertambah.
   syncStock: async (body, onProgress) => {
     const started = await request('/master-data/stock-sync/runs', { method: 'POST', body })
-    const id = started?.data?.id
+    return warehousesApi.watchMimsRun(started?.data, onProgress)
+  },
+  // Penarikan yang sedang berjalan (atau null), agar halaman yang dibuka belakangan tetap menampilkan kemajuannya.
+  mimsRunActive: () => request('/master-data/stock-sync/runs/active'),
+  watchMimsRun: async (first, onProgress) => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-    let run = started?.data
+    let run = first
+    const id = run?.id
+    if (typeof onProgress === 'function' && run) onProgress(run.results || [], run)
     const deadline = Date.now() + 3 * 60 * 60 * 1000
     while (run && (run.status === 'QUEUED' || run.status === 'RUNNING')) {
       if (Date.now() > deadline) throw new Error('Penarikan MIMS belum selesai setelah 3 jam; periksa riwayat sinkronisasi nanti.')
       await sleep(2500)
       run = (await request(`/master-data/stock-sync/runs/${id}`))?.data
-      if (typeof onProgress === 'function' && run?.results) onProgress(run.results)
+      if (typeof onProgress === 'function' && run) onProgress(run.results || [], run)
     }
     const rows = run?.results || []
     if (run?.status === 'FAILED' && rows.length === 0) throw new Error(run.message || 'Penarikan MIMS gagal.')

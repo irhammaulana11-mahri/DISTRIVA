@@ -367,6 +367,14 @@ class InventoryController extends Controller
         return response()->json(['data' => $this->pulls->show($id)], 202);
     }
 
+    /** GET /stock-sync/runs/active: the pull in progress, or null. */
+    public function mimsRunActive(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'stock.import');
+
+        return response()->json(['data' => $this->pulls->active()]);
+    }
+
     /** GET /stock-sync/runs/{run} */
     public function mimsRunShow(Request $request, string $run): JsonResponse
     {
