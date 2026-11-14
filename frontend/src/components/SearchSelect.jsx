@@ -76,7 +76,7 @@ export default function SearchSelect({ options, value, onChange, placeholder = '
           onClick={() => setOpen(true)}
           onChange={(e) => { setQ(e.target.value); setOpen(true) }}
           onKeyDown={onKeyDown}
-          className={`block w-full pl-3 ${clearable && selected ? 'pr-16' : 'pr-9'} py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-60 transition`}
+          className={`block w-full pl-3 ${clearable && selected ? 'pr-16' : 'pr-9'} py-2 text-base sm:text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-60 transition`}
         />
         <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1 text-slate-400">
           {clearable && selected && !disabled && (

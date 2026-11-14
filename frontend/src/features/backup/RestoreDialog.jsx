@@ -286,7 +286,7 @@ export default function RestoreDialog({ open, backup, onClose, onSuccess }) {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Contoh: Pemulihan data setelah insiden kegagalan migrasi server..."
-            className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+            className="w-full px-3 py-1.5 text-base sm:text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
           />
           {fieldErrors.reason && (
             <p className="text-[11px] text-rose-600 mt-1">{fieldErrors.reason}</p>
@@ -305,7 +305,7 @@ export default function RestoreDialog({ open, backup, onClose, onSuccess }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Masukkan kata sandi akun Anda untuk otorisasi..."
-            className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+            className="w-full px-3 py-1.5 text-base sm:text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
           />
           {fieldErrors.password && (
             <p className="text-[11px] text-rose-600 mt-1">{fieldErrors.password}</p>
@@ -326,7 +326,7 @@ export default function RestoreDialog({ open, backup, onClose, onSuccess }) {
             value={confirmPhrase}
             onChange={(e) => setConfirmPhrase(e.target.value)}
             placeholder={`Ketik ${targetPhrase}`}
-            className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono focus-ring"
+            className="w-full px-3 py-1.5 text-base sm:text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono focus-ring"
           />
           {fieldErrors.confirm && (
             <p className="text-[11px] text-rose-600 mt-1">{fieldErrors.confirm}</p>

@@ -722,7 +722,7 @@ export default function BackupHistoryTab({ can, onReloadSummary }) {
               value={removeReason}
               onChange={(e) => setRemoveReason(e.target.value)}
               placeholder="Contoh: Pembersihan manual kapasitas drive cadangan..."
-              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+              className="w-full px-3 py-1.5 text-base sm:text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
             />
           </div>
         </form>
