@@ -51,6 +51,7 @@ import ApplicationsPage from './pages/applications/ApplicationsPage.jsx'
 import KhsMaterialMapImportPage from './pages/master-data/KhsMaterialMapImportPage.jsx'
 import WarehouseSnapshotImportPage from './pages/master-data/WarehouseSnapshotImportPage.jsx'
 import WarehouseCreatePage from './pages/master-data/WarehouseCreatePage.jsx'
+import MimsStockPullPage from './pages/master-data/MimsStockPullPage.jsx'
 import { PoleContractCreatePage, PoleContractEditPage } from './pages/master-data/PoleContractFormPages.jsx'
 import VendorAccountsPage from './pages/master-data/VendorAccountsPage.jsx'
 import { BastpDetailPage } from './pages/work-orders/BastpPages.jsx'
@@ -153,6 +154,7 @@ export default function App() {
         <Route path="master-data/customers" element={<RequireCapability capability="customers.view"><CustomersPage /></RequireCapability>} />
         <Route path="master-data/warehouses" element={<RequireCapability capability="master_data.view"><WarehousesPage /></RequireCapability>} />
         <Route path="master-data/warehouses/baru" element={<RequireCapability capability="master_data.view"><WarehouseCreatePage /></RequireCapability>} />
+        <Route path="master-data/warehouses/tarik-mims" element={<RequireCapability capability="stock.import"><MimsStockPullPage /></RequireCapability>} />
         <Route path="master-data/warehouses/:id/impor-stok" element={<RequireCapability capability="stock.import"><WarehouseSnapshotImportPage /></RequireCapability>} />
         <Route path="master-data/pole-contracts" element={<RequireCapability capability="master_data.view"><PoleContractsPage /></RequireCapability>} />
         <Route path="master-data/pole-contracts/baru" element={<RequireCapability capability="poles.manage"><PoleContractCreatePage /></RequireCapability>} />

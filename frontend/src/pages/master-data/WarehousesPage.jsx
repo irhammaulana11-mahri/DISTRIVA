@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { warehousesApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -12,6 +12,8 @@ import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import MimsMirrorTab from './MimsMirrorTab.jsx'
+import MimsSettingsDrawer from './MimsSettingsDrawer.jsx'
+import MimsStockPullPage from './MimsStockPullPage.jsx'
 import {
   IconPlus,
   IconRefresh,
@@ -23,6 +25,7 @@ import {
   IconEye,
   IconBuilding,
   IconFileText,
+  IconSettings,
 } from '../../components/icons.jsx'
 
 export default function WarehousesPage() {
@@ -87,35 +90,9 @@ export default function WarehousesPage() {
   const [syncWarehouseFilter, setSyncWarehouseFilter] = useState('')
   const [syncError, setSyncError] = useState('')
 
-  // Dialog Tarik Stok MIMS
+  // Dialog Tarik Stok MIMS & Pengaturan
   const [mimsModalOpen, setMimsModalOpen] = useState(false)
-  const [mimsToken, setMimsToken] = useState('')
-  const [mimsSaved, setMimsSaved] = useState(null)        // {saved, saved_at, last_used_at, last_result} atau null bila belum dimuat
-  const [mimsUseSaved, setMimsUseSaved] = useState(false)
-  const [mimsAuto, setMimsAuto] = useState(null)          // {auto_enabled, auto_time, auto_user_name, last_auto_date}
-  const [mimsAutoTime, setMimsAutoTime] = useState('02:00')
-  const [mimsAutoSaving, setMimsAutoSaving] = useState(false)
-  const [mimsAutoWhat, setMimsAutoWhat] = useState({ stock: true, issues: true, receipts: true })
-  const [mimsSaveToken, setMimsSaveToken] = useState(false)
-  const [mimsWarehouseIds, setMimsWarehouseIds] = useState([])
-  const [mimsDate, setMimsDate] = useState('')
-  const [mimsFrom, setMimsFrom] = useState('')
-  const [mimsTo, setMimsTo] = useState('')
-  const [mimsDryRun, setMimsDryRun] = useState(false)
-  const [mimsDoStock, setMimsDoStock] = useState(true)
-  const [mimsDoIssues, setMimsDoIssues] = useState(true)
-  const [mimsDoReceipts, setMimsDoReceipts] = useState(true)
-  const [mimsDoReservations, setMimsDoReservations] = useState(false)
-  const [mimsPulling, setMimsPulling] = useState(false)
-  const [mimsResults, setMimsResults] = useState(null)
-  const [mimsError, setMimsError] = useState('')
-  const mimsResultsRef = useRef(null)
-
-  useEffect(() => {
-    if (mimsResults && typeof mimsResultsRef.current?.scrollIntoView === 'function') {
-      mimsResultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    }
-  }, [mimsResults])
+  const [mimsSettingsOpen, setMimsSettingsOpen] = useState(false)
 
   // Load Warehouses
   const loadWarehouses = useCallback(async () => {
@@ -158,117 +135,6 @@ export default function WarehousesPage() {
       loadSyncRuns()
     }
   }, [activeTab, loadSyncRuns])
-
-  useEffect(() => {
-    if (mimsModalOpen) {
-      loadMimsToken().then(() => setMimsUseSaved((v) => v))
-      loadMimsAuto()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mimsModalOpen])
-
-  // Token MIMS yang disimpan pengguna (terenkripsi di server; yang diterima hanya statusnya)
-  const loadMimsToken = async () => {
-    try {
-      const res = await warehousesApi.mimsTokenStatus()
-      const st = res?.data || null
-      setMimsSaved(st)
-      if (!st?.saved) setMimsUseSaved(false)
-    } catch {
-      setMimsSaved(null)
-    }
-  }
-
-  const loadMimsAuto = async () => {
-    try {
-      const res = await warehousesApi.mimsAutoSettings()
-      setMimsAuto(res?.data || null)
-      if (res?.data?.auto_time) setMimsAutoTime(res.data.auto_time)
-      if (res?.data) setMimsAutoWhat({ stock: res.data.auto_stock !== false, issues: res.data.auto_issues !== false, receipts: res.data.auto_receipts !== false })
-    } catch {
-      setMimsAuto(null)
-    }
-  }
-
-  const saveMimsAuto = async (enabled) => {
-    setMimsAutoSaving(true)
-    setMimsError('')
-    try {
-      const res = await warehousesApi.saveMimsAutoSettings({ auto_enabled: enabled, auto_time: mimsAutoTime, auto_stock: mimsAutoWhat.stock, auto_issues: mimsAutoWhat.issues, auto_receipts: mimsAutoWhat.receipts })
-      setMimsAuto(res?.data || null)
-      notify({ type: 'success', title: enabled ? 'Tarik Otomatis Aktif' : 'Tarik Otomatis Dimatikan', desc: enabled ? `Data MIMS ditarik setiap hari pukul ${mimsAutoTime} dengan token tersimpan Anda.` : 'Data MIMS tidak lagi ditarik otomatis.', tag: 'MIMS' })
-    } catch (err) {
-      setMimsError(err?.message || 'Gagal menyimpan pengaturan tarik otomatis.')
-    } finally {
-      setMimsAutoSaving(false)
-    }
-  }
-
-  const forgetMimsToken = async () => {
-    try {
-      await warehousesApi.forgetMimsToken()
-      setMimsUseSaved(false)
-      notify({ type: 'success', title: 'Token Dihapus', desc: 'Token MIMS tersimpan sudah dihapus dari server.', tag: 'MIMS' })
-      await loadMimsToken()
-    } catch (err) {
-      setMimsError(err?.message || 'Gagal menghapus token tersimpan.')
-    }
-  }
-
-  // Handle MIMS Pull
-  const handleMimsPull = async (e) => {
-    e?.preventDefault?.()
-    if (!mimsDoStock && !mimsDoIssues && !mimsDoReceipts && !mimsDoReservations) {
-      setMimsError('Pilih minimal satu: stok, pengeluaran, penerimaan, atau reservasi.')
-      return
-    }
-    if (!mimsUseSaved && !mimsToken.trim()) {
-      setMimsError('Token sesi MIMS wajib diisi.')
-      return
-    }
-    setMimsPulling(true)
-    setMimsError('')
-    setMimsResults(null)
-    const tokenToSend = mimsToken.trim()
-    // Segera bersihkan token dari state
-    setMimsToken('')
-
-    try {
-      const res = await warehousesApi.syncStock({
-        ...(mimsUseSaved ? { use_saved_token: true } : { token: tokenToSend, ...(mimsSaveToken && { save_token: true }) }),
-        warehouse_ids: mimsWarehouseIds.length > 0 ? mimsWarehouseIds : undefined,
-        date: mimsDate || undefined,
-        issues_from: (mimsDoIssues || mimsDoReceipts || mimsDoReservations) && mimsFrom ? mimsFrom : undefined,
-        issues_to: (mimsDoIssues || mimsDoReceipts || mimsDoReservations) && mimsFrom && mimsTo ? mimsTo : undefined,
-        dry_run: (mimsDryRun && mimsDoStock) || undefined,
-        sync_stock: mimsDoStock,
-        sync_issues: mimsDoIssues,
-        sync_receipts: mimsDoReceipts,
-        sync_reservations: mimsDoReservations || undefined,
-      }, (rows) => setMimsResults(rows))
-      setMimsResults(res?.data || [])
-      notify({
-        type: 'success',
-        title: 'Penarikan Stok Selesai',
-        desc: `Berhasil memproses ${res?.data?.length || 0} gudang dari MIMS.`,
-        tag: 'MIMS',
-      })
-      loadSyncRuns()
-      loadMimsToken()
-    } catch (err) {
-      loadMimsToken()
-      const msg = err?.message || 'Gagal menarik stok dari MIMS.'
-      setMimsError(msg)
-      notify({
-        type: 'error',
-        title: 'Gagal Menarik Stok MIMS',
-        desc: msg,
-        tag: 'MIMS',
-      })
-    } finally {
-      setMimsPulling(false)
-    }
-  }
 
   // Load snapshots for selected warehouse
   const loadSnapshots = async (warehouse) => {
@@ -426,7 +292,26 @@ export default function WarehousesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {canImportStock && (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={IconSettings}
+                onClick={() => setMimsSettingsOpen(true)}
+              >
+                Pengaturan Tarik
+              </Button>
+              <Link
+                to="/master-data/warehouses/tarik-mims"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <IconRefresh size={14} />
+                <span>Halaman Tarik MIMS</span>
+              </Link>
+            </>
+          )}
           {canManage ? (
             <button
               type="button"
@@ -440,17 +325,7 @@ export default function WarehousesPage() {
           ) : canImportStock ? (
             <button
               type="button"
-              onClick={() => {
-                setMimsModalOpen(true)
-                setMimsToken('')
-                setMimsWarehouseIds([])
-                setMimsDate('')
-                setMimsFrom('')
-                setMimsTo('')
-                setMimsDryRun(false)
-                setMimsResults(null)
-                setMimsError('')
-              }}
+              onClick={() => setMimsModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconRefresh size={16} />
@@ -541,17 +416,7 @@ export default function WarehousesPage() {
             variant="secondary"
             size="sm"
             icon={IconRefresh}
-            onClick={() => {
-              setMimsModalOpen(true)
-              setMimsToken('')
-              setMimsWarehouseIds([])
-              setMimsDate('')
-              setMimsFrom('')
-              setMimsTo('')
-              setMimsDryRun(false)
-              setMimsResults(null)
-              setMimsError('')
-            }}
+            onClick={() => setMimsModalOpen(true)}
           >
             Tarik Stok dari MIMS
           </Button>
@@ -929,24 +794,24 @@ export default function WarehousesPage() {
                 Segarkan
               </Button>
               {canImportStock && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={IconRefresh}
-                  onClick={() => {
-                    setMimsModalOpen(true)
-                    setMimsToken('')
-                    setMimsWarehouseIds([])
-                    setMimsDate('')
-                    setMimsFrom('')
-                    setMimsTo('')
-                    setMimsDryRun(false)
-                    setMimsResults(null)
-                    setMimsError('')
-                  }}
-                >
-                  Tarik Stok dari MIMS
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={IconSettings}
+                    onClick={() => setMimsSettingsOpen(true)}
+                  >
+                    Pengaturan
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={IconRefresh}
+                    onClick={() => setMimsModalOpen(true)}
+                  >
+                    Tarik Stok dari MIMS
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -1344,400 +1209,30 @@ export default function WarehousesPage() {
         </div>
       </Drawer>
 
-      {/* DRAWER: Tarik Stok dari MIMS */}
+      {/* MODAL: Tarik Stok dari MIMS (MimsStockPullPage inline) */}
       <Modal
         open={mimsModalOpen}
         title="Tarik Stok dari MIMS"
-        onClose={() => {
-          setMimsModalOpen(false)
-          setMimsToken('')
-          setMimsResults(null)
-          setMimsError('')
-        }}
-        size="max-w-3xl"
+        onClose={() => setMimsModalOpen(false)}
+        size="max-w-4xl"
       >
-        <div className="space-y-4 text-xs">
-          <Alert kind="info">
-            Gunakan token sesi MIMS Anda. Token yang ditempel hanya dikirim untuk permintaan ini lalu dikosongkan; bila Anda memilih menyimpannya, token disimpan terenkripsi di server hanya untuk akun Anda dan tidak pernah ditampilkan kembali.
-          </Alert>
-
-          {mimsError && (
-            <Alert kind="error">
-              <div>{mimsError}</div>
-              {(mimsError.toLowerCase().includes('token ditolak') ||
-                mimsError.toLowerCase().includes('kedaluwarsa')) && (
-                <div className="mt-1 font-semibold">
-                  Silakan ambil token baru dari aplikasi MIMS.
-                </div>
-              )}
-            </Alert>
-          )}
-
-          <form onSubmit={handleMimsPull} className="space-y-4">
-            {mimsSaved?.saved && (
-              <div className="rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800" role="radiogroup" aria-label="Sumber token MIMS">
-                <label className="flex items-start gap-2 p-3 cursor-pointer">
-                  <input type="radio" name="mims-source" checked={mimsUseSaved} onChange={() => setMimsUseSaved(true)} disabled={mimsPulling} className="mt-0.5" />
-                  <span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">Gunakan token tersimpan</span>
-                    <span className="block text-[11px] text-slate-500">
-                      Disimpan {mimsSaved.saved_at ? new Date(mimsSaved.saved_at).toLocaleString('id-ID') : '-'}
-                      {mimsSaved.last_used_at ? ` · terakhir dipakai ${new Date(mimsSaved.last_used_at).toLocaleString('id-ID')}` : ''}
-                    </span>
-                    {mimsSaved.last_result === 'REJECTED' && <span className="block text-[11px] text-amber-600 dark:text-amber-400">Pemakaian terakhir ditolak MIMS; coba lagi, atau tempel token baru bila masih ditolak.</span>}
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 p-3 cursor-pointer">
-                  <input type="radio" name="mims-source" checked={!mimsUseSaved} onChange={() => setMimsUseSaved(false)} disabled={mimsPulling} className="mt-0.5" />
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Tempel token baru</span>
-                </label>
-              </div>
-            )}
-
-            {mimsSaved?.saved && (
-              <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2" aria-label="Tarik otomatis">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Tarik otomatis harian</span>
-                  <span className={`text-[11px] font-semibold ${mimsAuto?.auto_enabled ? 'text-emerald-600' : 'text-slate-500'}`}>{mimsAuto?.auto_enabled ? 'Aktif' : 'Nonaktif'}</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <label htmlFor="mims-auto-time" className="text-[11px] text-slate-600 dark:text-slate-300">Jam (WIB)</label>
-                  <input id="mims-auto-time" type="time" value={mimsAutoTime} onChange={(e) => setMimsAutoTime(e.target.value)} disabled={mimsAutoSaving} className="px-2 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800" />
-                  <Button type="button" variant="secondary" size="sm" disabled={mimsAutoSaving || (!mimsAutoWhat.stock && !mimsAutoWhat.issues && !mimsAutoWhat.receipts)} onClick={() => saveMimsAuto(true)}>{mimsAuto?.auto_enabled ? 'Simpan jam' : 'Aktifkan'}</Button>
-                  {mimsAuto?.auto_enabled && <Button type="button" variant="secondary" size="sm" disabled={mimsAutoSaving} onClick={() => saveMimsAuto(false)}>Matikan</Button>}
-                </div>
-                <fieldset className="flex flex-wrap items-center gap-3" disabled={mimsAutoSaving}>
-                  <legend className="sr-only">Data yang ditarik otomatis</legend>
-                  {[['stock', 'Stok'], ['issues', 'Pengeluaran'], ['receipts', 'Penerimaan']].map(([k, label]) => (
-                    <label key={k} className="inline-flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-300">
-                      <input type="checkbox" checked={mimsAutoWhat[k]} onChange={(e) => setMimsAutoWhat((w) => ({ ...w, [k]: e.target.checked }))} />
-                      {label}
-                    </label>
-                  ))}
-                </fieldset>
-                {!mimsAutoWhat.stock && !mimsAutoWhat.issues && !mimsAutoWhat.receipts && (
-                  <p className="text-[11px] text-rose-600">Pilih minimal satu data.</p>
-                )}
-                <p className="text-[11px] text-slate-500">
-                  Memakai token tersimpan milik {mimsAuto?.auto_enabled && mimsAuto?.auto_user_name ? mimsAuto.auto_user_name : 'Anda (yang mengaktifkan)'}.
-                  {mimsAuto?.last_auto_date ? ` Terakhir berjalan ${mimsAuto.last_auto_date}.` : ''} Bila token kedaluwarsa, penarikan gagal dan pemegang izin impor stok diberi tahu; tempel token baru dan simpan lagi.
-                </p>
-              </div>
-            )}
-
-            {!mimsUseSaved && (
-            <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Token Sesi MIMS *
-              </label>
-              <input
-                type="password"
-                autoComplete="off"
-                required
-                disabled={mimsPulling}
-                value={mimsToken}
-                onChange={(e) => setMimsToken(e.target.value)}
-                placeholder="Tempel token sesi MIMS Anda di sini..."
-                className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-hidden disabled:opacity-60"
-              />
-              <label className="mt-2 flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300">
-                <input type="checkbox" checked={mimsSaveToken} onChange={(e) => setMimsSaveToken(e.target.checked)} disabled={mimsPulling} />
-                Simpan token ini untuk penarikan berikutnya{mimsSaved?.saved ? ' (menggantikan token tersimpan)' : ''}
-              </label>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Bila tidak dicentang, token tidak disimpan di mana pun.
-              </p>
-            </div>
-            )}
-            {mimsUseSaved && (
-              <p className="text-[11px] text-slate-500">
-                Token tersimpan dipakai langsung di server. <button type="button" onClick={forgetMimsToken} className="underline text-rose-600 cursor-pointer">Hapus token tersimpan</button>
-              </p>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Tanggal Cuplikan (Opsional)
-                </label>
-                <input
-                  type="date"
-                  disabled={mimsPulling}
-                  max={new Date().toISOString().slice(0, 10)}
-                  value={mimsDate}
-                  onChange={(e) => setMimsDate(e.target.value)}
-                  className="block w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60"
-                />
-                <p className="mt-0.5 text-[10px] text-slate-400">
-                  Kosongkan untuk menarik stok hari ini.
-                </p>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Rentang Pengeluaran / Penerimaan (Opsional)
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    aria-label="Rentang dari"
-                    disabled={mimsPulling}
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={mimsFrom}
-                    onChange={(e) => setMimsFrom(e.target.value)}
-                    className="block w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60"
-                  />
-                  <span className="text-slate-500">s/d</span>
-                  <input
-                    type="date"
-                    aria-label="Rentang sampai"
-                    disabled={mimsPulling || !mimsFrom}
-                    min={mimsFrom || undefined}
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={mimsTo}
-                    onChange={(e) => setMimsTo(e.target.value)}
-                    className="block w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60"
-                  />
-                </div>
-                <p className="mt-0.5 text-[10px] text-slate-400">
-                  Kosongkan untuk 90 hari terakhir sampai hari ini. Paling lama 366 hari. Tidak berlaku untuk stok.
-                </p>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Pilihan Gudang ERP
-                </label>
-                <select
-                  multiple
-                  disabled={mimsPulling}
-                  value={mimsWarehouseIds}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, (option) => option.value)
-                    setMimsWarehouseIds(selected)
-                  }}
-                  className="block w-full px-2 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-20 disabled:opacity-60"
-                >
-                  {warehouses
-                    .filter((w) => w.plant && w.stor_loc)
-                    .map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.code} - {w.name} ({w.plant}/{w.stor_loc})
-                      </option>
-                    ))}
-                </select>
-                <p className="mt-0.5 text-[10px] text-slate-400">
-                  {mimsWarehouseIds.length === 0
-                    ? 'Bawaan: Semua gudang aktif dengan Plant/Storage Loc'
-                    : `${mimsWarehouseIds.length} gudang dipilih (tahan Ctrl/Cmd untuk multi-pilih)`}
-                </p>
-              </div>
-            </div>
-
-            <fieldset className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2">
-              <legend className="px-1 text-xs font-semibold text-slate-700 dark:text-slate-300">Data yang ditarik</legend>
-              {[
-                ['mims-do-stock', 'Stok gudang', mimsDoStock, setMimsDoStock],
-                ['mims-do-issues', 'Pengeluaran material (riwayat pemakaian, baca-saja)', mimsDoIssues, setMimsDoIssues],
-                ['mims-do-receipts', 'Penerimaan material (riwayat, baca-saja)', mimsDoReceipts, setMimsDoReceipts],
-                ['mims-do-reservations', 'Reservasi material (termasuk yang belum dikeluarkan, baca-saja)', mimsDoReservations, setMimsDoReservations],
-              ].map(([id, label, checked, set]) => (
-                <label key={id} htmlFor={id} className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                  <input type="checkbox" id={id} disabled={mimsPulling} checked={checked} onChange={(e) => set(e.target.checked)} className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60" />
-                  {label}
-                </label>
-              ))}
-            </fieldset>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="mims-dry-run"
-                disabled={mimsPulling || !mimsDoStock}
-                checked={mimsDryRun && mimsDoStock}
-                onChange={(e) => setMimsDryRun(e.target.checked)}
-                className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60"
-              />
-              <label
-                htmlFor="mims-dry-run"
-                className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
-              >
-                Uji coba tanpa menyimpan (dry run)
-              </label>
-            </div>
-
-            {mimsPulling && (
-              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
-                <Spinner size="xs" />
-                <span>Sedang menghubungi server MIMS dan menarik stok gudang… Mohon tunggu.</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={mimsPulling}
-                onClick={() => {
-                  setMimsModalOpen(false)
-                  setMimsToken('')
-                  setMimsResults(null)
-                  setMimsError('')
-                }}
-              >
-                Batal
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-                loading={mimsPulling}
-                disabled={mimsPulling}
-                icon={IconRefresh}
-              >
-                {mimsPulling ? 'Menarik Stok...' : 'Tarik Stok Sekarang'}
-              </Button>
-            </div>
-          </form>
-
-          {mimsResults && (
-            <div ref={mimsResultsRef} className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-slate-800 dark:text-slate-200">
-                  Hasil Penarikan Stok MIMS
-                </h4>
-                <span className="text-xs font-mono font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                  {mimsResults.length} gudang diproses
-                </span>
-              </div>
-              <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-x-auto max-h-72 overflow-y-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 shadow-xs">
-                    <tr>
-                      <th className="py-2 px-3">Gudang</th>
-                      <th className="py-2 px-3">Status</th>
-                      <th className="py-2 px-3 text-right">Total SKU</th>
-                      <th className="py-2 px-3 text-right">Terpetakan</th>
-                      <th className="py-2 px-3 text-right">Belum Dipetakan</th>
-                      <th className="py-2 px-3">Keterangan</th>
-                      <th className="py-2 px-3 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-sans text-xs">
-                    {mimsResults.map((r, idx) => {
-                      const total = r.total || 0
-                      const mapped = r.mapped || 0
-                      const unmappedCount = total - mapped
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                          <td className="py-2 px-3 font-semibold text-slate-900 dark:text-slate-100">
-                            <div>{r.warehouse_name || r.warehouse_code || r.warehouse_id}</div>
-                            <div className="text-[10px] font-mono text-slate-400">
-                              {r.warehouse_code}
-                            </div>
-                          </td>
-                          <td className="py-2 px-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                r.status === 'OK'
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                  : r.status === 'SKIPPED'
-                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                              }`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold">
-                            {total.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono text-emerald-600 font-semibold">
-                            {mapped.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono text-amber-600 font-semibold">
-                            {unmappedCount > 0 ? unmappedCount.toLocaleString('id-ID') : 0}
-                          </td>
-                          <td className="py-2 px-3 text-slate-600 dark:text-slate-400 text-[11px]">
-                            {r.message || '-'}
-                            {r.receipts && (
-                              <span className="block text-slate-500">
-                                Penerimaan: {r.receipts.status === 'OK' ? (r.receipts.documents_new === 0 ? 'tidak ada dokumen baru (yang sudah tercatat tidak ditarik ulang)' : `${r.receipts.documents_new} dokumen baru, ${r.receipts.lines} baris material`) : r.receipts.message || r.receipts.status}
-                              </span>
-                            )}
-                            {r.reservations && (
-                              <span className="block text-slate-500">
-                                Reservasi: {r.reservations.status === 'OK' ? (r.reservations.documents_new === 0 ? 'tidak ada reservasi baru' : `${r.reservations.documents_new} reservasi baru, ${r.reservations.matched} pelanggan cocok permohonan`) : r.reservations.message || r.reservations.status}
-                              </span>
-                            )}
-                            {r.issues && (
-                              <span className="block text-slate-500">
-                                Pengeluaran: {r.issues.status === 'OK' ? (r.issues.documents_new === 0 ? 'tidak ada dokumen baru (yang sudah tercatat tidak ditarik ulang)' : `${r.issues.documents_new} dokumen baru, ${r.issues.lines} baris material, ${r.issues.matched} pelanggan cocok permohonan`) : r.issues.message || r.issues.status}
-                              </span>
-                            )}
-                            {r.message && (r.message.includes('token ditolak') || r.message.includes('kedaluwarsa')) && (
-                              <span className="block text-rose-500 font-medium">
-                                Ambil token baru dari MIMS.
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 text-right">
-                            {r.snapshot_id ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMimsModalOpen(false)
-                                  handleOpenUnmapped(r.snapshot_id, r.warehouse_name)
-                                }}
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
-                              >
-                                SKU Belum Terpetakan
-                              </button>
-                            ) : null}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-xs text-slate-500">
-                  {mimsResults.length} gudang selesai diproses.
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setMimsResults(null)
-                      setMimsError('')
-                    }}
-                  >
-                    Tarik Ulang
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setMimsModalOpen(false)
-                      setMimsToken('')
-                      setMimsResults(null)
-                      setMimsError('')
-                    }}
-                  >
-                    Tutup / Selesai
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <MimsStockPullPage
+          asPage={false}
+          onClose={() => setMimsModalOpen(false)}
+          onSuccess={() => loadSyncRuns()}
+          onOpenUnmapped={(snapshotId, warehouseName) => {
+            setMimsModalOpen(false)
+            handleOpenUnmapped(snapshotId, warehouseName)
+          }}
+        />
       </Modal>
+
+      {/* DRAWER: Pengaturan Tarik Otomatis & Token Sesi MIMS */}
+      <MimsSettingsDrawer
+        isOpen={mimsSettingsOpen}
+        onClose={() => setMimsSettingsOpen(false)}
+        onChanged={() => loadSyncRuns()}
+      />
     </div>
   )
 }
