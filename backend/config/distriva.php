@@ -127,6 +127,7 @@ return [
     'forecast' => [
         'python' => env('DISTRIVA_FORECAST_PYTHON'),
         'script' => env('DISTRIVA_FORECAST_SCRIPT'),
+        'monthly_script' => env('DISTRIVA_FORECAST_MONTHLY_SCRIPT'),
         'timeout_seconds' => (int) env('DISTRIVA_FORECAST_TIMEOUT', 3600),
         'threads' => (int) env('DISTRIVA_FORECAST_THREADS', 8),
         'seeds' => (int) env('DISTRIVA_FORECAST_SEEDS', 3),

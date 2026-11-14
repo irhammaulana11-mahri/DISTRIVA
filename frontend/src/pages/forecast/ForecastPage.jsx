@@ -36,43 +36,114 @@ export function exceedText(e) {
   return 'tidak dalam 5 tahun'
 }
 
-export default function ForecastPage() {
-  const { can, isSysAdmin } = useAccess()
+/** Daftar run satu jenis forecast: dipilih otomatis, disegarkan tiap 8 detik selama ada yang berjalan. */
+function useRuns(kind) {
   const { notify } = useNotifications()
   const [runs, setRuns] = useState({ loading: true, error: '', rows: [], can: {} })
   const [runId, setRunId] = useState('')
-  const [run, setRun] = useState(null)
   const [starting, setStarting] = useState(false)
-  const [reviewing, setReviewing] = useState(false)
-  const canRun = Boolean(runs.can.run || can['forecast.run'] || isSysAdmin)
-  const canReview = Boolean(runs.can.review || can['forecast.review'] || isSysAdmin)
 
   const loadRuns = useCallback(async () => {
     try {
-      const r = await forecastApi.runs()
+      const r = await forecastApi.runs(kind)
       setRuns({ loading: false, error: '', rows: r?.data || [], can: r?.can || {} })
       return r?.data || []
     } catch (err) {
       setRuns({ loading: false, error: err?.message || 'Gagal memuat daftar forecast.', rows: [], can: {} })
       return []
     }
-  }, [])
+  }, [kind])
 
   useEffect(() => { loadRuns().then((rows) => setRunId((cur) => cur || rows.find((x) => x.status === 'SUCCEEDED')?.id || rows[0]?.id || '')) }, [loadRuns])
 
-  const selected = runs.rows.find((r) => r.id === runId)
   const running = runs.rows.some((r) => r.status === 'RUNNING')
-
-  // selama ada forecast berjalan, daftar disegarkan tiap 8 detik dan berhenti sendiri saat selesai atau halaman ditutup
   useEffect(() => {
     if (!running) return undefined
     const t = setInterval(async () => {
       const rows = await loadRuns()
-      const done = rows.find((x) => x.status === 'SUCCEEDED')
-      if (!rows.some((x) => x.status === 'RUNNING') && done) setRunId(done.id)
+      const done = rows.find((x) => x.status === 'SUCCEEDED' || x.status === 'INSUFFICIENT')
+      if (!rows.some((x) => x.status === 'RUNNING') && done) setRunId(rows[0]?.id || done.id)
     }, 8000)
     return () => clearInterval(t)
   }, [running, loadRuns])
+
+  const start = async () => {
+    setStarting(true)
+    try {
+      const r = await forecastApi.start(kind === 'DEMAND' ? 'DEMAND' : undefined)
+      notify({ type: 'success', title: 'Forecast dimulai', desc: r?.message || 'Berjalan di latar belakang.', tag: 'Forecast' })
+      const rows = await loadRuns()
+      setRunId(rows[0]?.id || '')
+    } catch (err) {
+      notify({ type: 'error', title: 'Forecast tidak dapat dimulai', desc: err?.message || 'Terjadi kesalahan.', tag: 'Forecast' })
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  return { runs, runId, setRunId, loadRuns, running, starting, start, selected: runs.rows.find((r) => r.id === runId) }
+}
+
+const TABS = [
+  { key: 'gardu', label: 'Beban gardu' },
+  { key: 'customers', label: 'Pelanggan & daya (VA)' },
+  { key: 'material', label: 'Material' },
+]
+
+export default function ForecastPage() {
+  const [tab, setTab] = useState('gardu')
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Forecast</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Prakiraan dengan deep learning: beban gardu, pertumbuhan pelanggan dan daya (VA), serta pemakaian material. Rekomendasi untuk perencana, bukan keputusan.</p>
+      </div>
+      <div role="tablist" aria-label="Jenis forecast" className="flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-700">
+        {TABS.map((t) => (
+          <button key={t.key} role="tab" aria-selected={tab === t.key} type="button" onClick={() => setTab(t.key)}
+            className={`whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 -mb-px cursor-pointer ${tab === t.key ? 'border-brand-600 text-brand-700 dark:text-brand-300' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === 'gardu' ? <GarduForecast /> : <DemandForecast key={tab} kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']} />}
+    </div>
+  )
+}
+
+function RunHeader({ title, hook, canRun, disabledReason }) {
+  const { runs, runId, setRunId, loadRuns, running, starting, start } = hook
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+        {disabledReason && <p className="text-xs text-slate-500">{disabledReason}</p>}
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        {runs.rows.length > 0 && (
+          <div>
+            <label htmlFor={`fc-run-${title}`} className="block text-xs text-slate-500">Hasil forecast</label>
+            <select id={`fc-run-${title}`} value={runId} onChange={(e) => setRunId(e.target.value)} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
+              {runs.rows.map((r) => <option key={r.id} value={r.id}>{fmtDate(r.started_at)} · {{ SUCCEEDED: 'selesai', RUNNING: 'berjalan', INSUFFICIENT: 'data kurang' }[r.status] || 'gagal'}</option>)}
+            </select>
+          </div>
+        )}
+        <Button variant="secondary" icon={IconRefresh} onClick={loadRuns} aria-label="Muat ulang">Muat ulang</Button>
+        {canRun && <Button onClick={start} loading={starting} disabled={running}>Jalankan forecast</Button>}
+      </div>
+    </div>
+  )
+}
+
+function GarduForecast() {
+  const { can, isSysAdmin } = useAccess()
+  const { notify } = useNotifications()
+  const hook = useRuns('GARDU_LOAD')
+  const { runs, runId, loadRuns, running, selected } = hook
+  const [run, setRun] = useState(null)
+  const [reviewing, setReviewing] = useState(false)
+  const canRun = Boolean(runs.can.run || can['forecast.run'] || isSysAdmin)
+  const canReview = Boolean(runs.can.review || can['forecast.review'] || isSysAdmin)
 
   const loadRun = useCallback(async () => {
     if (!runId) { setRun(null); return }
@@ -86,41 +157,9 @@ export default function ForecastPage() {
   }, [runId, notify])
   useEffect(() => { loadRun() }, [loadRun, selected?.status])
 
-  const start = async () => {
-    setStarting(true)
-    try {
-      const r = await forecastApi.start()
-      notify({ type: 'success', title: 'Forecast dimulai', desc: r?.message || 'Berjalan di latar belakang.', tag: 'Forecast' })
-      const rows = await loadRuns()
-      setRunId(rows[0]?.id || '')
-    } catch (err) {
-      notify({ type: 'error', title: 'Forecast tidak dapat dimulai', desc: err?.message || 'Terjadi kesalahan.', tag: 'Forecast' })
-    } finally {
-      setStarting(false)
-    }
-  }
-
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Forecast Beban Gardu</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Prakiraan beban trafo 1, 3, dan 5 tahun ke depan dengan deep learning. Rekomendasi untuk perencana, bukan keputusan.</p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          {runs.rows.length > 0 && (
-            <div>
-              <label htmlFor="fc-run" className="block text-xs text-slate-500">Hasil forecast</label>
-              <select id="fc-run" value={runId} onChange={(e) => setRunId(e.target.value)} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
-                {runs.rows.map((r) => <option key={r.id} value={r.id}>{fmtDate(r.started_at)} · {r.status === 'SUCCEEDED' ? 'selesai' : r.status === 'RUNNING' ? 'berjalan' : 'gagal'}</option>)}
-              </select>
-            </div>
-          )}
-          <Button variant="secondary" icon={IconRefresh} onClick={loadRuns} aria-label="Muat ulang">Muat ulang</Button>
-          {canRun && <Button onClick={start} loading={starting} disabled={running}>Jalankan forecast</Button>}
-        </div>
-      </div>
-
+      <RunHeader title="Beban gardu" hook={hook} canRun={canRun} disabledReason="Prakiraan beban trafo 1, 3, dan 5 tahun ke depan, dan kapan melewati 80% dan 100% kapasitas." />
       {runs.error && <Alert variant="error">{runs.error}</Alert>}
       {runs.loading ? <div className="flex justify-center py-12"><Spinner /></div> : runs.rows.length === 0 ? (
         <EmptyState icon={IconChart} title="Belum ada forecast" description={canRun ? 'Klik "Jalankan forecast" untuk melatih model dari data pembacaan gardu. Prosesnya memerlukan beberapa menit.' : 'Forecast dijalankan oleh tim perencanaan.'} />
@@ -136,6 +175,151 @@ export default function ForecastPage() {
         <ReasonDialog open title="Tandai forecast sudah ditelaah" description="Catatan telaah (mis. kesesuaian dengan kondisi lapangan) disimpan bersama hasil forecast." confirmLabel="Tandai ditelaah"
           onClose={() => setReviewing(false)}
           onConfirm={async (note) => { await forecastApi.review(run.id, note); setReviewing(false); notify({ type: 'success', title: 'Forecast ditelaah', desc: 'Tercatat.', tag: 'Forecast' }); await loadRuns(); await loadRun() }} />
+      )}
+    </div>
+  )
+}
+
+const KIND_LABEL = { CUSTOMERS_ADDED: 'Pelanggan baru (permohonan PB)', VA_ADDED: 'Tambahan daya tersambung (kVA)', MATERIAL_ISSUE: 'Pemakaian material' }
+const KIND_UNIT = { CUSTOMERS_ADDED: 'pelanggan', VA_ADDED: 'kVA', MATERIAL_ISSUE: '' }
+const num = (v) => (v == null ? '-' : Number(v).toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : 1 }))
+
+function DemandForecast({ kinds }) {
+  const { can, isSysAdmin } = useAccess()
+  const hook = useRuns('DEMAND')
+  const { runs, runId, running, selected } = hook
+  const canRun = Boolean(runs.can.run || can['forecast.run'] || isSysAdmin)
+  const [run, setRun] = useState(null)
+  const material = kinds.includes('MATERIAL_ISSUE')
+
+  useEffect(() => {
+    let live = true
+    setRun(null)
+    if (runId) forecastApi.run(runId).then((r) => { if (live) setRun(r?.data || null) }).catch(() => { if (live) setRun(null) })
+    return () => { live = false }
+  }, [runId, selected?.status])
+
+  return (
+    <div className="space-y-5">
+      <RunHeader title={material ? 'Pemakaian material' : 'Pelanggan baru dan daya (VA)'} hook={hook} canRun={canRun}
+        disabledReason={material ? 'Prakiraan 12 bulan ke depan dari pengeluaran material MIMS per ULP dan material.' : 'Prakiraan 12 bulan ke depan dari permohonan yang tercatat: pelanggan baru dan tambahan daya tersambung per ULP.'} />
+      {runs.error && <Alert variant="error">{runs.error}</Alert>}
+      {runs.loading ? <div className="flex justify-center py-12"><Spinner /></div> : runs.rows.length === 0 ? (
+        <EmptyState icon={IconChart} title="Belum ada forecast" description={canRun ? 'Klik "Jalankan forecast". Bila riwayat data belum cukup (minimal 24 bulan), sistem akan menjelaskan apa yang kurang.' : 'Forecast dijalankan oleh tim perencanaan.'} />
+      ) : (
+        <>
+          {running && <Alert variant="info">Forecast sedang berjalan di latar belakang. Halaman ini menyegarkan diri sendiri.</Alert>}
+          {selected?.status === 'FAILED' && <Alert variant="error">{selected.error || 'Forecast gagal.'}</Alert>}
+          {run?.status === 'INSUFFICIENT' && <InsufficientNotice run={run} kinds={kinds} />}
+          {run?.status === 'SUCCEEDED' && <DemandView run={run} kinds={kinds} />}
+        </>
+      )}
+    </div>
+  )
+}
+
+function InsufficientNotice({ run, kinds }) {
+  const cov = run.data_window?.coverage || {}
+  return (
+    <div className="space-y-3">
+      <Alert variant="warning">{run.error || 'Riwayat data belum cukup untuk melatih model.'}</Alert>
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+        <table className="w-full text-left text-sm">
+          <thead><tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700"><th className="px-3 py-2">Data</th><th className="px-3 py-2 text-right">Riwayat (bulan)</th><th className="px-3 py-2 text-right">Seri</th><th className="px-3 py-2 text-right">Memenuhi syarat</th><th className="px-3 py-2">Mulai</th></tr></thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {Object.entries(cov).filter(([k]) => kinds.includes(k)).map(([k, v]) => (
+              <tr key={k}><td className="px-3 py-2">{KIND_LABEL[k]}</td><td className="px-3 py-2 text-right">{v.months}</td><td className="px-3 py-2 text-right">{v.series}</td><td className="px-3 py-2 text-right">{v.sufficient_series}</td><td className="px-3 py-2">{v.first_month || '-'}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400">Cara menambah riwayat: permohonan lewat Sinkronisasi EIS dengan "lookback" lebih panjang; pengeluaran material lewat Tarik MIMS dengan rentang tanggal bertahap (maks. 366 hari per tarikan).</p>
+    </div>
+  )
+}
+
+function MiniBars({ months }) {
+  const max = Math.max(...months.map((m) => m.p90), 1e-9)
+  return (
+    <svg viewBox="0 0 120 32" className="h-8 w-full max-w-40" role="img" aria-label="Prakiraan 12 bulan: nilai tengah dan rentang">
+      {months.map((m, i) => (
+        <g key={m.month}>
+          <rect x={i * 10 + 1} y={32 - (m.p90 / max) * 30} width="8" height={Math.max(((m.p90 - m.p10) / max) * 30, 1)} className="fill-slate-300 dark:fill-slate-600" />
+          <rect x={i * 10 + 1} y={32 - (m.p50 / max) * 30} width="8" height="2" className="fill-brand-600" />
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+function DemandView({ run, kinds }) {
+  const m = run.metrics?.all || {}
+  const [kind, setKind] = useState(kinds[0])
+  const [unit, setUnit] = useState('')
+  const [search, setSearch] = useState('')
+  const debounced = useDebounce(search, 350)
+  const [page, setPage] = useState(1)
+  const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
+  const material = kinds.includes('MATERIAL_ISSUE')
+
+  useEffect(() => {
+    let live = true
+    setState((s) => ({ ...s, loading: true, error: '' }))
+    forecastApi.series(run.id, { kind, unit_id: unit, search: debounced.trim(), page, per_page: 25 })
+      .then((r) => { if (live) setState({ loading: false, error: '', rows: r?.data || [], meta: r?.meta || null }) })
+      .catch((err) => { if (live) setState({ loading: false, error: err?.message || 'Gagal memuat prakiraan.', rows: [], meta: null }) })
+    return () => { live = false }
+  }, [run.id, kind, unit, debounced, page])
+
+  return (
+    <div className="space-y-4">
+      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Selisih relatif (WAPE)" value={`${Math.round((m.wape ?? 0) * 100)}%`} hint="jumlah selisih prakiraan dan kenyataan dibanding jumlah kenyataan (diuji pada bulan yang tidak dipakai melatih)" />
+        <Stat label="Rentang p10–p90 tepat" value={`${Math.round((m.coverage_p10_p90 ?? 0) * 100)}%`} hint="idealnya sekitar 80%" />
+        <Stat label="Dibanding rata-rata 12 bulan" value={m.wape_gain_vs_persistence_pct == null ? '-' : `${m.wape_gain_vs_persistence_pct > 0 ? 'lebih baik ' : 'lebih buruk '}${Math.abs(m.wape_gain_vs_persistence_pct).toString().replace('.', ',')}%`} hint="dibanding menganggap tiap bulan sama dengan rata-rata 12 bulan terakhir" />
+        <Stat label="Deret diprakirakan" value={`${run.counts?.sufficient_series ?? 0} dari ${run.counts?.series ?? 0}`} hint="deret dengan riwayat < 24 bulan tidak diprakirakan" />
+      </dl>
+      <p className="text-xs text-slate-500 dark:text-slate-400">Data s.d. {fmtDate(run.data_cutoff)} · dijalankan oleh {run.started_by_name}. {run.assumptions}</p>
+      <div className="flex flex-wrap items-end gap-3">
+        {kinds.length > 1 && (
+          <div>
+            <label htmlFor="dm-kind" className="block text-xs text-slate-500">Yang diprakirakan</label>
+            <select id="dm-kind" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
+              {kinds.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+            </select>
+          </div>
+        )}
+        {material && (
+          <div className="flex-1 min-w-48">
+            <label htmlFor="dm-search" className="block text-xs text-slate-500">Cari material</label>
+            <input id="dm-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Nomor atau nama material" className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-sm" />
+          </div>
+        )}
+      </div>
+      {state.error && <Alert variant="error">{state.error}</Alert>}
+      {state.loading ? <div className="flex justify-center py-10"><Spinner /></div> : state.rows.length === 0 ? (
+        <EmptyState icon={IconChart} title="Tidak ada prakiraan" description="Tidak ada deret yang memenuhi syarat riwayat untuk filter ini." />
+      ) : (
+        <div className="space-y-3">
+          {state.rows.map((r) => (
+            <article key={r.series_id} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words">{r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{r.unit_name} · riwayat {r.history_months} bulan</p>
+                </div>
+                <MiniBars months={r.months} />
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+                <div><dt className="text-slate-400">12 bulan terakhir (nyata)</dt><dd className="text-base font-semibold text-slate-900 dark:text-slate-100">{num(r.last_12_months)} {KIND_UNIT[r.kind]}</dd></div>
+                {['3', '6', '12'].map((n) => (
+                  <div key={n}><dt className="text-slate-400">{n} bulan ke depan</dt><dd className="text-base font-semibold text-slate-900 dark:text-slate-100">{num(r.totals[n].p50)} {KIND_UNIT[r.kind]}</dd><dd className="text-slate-500">rentang {num(r.totals[n].p10)}–{num(r.totals[n].p90)}</dd></div>
+                ))}
+              </dl>
+            </article>
+          ))}
+          {state.meta && <TableFooter itemCount={state.rows.length} total={state.meta.total} entityLabel="deret" page={state.meta.current_page} perPage={25} onPage={setPage} onPerPage={() => {}} perPageOptions={[25]} />}
+        </div>
       )}
     </div>
   )

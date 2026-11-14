@@ -209,4 +209,104 @@ SH);
         DB::table('forecast_runs')->insert(['id' => $mine, 'kind' => 'GARDU_LOAD', 'status' => 'SUCCEEDED', 'started_by' => $this->up3Manager->getKey(), 'started_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
         $this->as($this->up3Manager)->postJson("/api/forecast/runs/{$mine}/review")->assertStatus(409);   // the starter never reviews their own run
     }
+
+    /** @return array<string,mixed> */
+    private function demandPayload(string $status = 'SUCCEEDED'): array
+    {
+        $months = fn (float $p50) => array_map(fn ($i) => ['month' => sprintf('2026-%02d', $i + 1), 'p10' => round($p50 * 0.8, 3), 'p50' => $p50, 'p90' => round($p50 * 1.3, 3)], range(11, 11)) + [];
+        $series = fn (string $id, string $kind, string $unit, ?string $item, float $p50) => ['series_id' => $id, 'kind' => $kind, 'unit_id' => $unit, 'item_code' => $item, 'item_label' => $item ? "Material {$item}" : null, 'history_months' => 30,
+            'last_12_months' => $p50 * 12, 'months' => array_map(fn ($i) => ['month' => sprintf('2026-%02d', $i), 'p10' => round($p50 * 0.8, 3), 'p50' => $p50, 'p90' => round($p50 * 1.3, 3)], range(1, 12)),
+            'totals' => ['3' => ['p10' => $p50 * 2.4, 'p50' => $p50 * 3, 'p90' => $p50 * 3.9], '6' => ['p10' => $p50 * 4.8, 'p50' => $p50 * 6, 'p90' => $p50 * 7.8], '12' => ['p10' => $p50 * 9.6, 'p50' => $p50 * 12, 'p90' => $p50 * 15.6]]];
+        $base = ['cutoff' => '2026-10', 'coverage' => ['CUSTOMERS_ADDED' => ['months' => 6, 'first_month' => '2026-05', 'series' => 2, 'sufficient_series' => 0]], 'counts' => ['series' => 3, 'sufficient_series' => $status === 'SUCCEEDED' ? 3 : 0],
+            'model' => ['name' => 'GRU-kuantil bulanan (ansambel)', 'version' => '1'], 'seconds' => 3.2];
+        if ($status !== 'SUCCEEDED') {
+            return $base + ['status' => 'INSUFFICIENT', 'message' => 'Riwayat belum cukup: butuh seri dengan minimal 24 bulan riwayat.', 'results' => []];
+        }
+
+        return $base + ['status' => 'SUCCEEDED', 'metrics' => ['all' => ['n' => 40, 'wape' => 0.31, 'bias_pct' => -2.0, 'coverage_p10_p90' => 0.78, 'persistence_wape' => 0.4, 'wape_gain_vs_persistence_pct' => 22.5], 'by_horizon' => []],
+            'results' => [$series("CUSTOMERS_ADDED|{$this->ulpA->getKey()}", 'CUSTOMERS_ADDED', $this->ulpA->getKey(), null, 40.0), $series("VA_ADDED|{$this->ulpA->getKey()}", 'VA_ADDED', $this->ulpA->getKey(), null, 900.0),
+                $series("MATERIAL_ISSUE|{$this->ulpB->getKey()}|3110025", 'MATERIAL_ISSUE', $this->ulpB->getKey(), '3110025', 12.0)]];
+    }
+
+    private function demandStub(string $status): void
+    {
+        File::put("{$this->dir}/demand.json", json_encode($this->demandPayload($status)));
+        File::put("{$this->dir}/demand.sh", <<<'SH'
+#!/bin/sh
+while [ $# -gt 0 ]; do case "$1" in --series) R="$2";; --cutoff) C="$2";; --out) O="$2";; esac; shift; done
+[ -s "$R" ] && [ -n "$C" ] || exit 3
+cp "$(dirname "$0")/demand.json" "$O"
+SH);
+        config(['distriva.forecast.python' => '/bin/sh', 'distriva.forecast.monthly_script' => "{$this->dir}/demand.sh"]);
+    }
+
+    #[Test]
+    public function the_demand_export_counts_customers_and_kva_per_ulp_month_and_material_issues_once_per_reservation_with_complete_months_only(): void
+    {
+        $cust = (string) Str::uuid();
+        DB::table('customers')->insert(['id' => $cust, 'customer_number' => 'C-1', 'name' => 'Pelanggan Uji', 'created_at' => now(), 'updated_at' => now()]);
+        $app = fn (string $type, string $status, string $at, ?float $delta, ?OrganizationalUnit $unit = null) => DB::table('applications')->insert(['id' => (string) Str::uuid(), 'application_number' => 'A-'.Str::random(8), 'application_type' => $type,
+            'transaction_type' => 'X', 'customer_id' => $cust, 'organizational_unit_id' => ($unit ?? $this->ulpA)->getKey(), 'current_status' => $status, 'delta_power_kva' => $delta, 'source_created_at' => $at, 'created_by' => $this->planner->getKey(), 'created_at' => $at, 'updated_at' => $at]);
+        $app('PB', 'APPROVED', '2026-08-10 09:00:00', 10.0);
+        $app('PB', 'PAID', '2026-08-20 09:00:00', 5.5);
+        $app('PD', 'PAID', '2026-08-25 09:00:00', 3.0);
+        $app('PB', 'CANCELLED', '2026-08-26 09:00:00', 99.0);                    // cancelled: not demand
+        $app('PB', 'APPROVED', '2026-11-05 09:00:00', 77.0);                     // the current month is incomplete: left out
+        $app('PB', 'APPROVED', '2026-08-12 09:00:00', 4.0, $this->ulpB);
+        $wh = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $wh, 'code' => 'WH-T', 'name' => 'Gudang Uji', 'organizational_unit_id' => $this->ulpA->getKey(), 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        foreach ([['D1', 'R1', '2026-09-03'], ['D2', 'R1', '2026-09-20'], ['D3', 'R2', '2026-10-02']] as [$doc, $res, $day]) {      // R1 has two documents: counted once, in September
+            DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => $doc, 'reservation_no' => $res, 'issued_on' => $day, 'fetched_at' => now()]);
+        }
+        foreach ([['R1', 10], ['R2', 4]] as [$res, $qty]) {
+            DB::table('mims_issue_lines')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'reservation_no' => $res, 'material_no' => '3110025', 'material_name' => 'Kabel TIC', 'quantity' => $qty]);
+        }
+
+        app(ForecastService::class)->exportDemand($this->dir, '2026-10');
+        $rows = collect(array_map('str_getcsv', file("{$this->dir}/series.csv", FILE_IGNORE_NEW_LINES)))->skip(1)->map(fn ($r) => [$r[1], $r[2], $r[3], $r[5], (float) $r[6]])->sort()->values()->all();
+        $a = $this->ulpA->getKey();
+        $b = $this->ulpB->getKey();
+        $expected = [['CUSTOMERS_ADDED', $a, '', '2026-08', 2.0], ['CUSTOMERS_ADDED', $b, '', '2026-08', 1.0], ['MATERIAL_ISSUE', $a, '3110025', '2026-09', 10.0], ['MATERIAL_ISSUE', $a, '3110025', '2026-10', 4.0],
+            ['VA_ADDED', $a, '', '2026-08', 18.5], ['VA_ADDED', $b, '', '2026-08', 4.0]];
+        usort($expected, fn ($x, $y) => $x <=> $y);
+        $this->assertSame($expected, $rows);
+    }
+
+    #[Test]
+    public function a_demand_run_stores_the_series_or_ends_as_insufficient_with_the_coverage_and_the_message(): void
+    {
+        $this->demandStub('SUCCEEDED');
+        $gardu = $this->as($this->planner)->postJson('/api/forecast/runs')->assertStatus(202)->json('data.id');          // a gardu run does not block a demand run
+        $id = $this->as($this->planner)->postJson('/api/forecast/runs', ['kind' => 'DEMAND'])->assertStatus(202)->json('data.id');
+        $this->as($this->planner)->postJson('/api/forecast/runs', ['kind' => 'DEMAND'])->assertStatus(409);
+        $this->as($this->planner)->postJson('/api/forecast/runs', ['kind' => 'NOPE'])->assertStatus(422);
+        app(ForecastService::class)->execute($id);
+        $run = DB::table('forecast_runs')->where('id', $id)->first();
+        $this->assertSame(['SUCCEEDED', 'DEMAND'], [$run->status, $run->kind]);
+        $this->assertSame(3, DB::table('forecast_series_results')->where('run_id', $id)->count());
+        $this->assertNotNull($run->assumptions);
+
+        $this->as($this->teknikA)->getJson('/api/forecast/runs?kind=DEMAND')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.kind', 'DEMAND');
+        $this->as($this->teknikA)->getJson('/api/forecast/runs')->assertJsonPath('data.0.id', $gardu);
+        $this->as($this->teknikA)->getJson("/api/forecast/runs/{$id}")->assertOk()->assertJsonPath('data.kind', 'DEMAND')->assertJsonPath('data.metrics.all.wape', 0.31);
+        $rows = $this->as($this->teknikA)->getJson("/api/forecast/runs/{$id}/series")->assertOk();
+        $this->assertSame(['CUSTOMERS_ADDED', 'VA_ADDED'], array_column($rows->json('data'), 'kind'));                       // ULP A only
+        $this->assertSame(12, count($rows->json('data.0.months')));
+        $this->assertEquals(480.0, $rows->json('data.0.totals.12.p50'));
+        $this->as($this->teknikA)->getJson("/api/forecast/runs/{$id}/series?kind=VA_ADDED")->assertJsonPath('meta.total', 1);
+        $this->as($this->teknikB)->getJson("/api/forecast/runs/{$id}/series?search=3110025")->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.item_label', 'Material 3110025');
+        $this->as($this->teknikB)->getJson("/api/forecast/runs/{$id}/series?unit_id={$this->ulpA->getKey()}")->assertJsonPath('meta.total', 0);
+        $this->as($this->teknikA)->getJson("/api/forecast/runs/{$gardu}/series")->assertNotFound();                        // not a demand run
+        $this->as($this->vendor)->getJson("/api/forecast/runs/{$id}/series")->assertForbidden();
+
+        $this->demandStub('INSUFFICIENT');
+        $thin = $this->as($this->planner)->postJson('/api/forecast/runs', ['kind' => 'DEMAND'])->assertStatus(202)->json('data.id');
+        app(ForecastService::class)->execute($thin);
+        $run = DB::table('forecast_runs')->where('id', $thin)->first();
+        $this->assertSame('INSUFFICIENT', $run->status, (string) $run->error);
+        $this->assertStringContainsString('Riwayat belum cukup', $run->error);
+        $this->assertSame(6, json_decode($run->data_window, true)['coverage']['CUSTOMERS_ADDED']['months']);
+        $this->assertSame(0, DB::table('forecast_series_results')->where('run_id', $thin)->count());
+        $this->as($this->planner)->postJson('/api/forecast/runs', ['kind' => 'DEMAND'])->assertStatus(202);                  // an insufficient run frees the next one
+    }
 }

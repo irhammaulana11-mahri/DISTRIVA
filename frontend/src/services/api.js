@@ -830,10 +830,11 @@ export const backupApi = {
 
 // Forecast beban gardu (docs/11; deep learning)
 export const forecastApi = {
-  runs: () => request('/forecast/runs'),
+  runs: (kind) => request(`/forecast/runs${qs({ kind })}`),
   run: (id) => request(`/forecast/runs/${id}`),
   substations: (id, params = {}) => request(`/forecast/runs/${id}/substations${qs(params)}`),
-  start: () => request('/forecast/runs', { method: 'POST' }),
+  series: (id, params = {}) => request(`/forecast/runs/${id}/series${qs(params)}`),
+  start: (kind) => request('/forecast/runs', { method: 'POST', body: kind ? { kind } : undefined }),
   review: (id, note) => request(`/forecast/runs/${id}/review`, { method: 'POST', body: { note: note || null } }),
 }
 

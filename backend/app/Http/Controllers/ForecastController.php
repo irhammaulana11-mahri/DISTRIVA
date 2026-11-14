@@ -26,8 +26,9 @@ class ForecastController extends Controller
     public function runs(Request $request): JsonResponse
     {
         $this->authorizer->authorizeScope($request->user(), 'forecast.view');
-        $rows = DB::table('forecast_runs as f')->join('users as u', 'u.id', '=', 'f.started_by')->where('f.kind', ForecastService::KIND)->orderByDesc('f.started_at')->limit(20)
-            ->get(['f.id', 'f.status', 'f.started_at', 'f.finished_at', 'f.data_cutoff', 'f.review_status', 'f.error', 'f.counts', 'u.name as started_by_name']);
+        $kind = $request->validate(['kind' => ['nullable', 'in:'.implode(',', ForecastService::KINDS)]])['kind'] ?? ForecastService::KIND;
+        $rows = DB::table('forecast_runs as f')->join('users as u', 'u.id', '=', 'f.started_by')->where('f.kind', $kind)->orderByDesc('f.started_at')->limit(20)
+            ->get(['f.id', 'f.kind', 'f.status', 'f.started_at', 'f.finished_at', 'f.data_cutoff', 'f.review_status', 'f.error', 'f.counts', 'u.name as started_by_name']);
 
         return response()->json(['data' => $rows->map(fn ($r) => (array) $r + ['counts' => $r->counts === null ? null : json_decode($r->counts, true)])->all(),
             'can' => ['run' => $this->catalog->allows($request->user(), 'forecast.run'), 'review' => $this->catalog->allows($request->user(), 'forecast.review')]]);
@@ -36,16 +37,16 @@ class ForecastController extends Controller
     public function show(Request $request, string $run): JsonResponse
     {
         $units = $this->scope($request->user());
-        $f = DB::table('forecast_runs as f')->join('users as u', 'u.id', '=', 'f.started_by')->leftJoin('users as rv', 'rv.id', '=', 'f.reviewed_by')->where('f.id', $run)->where('f.kind', ForecastService::KIND)
+        $f = DB::table('forecast_runs as f')->join('users as u', 'u.id', '=', 'f.started_by')->leftJoin('users as rv', 'rv.id', '=', 'f.reviewed_by')->where('f.id', $run)->whereIn('f.kind', ForecastService::KINDS)
             ->first(['f.*', 'u.name as started_by_name', 'rv.name as reviewed_by_name']) ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
-        $summary = DB::table('forecast_gardu_results as r')->join('organizational_units as o', 'o.id', '=', 'r.unit_id')->where('r.run_id', $run)->when($units !== null, fn ($q) => $q->whereIn('r.unit_id', $units))
+        $summary = $f->kind !== ForecastService::KIND ? collect() : DB::table('forecast_gardu_results as r')->join('organizational_units as o', 'o.id', '=', 'r.unit_id')->where('r.run_id', $run)->when($units !== null, fn ($q) => $q->whereIn('r.unit_id', $units))
             ->groupBy('o.id', 'o.code', 'o.name')->orderBy('o.code')
             ->selectRaw('o.id as unit_id, o.code as unit_code, o.name as unit_name, count(*) as total, '
                 .'sum(case when '.self::RISK_SQL." = 'KRITIS' then 1 else 0 end) as kritis, sum(case when ".self::RISK_SQL." = 'TINGGI' then 1 else 0 end) as tinggi, "
                 .'sum(case when '.self::RISK_SQL." = 'WASPADA' then 1 else 0 end) as waspada, sum(case when r.stale then 1 else 0 end) as stale")->get();
         $json = fn ($v) => $v === null ? null : json_decode($v, true);
 
-        return response()->json(['data' => ['id' => $f->id, 'status' => $f->status, 'started_at' => $f->started_at, 'finished_at' => $f->finished_at, 'started_by_name' => $f->started_by_name, 'data_cutoff' => $f->data_cutoff,
+        return response()->json(['data' => ['id' => $f->id, 'kind' => $f->kind, 'status' => $f->status, 'started_at' => $f->started_at, 'finished_at' => $f->finished_at, 'started_by_name' => $f->started_by_name, 'data_cutoff' => $f->data_cutoff,
             'model' => $json($f->model), 'data_window' => $json($f->data_window), 'counts' => $json($f->counts), 'metrics' => $json($f->metrics), 'assumptions' => $f->assumptions, 'error' => $f->error,
             'review_status' => $f->review_status, 'reviewed_by_name' => $f->reviewed_by_name, 'reviewed_at' => $f->reviewed_at, 'review_note' => $f->review_note,
             'summary' => $summary->map(fn ($s) => ['unit_id' => $s->unit_id, 'unit_code' => $s->unit_code, 'unit_name' => $s->unit_name, 'total' => (int) $s->total, 'kritis' => (int) $s->kritis, 'tinggi' => (int) $s->tinggi,
@@ -78,10 +79,31 @@ class ForecastController extends Controller
             'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()]]);
     }
 
+    /** GET /forecast/runs/{run}/series?kind=CUSTOMERS_ADDED|VA_ADDED|MATERIAL_ISSUE&unit_id=&search=&page=&per_page= — the monthly forecasts of a DEMAND run, within the reader's units. */
+    public function series(Request $request, string $run): JsonResponse
+    {
+        $units = $this->scope($request->user());
+        $d = $request->validate(['kind' => ['nullable', 'in:CUSTOMERS_ADDED,VA_ADDED,MATERIAL_ISSUE'], 'unit_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'between:1,100']]);
+        if (! DB::table('forecast_runs')->where('id', $run)->where('kind', ForecastService::DEMAND)->exists()) {
+            throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        }
+        $term = isset($d['search']) ? '%'.str_replace(['%', '_'], ['\%', '\_'], $d['search']).'%' : null;
+        $page = DB::table('forecast_series_results as r')->join('organizational_units as o', 'o.id', '=', 'r.unit_id')->where('r.run_id', $run)
+            ->when($units !== null, fn ($q) => $q->whereIn('r.unit_id', $units))->when($d['unit_id'] ?? null, fn ($q, $u) => $q->where('r.unit_id', $u))->when($d['kind'] ?? null, fn ($q, $k) => $q->where('r.kind', $k))
+            ->when($term, fn ($q) => $q->where(fn ($w) => $w->where('r.item_code', 'ilike', $term)->orWhere('r.item_label', 'ilike', $term)))
+            ->orderBy('r.kind')->orderBy('o.code')->orderByDesc('r.t12_p50')->paginate((int) ($d['per_page'] ?? 25), ['r.*', 'o.code as unit_code', 'o.name as unit_name']);
+
+        return response()->json(['data' => $page->getCollection()->map(fn ($r) => ['series_id' => $r->series_id, 'kind' => $r->kind, 'unit_code' => $r->unit_code, 'unit_name' => $r->unit_name, 'item_code' => $r->item_code, 'item_label' => $r->item_label,
+            'history_months' => (int) $r->history_months, 'last_12_months' => (float) $r->last_12_months, 'months' => json_decode($r->months, true),
+            'totals' => collect([3, 6, 12])->mapWithKeys(fn ($n) => [(string) $n => ['p10' => (float) $r->{"t{$n}_p10"}, 'p50' => (float) $r->{"t{$n}_p50"}, 'p90' => (float) $r->{"t{$n}_p90"}]])->all()])->all(),
+            'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()]]);
+    }
+
     public function start(Request $request): JsonResponse
     {
         $this->catalog->authorize($request->user(), 'forecast.run');
-        $id = $this->forecast->start($request->user());
+        $kind = $request->validate(['kind' => ['nullable', 'in:'.implode(',', ForecastService::KINDS)]])['kind'] ?? ForecastService::KIND;
+        $id = $this->forecast->start($request->user(), $kind);
 
         return response()->json(['data' => ['id' => $id, 'status' => 'RUNNING'], 'message' => 'Forecast dimulai. Pelatihan model memerlukan beberapa menit.'], 202);
     }

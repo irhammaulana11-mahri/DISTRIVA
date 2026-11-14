@@ -42,4 +42,5 @@ Permintaan pemilik: tahap survei, gambar, KKO, KKF, dan penerbitan WO harus memp
 
 ## 9. Tahap 10 — Forecast beban gardu (14 Nov 2026)
 Dimulai atas arahan pemilik: forecast mencakup beban gardu, memakai deep learning saja. Terbangun: layanan `tools/forecast` (PyTorch), perintah `distriva:forecast-execute`, tabel `forecast_runs`/`forecast_gardu_results`, API `/forecast/*`, dan halaman `/forecast` (rincian, hasil uji, dan keterbatasan di docs/11 addendum). Hasil nyata pertama sudah tersimpan di `distriva_db`. **Belum:** konversi gardu berisiko → pekerjaan → material (BOM), forecast volume permohonan, dan penjadwalan berkala.
+- **Forecast pelanggan, VA, dan material (14 Nov 2026):** model GRU kuantil bulanan, tab baru di `/forecast`, run `DEMAND`; hasil nyata: **INSUFFICIENT** (riwayat 6–10 bulan, 0 dari 154 deret memenuhi 24 bulan). Menunggu penarikan riwayat panjang (EIS lookback, MIMS per 366 hari, DIL lama). Material turunan via BOM menunggu pemetaan pemilik.
 

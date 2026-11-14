@@ -9,7 +9,7 @@ import ForecastPage, { exceedText, pct } from './ForecastPage.jsx'
 import { forecastApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
-  forecastApi: { runs: vi.fn(), run: vi.fn(), substations: vi.fn(), start: vi.fn(), review: vi.fn() },
+  forecastApi: { runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
   notificationsApi: { list: vi.fn().mockResolvedValue({ data: [] }), markRead: vi.fn(), markAllRead: vi.fn() },
 }))
 
@@ -89,5 +89,58 @@ describe('Forecast Beban Gardu', () => {
     await screen.findByText('JB0001 · Gardu Pasar')
     await userEvent.selectOptions(screen.getByLabelText('Tingkat risiko'), 'TINGGI')
     await waitFor(() => expect(forecastApi.substations).toHaveBeenLastCalledWith('r-1', expect.objectContaining({ risk: 'TINGGI' })))
+  })
+})
+
+describe('Forecast permintaan (pelanggan, VA, material)', () => {
+  const demandRun = { id: 'd-1', kind: 'DEMAND', status: 'SUCCEEDED', started_at: '2026-11-14T08:00:00Z', review_status: 'DRAFT', counts: {} }
+  const demandDetail = {
+    id: 'd-1', kind: 'DEMAND', status: 'SUCCEEDED', started_by_name: 'Planner', data_cutoff: '2026-10-01', assumptions: 'Material adalah pemakaian aktual, bukan kebutuhan pengadaan.',
+    metrics: { all: { wape: 0.31, coverage_p10_p90: 0.78, wape_gain_vs_persistence_pct: 22.5 } }, counts: { series: 30, sufficient_series: 28 },
+  }
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(i + 1).padStart(2, '0')}`, p10: 8, p50: 10, p90: 14 }))
+  const serie = (over) => ({ series_id: 's', kind: 'MATERIAL_ISSUE', unit_name: 'ULP Jombang', item_code: '3110025', item_label: 'Kabel TIC 3x70', history_months: 30, last_12_months: 118, months,
+    totals: { 3: { p10: 24, p50: 30, p90: 42 }, 6: { p10: 48, p50: 60, p90: 84 }, 12: { p10: 96, p50: 120, p90: 168 } }, ...over })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    forecastApi.runs.mockImplementation((kind) => Promise.resolve(kind === 'DEMAND' ? { data: [demandRun], can: { run: true, review: false } } : { data: [], can: {} }))
+    forecastApi.run.mockResolvedValue({ data: demandDetail })
+    forecastApi.series.mockResolvedValue({ data: [serie({})], meta: { current_page: 1, last_page: 1, total: 1 } })
+    forecastApi.start.mockResolvedValue({ message: 'Forecast dimulai.' })
+  })
+
+  it('tab Material menampilkan prakiraan 3, 6, dan 12 bulan dengan rentang dan keterbatasannya', async () => {
+    renderPage({ 'forecast.view': true, 'forecast.run': true })
+    await userEvent.click(screen.getByRole('tab', { name: 'Material' }))
+    expect(await screen.findByText('3110025 · Kabel TIC 3x70')).toBeInTheDocument()
+    expect(screen.getByText('31%')).toBeInTheDocument()
+    expect(screen.getByText('28 dari 30')).toBeInTheDocument()
+    expect(screen.getByText(/rentang 96–168/)).toBeInTheDocument()
+    expect(screen.getByText(/pemakaian aktual, bukan kebutuhan pengadaan/)).toBeInTheDocument()
+    expect(forecastApi.series).toHaveBeenCalledWith('d-1', expect.objectContaining({ kind: 'MATERIAL_ISSUE' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Jalankan forecast' }))
+    expect(forecastApi.start).toHaveBeenCalledWith('DEMAND')
+  })
+
+  it('tab Pelanggan & daya memilih jenis yang diprakirakan', async () => {
+    forecastApi.series.mockResolvedValue({ data: [serie({ kind: 'CUSTOMERS_ADDED', item_code: null, item_label: null })], meta: { current_page: 1, last_page: 1, total: 1 } })
+    renderPage()
+    await userEvent.click(screen.getByRole('tab', { name: 'Pelanggan & daya (VA)' }))
+    expect(await screen.findByText('Pelanggan baru (permohonan PB)', { selector: 'h3' })).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Yang diprakirakan'), 'VA_ADDED')
+    await waitFor(() => expect(forecastApi.series).toHaveBeenLastCalledWith('d-1', expect.objectContaining({ kind: 'VA_ADDED' })))
+  })
+
+  it('riwayat yang kurang dijelaskan dengan cakupan data dan cara menambahnya, tanpa angka prakiraan', async () => {
+    forecastApi.runs.mockImplementation((kind) => Promise.resolve(kind === 'DEMAND' ? { data: [{ ...demandRun, status: 'INSUFFICIENT' }], can: {} } : { data: [], can: {} }))
+    forecastApi.run.mockResolvedValue({ data: { ...demandDetail, status: 'INSUFFICIENT', error: 'Riwayat belum cukup: butuh seri dengan minimal 24 bulan.', data_window: { coverage: { MATERIAL_ISSUE: { months: 3, series: 40, sufficient_series: 0, first_month: '2026-09' } } } } })
+    renderPage()
+    await userEvent.click(screen.getByRole('tab', { name: 'Material' }))
+    expect(await screen.findByText(/Riwayat belum cukup/)).toBeInTheDocument()
+    expect(screen.getByText('Pemakaian material', { selector: 'td' })).toBeInTheDocument()
+    expect(screen.getByText(/lookback/)).toBeInTheDocument()
+    expect(forecastApi.series).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Jalankan forecast' })).not.toBeInTheDocument()
   })
 })

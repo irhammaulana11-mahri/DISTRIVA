@@ -172,6 +172,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::post('/forecast/runs', [ForecastController::class, 'start']);
         Route::get('/forecast/runs/{run}', [ForecastController::class, 'show'])->whereUuid('run');
         Route::get('/forecast/runs/{run}/substations', [ForecastController::class, 'substations'])->whereUuid('run');
+        Route::get('/forecast/runs/{run}/series', [ForecastController::class, 'series'])->whereUuid('run');
         Route::post('/forecast/runs/{run}/review', [ForecastController::class, 'review'])->whereUuid('run');
     });
     // Application tasks and internal SLA (docs/24 §8)
