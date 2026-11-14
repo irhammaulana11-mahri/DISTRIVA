@@ -107,7 +107,7 @@ export default function LoginPage() {
                   placeholder="nama@pln.co.id"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-transparent text-sm text-slate-900 placeholder-slate-400 font-medium focus:outline-none"
+                  className="w-full bg-transparent text-base sm:text-sm text-slate-900 placeholder-slate-400 font-medium focus:outline-none"
                   required
                 />
               </div>
@@ -138,7 +138,7 @@ export default function LoginPage() {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-transparent text-sm text-slate-900 placeholder-slate-400 font-medium focus:outline-none"
+                  className="w-full bg-transparent text-base sm:text-sm text-slate-900 placeholder-slate-400 font-medium focus:outline-none"
                   required
                 />
                 <button

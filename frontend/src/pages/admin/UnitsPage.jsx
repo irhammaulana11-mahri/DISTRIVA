@@ -388,7 +388,7 @@ export default function UnitsPage() {
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
               placeholder="Cari kode atau nama unit…"
-              className="block w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+              className="block w-full pl-10 pr-4 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
             />
           </div>
 
@@ -398,7 +398,7 @@ export default function UnitsPage() {
               value={typeFilter}
               onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }}
               aria-label="Filter Tipe Unit"
-              className="block w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer"
+              className="block w-full px-3.5 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer"
             >
               <option value="">Semua Tipe</option>
               <option value="UP3">UP3</option>
@@ -827,7 +827,7 @@ export function CreateUnitDrawer({ open, asPage = false, activeUp3List, onClose,
               id="parent_id"
               value={form.parent_id}
               onChange={(e) => setForm((f) => ({ ...f, parent_id: e.target.value }))}
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs focus-ring bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-base sm:text-xs focus-ring bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             >
               <option value="">Pilih Unit Induk UP3…</option>
               {activeUp3List.map((p) => (
@@ -851,7 +851,7 @@ export function CreateUnitDrawer({ open, asPage = false, activeUp3List, onClose,
               value={form.code}
               onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
               placeholder="Contoh: 51451"
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-mono uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-base sm:text-xs font-mono uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
             />
             {fieldErrors.code && <p className="text-[11px] text-red-600 mt-1">{fieldErrors.code}</p>}
           </div>
@@ -866,7 +866,7 @@ export function CreateUnitDrawer({ open, asPage = false, activeUp3List, onClose,
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="Contoh: ULP Mojokerto Kota"
-              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+              className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-base sm:text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
             />
             {fieldErrors.name && <p className="text-[11px] text-red-600 mt-1">{fieldErrors.name}</p>}
           </div>
@@ -882,7 +882,7 @@ export function CreateUnitDrawer({ open, asPage = false, activeUp3List, onClose,
             value={form.address}
             onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
             placeholder="Alamat fisik kantor unit kerja…"
-            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-base sm:text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
           />
         </div>
 
@@ -896,7 +896,7 @@ export function CreateUnitDrawer({ open, asPage = false, activeUp3List, onClose,
             value={form.reason}
             onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
             placeholder="Alasan penambahan unit (wajib dicatat pada organizational_unit_histories)…"
-            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2 text-base sm:text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
           />
           {fieldErrors.reason && <p className="text-[11px] text-red-600 mt-1">{fieldErrors.reason}</p>}
         </div>
@@ -1025,7 +1025,7 @@ export function EditUnitDrawer({ unit, asPage = false, onClose, onSuccess }) {
             type="text"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-xs text-slate-900 dark:text-slate-100 focus-ring"
           />
           {fieldErrors.name && <p className="text-[11px] text-red-600 mt-1">{fieldErrors.name}</p>}
         </div>
@@ -1042,7 +1042,7 @@ export function EditUnitDrawer({ unit, asPage = false, onClose, onSuccess }) {
               addressTouchedRef.current = true
               setForm((f) => ({ ...f, address: e.target.value }))
             }}
-            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-xs text-slate-900 dark:text-slate-100 focus-ring"
           />
         </div>
 
@@ -1056,7 +1056,7 @@ export function EditUnitDrawer({ unit, asPage = false, onClose, onSuccess }) {
             value={form.reason}
             onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
             placeholder="Jelaskan alasan perubahan data unit (dicatat pada riwayat audit)…"
-            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            className="block w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-xs text-slate-900 dark:text-slate-100 focus-ring"
           />
           {fieldErrors.reason && <p className="text-[11px] text-red-600 mt-1">{fieldErrors.reason}</p>}
         </div>
