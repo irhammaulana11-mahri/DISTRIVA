@@ -45,6 +45,7 @@ export default function KhsPage() {
   // Drawers and Modals
   const [detailTarget, setDetailTarget] = useState(null)
   const [approveTarget, setApproveTarget] = useState(null)
+  const [editDraftTarget, setEditDraftTarget] = useState(null)
 
   // Bulk approval: ids of draft versions ticked by the user (server accepts up to 1000 per request).
   const BULK_MAX = 1000
@@ -156,31 +157,118 @@ export default function KhsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            DISTRIVA / MASTER DATA
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
-            Katalog Harga Satuan (KHS)
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Katalog referensi harga satuan berversi (518 item standar PLN). Versi aktif bersifat immutable dan memerlukan persetujuan Manager (SoD).
-          </p>
-        </div>
+      {/* Page Header Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-lg">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1.5">
+            <nav className="flex items-center gap-1.5 text-xs text-indigo-300">
+              <span className="hover:text-white transition">DISTRIVA</span>
+              <span>/</span>
+              <span className="hover:text-white transition">Master Data</span>
+              <span>/</span>
+              <span className="text-white font-medium">Katalog Harga Satuan (KHS)</span>
+            </nav>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <h1 className="text-2xl font-bold tracking-tight text-white">
+                Katalog Harga Satuan (KHS)
+              </h1>
+              <span className="inline-flex items-center rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-semibold text-blue-200 border border-blue-400/30">
+                518 Item Standar PLN
+              </span>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-200 border border-emerald-400/30">
+                SoD Manager
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-indigo-200/80 max-w-2xl">
+              Katalog referensi harga satuan berversi. Versi aktif bersifat immutable dan memerlukan persetujuan Manager (SoD).
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => navigate('/master-data/khs/impor')}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-          >
-            <IconUpload size={16} />
-            <span>Impor KHS (CSV)</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={loadKhs}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-xs border border-white/10 text-white font-medium px-3.5 py-2 text-xs transition cursor-pointer"
+              title="Segarkan data KHS"
+            >
+              <IconRefresh className="h-3.5 w-3.5" />
+              <span>Segarkan</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadCsv(KHS_CATALOG_TEMPLATE.filename, KHS_CATALOG_TEMPLATE.headers)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-xs border border-white/10 text-white font-medium px-3.5 py-2 text-xs transition cursor-pointer"
+              title="Unduh format template CSV KHS"
+            >
+              <IconDownload className="h-3.5 w-3.5" />
+              <span>Template CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/master-data/khs/impor')}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition focus-ring cursor-pointer"
+            >
+              <IconUpload className="h-4 w-4" />
+              <span>Impor KHS (CSV)</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik KHS */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Item Terdaftar</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconClipboard className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {(state.meta?.total ?? state.rows.length).toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">518 SKU standar PLN</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Versi Aktif Terpublikasi</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {state.rows.filter((k) => k.current).length.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Immutable & resmi berlaku</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Draf Tertunda Verifikasi</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconClock className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {draftRows.length.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Butuh verifikasi Manager UP3</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Draf Terpilih Massal</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconCheck className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {selected.size.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Siap disetujui satu klik</p>
+        </div>
+      </dl>
 
       {/* Main Standardized Table Card */}
       <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
@@ -379,7 +467,7 @@ export default function KhsPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/master-data/khs/${k.id}/koreksi`)}
+                                onClick={() => setEditDraftTarget({ id: k.id, code: k.code, draft: k.draft })}
                                 aria-label="Koreksi Draf"
                                 title="Koreksi Draf KHS"
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
@@ -447,6 +535,25 @@ export default function KhsPage() {
           reasonPrompt="Alasan persetujuan versi (SK / Surat Penetapan)"
           onConfirm={handleApproveDraft}
           onCancel={() => setApproveTarget(null)}
+        />
+      )}
+
+      {/* Koreksi Draf KHS Drawer */}
+      {editDraftTarget && (
+        <KhsDraftEditDrawer
+          asPage={false}
+          item={editDraftTarget}
+          onClose={() => setEditDraftTarget(null)}
+          onSuccess={() => {
+            setEditDraftTarget(null)
+            loadKhs()
+            notify({
+              type: 'success',
+              title: 'Draf KHS Diperbarui',
+              desc: `Perubahan draf untuk item #${editDraftTarget.code} berhasil disimpan.`,
+              tag: 'KHS',
+            })
+          }}
         />
       )}
 
