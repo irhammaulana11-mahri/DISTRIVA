@@ -234,7 +234,7 @@ export default function ApplicationsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           {can['applications.create'] && (
             <button
               type="button"
@@ -246,12 +246,23 @@ export default function ApplicationsPage() {
               <span>Permohonan Baru</span>
             </button>
           )}
+          {can['applications.import'] && (
+            <button
+              type="button"
+              aria-label="Impor Berkas EIS"
+              onClick={() => navigate('/permohonan/impor')}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-3.5 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+            >
+              <IconUpload size={16} />
+              <span>Impor Berkas</span>
+            </button>
+          )}
           {can['eis_sync.manage'] && (
             <button
               type="button"
               aria-label="Sinkronisasi EIS"
               onClick={() => navigate('/permohonan/sinkronisasi-eis')}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl border border-blue-200 dark:border-blue-800/80 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
             >
               <IconRefresh size={16} />
               <span>Sinkronisasi EIS</span>
