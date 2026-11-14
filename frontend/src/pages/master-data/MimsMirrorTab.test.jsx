@@ -38,4 +38,18 @@ describe('MimsMirrorTab', () => {
     await waitFor(() => expect(screen.getByText('CABLE')).toBeTruthy())
     expect(screen.getByText('DITERIMA')).toBeTruthy()
   })
+
+  it('menampilkan reservasi dengan agenda cocok dan status pengeluaran', async () => {
+    warehousesApi.mimsMirror.mockResolvedValue({
+      meta,
+      data: [{ id: '3', warehouse_name: 'Gd Ry Jombang', reservation_no: 'R1', reserved_on: '2026-11-10', status: 'BELUM', work_type_name: 'PERUBAHAN DAYA', issued: false,
+        customers: [{ agenda_no: 'AG-1', application_id: 'a1' }] }],
+    })
+    render(<MimsMirrorTab kind="reservations" warehouses={[]} />)
+    await screen.findByText('R1')
+    expect(screen.getByText('AG-1 ✓')).toBeTruthy()
+    expect(screen.getByText('Belum')).toBeTruthy()
+    fireEvent.click(screen.getByLabelText(/Belum ada pengeluaran/))
+    await waitFor(() => expect(warehousesApi.mimsMirror).toHaveBeenLastCalledWith('reservations', expect.objectContaining({ pending: 1 })))
+  })
 })

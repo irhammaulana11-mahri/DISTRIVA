@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Inventory\MimsIssueSyncService;
 use App\Services\Inventory\MimsReceiptSyncService;
+use App\Services\Inventory\MimsReservationSyncService;
 use App\Services\Inventory\MimsStockSyncService;
 use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Database\QueryException;
@@ -479,6 +480,40 @@ class InventoryTest extends PostgresTestCase
         $this->assertEquals([5990.0, 6000.0], [$rc->json('data.0.lines.0.quantity_received'), $rc->json('data.0.lines.0.quantity_sent')]);
         $this->assertSame([], $this->as($this->konstruksi)->getJson('/api/master-data/mims-receipts?to=2026-11-01')->json('data'));
         $this->as($this->vendor)->getJson('/api/master-data/mims-receipts')->assertForbidden();
+    }
+
+    #[Test]
+    public function the_mims_reservation_mirror_ties_agendas_to_applications_flags_the_ones_not_issued_yet_and_names_unknown_columns(): void
+    {
+        $wh = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $wh, 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-resv.test']);
+        $row = DB::table('warehouses')->where('id', $wh)->first();
+        $today = now(config('distriva.business_timezone'))->format('d-m-Y');
+        $head = fn (string $no, string $status) => ['no_pemesanan' => $no, 'tgl_pemesanan' => $today, 'status_pemakaian' => $status, 'nama_jenis_pekerjaan' => 'PERUBAHAN DAYA'];
+        Http::fake([
+            'mims-resv.test/*getDataReservasiHeader*' => Http::sequence()->push(['data' => [$head('R1', 'BELUM'), $head('R2', 'BELUM')]])->push(['data' => [$head('R1', 'SELESAI'), $head('R2', 'BELUM')]])->push(['data' => [['kode' => 'x', 'tgl' => 'y']]]),
+            'mims-resv.test/*getDataReservasiMapping/*' => Http::response(['data' => [['no_agenda' => 'AG-1', 'nama' => 'JANGAN DISIMPAN']]]),
+        ]);
+        $svc = app(MimsReservationSyncService::class);
+
+        $r = $svc->syncWarehouse($row, 't-reservasi-123', $this->konstruksi);
+        $this->assertSame(['OK', 2], [$r['status'], $r['documents_new']]);
+        $this->assertSame(2, DB::table('mims_reservation_customers')->count());
+        $this->assertStringNotContainsString('JANGAN DISIMPAN', json_encode(DB::table('mims_reservation_customers')->get()));
+        $r = $svc->syncWarehouse($row, 't-reservasi-123', $this->konstruksi);                                           // known reservations are updated, not fetched again
+        $this->assertSame(0, $r['documents_new']);
+        $this->assertSame('SELESAI', DB::table('mims_reservations')->where('reservation_no', 'R1')->value('status'));
+        $r = $svc->syncWarehouse($row, 't-reservasi-123', $this->konstruksi);
+        $this->assertSame('FAILED', $r['status']);
+        $this->assertStringContainsString('kode, tgl', $r['message']);                                                  // key names only, to correct the mapping
+
+        DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => 'D1', 'reservation_no' => 'R1', 'issued_on' => now()->toDateString(), 'fetched_at' => now()]);
+        $all = $this->as($this->konstruksi)->getJson('/api/master-data/mims-reservations')->assertOk();
+        $this->assertSame([true, false], collect($all->json('data'))->sortBy('reservation_no')->pluck('issued')->values()->all());
+        $this->assertSame(['R2'], array_column($this->as($this->konstruksi)->getJson('/api/master-data/mims-reservations?pending=1')->json('data'), 'reservation_no'));
+        $this->assertSame('AG-1', $all->json('data.0.customers.0.agenda_no'));
+        $this->as($this->vendor)->getJson('/api/master-data/mims-reservations')->assertForbidden();
     }
 
     #[Test]

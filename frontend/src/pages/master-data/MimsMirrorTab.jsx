@@ -14,6 +14,8 @@ const fmtQty = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits:
  */
 export default function MimsMirrorTab({ kind, warehouses }) {
   const isIssues = kind === 'issues'
+  const isReservations = kind === 'reservations'
+  const [pending, setPending] = useState(false)
   const [warehouseId, setWarehouseId] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -39,7 +41,7 @@ export default function MimsMirrorTab({ kind, warehouses }) {
     setLoading(true)
     setError('')
     try {
-      const res = await warehousesApi.mimsMirror(kind, { warehouse_id: warehouseId, from, to, search: query, page, per_page: perPage })
+      const res = await warehousesApi.mimsMirror(kind, { warehouse_id: warehouseId, from, to, search: query, page, per_page: perPage, pending: isReservations && pending ? 1 : undefined })
       setRows(res?.data || [])
       setTotal(res?.meta?.total ?? 0)
     } catch (err) {
@@ -47,7 +49,7 @@ export default function MimsMirrorTab({ kind, warehouses }) {
     } finally {
       setLoading(false)
     }
-  }, [kind, warehouseId, from, to, query, page, perPage])
+  }, [kind, warehouseId, from, to, query, page, perPage, pending, isReservations])
 
   useEffect(() => {
     load()
@@ -58,7 +60,9 @@ export default function MimsMirrorTab({ kind, warehouses }) {
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-slate-500">
-        {isIssues
+        {isReservations
+          ? 'Cermin baca-saja reservasi material di MIMS (termasuk yang belum dikeluarkan). Agenda pelanggan dicocokkan dengan permohonan DISTRIVA.'
+          : isIssues
           ? 'Cermin baca-saja riwayat pengeluaran material dari MIMS. Dicocokkan dengan TUG 7 lewat nomor reservasi sehingga tidak terhitung dua kali.'
           : 'Cermin baca-saja penerimaan material di gudang dari MIMS (jumlah dikirim dan jumlah diterima).'}
       </p>
@@ -72,12 +76,18 @@ export default function MimsMirrorTab({ kind, warehouses }) {
         <input aria-label="Dari tanggal" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} className={field} />
         <span className="text-xs text-slate-500">s/d</span>
         <input aria-label="Sampai tanggal" type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} className={field} />
+        {isReservations && (
+          <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+            <input type="checkbox" checked={pending} onChange={(e) => { setPending(e.target.checked); setPage(1) }} />
+            Belum ada pengeluaran
+          </label>
+        )}
         <input
           aria-label="Cari"
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={isIssues ? 'Cari dokumen, reservasi, material, agenda' : 'Cari pengiriman, permintaan, material'}
+          placeholder={isReservations ? 'Cari reservasi, keterangan, agenda' : isIssues ? 'Cari dokumen, reservasi, material, agenda' : 'Cari pengiriman, permintaan, material'}
           className={`${field} min-w-64`}
         />
       </div>
@@ -88,7 +98,9 @@ export default function MimsMirrorTab({ kind, warehouses }) {
         {loading ? (
           <div className="p-8 flex justify-center"><Spinner /></div>
         ) : rows.length === 0 ? (
-          <EmptyState title={isIssues ? 'Belum ada data pengeluaran' : 'Belum ada data penerimaan'} description="Tarik data dari MIMS lewat tombol Tarik Stok dari MIMS, atau ubah filter." />
+          <EmptyState title={isReservations ? 'Belum ada data reservasi' : isIssues ? 'Belum ada data pengeluaran' : 'Belum ada data penerimaan'} description="Tarik data dari MIMS lewat tombol Tarik Stok dari MIMS, atau ubah filter." />
+        ) : isReservations ? (
+          <ReservationTable rows={rows} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
@@ -187,6 +199,43 @@ export default function MimsMirrorTab({ kind, warehouses }) {
           perPageOptions={[10, 25, 50, 100]}
         />
       </div>
+    </div>
+  )
+}
+
+function ReservationTable({ rows }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+            <th className="py-2 px-3">Gudang</th>
+            <th className="py-2 px-3">Reservasi</th>
+            <th className="py-2 px-3">Tanggal</th>
+            <th className="py-2 px-3">Jenis Pekerjaan</th>
+            <th className="py-2 px-3">Status MIMS</th>
+            <th className="py-2 px-3">Pelanggan</th>
+            <th className="py-2 px-3">Pengeluaran</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.map((r) => (
+            <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              <td className="py-2 px-3">{r.warehouse_name}</td>
+              <td className="py-2 px-3 font-mono">{r.reservation_no}</td>
+              <td className="py-2 px-3">{fmtDate(r.reserved_on)}</td>
+              <td className="py-2 px-3">{r.work_type_name || '-'}</td>
+              <td className="py-2 px-3">{r.status || '-'}</td>
+              <td className="py-2 px-3">
+                {r.customers.length === 0
+                  ? '-'
+                  : r.customers.map((c) => `${c.agenda_no}${c.application_id ? ' ✓' : ''}`).join(', ')}
+              </td>
+              <td className="py-2 px-3">{r.issued ? 'Sudah' : 'Belum'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

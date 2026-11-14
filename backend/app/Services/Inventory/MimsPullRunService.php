@@ -16,12 +16,12 @@ use Symfony\Component\Process\Process;
  */
 class MimsPullRunService
 {
-    public function __construct(private readonly MimsStockSyncService $stock, private readonly MimsIssueSyncService $issues, private readonly MimsReceiptSyncService $receipts, private readonly WorkflowNotifier $flow) {}
+    public function __construct(private readonly MimsStockSyncService $stock, private readonly MimsIssueSyncService $issues, private readonly MimsReceiptSyncService $receipts, private readonly MimsReservationSyncService $reservations, private readonly WorkflowNotifier $flow) {}
 
     /**
      * Pulls what was asked for ONE warehouse. $o = {stock, issues, receipts, dry_run, date}.
      *
-     * @param  array{stock:bool,issues:bool,receipts:bool,dry_run:bool,date:?string,from?:?string,to?:?string}  $o
+     * @param  array{stock:bool,issues:bool,receipts:bool,reservations?:bool,dry_run:bool,date:?string,from?:?string,to?:?string}  $o
      * @return array<string,mixed>
      */
     public function pullOne(object $wh, User $actor, ?string $token, array $o): array
@@ -32,6 +32,9 @@ class MimsPullRunService
         if (! $this->rejected($row) && ! $o['dry_run']) {
             if ($o['issues']) {
                 $row['issues'] = $this->issues->syncWarehouse($wh, $token, $actor, null, $o['from'] ?? null, $o['to'] ?? null);
+            }
+            if ($o['reservations'] ?? false) {
+                $row['reservations'] = $this->reservations->syncWarehouse($wh, $token, $actor, null, $o['from'] ?? null, $o['to'] ?? null);
             }
             if ($o['receipts']) {
                 $row['receipts'] = $this->receipts->syncWarehouse($wh, $token, $actor, null, $o['from'] ?? null, $o['to'] ?? null);
@@ -44,7 +47,7 @@ class MimsPullRunService
     /** True when MIMS refused the token anywhere in the row (an expired token fails every warehouse, so the caller stops). */
     public function rejected(array $row): bool
     {
-        return collect([$row, $row['issues'] ?? null, $row['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'FAILED' && str_contains((string) ($m['message'] ?? ''), 'token ditolak'));
+        return collect([$row, $row['issues'] ?? null, $row['receipts'] ?? null, $row['reservations'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'FAILED' && str_contains((string) ($m['message'] ?? ''), 'token ditolak'));
     }
 
     /** @param array<string,mixed> $options */
@@ -109,7 +112,7 @@ class MimsPullRunService
         }
         $warehouses = $q->get();
         DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => 'RUNNING', 'warehouses_total' => $warehouses->count()]);
-        $opts = ['stock' => (bool) $o['sync_stock'], 'issues' => (bool) $o['sync_issues'], 'receipts' => (bool) $o['sync_receipts'], 'dry_run' => (bool) $o['dry_run'], 'date' => $o['date'] ?? null, 'from' => $o['issues_from'] ?? null, 'to' => $o['issues_to'] ?? null];
+        $opts = ['stock' => (bool) $o['sync_stock'], 'issues' => (bool) $o['sync_issues'], 'receipts' => (bool) $o['sync_receipts'], 'reservations' => (bool) ($o['sync_reservations'] ?? false), 'dry_run' => (bool) $o['dry_run'], 'date' => $o['date'] ?? null, 'from' => $o['issues_from'] ?? null, 'to' => $o['issues_to'] ?? null];
         $results = [];
         $rejected = false;
         try {
@@ -127,7 +130,7 @@ class MimsPullRunService
 
             return;
         }
-        $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'OK'));
+        $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true) || collect([$r['issues'] ?? null, $r['receipts'] ?? null, $r['reservations'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'OK'));
         if ($useSaved && ($rejected || $worked)) {
             DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->update(['last_used_at' => now(), 'last_result' => $rejected ? 'REJECTED' : 'OK']);
         }

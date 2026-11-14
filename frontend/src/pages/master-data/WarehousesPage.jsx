@@ -105,6 +105,7 @@ export default function WarehousesPage() {
   const [mimsDoStock, setMimsDoStock] = useState(true)
   const [mimsDoIssues, setMimsDoIssues] = useState(true)
   const [mimsDoReceipts, setMimsDoReceipts] = useState(true)
+  const [mimsDoReservations, setMimsDoReservations] = useState(false)
   const [mimsPulling, setMimsPulling] = useState(false)
   const [mimsResults, setMimsResults] = useState(null)
   const [mimsError, setMimsError] = useState('')
@@ -217,8 +218,8 @@ export default function WarehousesPage() {
   // Handle MIMS Pull
   const handleMimsPull = async (e) => {
     e?.preventDefault?.()
-    if (!mimsDoStock && !mimsDoIssues && !mimsDoReceipts) {
-      setMimsError('Pilih minimal satu: stok, pengeluaran, atau penerimaan.')
+    if (!mimsDoStock && !mimsDoIssues && !mimsDoReceipts && !mimsDoReservations) {
+      setMimsError('Pilih minimal satu: stok, pengeluaran, penerimaan, atau reservasi.')
       return
     }
     if (!mimsUseSaved && !mimsToken.trim()) {
@@ -237,12 +238,13 @@ export default function WarehousesPage() {
         ...(mimsUseSaved ? { use_saved_token: true } : { token: tokenToSend, ...(mimsSaveToken && { save_token: true }) }),
         warehouse_ids: mimsWarehouseIds.length > 0 ? mimsWarehouseIds : undefined,
         date: mimsDate || undefined,
-        issues_from: (mimsDoIssues || mimsDoReceipts) && mimsFrom ? mimsFrom : undefined,
-        issues_to: (mimsDoIssues || mimsDoReceipts) && mimsFrom && mimsTo ? mimsTo : undefined,
+        issues_from: (mimsDoIssues || mimsDoReceipts || mimsDoReservations) && mimsFrom ? mimsFrom : undefined,
+        issues_to: (mimsDoIssues || mimsDoReceipts || mimsDoReservations) && mimsFrom && mimsTo ? mimsTo : undefined,
         dry_run: (mimsDryRun && mimsDoStock) || undefined,
         sync_stock: mimsDoStock,
         sync_issues: mimsDoIssues,
         sync_receipts: mimsDoReceipts,
+        sync_reservations: mimsDoReservations || undefined,
       }, (rows) => setMimsResults(rows))
       setMimsResults(res?.data || [])
       notify({
@@ -520,6 +522,17 @@ export default function WarehousesPage() {
             }`}
           >
             Penerimaan MIMS
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('mims-reservations')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              activeTab === 'mims-reservations'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            Reservasi MIMS
           </button>
         </div>
 
@@ -870,6 +883,7 @@ export default function WarehousesPage() {
 
       {activeTab === 'mims-issues' && <MimsMirrorTab kind="issues" warehouses={warehouses} />}
       {activeTab === 'mims-receipts' && <MimsMirrorTab kind="receipts" warehouses={warehouses} />}
+      {activeTab === 'mims-reservations' && <MimsMirrorTab kind="reservations" warehouses={warehouses} />}
 
       {/* TAB 3: Auto-Sync Runs */}
       {activeTab === 'sync-runs' && (
@@ -1526,6 +1540,7 @@ export default function WarehousesPage() {
                 ['mims-do-stock', 'Stok gudang', mimsDoStock, setMimsDoStock],
                 ['mims-do-issues', 'Pengeluaran material (riwayat pemakaian, baca-saja)', mimsDoIssues, setMimsDoIssues],
                 ['mims-do-receipts', 'Penerimaan material (riwayat, baca-saja)', mimsDoReceipts, setMimsDoReceipts],
+                ['mims-do-reservations', 'Reservasi material (termasuk yang belum dikeluarkan, baca-saja)', mimsDoReservations, setMimsDoReservations],
               ].map(([id, label, checked, set]) => (
                 <label key={id} htmlFor={id} className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
                   <input type="checkbox" id={id} disabled={mimsPulling} checked={checked} onChange={(e) => set(e.target.checked)} className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60" />
@@ -1649,6 +1664,11 @@ export default function WarehousesPage() {
                             {r.receipts && (
                               <span className="block text-slate-500">
                                 Penerimaan: {r.receipts.status === 'OK' ? (r.receipts.documents_new === 0 ? 'tidak ada dokumen baru (yang sudah tercatat tidak ditarik ulang)' : `${r.receipts.documents_new} dokumen baru, ${r.receipts.lines} baris material`) : r.receipts.message || r.receipts.status}
+                              </span>
+                            )}
+                            {r.reservations && (
+                              <span className="block text-slate-500">
+                                Reservasi: {r.reservations.status === 'OK' ? (r.reservations.documents_new === 0 ? 'tidak ada reservasi baru' : `${r.reservations.documents_new} reservasi baru, ${r.reservations.matched} pelanggan cocok permohonan`) : r.reservations.message || r.reservations.status}
                               </span>
                             )}
                             {r.issues && (

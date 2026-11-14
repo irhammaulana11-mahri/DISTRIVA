@@ -319,7 +319,7 @@ export const warehousesApi = {
     const q = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') q.append(k, v)
     const s = q.toString()
-    return request(`/master-data/${kind === 'issues' ? 'mims-issues' : 'mims-receipts'}${s ? '?' + s : ''}`)
+    return request(`/master-data/${{ issues: 'mims-issues', receipts: 'mims-receipts', reservations: 'mims-reservations' }[kind]}${s ? '?' + s : ''}`)
   },
   syncRuns: (params = {}) => {
     const q = new URLSearchParams()

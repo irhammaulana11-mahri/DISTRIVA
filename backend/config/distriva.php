@@ -126,6 +126,7 @@ return [
         'valuation' => env('DISTRIVA_MIMS_VALUATION', 'NORMAL'),
         // material issues (pengeluaran): the header list is a POST with the payload {plant, stor_loc, status_sap, …}; lines and customers are keyed by the reservation number (`no_pemesanan`)
         'issue_header_path' => env('DISTRIVA_MIMS_ISSUE_HEADER_PATH', '/project-i-agodist-api//getDataPengeluaranHeader/'),
+        'reservation_header_path' => env('DISTRIVA_MIMS_RESERVATION_HEADER_PATH', '/project-i-agodist-api//getDataReservasiHeader/'),
         'issue_detail_path' => env('DISTRIVA_MIMS_ISSUE_DETAIL_PATH', '/project-i-agodist-api//getDataPengeluaranAll/{reservation}/'),
         'issue_mapping_path' => env('DISTRIVA_MIMS_ISSUE_MAPPING_PATH', '/project-i-agodist-api//getDataReservasiMapping/{reservation}/'),
         // material receipts (penerimaan): GET list of the deliveries to the warehouse in a date range ({from}/{to} as d-m-Y), then the detail per delivery document

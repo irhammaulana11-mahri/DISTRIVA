@@ -90,7 +90,7 @@ class InventoryController extends Controller
     public function khsMap(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $request->validate(['search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:200']]);
+        $request->validate(['search' => ['nullable', 'string', 'max:100'], 'pending' => ['sometimes', 'boolean'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:200']]);
         $q = DB::table('khs_material_map as m')->join('khs_items as k', 'k.id', '=', 'm.khs_item_id')->orderByRaw('length(k.code), k.code')->orderBy('m.material_no')
             ->selectRaw('m.id, m.material_no, m.note, k.code as khs_code, (select v.name from khs_item_versions v where v.khs_item_id = k.id order by v.version_number desc limit 1) as khs_name');
         if ($request->filled('search')) {
@@ -271,6 +271,37 @@ class InventoryController extends Controller
         ])->all(), 'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
     }
 
+    /**
+     * GET /master-data/mims-reservations — browse the read-only MIMS reservation mirror: reserved material, the customers (agenda) tied to it, the DISTRIVA applications they match,
+     * and whether an issue was already mirrored for the reservation. `pending=1` keeps only the reservations without an issue yet.
+     */
+    public function mimsReservations(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $this->mirrorFilters($request);
+        $issued = fn ($x) => $x->select(DB::raw(1))->from('mims_issue_documents as i')->whereColumn('i.reservation_no', 'd.reservation_no');
+        $q = DB::table('mims_reservations as d')->join('warehouses as w', 'w.id', '=', 'd.warehouse_id')->orderByDesc('d.reserved_on')->orderByDesc('d.reservation_no')
+            ->select('d.*', 'w.code as warehouse_code', 'w.name as warehouse_name');
+        $this->applyMirrorFilters($q, $d, 'd.reserved_on', 'd.reservation_no', 'd.sap_reservation', fn ($s, $like) => $s
+            ->orWhere('d.text', 'ilike', $like)
+            ->orWhereExists(fn ($x) => $x->select(DB::raw(1))->from('mims_reservation_customers as c')->whereColumn('c.reservation_no', 'd.reservation_no')->where('c.agenda_no', 'ilike', $like)));
+        if ($request->boolean('pending')) {
+            $q->whereNotExists($issued);
+        }
+        $page = $q->paginate((int) ($d['per_page'] ?? 25));
+        $items = collect($page->items());
+        $res = $items->pluck('reservation_no')->unique()->all();
+        $customers = DB::table('mims_reservation_customers as c')->leftJoin('applications as a', 'a.id', '=', 'c.application_id')->whereIn('c.reservation_no', $res)->orderBy('c.agenda_no')
+            ->get(['c.reservation_no', 'c.agenda_no', 'c.application_id'])->groupBy('reservation_no');
+        $done = DB::table('mims_issue_documents')->whereIn('reservation_no', $res)->pluck('reservation_no')->flip();
+
+        return response()->json(['data' => $items->map(fn ($r) => [
+            'id' => $r->id, 'warehouse_code' => $r->warehouse_code, 'warehouse_name' => $r->warehouse_name, 'reservation_no' => $r->reservation_no, 'reserved_on' => $r->reserved_on, 'status' => $r->status,
+            'work_type_name' => $r->work_type_name, 'text' => $r->text, 'issued' => isset($done[$r->reservation_no]),
+            'customers' => ($customers[$r->reservation_no] ?? collect())->map(fn ($c) => ['agenda_no' => $c->agenda_no, 'application_id' => $c->application_id])->values()->all(),
+        ])->all(), 'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
+    }
+
     /** @return array<string,mixed> */
     private function mirrorFilters(Request $request): array
     {
@@ -313,7 +344,7 @@ class InventoryController extends Controller
             }
         }
         $this->rememberToken($request, $actor, $useSaved, $token, collect($results)->contains(fn ($r) => $this->pulls->rejected($r)),
-            collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'OK')));
+            collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true) || collect([$r['issues'] ?? null, $r['receipts'] ?? null, $r['reservations'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'OK')));
 
         return response()->json(['data' => $results]);
     }
@@ -330,7 +361,7 @@ class InventoryController extends Controller
         if (! $useSaved && $request->boolean('save_token')) {
             $this->rememberToken($request, $actor, false, $token, false, true);
         }
-        $id = $this->pulls->start($actor, ['sync_stock' => $opts['stock'], 'sync_issues' => $opts['issues'], 'sync_receipts' => $opts['receipts'], 'dry_run' => $opts['dry_run'], 'date' => $opts['date'], 'issues_from' => $opts['from'], 'issues_to' => $opts['to'], 'warehouse_ids' => $warehouses->pluck('id')->all(), 'use_saved_token' => $useSaved]);
+        $id = $this->pulls->start($actor, ['sync_stock' => $opts['stock'], 'sync_issues' => $opts['issues'], 'sync_receipts' => $opts['receipts'], 'sync_reservations' => $opts['reservations'], 'dry_run' => $opts['dry_run'], 'date' => $opts['date'], 'issues_from' => $opts['from'], 'issues_to' => $opts['to'], 'warehouse_ids' => $warehouses->pluck('id')->all(), 'use_saved_token' => $useSaved]);
         $this->pulls->launch($id, $useSaved ? null : $token);
 
         return response()->json(['data' => $this->pulls->show($id)], 202);
@@ -352,7 +383,7 @@ class InventoryController extends Controller
      */
     private function pullInput(Request $request, User $actor): array
     {
-        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'sync_stock' => ['sometimes', 'boolean'], 'sync_issues' => ['sometimes', 'boolean'], 'sync_receipts' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'issues_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'issues_to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', 'after_or_equal:issues_from'], 'dry_run' => ['sometimes', 'boolean']])->validate();
+        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'sync_stock' => ['sometimes', 'boolean'], 'sync_issues' => ['sometimes', 'boolean'], 'sync_receipts' => ['sometimes', 'boolean'], 'sync_reservations' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'issues_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'issues_to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today', 'after_or_equal:issues_from'], 'dry_run' => ['sometimes', 'boolean']])->validate();
         if (isset($d['issues_from']) && Carbon::parse($d['issues_from'])->diffInDays(Carbon::parse($d['issues_to'] ?? 'today')) > 366) {
             throw new AssignmentRuleViolation('Rentang tanggal pengeluaran/penerimaan paling lama 366 hari.');
         }
@@ -360,9 +391,9 @@ class InventoryController extends Controller
             throw new AssignmentRuleViolation('Alamat dasar MIMS (DISTRIVA_MIMS_BASE_URL) belum diisi di server.');
         }
         // what to pull: stock (default), issues and receipts (each only when asked); a dry run only exists for stock
-        $opts = ['stock' => $request->boolean('sync_stock', true), 'issues' => $request->boolean('sync_issues'), 'receipts' => $request->boolean('sync_receipts'), 'dry_run' => $request->boolean('dry_run'), 'date' => $d['date'] ?? null, 'from' => $d['issues_from'] ?? null, 'to' => $d['issues_to'] ?? null];
-        if (! $opts['stock'] && ! $opts['issues'] && ! $opts['receipts']) {
-            throw new AssignmentRuleViolation('Pilih minimal satu: stok, pengeluaran, atau penerimaan.');
+        $opts = ['stock' => $request->boolean('sync_stock', true), 'issues' => $request->boolean('sync_issues'), 'receipts' => $request->boolean('sync_receipts'), 'reservations' => $request->boolean('sync_reservations'), 'dry_run' => $request->boolean('dry_run'), 'date' => $d['date'] ?? null, 'from' => $d['issues_from'] ?? null, 'to' => $d['issues_to'] ?? null];
+        if (! $opts['stock'] && ! $opts['issues'] && ! $opts['receipts'] && ! $opts['reservations']) {
+            throw new AssignmentRuleViolation('Pilih minimal satu: stok, pengeluaran, penerimaan, atau reservasi.');
         }
         if ($opts['dry_run'] && ! $opts['stock']) {
             throw new AssignmentRuleViolation('Uji coba (dry run) hanya berlaku untuk stok.');
