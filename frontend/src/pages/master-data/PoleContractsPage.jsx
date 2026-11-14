@@ -127,39 +127,118 @@ export default function PoleContractsPage() {
     )
   })
 
+  // Metrik KPI Tiang
+  const activeContractsCount = contracts.filter((c) => c.status === 'ACTIVE').length
+  const totalPolesQuota = contracts.reduce((acc, c) => acc + (Number(c.tm?.total) || 0) + (Number(c.tr?.total) || 0), 0)
+  const totalPolesRemaining = contracts.reduce((acc, c) => acc + (Number(c.tm?.remaining) || 0) + (Number(c.tr?.remaining) || 0), 0)
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Master Data</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Kontrak Rinci Tiang</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Kontrak Rinci (KR) Tiang
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Pencatatan alokasi kuota tiang TM dan TR per Kontrak Rinci pabrikan/vendor untuk proyek distribusi.
-          </p>
-        </div>
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-lg">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1.5">
+            <nav className="flex items-center gap-1.5 text-xs text-indigo-300">
+              <span className="hover:text-white transition">DISTRIVA</span>
+              <span>/</span>
+              <span className="hover:text-white transition">Master Data</span>
+              <span>/</span>
+              <span className="text-white font-medium">Pasokan & Kontrak Tiang</span>
+            </nav>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <h1 className="text-2xl font-bold tracking-tight text-white">
+                Kontrak Rinci (KR) Tiang
+              </h1>
+              <span className="inline-flex items-center rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-semibold text-blue-200 border border-blue-400/30">
+                Pabrikan & Vendor Tiang
+              </span>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-200 border border-emerald-400/30">
+                Kuota TM & TR
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-indigo-200/80 max-w-3xl">
+              Pencatatan alokasi kuota tiang TM dan TR per Kontrak Rinci pabrikan/vendor untuk proyek distribusi dan pengendalian utang kerja tiang.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {canManage && (
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => navigate('/master-data/pole-contracts/baru')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              onClick={loadContracts}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-xs border border-white/10 text-white font-medium px-3.5 py-2 text-xs transition cursor-pointer"
+              title="Segarkan data kontrak tiang"
             >
-              <IconPlus size={16} />
-              <span>Tambah Kontrak Rinci</span>
+              <IconRefresh className="h-3.5 w-3.5" />
+              <span>Segarkan</span>
             </button>
-          )}
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => navigate('/master-data/pole-contracts/baru')}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition focus-ring cursor-pointer"
+              >
+                <IconPlus className="h-4 w-4" />
+                <span>Tambah Kontrak Rinci</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik Kontrak Tiang */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Kontrak Rinci</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconClipboard className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {contracts.length.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Nomor KR terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Kontrak Berstatus Aktif</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheck className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {activeContractsCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Dapat dialokasikan ke SPK</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Total Kuota Tiang (TM+TR)</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconClock className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {totalPolesQuota.toLocaleString('id-ID')} <span className="text-sm font-normal text-slate-500">btg</span>
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Total komitmen pabrikan</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Sisa Kuota Belum Alokasi</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconAlertCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {totalPolesRemaining.toLocaleString('id-ID')} <span className="text-sm font-normal text-slate-500">btg</span>
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Kapasitas siap pakai</p>
+        </div>
+      </dl>
 
       {error && <Alert kind="error">{error}</Alert>}
 
