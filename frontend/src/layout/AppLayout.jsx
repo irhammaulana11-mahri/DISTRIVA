@@ -37,6 +37,7 @@ import {
   IconActivity,
   IconClock,
   IconAlertCircle,
+  IconRefresh,
 } from '../components/icons.jsx'
 import { MODULE_DOMAINS } from '../features/modules/moduleRegistry.js'
 import { resolveProfiles, visibleForProfiles } from '../features/dashboard/profiles.js'
@@ -63,17 +64,23 @@ const nav = [
   { to: '/', label: 'Dashboard', icon: IconHome, end: true },
 ]
 
-// 2. Operasional Jaringan (PB/PD, Pengukuran, SPK, Outbox, Gudang & Stok, RKM)
+// 2. Pelayanan & Operasional Jaringan (PB/PD, Sinkronisasi EIS, Tugas & SLA, Survei, Usulan, Pengukuran, SPK)
 const operationsNav = [
   { to: '/permohonan', label: 'Permohonan (PB/PD)', capability: 'applications.view', icon: IconFileText },
+  { to: '/permohonan/sinkronisasi-eis', label: 'Sinkronisasi EIS', capability: 'eis_sync.manage', icon: IconRefresh },
   { to: '/tugas', label: 'Tugas & SLA', capability: 'tasks.view', icon: IconClipboard },
-  { to: '/forecast', label: 'Forecast Beban Gardu', capability: 'forecast.view', icon: IconChart },
   { to: '/survei', label: 'Usulan Survei', capability: 'surveys.view', icon: IconClipboard },
   { to: '/usulan', label: 'Usulan Perluasan', capability: 'proposals.view', icon: IconUsers },
   { to: '/master-data/substation-measurements', label: 'Pengukuran Gardu', capability: 'substations.view', icon: IconActivity },
   { to: '/work-orders', label: 'Surat Perintah Kerja (SPK / WO)', anyOf: ['wo.view', 'pole_wo.view', 'vendor.portal'], icon: IconWrench },
-  { to: '/master-data/warehouses', label: 'Gudang & Stok', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconBuilding },
+]
+
+// 3. Perencanaan & Logistik (RKM, Forecast Beban Gardu, Gudang & Stok, Tarik Stok MIMS)
+const planningNav = [
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
+  { to: '/forecast', label: 'Forecast Beban Gardu', capability: 'forecast.view', icon: IconChart },
+  { to: '/master-data/warehouses', label: 'Gudang & Stok Material', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconBuilding },
+  { to: '/master-data/warehouses/tarik-mims', label: 'Tarik Stok MIMS', capability: 'stock.import', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconRefresh },
 ]
 
 // 3. Master Data (Dikelompokkan secara logis & disaring kewenangan)
@@ -146,30 +153,35 @@ const titles = {
   '/profil': 'Profil & Keamanan Akun',
   '/ubah-password': 'Profil & Keamanan Akun / Ubah Password',
   '/mfa': 'Pengaturan / Autentikasi Dua Faktor (MFA)',
-  '/admin/users': 'Administrasi / Pengguna',
-  '/admin/users/new': 'Administrasi / Pengguna / Tambah',
-  '/admin/units': 'Administrasi / Unit Organisasi',
-  '/master-data/materials': 'Master Data / Katalog Material ERP',
-  '/master-data/khs': 'Master Data / Katalog Harga Satuan (KHS)',
-  '/master-data/mapping': 'Master Data / Pemetaan Material (SKU↔KHS)',
-  '/master-data/harga': 'Master Data / Buku Harga Kontrak',
-  '/master-data/warehouses': 'Operasional / Gudang & Cuplikan Stok',
+  '/tugas': 'Operasional / Tugas & SLA',
+  '/forecast': 'Perencanaan / Forecast Beban Gardu',
+  '/permohonan': 'Operasional / Permohonan (PB/PD)',
+  '/permohonan/sinkronisasi-eis': 'Operasional / Sinkronisasi EIS',
+  '/survei': 'Operasional / Usulan Survei',
+  '/usulan': 'Operasional / Usulan Perluasan',
+  '/work-orders': 'Operasional / Surat Perintah Kerja (SPK / WO)',
+  '/rkm': 'Perencanaan & Logistik / RKM Distribusi',
+  '/master-data/warehouses': 'Perencanaan & Logistik / Gudang & Stok Material',
+  '/master-data/warehouses/tarik-mims': 'Perencanaan & Logistik / Tarik Stok MIMS',
   '/master-data/substations': 'Master Data / Master Gardu',
   '/master-data/substation-measurements': 'Operasional / Pengukuran Gardu',
   '/master-data/feeders': 'Master Data / Master Penyulang',
   '/master-data/customers': 'Master Data / Master Pelanggan',
-  '/master-data/pole-contracts': 'Master Data / Kontrak Rinci Tiang',
+  '/master-data/materials': 'Master Data / Katalog Material ERP',
+  '/master-data/khs': 'Master Data / Katalog Harga Satuan (KHS)',
+  '/master-data/mapping': 'Master Data / Pemetaan Material (SKU↔KHS)',
   '/master-data/constructions': 'Master Data / Standar Konstruksi',
   '/master-data/bom': 'Master Data / Bill of Materials (BOM)',
+  '/master-data/harga': 'Master Data / Buku Harga Kontrak',
+  '/master-data/pole-contracts': 'Master Data / Kontrak Rinci Tiang',
   '/master-data/kkf-parameters': 'Master Data / Parameter Kelayakan Keuangan (KKF)',
   '/master-data/tariff-books': 'Master Data / Buku Tarif Listrik',
-  '/master-data/vendors': 'Administrasi / Mitra & Vendor',
   '/master-data/categories': 'Master Data / Kategori & Satuan',
-  '/permohonan': 'Operasional / Permohonan (PB/PD)',
-  '/survei': 'Operasional / Usulan Survei',
-  '/usulan': 'Operasional / Usulan Perluasan',
-  '/work-orders': 'Operasional / Surat Perintah Kerja (SPK / WO)',
-  '/rkm': 'Operasional / RKM Distribusi',
+  '/admin/users': 'Administrasi / Pengguna',
+  '/admin/users/new': 'Administrasi / Pengguna / Tambah',
+  '/admin/units': 'Administrasi / Unit Organisasi',
+  '/admin/units/baru': 'Administrasi / Unit Organisasi / Tambah',
+  '/master-data/vendors': 'Administrasi / Mitra & Vendor',
   '/reports': 'Laporan & Monitoring / Pusat Analitika Eksekutif',
   '/sistem/backup': 'Pengaturan / Backup & Pemulihan Sistem',
 }
@@ -183,18 +195,43 @@ const titleFor = (path, search = '') => {
   }
   if (titles[path]) return titles[path]
   if (path.startsWith('/admin/users/')) return 'Administrasi / Pengguna / Detail'
+  if (path.startsWith('/admin/units/')) return 'Administrasi / Unit Organisasi / Detail'
   if (path.startsWith('/master-data/vendors/')) return 'Administrasi / Mitra & Vendor / Profil'
   if (path.startsWith('/work-orders/')) return 'Operasional / SPK / WO / Detail Agenda'
   if (path.startsWith('/wo-tiang/')) return 'Operasional / SPK / WO / WO Tiang'
-  if (path.startsWith('/usulan/')) return 'Operasional Jaringan / Usulan / Detail'
+  if (path.startsWith('/bastp/')) return 'Operasional / BASTP / Berita Acara Serah Terima'
+  if (path.startsWith('/permohonan/baru')) return 'Operasional / Permohonan (PB/PD) / Permohonan Baru'
+  if (path.startsWith('/permohonan/impor')) return 'Operasional / Permohonan (PB/PD) / Impor Berkas'
+  if (path.startsWith('/permohonan/')) return 'Operasional / Permohonan (PB/PD) / Detail Permohonan'
+  if (path.startsWith('/tugas/')) return 'Operasional / Tugas & SLA / Detail Tugas'
+  if (path.startsWith('/usulan/')) return 'Operasional / Usulan Perluasan / Detail'
+  if (path.startsWith('/master-data/warehouses/')) return 'Perencanaan & Logistik / Gudang / Detail & Impor Stok'
+  if (path.startsWith('/master-data/materials/impor')) return 'Master Data / Katalog Material ERP / Impor'
+  if (path.startsWith('/master-data/materials/')) return 'Master Data / Katalog Material ERP / Ubah'
+  if (path.startsWith('/master-data/khs/impor')) return 'Master Data / Katalog Harga Satuan (KHS) / Impor'
+  if (path.startsWith('/master-data/khs/')) return 'Master Data / Katalog Harga Satuan (KHS) / Koreksi'
+  if (path.startsWith('/master-data/mapping/impor')) return 'Master Data / Pemetaan Material / Impor'
+  if (path.startsWith('/master-data/constructions/impor')) return 'Master Data / Standar Konstruksi / Impor'
+  if (path.startsWith('/master-data/bom/impor')) return 'Master Data / Bill of Materials (BOM) / Impor'
+  if (path.startsWith('/master-data/bom/')) return 'Master Data / Bill of Materials (BOM) / Detail'
+  if (path.startsWith('/master-data/harga/impor')) return 'Master Data / Buku Harga Kontrak / Impor'
   if (path.startsWith('/master-data/harga/')) return 'Master Data / Detail Buku Harga Kontrak'
-  if (path.startsWith('/master-data/kkf-parameters/')) return 'Master Data / Detail Parameter KKF'
+  if (path.startsWith('/master-data/tariff-books/impor')) return 'Master Data / Buku Tarif Listrik / Impor'
   if (path.startsWith('/master-data/tariff-books/')) return 'Master Data / Detail Buku Tarif Listrik'
-  if (path.startsWith('/master-data/bom/')) return 'Master Data / Bill of Materials (BOM)'
-  if (path.startsWith('/rkm/versions/')) return 'Perencanaan Sistem / RKM / Detail Versi'
-  if (path.startsWith('/survei/')) return 'Operasional Jaringan / Detail Survei'
-  if (path.startsWith('/gambar/')) return 'Perencanaan Sistem / Detail Gambar Teknik'
-  if (path.startsWith('/mto/')) return 'Perencanaan Sistem / Detail MTO'
+  if (path.startsWith('/master-data/pole-contracts/impor')) return 'Master Data / Kontrak Rinci Tiang / Impor'
+  if (path.startsWith('/master-data/pole-contracts/')) return 'Master Data / Kontrak Rinci Tiang / Detail'
+  if (path.startsWith('/master-data/categories/satuan/')) return 'Master Data / Kategori & Satuan / Satuan'
+  if (path.startsWith('/master-data/categories/')) return 'Master Data / Kategori & Satuan / Detail'
+  if (path.startsWith('/master-data/substations/impor')) return 'Master Data / Master Gardu / Impor'
+  if (path.startsWith('/master-data/substations/')) return 'Master Data / Master Gardu / Detail'
+  if (path.startsWith('/master-data/feeders/impor')) return 'Master Data / Master Penyulang / Impor'
+  if (path.startsWith('/master-data/customers/impor')) return 'Master Data / Master Pelanggan / Impor'
+  if (path.startsWith('/master-data/substation-measurements/')) return 'Operasional / Pengukuran Gardu / Detail'
+  if (path.startsWith('/master-data/kkf-parameters/')) return 'Master Data / Detail Parameter KKF'
+  if (path.startsWith('/rkm/versions/')) return 'Perencanaan & Logistik / RKM / Detail Versi'
+  if (path.startsWith('/survei/')) return 'Operasional / Usulan Survei / Detail'
+  if (path.startsWith('/gambar/')) return 'Operasional / Detail Gambar Teknik'
+  if (path.startsWith('/mto/')) return 'Perencanaan & Logistik / Detail MTO'
   if (path.startsWith('/modul/')) {
     const slug = path.replace('/modul/', '')
     const mod = MODULE_DOMAINS.find((m) => m.slug === slug)
@@ -206,18 +243,26 @@ const titleFor = (path, search = '') => {
 // Helper to determine which sidebar section is active for a given pathname
 const getSectionForPath = (path) => {
   if (path.startsWith('/admin') || path.startsWith('/master-data/vendors')) return 'admin'
-  if (path.startsWith('/master-data/substation-measurements') || path.startsWith('/master-data/warehouses')) {
+  if (
+    path.startsWith('/rkm') ||
+    path.startsWith('/forecast') ||
+    path.startsWith('/master-data/warehouses')
+  ) {
+    return 'planning'
+  }
+  if (path.startsWith('/master-data/substation-measurements')) {
     return 'operations'
   }
   if (path.startsWith('/master-data')) return 'masterData'
   if (path.startsWith('/reports')) return 'reports'
   if (
     path.startsWith('/permohonan') ||
+    path.startsWith('/tugas') ||
+    path.startsWith('/survei') ||
     path.startsWith('/usulan') ||
     path.startsWith('/work-orders') ||
     path.startsWith('/wo-tiang') ||
-    path.startsWith('/rkm') ||
-    path.startsWith('/survei') ||
+    path.startsWith('/bastp') ||
     path.startsWith('/gambar') ||
     path.startsWith('/mto')
   ) {
@@ -243,6 +288,7 @@ export default function AppLayout() {
     return {
       main: active === 'main' || !active,
       operations: active === 'operations',
+      planning: active === 'planning',
       masterData: active === 'masterData',
       reports: active === 'reports',
       admin: active === 'admin',
@@ -257,6 +303,7 @@ export default function AppLayout() {
     setExpandedSections({
       main: active === 'main' || !active,
       operations: active === 'operations',
+      planning: active === 'planning',
       masterData: active === 'masterData',
       reports: active === 'reports',
       admin: active === 'admin',
@@ -272,6 +319,7 @@ export default function AppLayout() {
         return {
           main: sectionKey === 'main',
           operations: sectionKey === 'operations',
+          planning: sectionKey === 'planning',
           masterData: sectionKey === 'masterData',
           reports: sectionKey === 'reports',
           admin: sectionKey === 'admin',
@@ -374,6 +422,12 @@ export default function AppLayout() {
   const accessibleOperationsItems = mustChangePassword
     ? []
     : operationsNav.filter(
+        (n) => (n.anyOf ? n.anyOf.some((c) => Boolean(can[c])) : can[n.capability]) && visibleForProfiles(n, userProfiles),
+      )
+
+  const accessiblePlanningItems = mustChangePassword
+    ? []
+    : planningNav.filter(
         (n) => (n.anyOf ? n.anyOf.some((c) => Boolean(can[c])) : can[n.capability]) && visibleForProfiles(n, userProfiles),
       )
 
@@ -554,7 +608,57 @@ export default function AppLayout() {
             </div>
           )}
 
-          {/* 3. Master Data Navigation (Grouped Thematically) */}
+          {/* 3. Perencanaan & Logistik Navigation */}
+          {accessiblePlanningItems.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => toggleSection('planning')}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                aria-expanded={expandedSections.planning}
+              >
+                <div className="flex items-center gap-2">
+                  <span>Perencanaan &amp; Logistik ({accessiblePlanningItems.length})</span>
+                  {getSectionForPath(pathname) === 'planning' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                  )}
+                </div>
+                <IconChevronDown
+                  size={14}
+                  className={`transform transition-transform duration-200 ${expandedSections.planning ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                  expandedSections.planning ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
+                }`}
+              >
+                <nav aria-label="Navigasi perencanaan dan logistik" className="space-y-1">
+                  {accessiblePlanningItems.map((n) => {
+                    const Icon = n.icon
+                    const active = isLinkActive(n)
+                    return (
+                      <NavLink
+                        key={n.to}
+                        to={n.to}
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                          active
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {Icon && <Icon size={18} className={active ? 'text-white' : 'text-slate-400'} />}
+                        <span>{n.label}</span>
+                      </NavLink>
+                    )
+                  })}
+                </nav>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Master Data Navigation (Grouped Thematically) */}
           {accessibleMasterDataItems.length > 0 && (
             <div>
               <button
@@ -616,7 +720,7 @@ export default function AppLayout() {
             </div>
           )}
 
-          {/* 4. Laporan & Monitoring Navigation (Role-based subpages) */}
+          {/* 5. Laporan & Monitoring Navigation (Role-based subpages) */}
           {accessibleReportsItems.length > 0 && (
             <div>
               <button
@@ -666,7 +770,7 @@ export default function AppLayout() {
             </div>
           )}
 
-          {/* 5. Administrasi Navigation (conditional on capabilities) */}
+          {/* 6. Administrasi Navigation (conditional on capabilities) */}
           {accessibleAdminItems.length > 0 && (
             <div>
               <button
@@ -716,7 +820,7 @@ export default function AppLayout() {
             </div>
           )}
 
-          {/* 6. Pengaturan & Sistem Navigation */}
+          {/* 7. Pengaturan & Sistem Navigation */}
           {accessibleSettingsItems.length > 0 && (
             <div>
               <button
