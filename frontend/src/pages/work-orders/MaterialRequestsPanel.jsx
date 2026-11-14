@@ -227,7 +227,7 @@ export default function MaterialRequestsPanel({ applicationId }) {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
               >
                 <option value="">Semua Status</option>
                 <option value="PENDING">PENDING</option>
@@ -788,7 +788,7 @@ export default function MaterialRequestsPanel({ applicationId }) {
               value={sentReference}
               onChange={(e) => setSentReference(e.target.value)}
               placeholder="Contoh: ND-LOG-2026/XI/0091 atau MIMS-GI-981273"
-              className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
+              className="block w-full px-3 py-2 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
             />
           </div>
 
@@ -836,7 +836,7 @@ export default function MaterialRequestsPanel({ applicationId }) {
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               placeholder="Jelaskan alasan pembatalan permintaan material ini..."
-              className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+              className="block w-full px-3 py-2 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
             />
           </div>
 

@@ -10,7 +10,7 @@ import Spinner from '../../components/Spinner.jsx'
 import { IconArrowLeft } from '../../components/icons.jsx'
 import { PoleWoStatusBadge } from './PoleWoStatusBadge.jsx'
 
-const inputCls = 'block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800'
+const inputCls = 'block w-full px-3 py-2 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800'
 const today = () => new Date().toISOString().slice(0, 10)
 
 const EVENT_LABEL = {

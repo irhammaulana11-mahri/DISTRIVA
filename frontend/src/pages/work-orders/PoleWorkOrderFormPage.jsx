@@ -228,10 +228,10 @@ export default function PoleWorkOrderFormPage({ mode = 'edit' }) {
                               </label>
                               {on && (
                                 <span className="flex flex-col sm:flex-row gap-1.5 lg:w-[26rem] lg:shrink-0">
-                                  <select aria-label={`Kondisi tiang ${g.application_number} ${l.kr_number} ${l.pole_type}`} value={lineMeta[l.allocation_pole_line_id]?.condition || 'BARU'} onChange={(e) => setMeta(l.allocation_pole_line_id, { condition: e.target.value })} className="px-2 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 sm:w-28">
+                                  <select aria-label={`Kondisi tiang ${g.application_number} ${l.kr_number} ${l.pole_type}`} value={lineMeta[l.allocation_pole_line_id]?.condition || 'BARU'} onChange={(e) => setMeta(l.allocation_pole_line_id, { condition: e.target.value })} className="px-2 py-1.5 text-base sm:text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 sm:w-28">
                                     <option value="BARU">Baru</option><option value="BEKAS">Bekas</option><option value="RELOKASI">Relokasi</option>
                                   </select>
-                                  <input aria-label={`Asal tiang ${g.application_number} ${l.kr_number} ${l.pole_type}`} maxLength={255} placeholder="Asal / catatan (mis. limpahan dari Madiun)" value={lineMeta[l.allocation_pole_line_id]?.note || ''} onChange={(e) => setMeta(l.allocation_pole_line_id, { note: e.target.value })} className="w-full sm:flex-1 px-2 py-1.5 text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 placeholder:text-slate-400" />
+                                  <input aria-label={`Asal tiang ${g.application_number} ${l.kr_number} ${l.pole_type}`} maxLength={255} placeholder="Asal / catatan (mis. limpahan dari Madiun)" value={lineMeta[l.allocation_pole_line_id]?.note || ''} onChange={(e) => setMeta(l.allocation_pole_line_id, { note: e.target.value })} className="w-full sm:flex-1 px-2 py-1.5 text-base sm:text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 placeholder:text-slate-400" />
                                 </span>
                               )}
                             </div>

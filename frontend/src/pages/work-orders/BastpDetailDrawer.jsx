@@ -644,7 +644,7 @@ export default function BastpDetailDrawer({
                                         )
                                       }}
                                       placeholder="0"
-                                      className="w-24 px-2 py-1 text-right text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                      className="w-24 px-2 py-1 text-right text-base sm:text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                                     />
                                   ) : (
                                     <span className="font-semibold text-slate-800 dark:text-slate-200">
@@ -675,7 +675,7 @@ export default function BastpDetailDrawer({
                                         )
                                       }}
                                       placeholder="Catatan material (opsional)"
-                                      className="w-full px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                      className="w-full px-2 py-1 text-base sm:text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                                     />
                                   ) : (
                                     <span className="text-slate-500">{m.note || '-'}</span>
@@ -715,7 +715,7 @@ export default function BastpDetailDrawer({
                       value={generalNotes}
                       onChange={(e) => setGeneralNotes(e.target.value)}
                       placeholder="Tambahkan catatan pelaksanaan pekerjaan jika ada..."
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-base sm:text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     />
                   ) : (
                     <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
@@ -812,7 +812,7 @@ export default function BastpDetailDrawer({
                                     value={m.customer_idpel}
                                     onChange={(e) => handleMeterFieldChange(idx, 'customer_idpel', e.target.value)}
                                     placeholder="Contoh: 515430001234"
-                                    className="w-full px-2.5 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
+                                    className="w-full px-2.5 py-1 text-base sm:text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
                                   />
                                 ) : (
                                   <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
@@ -831,7 +831,7 @@ export default function BastpDetailDrawer({
                                     value={m.meter_number}
                                     onChange={(e) => handleMeterFieldChange(idx, 'meter_number', e.target.value)}
                                     placeholder="Contoh: 01140023948"
-                                    className="w-full px-2.5 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
+                                    className="w-full px-2.5 py-1 text-base sm:text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
                                   />
                                 ) : (
                                   <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
