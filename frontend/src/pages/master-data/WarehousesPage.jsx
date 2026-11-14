@@ -236,7 +236,7 @@ export default function WarehousesPage() {
         sync_stock: mimsDoStock,
         sync_issues: mimsDoIssues,
         sync_receipts: mimsDoReceipts,
-      })
+      }, (rows) => setMimsResults(rows))
       setMimsResults(res?.data || [])
       notify({
         type: 'success',

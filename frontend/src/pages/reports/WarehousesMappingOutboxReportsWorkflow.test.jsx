@@ -355,14 +355,14 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       await userEvent.click(saved)
       expect(screen.queryByPlaceholderText(/Tempel token sesi MIMS/i)).not.toBeInTheDocument()   // tidak perlu menempel
       await userEvent.click(screen.getByRole('button', { name: /Tarik Stok Sekarang/i }))
-      await waitFor(() => expect(warehousesApi.syncStock).toHaveBeenCalledWith({ use_saved_token: true, warehouse_ids: undefined, date: undefined, dry_run: undefined, sync_stock: true, sync_issues: true, sync_receipts: true }))
+      await waitFor(() => expect(warehousesApi.syncStock).toHaveBeenCalledWith({ use_saved_token: true, warehouse_ids: undefined, date: undefined, dry_run: undefined, sync_stock: true, sync_issues: true, sync_receipts: true }, expect.any(Function)))
 
       await userEvent.click(screen.getByRole('button', { name: /Tarik Ulang/i }))
       await userEvent.click(await screen.findByRole('radio', { name: /Tempel token baru/i }))
       fireEvent.change(screen.getByPlaceholderText(/Tempel token sesi MIMS/i), { target: { value: 'token-baru-abcdef123456' } })
       await userEvent.click(screen.getByLabelText(/Simpan token ini untuk penarikan berikutnya/i))
       await userEvent.click(screen.getByRole('button', { name: /Tarik Stok Sekarang/i }))
-      await waitFor(() => expect(warehousesApi.syncStock).toHaveBeenLastCalledWith(expect.objectContaining({ token: 'token-baru-abcdef123456', save_token: true })))
+      await waitFor(() => expect(warehousesApi.syncStock).toHaveBeenLastCalledWith(expect.objectContaining({ token: 'token-baru-abcdef123456', save_token: true }), expect.any(Function)))
     })
 
     it('membuka dialog Tarik stok dari MIMS, mengirimkan token jenis password, segera mengosongkan token, dan menampilkan hasil per gudang', async () => {
@@ -411,7 +411,8 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
         expect(warehousesApi.syncStock).toHaveBeenCalledWith(
           expect.objectContaining({
             token: 'mims-secret-token-abcdef123456',
-          })
+          }),
+          expect.any(Function)
         )
       })
 

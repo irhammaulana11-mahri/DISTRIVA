@@ -322,7 +322,24 @@ export const warehousesApi = {
     const s = q.toString()
     return request(`/master-data/stock-sync-runs${s ? '?' + s : ''}`)
   },
-  syncStock: (body) => request('/master-data/stock-sync', { method: 'POST', body }),
+  // Penarikan MIMS berjalan sebagai proses latar belakang di server: mulai, lalu pantau hasil per gudang sampai selesai.
+  // Mengembalikan { data: [hasil per gudang] }; onProgress(rows) dipanggil setiap hasil bertambah.
+  syncStock: async (body, onProgress) => {
+    const started = await request('/master-data/stock-sync/runs', { method: 'POST', body })
+    const id = started?.data?.id
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    let run = started?.data
+    const deadline = Date.now() + 3 * 60 * 60 * 1000
+    while (run && (run.status === 'QUEUED' || run.status === 'RUNNING')) {
+      if (Date.now() > deadline) throw new Error('Penarikan MIMS belum selesai setelah 3 jam; periksa riwayat sinkronisasi nanti.')
+      await sleep(2500)
+      run = (await request(`/master-data/stock-sync/runs/${id}`))?.data
+      if (typeof onProgress === 'function' && run?.results) onProgress(run.results)
+    }
+    const rows = run?.results || []
+    if (run?.status === 'FAILED' && rows.length === 0) throw new Error(run.message || 'Penarikan MIMS gagal.')
+    return { data: rows }
+  },
   mimsTokenStatus: () => request('/master-data/stock-sync/token'),
   mimsAutoSettings: () => request('/master-data/stock-sync/settings'),
   saveMimsAutoSettings: (body) => request('/master-data/stock-sync/settings', { method: 'PUT', body }),

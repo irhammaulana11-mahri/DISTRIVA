@@ -404,6 +404,33 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_pull_run_collects_the_results_per_warehouse_without_keeping_the_token_and_only_one_runs_at_a_time(): void
+    {
+        $secret = 'rahasia-token-run-123';
+        foreach ([['2810', 'Jombang'], ['2850', 'Pacet']] as [$loc, $name]) {
+            DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => '5118-'.$loc, 'name' => 'Gd Ry '.$name, 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => $loc, 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        config(['distriva.mims.base_url' => 'https://mims-run.test', 'distriva.mims.run_inline' => true]);
+        Http::fake(['mims-run.test/*getDataPengeluaranHeader*' => Http::response(['data' => []]), 'mims-run.test/*' => Http::response(['data' => []])]);
+
+        $res = $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync/runs', ['token' => $secret, 'sync_stock' => false, 'sync_issues' => true, 'save_token' => true])->assertStatus(202);
+        $id = $res->json('data.id');
+        $run = $this->as($this->konstruksi)->getJson("/api/master-data/stock-sync/runs/{$id}")->assertOk()->json('data');
+        $this->assertSame('OK', $run['status']);
+        $this->assertSame(2, $run['warehouses_total']);
+        $this->assertSame(['OK', 'OK'], array_column(array_column($run['results'], 'issues'), 'status'));
+        $this->assertStringNotContainsString($secret, json_encode(DB::table('mims_pull_runs')->get()));                // the token is not kept in the run
+        Http::assertSent(fn ($q) => $q->hasHeader('auth-token', $secret));
+        $this->assertTrue(DB::table('user_mims_tokens')->where('user_id', $this->konstruksi->getKey())->exists());       // only because the user ticked "save"
+
+        $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync/runs', ['use_saved_token' => true, 'sync_stock' => false, 'sync_receipts' => true])->assertStatus(202)->assertJsonPath('data.status', 'OK');   // the saved token works with no token in the request
+        DB::table('mims_pull_runs')->insert(['id' => (string) Str::uuid(), 'status' => 'RUNNING', 'options' => '{}', 'started_by' => $this->konstruksi->getKey(), 'created_at' => now()]);
+        $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync/runs', ['token' => $secret, 'sync_issues' => true])->assertStatus(409);   // one at a time
+        $this->as($this->viewer)->postJson('/api/master-data/stock-sync/runs', ['token' => $secret])->assertForbidden();
+        $this->as($this->konstruksi)->getJson('/api/master-data/stock-sync/runs/'.Str::uuid())->assertNotFound();
+    }
+
+    #[Test]
     public function the_manual_pull_lets_the_user_choose_stock_issues_and_receipts(): void
     {
         DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);

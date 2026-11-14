@@ -5,16 +5,17 @@ namespace App\Http\Controllers\MasterData;
 use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\Authorization\CatalogAuthorizer;
 use App\Services\Inventory\KhsMaterialMapService;
-use App\Services\Inventory\MimsIssueSyncService;
-use App\Services\Inventory\MimsReceiptSyncService;
+use App\Services\Inventory\MimsPullRunService;
 use App\Services\Inventory\MimsStockSyncService;
 use App\Services\Inventory\PoleContractService;
 use App\Services\Inventory\StockService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Validator;
 /** Warehouses, stock snapshots and pole contracts / Kontrak Rinci (docs/62 §30). Violations -> 409, authorization -> 403/404. */
 class InventoryController extends Controller
 {
-    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims, private readonly MimsIssueSyncService $issueMirror, private readonly MimsReceiptSyncService $receiptMirror) {}
+    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims, private readonly MimsPullRunService $pulls) {}
 
     public function warehouses(Request $request): JsonResponse
     {
@@ -229,18 +230,65 @@ class InventoryController extends Controller
         $actor = $request->user();
         $this->authorizer->authorize($actor, 'stock.import'); // grant first, then validate
         @set_time_limit(600);   // up to one call per warehouse, each with its own timeout: the default web limit (30 s) would cut the request mid-way
+        [$d, $token, $useSaved, $opts, $warehouses] = $this->pullInput($request, $actor);
+        $results = [];
+        foreach ($warehouses as $wh) {
+            $row = $this->pulls->pullOne($wh, $actor, $token, $opts);
+            $results[] = $row;
+            if ($this->pulls->rejected($row)) {
+                break;                                                                                  // an expired token fails every warehouse: stop at the first
+            }
+        }
+        $this->rememberToken($request, $actor, $useSaved, $token, collect($results)->contains(fn ($r) => $this->pulls->rejected($r)),
+            collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'OK')));
+
+        return response()->json(['data' => $results]);
+    }
+
+    /**
+     * POST /stock-sync/runs — the same pull as /stock-sync, but as a run in a detached process; answers at once with the run, whose results (per warehouse) are read with GET /stock-sync/runs/{id}.
+     * A pasted token goes to the process through its environment; "save_token" keeps it encrypted for the user as before.
+     */
+    public function mimsRunStart(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'stock.import');
+        [$d, $token, $useSaved, $opts, $warehouses] = $this->pullInput($request, $actor);
+        if (! $useSaved && $request->boolean('save_token')) {
+            $this->rememberToken($request, $actor, false, $token, false, true);
+        }
+        $id = $this->pulls->start($actor, ['sync_stock' => $opts['stock'], 'sync_issues' => $opts['issues'], 'sync_receipts' => $opts['receipts'], 'dry_run' => $opts['dry_run'], 'date' => $opts['date'], 'warehouse_ids' => $warehouses->pluck('id')->all(), 'use_saved_token' => $useSaved]);
+        $this->pulls->launch($id, $useSaved ? null : $token);
+
+        return response()->json(['data' => $this->pulls->show($id)], 202);
+    }
+
+    /** GET /stock-sync/runs/{run} */
+    public function mimsRunShow(Request $request, string $run): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'stock.import');
+        $data = $this->pulls->show($run) ?? throw new AdministrationDenied('Penarikan tidak ditemukan.', 404);
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Validates a pull request and returns [validated, token, useSaved, options, warehouses].
+     *
+     * @return array{0:array<string,mixed>,1:string,2:bool,3:array<string,mixed>,4:Collection<int,object>}
+     */
+    private function pullInput(Request $request, User $actor): array
+    {
         $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'sync_stock' => ['sometimes', 'boolean'], 'sync_issues' => ['sometimes', 'boolean'], 'sync_receipts' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'dry_run' => ['sometimes', 'boolean']])->validate();
         if (! $this->mims->baseUrlConfigured()) {
             throw new AssignmentRuleViolation('Alamat dasar MIMS (DISTRIVA_MIMS_BASE_URL) belum diisi di server.');
         }
         // what to pull: stock (default), issues and receipts (each only when asked); a dry run only exists for stock
-        $doStock = $request->boolean('sync_stock', true);
-        $doIssues = $request->boolean('sync_issues');
-        $doReceipts = $request->boolean('sync_receipts');
-        if (! $doStock && ! $doIssues && ! $doReceipts) {
+        $opts = ['stock' => $request->boolean('sync_stock', true), 'issues' => $request->boolean('sync_issues'), 'receipts' => $request->boolean('sync_receipts'), 'dry_run' => $request->boolean('dry_run'), 'date' => $d['date'] ?? null];
+        if (! $opts['stock'] && ! $opts['issues'] && ! $opts['receipts']) {
             throw new AssignmentRuleViolation('Pilih minimal satu: stok, pengeluaran, atau penerimaan.');
         }
-        if ($request->boolean('dry_run') && ! $doStock) {
+        if ($opts['dry_run'] && ! $opts['stock']) {
             throw new AssignmentRuleViolation('Uji coba (dry run) hanya berlaku untuk stok.');
         }
         $useSaved = $request->boolean('use_saved_token');
@@ -253,39 +301,18 @@ class InventoryController extends Controller
         if ($warehouses->isEmpty()) {
             throw new AdministrationDenied('Tidak ada gudang ERP yang dapat ditarik (impor daftar gudang dan pastikan plant/storage location terisi).', 404);
         }
-        $results = [];
-        foreach ($warehouses as $wh) {
-            $r = $doStock ? $this->mims->syncWarehouse($wh, $actor, $d['date'] ?? null, $request->boolean('dry_run'), $token, $actor)
-                : ['status' => 'SKIPPED', 'message' => 'Stok tidak ditarik (tidak dipilih).', 'snapshot_id' => null, 'total' => 0, 'mapped' => 0];
-            $row = ['warehouse_id' => $wh->id, 'warehouse_code' => $wh->code, 'warehouse_name' => $wh->name] + $r;
-            if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
-                $results[] = $row;
-                break;                                                                                  // an expired token fails every warehouse: stop at the first
-            }
-            if (! $request->boolean('dry_run')) {
-                if ($doIssues) {
-                    $row['issues'] = $this->issueMirror->syncWarehouse($wh, $token, $actor);
-                }
-                if ($doReceipts) {
-                    $row['receipts'] = $this->receiptMirror->syncWarehouse($wh, $token, $actor);
-                }
-                if (collect([$row['issues'] ?? null, $row['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'FAILED' && str_contains((string) $m['message'], 'token ditolak'))) {
-                    $results[] = $row;
-                    break;
-                }
-            }
-            $results[] = $row;
-        }
 
-        $rejected = collect($results)->contains(fn ($r) => ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'FAILED' && str_contains((string) $m['message'], 'token ditolak')));
-        $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true) || collect([$r['issues'] ?? null, $r['receipts'] ?? null])->contains(fn ($m) => ($m['status'] ?? '') === 'OK'));
+        return [$d, $token, $useSaved, $opts, $warehouses];
+    }
+
+    /** Keeps the token the user chose to save (encrypted), or records how the saved one fared. */
+    private function rememberToken(Request $request, User $actor, bool $useSaved, string $token, bool $rejected, bool $worked): void
+    {
         if (! $useSaved && $request->boolean('save_token') && ! $rejected) {
             DB::table('user_mims_tokens')->upsert([['user_id' => $actor->getKey(), 'token_encrypted' => Crypt::encryptString($token), 'saved_at' => now(), 'last_used_at' => now(), 'last_result' => 'OK']], ['user_id'], ['token_encrypted', 'saved_at', 'last_used_at', 'last_result']);
         } elseif ($useSaved && ($rejected || $worked)) {
             DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->update(['last_used_at' => now(), 'last_result' => $rejected ? 'REJECTED' : 'OK']);   // kept either way: the user decides when to replace it
         }
-
-        return response()->json(['data' => $results]);
     }
 
     /** GET /stock-sync/settings — automatic pull settings. */
