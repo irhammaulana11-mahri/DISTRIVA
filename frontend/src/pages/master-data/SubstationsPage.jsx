@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -21,6 +21,9 @@ import {
   IconMapPin,
   IconArrowUp,
   IconArrowDown,
+  IconRefresh,
+  IconAlertCircle,
+  IconCheckCircle,
 } from '../../components/icons.jsx'
 
 const inputCls =
@@ -766,217 +769,314 @@ export default function SubstationsPage() {
 
   const ulps = units.filter((u) => u.unit_type === 'ULP')
 
+  const stats = useMemo(() => {
+    const total = meta?.total ?? rows.length
+    const activeCount = rows.filter((r) => r.status === 'AKTIF').length
+    const totalCapacity = rows.reduce((acc, r) => acc + (Number(r.capacity_kva) || 0), 0)
+    const reviewOrNoCoords = rows.filter((r) => r.needs_review || r.latitude === null || r.longitude === null).length
+    return {
+      total,
+      activeCount,
+      totalCapacity,
+      reviewOrNoCoords,
+    }
+  }, [rows, meta])
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Master Data</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Master Gardu</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Master Gardu</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Data induk aset gardu distribusi (kapasitas, trafo, lokasi, penyulang) yang dikelola oleh Perencanaan & Enjiniring.
-          </p>
+      {/* Header Modul Master Gardu */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-amber-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-amber-500 p-2.5 text-white shadow-xs">
+              <IconZap className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Master Data</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Master Gardu</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Master Gardu
+                </h1>
+                <span className="rounded-full bg-amber-100 dark:bg-amber-950 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  Aset Distribusi
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Data induk aset gardu distribusi (kapasitas, trafo, lokasi, penyulang) yang dikelola oleh Perencanaan &amp; Enjiniring.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={load}
+              aria-label="Segarkan"
+            >
+              Segarkan
+            </Button>
+            {canImport && (
+              <Button icon={IconUpload} size="sm" onClick={() => navigate('/master-data/substations/impor')}>
+                Impor Gardu
+              </Button>
+            )}
+          </div>
         </div>
-        {canImport && (
-          <Button icon={IconUpload} onClick={() => navigate('/master-data/substations/impor')}>
-            Impor Gardu
-          </Button>
-        )}
       </div>
 
-      {/* Filter Bar */}
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          setPage(1)
-          setQuery(q.trim())
-        }}
-      >
-        <div className="relative">
-          <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
-          <input
-            aria-label="Cari gardu"
-            placeholder="Kode, nama, lokasi…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className={`${inputCls} pl-8 w-48 sm:w-56`}
-          />
+      {/* KPI Ringkasan Metrik Master Gardu */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Gardu</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Aset terdaftar di sistem</p>
         </div>
 
-        <HierarchicalUnitFilter
-          up3Id={up3Id}
-          onUp3Change={(newUp3) => {
-            setPage(1)
-            setUp3Id(newUp3)
-          }}
-          unitId={unitId}
-          onUnitChange={(newUnit) => {
-            setPage(1)
-            setUnitId(newUnit)
-          }}
-          allUp3Label="Semua UP3"
-          allUnitLabel="Semua unit"
-          unitAriaLabel="Unit"
-          selectClassName={inputCls}
-        />
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Gardu Aktif</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.activeCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Operasional normal (halaman ini)</p>
+        </div>
 
-        {canViewFeeders && (
-          <select
-            aria-label="Penyulang"
-            value={feederId}
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Kapasitas Terpasang</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.totalCapacity.toLocaleString('id-ID')} <span className="text-sm font-semibold">kVA</span>
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Akumulasi daya trafo (halaman ini)</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Perhatian / Lokasi</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconAlertCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {stats.reviewOrNoCoords.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Perlu tinjau / tanpa koordinat</p>
+        </div>
+      </dl>
+
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            setPage(1)
+            setQuery(q.trim())
+          }}
+        >
+          <div className="relative">
+            <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <input
+              aria-label="Cari gardu"
+              placeholder="Kode, nama, lokasi…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className={`${inputCls} pl-8 w-48 sm:w-56`}
+            />
+          </div>
+
+          <HierarchicalUnitFilter
+            up3Id={up3Id}
+            onUp3Change={(newUp3) => {
+              setPage(1)
+              setUp3Id(newUp3)
+            }}
+            unitId={unitId}
+            onUnitChange={(newUnit) => {
+              setPage(1)
+              setUnitId(newUnit)
+            }}
+            allUp3Label="Semua UP3"
+            allUnitLabel="Semua unit"
+            unitAriaLabel="Unit"
+            selectClassName={inputCls}
+          />
+
+          {canViewFeeders && (
+            <select
+              aria-label="Penyulang"
+              value={feederId}
+              onChange={(e) => {
+                setPage(1)
+                setFeederId(e.target.value)
+              }}
+              className={inputCls}
+            >
+              <option value="">Semua penyulang</option>
+              {feedersList.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.code} {f.name ? `(${f.name})` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <input
+            aria-label="Merk Trafo"
+            placeholder="Merk trafo…"
+            value={brand}
             onChange={(e) => {
               setPage(1)
-              setFeederId(e.target.value)
+              setBrand(e.target.value)
+            }}
+            className={`${inputCls} w-28`}
+          />
+
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              aria-label="Tahun Dari"
+              placeholder="Thn dari"
+              value={yearFrom}
+              onChange={(e) => {
+                setPage(1)
+                setYearFrom(e.target.value)
+              }}
+              className={`${inputCls} w-20`}
+            />
+            <span className="text-slate-400">-</span>
+            <input
+              type="number"
+              aria-label="Tahun Sampai"
+              placeholder="Thn s/d"
+              value={yearTo}
+              onChange={(e) => {
+                setPage(1)
+                setYearTo(e.target.value)
+              }}
+              className={`${inputCls} w-20`}
+            />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              aria-label="Kapasitas Min"
+              placeholder="kVA min"
+              value={capacityMin}
+              onChange={(e) => {
+                setPage(1)
+                setCapacityMin(e.target.value)
+              }}
+              className={`${inputCls} w-20`}
+            />
+            <span className="text-slate-400">-</span>
+            <input
+              type="number"
+              aria-label="Kapasitas Maks"
+              placeholder="kVA maks"
+              value={capacityMax}
+              onChange={(e) => {
+                setPage(1)
+                setCapacityMax(e.target.value)
+              }}
+              className={`${inputCls} w-20`}
+            />
+          </div>
+
+          <input
+            aria-label="Kecamatan"
+            placeholder="Kecamatan…"
+            value={kecamatan}
+            onChange={(e) => {
+              setPage(1)
+              setKecamatan(e.target.value)
+            }}
+            className={`${inputCls} w-28`}
+          />
+
+          <select
+            aria-label="Kepemilikan"
+            value={ownership}
+            onChange={(e) => {
+              setPage(1)
+              setOwnership(e.target.value)
             }}
             className={inputCls}
           >
-            <option value="">Semua penyulang</option>
-            {feedersList.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.code} {f.name ? `(${f.name})` : ''}
-              </option>
-            ))}
+            <option value="">Semua kepemilikan</option>
+            <option value="PLN">PLN</option>
+            <option value="PELANGGAN">Pelanggan</option>
           </select>
-        )}
 
-        <input
-          aria-label="Merk Trafo"
-          placeholder="Merk trafo…"
-          value={brand}
-          onChange={(e) => {
-            setPage(1)
-            setBrand(e.target.value)
-          }}
-          className={`${inputCls} w-28`}
-        />
-
-        <div className="flex items-center gap-1">
-          <input
-            type="number"
-            aria-label="Tahun Dari"
-            placeholder="Thn dari"
-            value={yearFrom}
+          <select
+            aria-label="Status"
+            value={status}
             onChange={(e) => {
               setPage(1)
-              setYearFrom(e.target.value)
+              setStatus(e.target.value)
             }}
-            className={`${inputCls} w-20`}
-          />
-          <span className="text-slate-400">-</span>
-          <input
-            type="number"
-            aria-label="Tahun Sampai"
-            placeholder="Thn s/d"
-            value={yearTo}
-            onChange={(e) => {
-              setPage(1)
-              setYearTo(e.target.value)
-            }}
-            className={`${inputCls} w-20`}
-          />
-        </div>
+            className={inputCls}
+          >
+            <option value="">Semua status</option>
+            <option value="AKTIF">AKTIF</option>
+            <option value="NONAKTIF">NONAKTIF</option>
+          </select>
 
-        <div className="flex items-center gap-1">
-          <input
-            type="number"
-            aria-label="Kapasitas Min"
-            placeholder="kVA min"
-            value={capacityMin}
-            onChange={(e) => {
-              setPage(1)
-              setCapacityMin(e.target.value)
-            }}
-            className={`${inputCls} w-20`}
-          />
-          <span className="text-slate-400">-</span>
-          <input
-            type="number"
-            aria-label="Kapasitas Maks"
-            placeholder="kVA maks"
-            value={capacityMax}
-            onChange={(e) => {
-              setPage(1)
-              setCapacityMax(e.target.value)
-            }}
-            className={`${inputCls} w-20`}
-          />
-        </div>
+          <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+            <input
+              aria-label="Tanpa koordinat"
+              type="checkbox"
+              checked={hasCoordinates}
+              onChange={(e) => {
+                setPage(1)
+                setHasCoordinates(e.target.checked)
+              }}
+            />
+            Tanpa koordinat
+          </label>
 
-        <input
-          aria-label="Kecamatan"
-          placeholder="Kecamatan…"
-          value={kecamatan}
-          onChange={(e) => {
-            setPage(1)
-            setKecamatan(e.target.value)
-          }}
-          className={`${inputCls} w-28`}
-        />
+          <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+            <input
+              aria-label="Perlu ditinjau"
+              type="checkbox"
+              checked={needsReview}
+              onChange={(e) => {
+                setPage(1)
+                setNeedsReview(e.target.checked)
+              }}
+            />
+            Perlu ditinjau
+          </label>
 
-        <select
-          aria-label="Kepemilikan"
-          value={ownership}
-          onChange={(e) => {
-            setPage(1)
-            setOwnership(e.target.value)
-          }}
-          className={inputCls}
-        >
-          <option value="">Semua kepemilikan</option>
-          <option value="PLN">PLN</option>
-          <option value="PELANGGAN">Pelanggan</option>
-        </select>
-
-        <select
-          aria-label="Status"
-          value={status}
-          onChange={(e) => {
-            setPage(1)
-            setStatus(e.target.value)
-          }}
-          className={inputCls}
-        >
-          <option value="">Semua status</option>
-          <option value="AKTIF">AKTIF</option>
-          <option value="NONAKTIF">NONAKTIF</option>
-        </select>
-
-        <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
-          <input
-            aria-label="Tanpa koordinat"
-            type="checkbox"
-            checked={hasCoordinates}
-            onChange={(e) => {
-              setPage(1)
-              setHasCoordinates(e.target.checked)
-            }}
-          />
-          Tanpa koordinat
-        </label>
-
-        <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
-          <input
-            aria-label="Perlu ditinjau"
-            type="checkbox"
-            checked={needsReview}
-            onChange={(e) => {
-              setPage(1)
-              setNeedsReview(e.target.checked)
-            }}
-          />
-          Perlu ditinjau
-        </label>
-
-        <Button type="submit" variant="secondary" size="sm">
-          Cari
-        </Button>
-      </form>
+          <Button type="submit" variant="secondary" size="sm">
+            Cari
+          </Button>
+        </form>
+      </div>
 
       {error && <Alert kind="error">{error}</Alert>}
 

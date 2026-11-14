@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { feedersApi, substationsApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -18,6 +18,9 @@ import {
   IconInfo,
   IconPencil,
   IconHistory,
+  IconRefresh,
+  IconCheckCircle,
+  IconAlertCircle,
 } from '../../components/icons.jsx'
 
 const inputCls =
@@ -789,116 +792,210 @@ export default function FeedersPage() {
     }
   }
 
+  const stats = useMemo(() => {
+    const total = meta?.total ?? rows.length
+    const activeCount = rows.filter((r) => r.status === 'AKTIF').length
+    const totalGardu = rows.reduce((acc, r) => acc + (Number(r.substation_count) || 0), 0)
+    const totalCapacity = rows.reduce((acc, r) => acc + (Number(r.total_capacity_kva) || 0), 0)
+    return {
+      total,
+      activeCount,
+      totalGardu,
+      totalCapacity,
+    }
+  }, [rows, meta])
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Master Data</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Penyulang</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Master Penyulang
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Penyulang distribusi (20 kV), unit pengelola, kapasitas, dan gardu terhubung.
-          </p>
-        </div>
+      {/* Header Modul Master Penyulang */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-indigo-600 p-2.5 text-white shadow-xs">
+              <IconLayers className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Master Data</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Penyulang</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Master Penyulang
+                </h1>
+                <span className="rounded-full bg-indigo-100 dark:bg-indigo-950 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                  Jaringan 20 kV
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Penyulang distribusi (20 kV), unit pengelola, kapasitas, dan gardu terhubung.
+              </p>
+            </div>
+          </div>
 
-        {canManage && (
-          <Button
-            icon={IconPlus}
-            variant="primary"
-            onClick={() => setCreateModalOpen(true)}
-          >
-            Tambah Penyulang
-          </Button>
-        )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={loadFeeders}
+              aria-label="Segarkan"
+            >
+              Segarkan
+            </Button>
+            {canManage && (
+              <Button
+                icon={IconPlus}
+                variant="primary"
+                size="sm"
+                onClick={() => setCreateModalOpen(true)}
+              >
+                Tambah Penyulang
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Filter Bar */}
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          setPage(1)
-          setQuery(q.trim())
-        }}
-      >
-        <div className="relative">
-          <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
-          <input
-            aria-label="Cari penyulang"
-            placeholder="Kode, nama, GI…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className={`${inputCls} pl-8 w-48`}
-          />
+      {/* KPI Ringkasan Metrik Master Penyulang */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Penyulang</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconLayers className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Penyulang terdaftar di sistem</p>
         </div>
 
-        <select
-          aria-label="Cabang"
-          value={ownerUnitId}
-          onChange={(e) => handleOwnerUnitChange(e.target.value)}
-          className={inputCls}
-        >
-          <option value="">Semua UP3 (Seluruh Unit)</option>
-          {up3Units.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.code ? `${u.code} - ${u.name}` : u.name}
-            </option>
-          ))}
-        </select>
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Penyulang Aktif</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.activeCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Status operasi normal (halaman ini)</p>
+        </div>
 
-        <select
-          aria-label="Unit"
-          value={servesUnitId}
-          onChange={(e) => {
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Gardu Terhubung</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.totalGardu.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Akumulasi gardu (halaman ini)</p>
+        </div>
+
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-indigo-700 dark:text-indigo-400">Total Kapasitas</dt>
+            <div className="rounded-lg p-1.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+              <IconLayers className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+            {stats.totalCapacity.toLocaleString('id-ID')} <span className="text-sm font-semibold">kVA</span>
+          </dd>
+          <p className="mt-1 text-xs text-indigo-600/70 dark:text-indigo-500/70">Daya gardu tersambung (halaman ini)</p>
+        </div>
+      </dl>
+
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
             setPage(1)
-            setServesUnitId(e.target.value)
+            setQuery(q.trim())
           }}
-          className={inputCls}
         >
-          <option value="">
-            {ownerUnitId ? 'Semua ULP di UP3 Ini' : 'Semua ULP dilayani'}
-          </option>
-          {availableUlpUnits.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.code ? `${u.code} - ${u.name}` : u.name}
+          <div className="relative">
+            <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <input
+              aria-label="Cari penyulang"
+              placeholder="Kode, nama, GI…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className={`${inputCls} pl-8 w-48`}
+            />
+          </div>
+
+          <select
+            aria-label="Cabang"
+            value={ownerUnitId}
+            onChange={(e) => handleOwnerUnitChange(e.target.value)}
+            className={inputCls}
+          >
+            <option value="">Semua UP3 (Seluruh Unit)</option>
+            {up3Units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.code ? `${u.code} - ${u.name}` : u.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Unit"
+            value={servesUnitId}
+            onChange={(e) => {
+              setPage(1)
+              setServesUnitId(e.target.value)
+            }}
+            className={inputCls}
+          >
+            <option value="">
+              {ownerUnitId ? 'Semua ULP di UP3 Ini' : 'Semua ULP dilayani'}
             </option>
-          ))}
-        </select>
+            {availableUlpUnits.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.code ? `${u.code} - ${u.name}` : u.name}
+              </option>
+            ))}
+          </select>
 
-        <input
-          aria-label="GI"
-          placeholder="Kode GI…"
-          value={giCode}
-          onChange={(e) => setGiCode(e.target.value)}
-          className={`${inputCls} w-28`}
-        />
+          <input
+            aria-label="GI"
+            placeholder="Kode GI…"
+            value={giCode}
+            onChange={(e) => setGiCode(e.target.value)}
+            className={`${inputCls} w-28`}
+          />
 
-        <select
-          aria-label="Status"
-          value={status}
-          onChange={(e) => {
-            setPage(1)
-            setStatus(e.target.value)
-          }}
-          className={inputCls}
-        >
-          <option value="">Semua status</option>
-          <option value="AKTIF">AKTIF</option>
-          <option value="NONAKTIF">NONAKTIF</option>
-        </select>
+          <select
+            aria-label="Status"
+            value={status}
+            onChange={(e) => {
+              setPage(1)
+              setStatus(e.target.value)
+            }}
+            className={inputCls}
+          >
+            <option value="">Semua status</option>
+            <option value="AKTIF">AKTIF</option>
+            <option value="NONAKTIF">NONAKTIF</option>
+          </select>
 
-        <Button type="submit" variant="secondary" size="sm">
-          Cari
-        </Button>
-      </form>
+          <Button type="submit" variant="secondary" size="sm">
+            Cari
+          </Button>
+        </form>
+      </div>
 
       {error && (
         <div data-testid="feeders-list-error">

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { connectionsApi, substationsApi, feedersApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -18,6 +18,9 @@ import {
   IconCheck,
   IconX,
   IconWrench,
+  IconRefresh,
+  IconCheckCircle,
+  IconAlertCircle,
 } from '../../components/icons.jsx'
 
 const inputCls =
@@ -514,155 +517,252 @@ export default function CustomersPage() {
     loadCustomers()
   }, [loadCustomers])
 
+  const stats = useMemo(() => {
+    const total = meta?.total ?? rows.length
+    const activeCount = rows.filter((r) => r.status === 'AKTIF').length
+    const totalPowerVa = rows.reduce((acc, r) => acc + (Number(r.power_va) || 0), 0)
+    const unlinkedCount = rows.filter((r) => !r.substation_code && !r.substation_id).length
+    return {
+      total,
+      activeCount,
+      totalPowerVa,
+      totalPowerKva: Math.round(totalPowerVa / 1000),
+      unlinkedCount,
+    }
+  }, [rows, meta])
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Master Data</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Pelanggan</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Master Pelanggan (IDPEL)
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Daftar sambungan pelanggan dari berkas DIL dan survei KKO yang tertaut ke gardu dan penyulang distribusi.
-          </p>
+      {/* Header Modul Master Pelanggan */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-emerald-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-emerald-600 p-2.5 text-white shadow-xs">
+              <IconUsers className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Master Data</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Pelanggan</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Master Pelanggan (IDPEL)
+                </h1>
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  Konsumen &amp; Sambungan
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Daftar sambungan pelanggan dari berkas DIL dan survei KKO yang tertaut ke gardu dan penyulang distribusi.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={loadCustomers}
+              aria-label="Segarkan"
+            >
+              Segarkan
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          setPage(1)
-          setQuery(q.trim())
-        }}
-      >
-        <div className="relative">
-          <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
-          <input
-            aria-label="Cari pelanggan"
-            placeholder="Awalan IDPEL, nama, no. meter…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className={`${inputCls} pl-8 w-56`}
-          />
+      {/* KPI Ringkasan Metrik Master Pelanggan */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Pelanggan</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconUsers className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Pelanggan terdaftar di sistem</p>
         </div>
 
-        <HierarchicalUnitFilter
-          up3Id={up3Id}
-          onUp3Change={(newUp3) => {
-            setPage(1)
-            setUp3Id(newUp3)
-          }}
-          unitId={unitId}
-          onUnitChange={(newUnit) => {
-            setPage(1)
-            setUnitId(newUnit)
-          }}
-          allUp3Label="Semua UP3"
-          allUnitLabel="Semua unit ULP"
-          unitAriaLabel="Unit ULP"
-          selectClassName={inputCls}
-        />
-
-        <select
-          aria-label="Penyulang"
-          value={feederId}
-          onChange={(e) => {
-            setPage(1)
-            setFeederId(e.target.value)
-          }}
-          className={inputCls}
-        >
-          <option value="">Semua penyulang</option>
-          {feeders.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.code} {f.name ? `(${f.name})` : ''}
-            </option>
-          ))}
-        </select>
-
-        <input
-          aria-label="Tarif"
-          placeholder="Tarif (misal: R1)"
-          value={tariffCode}
-          onChange={(e) => setTariffCode(e.target.value)}
-          className={`${inputCls} w-24`}
-        />
-
-        <select
-          aria-label="Status Pelanggan"
-          value={status}
-          onChange={(e) => {
-            setPage(1)
-            setStatus(e.target.value)
-          }}
-          className={inputCls}
-        >
-          <option value="">Semua status</option>
-          <option value="AKTIF">AKTIF</option>
-          <option value="BONGKAR">BONGKAR</option>
-          <option value="HAPUS">HAPUS</option>
-          <option value="PROSES">PROSES</option>
-        </select>
-
-        <select
-          aria-label="Jenis Layanan"
-          value={serviceType}
-          onChange={(e) => {
-            setPage(1)
-            setServiceType(e.target.value)
-          }}
-          className={inputCls}
-        >
-          <option value="">Semua layanan</option>
-          <option value="PASKABAYAR">Paskabayar</option>
-          <option value="PRABAYAR">Prabayar</option>
-        </select>
-
-        {substationId && (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-mono">
-            <span>Gardu Terpilih</span>
-            <button
-              type="button"
-              aria-label="Hapus filter gardu"
-              onClick={() => {
-                setPage(1)
-                setSubstationId('')
-              }}
-              className="ml-1 hover:text-rose-600 font-bold cursor-pointer"
-              title="Hapus filter gardu"
-            >
-              ✕
-            </button>
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Pelanggan Aktif</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
           </div>
-        )}
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.activeCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Sambungan aktif (halaman ini)</p>
+        </div>
 
-        <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
-          <input
-            aria-label="Belum tertaut ke gardu"
-            type="checkbox"
-            checked={unlinkedOnly}
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Daya Tersambung</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconZap className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.totalPowerKva.toLocaleString('id-ID')} <span className="text-sm font-semibold">kVA</span>
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">
+            {stats.totalPowerVa.toLocaleString('id-ID')} VA (halaman ini)
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Belum Tertaut Gardu</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconAlertCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {stats.unlinkedCount.toLocaleString('id-ID')}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Perlu pemetaan gardu (halaman ini)</p>
+        </div>
+      </dl>
+
+      {/* Filter Bar */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            setPage(1)
+            setQuery(q.trim())
+          }}
+        >
+          <div className="relative">
+            <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <input
+              aria-label="Cari pelanggan"
+              placeholder="Awalan IDPEL, nama, no. meter…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className={`${inputCls} pl-8 w-56`}
+            />
+          </div>
+
+          <HierarchicalUnitFilter
+            up3Id={up3Id}
+            onUp3Change={(newUp3) => {
+              setPage(1)
+              setUp3Id(newUp3)
+            }}
+            unitId={unitId}
+            onUnitChange={(newUnit) => {
+              setPage(1)
+              setUnitId(newUnit)
+            }}
+            allUp3Label="Semua UP3"
+            allUnitLabel="Semua unit ULP"
+            unitAriaLabel="Unit ULP"
+            selectClassName={inputCls}
+          />
+
+          <select
+            aria-label="Penyulang"
+            value={feederId}
             onChange={(e) => {
               setPage(1)
-              setUnlinkedOnly(e.target.checked)
+              setFeederId(e.target.value)
             }}
-            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          Belum tertaut gardu
-        </label>
+            className={inputCls}
+          >
+            <option value="">Semua penyulang</option>
+            {feeders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.code} {f.name ? `(${f.name})` : ''}
+              </option>
+            ))}
+          </select>
 
-        <Button type="submit" variant="secondary" size="sm">
-          Cari
-        </Button>
-      </form>
+          <input
+            aria-label="Tarif"
+            placeholder="Tarif (misal: R1)"
+            value={tariffCode}
+            onChange={(e) => setTariffCode(e.target.value)}
+            className={`${inputCls} w-24`}
+          />
+
+          <select
+            aria-label="Status Pelanggan"
+            value={status}
+            onChange={(e) => {
+              setPage(1)
+              setStatus(e.target.value)
+            }}
+            className={inputCls}
+          >
+            <option value="">Semua status</option>
+            <option value="AKTIF">AKTIF</option>
+            <option value="BONGKAR">BONGKAR</option>
+            <option value="HAPUS">HAPUS</option>
+            <option value="PROSES">PROSES</option>
+          </select>
+
+          <select
+            aria-label="Jenis Layanan"
+            value={serviceType}
+            onChange={(e) => {
+              setPage(1)
+              setServiceType(e.target.value)
+            }}
+            className={inputCls}
+          >
+            <option value="">Semua layanan</option>
+            <option value="PASKABAYAR">Paskabayar</option>
+            <option value="PRABAYAR">Prabayar</option>
+          </select>
+
+          {substationId && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-mono">
+              <span>Gardu Terpilih</span>
+              <button
+                type="button"
+                aria-label="Hapus filter gardu"
+                onClick={() => {
+                  setPage(1)
+                  setSubstationId('')
+                }}
+                className="ml-1 hover:text-rose-600 font-bold cursor-pointer"
+                title="Hapus filter gardu"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
+            <input
+              aria-label="Belum tertaut ke gardu"
+              type="checkbox"
+              checked={unlinkedOnly}
+              onChange={(e) => {
+                setPage(1)
+                setUnlinkedOnly(e.target.checked)
+              }}
+              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            Belum tertaut gardu
+          </label>
+
+          <Button type="submit" variant="secondary" size="sm">
+            Cari
+          </Button>
+        </form>
+      </div>
 
       {error && (
         <div data-testid="customers-list-error">
