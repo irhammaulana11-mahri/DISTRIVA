@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { warehousesApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -272,68 +272,153 @@ export default function WarehousesPage() {
     return String(pos.khs_code).toLowerCase().includes(positionSearch.toLowerCase())
   })
 
+  const stats = useMemo(() => {
+    return {
+      total: warehouses.length,
+      active: warehouses.filter((w) => w.is_active).length,
+      snapshotsCount: warehouses.filter((w) => w.latest_snapshot).length,
+      syncRunsCount: syncRuns.length,
+    }
+  }, [warehouses, syncRuns])
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Operasional</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">Gudang & Stok</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Gudang, Cuplikan Stok & Sinkronisasi
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Manajemen gudang ERP, impor cuplikan stok fisik (CSV / XLSX Monitoring Stock), query ketersediaan KHS, dan pemantauan sinkronisasi otomatis.
-          </p>
-        </div>
+      {/* Header Modul Gudang & Stok */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconBuilding className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Operasional</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Gudang &amp; Stok</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Gudang, Cuplikan Stok &amp; Sinkronisasi
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Operasional &amp; Logistik
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Manajemen gudang ERP, impor cuplikan stok fisik (CSV / XLSX Monitoring Stock), query ketersediaan KHS, dan pemantauan sinkronisasi otomatis.
+              </p>
+            </div>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {canImportStock && (
-            <>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={IconSettings}
-                onClick={() => setMimsSettingsOpen(true)}
-              >
-                Pengaturan Tarik
-              </Button>
-              <Link
-                to="/master-data/warehouses/tarik-mims"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              >
-                <IconRefresh size={14} />
-                <span>Halaman Tarik MIMS</span>
-              </Link>
-            </>
-          )}
-          {canManage ? (
-            <button
-              type="button"
-              aria-label="Tambah Gudang / Impor Gudang ERP"
-              onClick={() => navigate('/master-data/warehouses/baru')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconRefresh}
+              onClick={loadWarehouses}
+              aria-label="Segarkan"
             >
-              <IconPlus size={16} />
-              <span>Tambah Gudang</span>
-            </button>
-          ) : canImportStock ? (
-            <button
-              type="button"
-              onClick={() => setMimsModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-            >
-              <IconRefresh size={16} />
-              <span>Tarik Stok dari MIMS</span>
-            </button>
-          ) : null}
+              Segarkan
+            </Button>
+            {canImportStock && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={IconSettings}
+                  onClick={() => setMimsSettingsOpen(true)}
+                >
+                  Pengaturan Tarik
+                </Button>
+                <Link
+                  to="/master-data/warehouses/tarik-mims"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  <IconRefresh size={14} />
+                  <span>Halaman Tarik MIMS</span>
+                </Link>
+              </>
+            )}
+            {canManage ? (
+              <button
+                type="button"
+                aria-label="Tambah Gudang / Impor Gudang ERP"
+                onClick={() => navigate('/master-data/warehouses/baru')}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              >
+                <IconPlus size={16} />
+                <span>Tambah Gudang</span>
+              </button>
+            ) : canImportStock ? (
+              <button
+                type="button"
+                onClick={() => setMimsModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              >
+                <IconRefresh size={16} />
+                <span>Tarik Stok dari MIMS</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Gudang & Stok */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Gudang ERP</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconBuilding className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.total}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Unit gudang terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Gudang Aktif</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.active}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Siap operasional alokasi</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Cuplikan Stok Fisik</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconFileText className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.snapshotsCount}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Gudang memiliki cuplikan</p>
+        </div>
+
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-indigo-700 dark:text-indigo-400">Riwayat Sinkronisasi</dt>
+            <div className="rounded-lg p-1.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+              <IconRefresh className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+            {stats.syncRunsCount}
+          </dd>
+          <p className="mt-1 text-xs text-indigo-600/70 dark:text-indigo-500/70">Log penarikan MIMS</p>
+        </div>
+      </dl>
 
       {/* Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">

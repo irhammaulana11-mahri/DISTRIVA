@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { rkmApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -14,6 +14,8 @@ import {
   IconChevronRight,
   IconCalendar,
   IconCheckCircle,
+  IconAlertCircle,
+  IconFileText,
 } from '../../components/icons.jsx'
 
 export default function RkmPlansPage() {
@@ -96,42 +98,127 @@ export default function RkmPlansPage() {
     }
   }
 
+  const stats = useMemo(() => {
+    return {
+      totalPlans: plans.length,
+      totalVersions: plans.reduce((acc, p) => acc + (p.versions?.length || 0), 0),
+      approvedVersions: plans.reduce((acc, p) => acc + (p.versions?.filter((v) => v.status === 'APPROVED').length || 0), 0),
+      activeVersions: plans.reduce((acc, p) => acc + (p.versions?.filter((v) => v.status === 'VALIDATING' || v.status === 'DRAFT').length || 0), 0),
+    }
+  }, [plans])
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-slate-500 mb-1">
-            <span>DISTRIVA</span>
-            <span className="mx-1.5">/</span>
-            <span>Perencanaan</span>
-            <span className="mx-1.5">/</span>
-            <span className="text-slate-800 dark:text-slate-200 font-medium">RKM Distribusi</span>
-          </nav>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Rencana Kerja & Material (RKM)
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Konsolidasi usulan kebutuhan material distribusi per ULP, validasi perencanaan & konstruksi UP3, dan perhitungan kebutuhan bersih.
-          </p>
-        </div>
+      {/* Header Modul RKM Distribusi */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconCalendar className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Perencanaan</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">RKM Distribusi</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Rencana Kerja &amp; Material (RKM)
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Perencanaan UP3
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Konsolidasi usulan kebutuhan material distribusi per ULP, validasi perencanaan &amp; konstruksi UP3, dan perhitungan kebutuhan bersih.
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {canPlan && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="primary"
+              variant="secondary"
               size="sm"
-              icon={IconPlus}
-              onClick={() => {
-                setCreateModalOpen(true)
-                setCreateError('')
-              }}
+              icon={IconRefresh}
+              onClick={loadPlans}
+              aria-label="Segarkan"
             >
-              Buat Rencana RKM
+              Segarkan
             </Button>
-          )}
+            {canPlan && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={IconPlus}
+                onClick={() => {
+                  setCreateModalOpen(true)
+                  setCreateError('')
+                }}
+              >
+                Buat Rencana RKM
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* KPI Ringkasan Metrik RKM */}
+      <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Rencana RKM</dt>
+            <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <IconCalendar className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {stats.totalPlans}
+          </dd>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Rencana aktif per UP3</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Total Versi</dt>
+            <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+              <IconClock className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            {stats.totalVersions}
+          </dd>
+          <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Putaran revisi terdaftar</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Versi Disetujui</dt>
+            <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+              <IconCheckCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {stats.approvedVersions}
+          </dd>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Status APPROVED tuntas</p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Dalam Proses</dt>
+            <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+              <IconAlertCircle className="h-4 w-4" />
+            </div>
+          </div>
+          <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+            {stats.activeVersions}
+          </dd>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Validasi / Draf berjalan</p>
+        </div>
+      </dl>
 
       {error && <Alert kind="error">{error}</Alert>}
 
