@@ -64,10 +64,9 @@ const nav = [
   { to: '/', label: 'Dashboard', icon: IconHome, end: true },
 ]
 
-// 2. Pelayanan & Operasional Jaringan (PB/PD, Sinkronisasi EIS, Tugas & SLA, Survei, Usulan, Pengukuran, SPK)
+// 2. Pelayanan & Operasional Jaringan (PB/PD, Tugas & SLA, Survei, Usulan, Pengukuran, SPK)
 const operationsNav = [
-  { to: '/permohonan', label: 'Permohonan (PB/PD)', capability: 'applications.view', icon: IconFileText },
-  { to: '/permohonan/sinkronisasi-eis', label: 'Sinkronisasi EIS', capability: 'eis_sync.manage', icon: IconRefresh },
+  { to: '/permohonan', label: 'Permohonan Pelanggan (PB/PD)', capability: 'applications.view', icon: IconFileText },
   { to: '/tugas', label: 'Tugas & SLA', capability: 'tasks.view', icon: IconClipboard },
   { to: '/survei', label: 'Usulan Survei', capability: 'surveys.view', icon: IconClipboard },
   { to: '/usulan', label: 'Usulan Perluasan', capability: 'proposals.view', icon: IconUsers },
@@ -513,18 +512,18 @@ export default function AppLayout() {
             <button
               type="button"
               onClick={() => toggleSection('main')}
-              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
               aria-expanded={expandedSections.main}
             >
-              <div className="flex items-center gap-2">
-                <span>Menu Utama</span>
+              <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                <span className="truncate">Menu Utama</span>
                 {getSectionForPath(pathname) === 'main' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                 )}
               </div>
               <IconChevronDown
                 size={14}
-                className={`transform transition-transform duration-200 ${expandedSections.main ? 'rotate-180' : ''}`}
+                className={`shrink-0 transform transition-transform duration-200 ${expandedSections.main ? 'rotate-180' : ''}`}
               />
             </button>
             <div
@@ -563,18 +562,19 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => toggleSection('operations')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 aria-expanded={expandedSections.operations}
               >
-                <div className="flex items-center gap-2">
-                  <span>Operasional ({accessibleOperationsItems.length})</span>
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Operasional</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleOperationsItems.length})</span>
                   {getSectionForPath(pathname) === 'operations' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                   )}
                 </div>
                 <IconChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 ${expandedSections.operations ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.operations ? 'rotate-180' : ''}`}
                 />
               </button>
               <div
@@ -613,18 +613,19 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => toggleSection('planning')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 aria-expanded={expandedSections.planning}
               >
-                <div className="flex items-center gap-2">
-                  <span>Perencanaan &amp; Logistik ({accessiblePlanningItems.length})</span>
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Perencanaan &amp; Logistik</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessiblePlanningItems.length})</span>
                   {getSectionForPath(pathname) === 'planning' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                   )}
                 </div>
                 <IconChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 ${expandedSections.planning ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.planning ? 'rotate-180' : ''}`}
                 />
               </button>
               <div
@@ -663,18 +664,19 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => toggleSection('masterData')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 aria-expanded={expandedSections.masterData}
               >
-                <div className="flex items-center gap-2">
-                  <span>Master Data ({accessibleMasterDataItems.length})</span>
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Master Data</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleMasterDataItems.length})</span>
                   {getSectionForPath(pathname) === 'masterData' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                   )}
                 </div>
                 <IconChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 ${expandedSections.masterData ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.masterData ? 'rotate-180' : ''}`}
                 />
               </button>
               <div
@@ -725,18 +727,19 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => toggleSection('reports')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 aria-expanded={expandedSections.reports}
               >
-                <div className="flex items-center gap-2">
-                  <span>Laporan & Monitoring ({accessibleReportsItems.length})</span>
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Laporan &amp; Monitoring</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleReportsItems.length})</span>
                   {getSectionForPath(pathname) === 'reports' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                   )}
                 </div>
                 <IconChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 ${expandedSections.reports ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.reports ? 'rotate-180' : ''}`}
                 />
               </button>
               <div
@@ -775,18 +778,19 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => toggleSection('admin')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 aria-expanded={expandedSections.admin}
               >
-                <div className="flex items-center gap-2">
-                  <span>Administrasi ({accessibleAdminItems.length})</span>
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Administrasi</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleAdminItems.length})</span>
                   {getSectionForPath(pathname) === 'admin' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                   )}
                 </div>
                 <IconChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 ${expandedSections.admin ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.admin ? 'rotate-180' : ''}`}
                 />
               </button>
               <div
@@ -825,18 +829,19 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => toggleSection('settings')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 aria-expanded={expandedSections.settings}
               >
-                <div className="flex items-center gap-2">
-                  <span>Pengaturan ({accessibleSettingsItems.length})</span>
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Pengaturan</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleSettingsItems.length})</span>
                   {getSectionForPath(pathname) === 'settings' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                   )}
                 </div>
                 <IconChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 ${expandedSections.settings ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.settings ? 'rotate-180' : ''}`}
                 />
               </button>
               <div
@@ -875,18 +880,19 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => toggleSection('modules')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 aria-expanded={expandedSections.modules}
               >
-                <div className="flex items-center gap-2">
-                  <span>Modul Distribusi ({MODULE_DOMAINS.length - 1})</span>
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Modul Distribusi</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({MODULE_DOMAINS.length - 1})</span>
                   {getSectionForPath(pathname) === 'modules' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
                   )}
                 </div>
                 <IconChevronDown
                   size={14}
-                  className={`transform transition-transform duration-200 ${expandedSections.modules ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.modules ? 'rotate-180' : ''}`}
                 />
               </button>
 

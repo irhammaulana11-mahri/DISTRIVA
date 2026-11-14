@@ -184,48 +184,51 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header Halaman (Modern Dark Gradient Hero Banner) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
-              <span>DISTRIVA</span>
-              <span className="opacity-40">/</span>
-              <span>OPERASIONAL</span>
-              <span className="opacity-40">/</span>
-              <span className="text-white">TUGAS &amp; SLA</span>
+      {/* Header Modul Tugas & SLA Layanan */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconClipboard className="h-6 w-6" />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
-                <IconClipboard size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Operasional</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Tugas &amp; SLA Layanan</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Tugas &amp; SLA Layanan
                 </h1>
-                <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl mt-0.5">
-                  Tugas permohonan dengan tenggat hari kerja. Penugasan yang mendekati batas waktu atau terlambat dipantau secara ketat dengan eskalasi notifikasi.
-                </p>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Pelacakan &amp; Eskalasi
+                </span>
               </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Tugas permohonan dengan tenggat hari kerja. Penugasan yang mendekati batas waktu atau terlambat dipantau secara ketat dengan eskalasi notifikasi.
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
+              size="sm"
               icon={IconRefresh}
               onClick={load}
               aria-label="Muat ulang"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/15 cursor-pointer"
             >
               Muat ulang
             </Button>
             {canAssign && (
               <Button
                 variant="primary"
+                size="sm"
                 icon={IconPlus}
                 onClick={() => setCreating(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white shadow-md cursor-pointer"
               >
                 Tugas baru
               </Button>

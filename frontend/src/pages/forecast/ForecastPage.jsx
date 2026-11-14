@@ -95,40 +95,43 @@ export default function ForecastPage() {
   const [tab, setTab] = useState('gardu')
   return (
     <div className="space-y-6">
-      {/* Hero Banner Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
-              <span>DISTRIVA</span>
-              <span className="opacity-40">/</span>
-              <span>PERENCANAAN</span>
-              <span className="opacity-40">/</span>
-              <span className="text-white">FORECAST &amp; PREDIKSI BEBAN</span>
+      {/* Header Modul Forecast Beban Gardu & Kebutuhan */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconChart className="h-6 w-6" />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
-                <IconChart size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Perencanaan</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Forecast Beban Gardu &amp; Kebutuhan</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Forecast Beban Gardu &amp; Kebutuhan
                 </h1>
-                <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl mt-0.5">
-                  Prakiraan berbasis deep learning (ansambel kuantil GRU 1–5 tahun): evaluasi beban gardu, pertumbuhan pelanggan &amp; daya (VA), serta proyeksi kebutuhan material PLN.
-                </p>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Model Ansambel GRU
+                </span>
               </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Prakiraan berbasis deep learning (ansambel kuantil GRU 1–5 tahun): evaluasi beban gardu, pertumbuhan pelanggan &amp; daya (VA), serta proyeksi kebutuhan material PLN.
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 backdrop-blur-md px-3.5 py-2 text-xs text-blue-200 border border-white/10 shadow-xs">
-              <IconZap size={14} className="text-amber-400" />
-              <span>Model: <strong className="text-white font-semibold">Ansambel GRU</strong></span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 shadow-2xs">
+              <IconZap size={14} className="text-amber-500" />
+              <span>Model: <strong className="font-semibold text-slate-900 dark:text-slate-100">Ansambel GRU</strong></span>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 backdrop-blur-md px-3.5 py-2 text-xs text-blue-200 border border-white/10 shadow-xs">
-              <IconActivity size={14} className="text-emerald-400" />
-              <span>Horizon: <strong className="text-white font-semibold">1 – 5 Tahun</strong></span>
+            <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 shadow-2xs">
+              <IconActivity size={14} className="text-emerald-500" />
+              <span>Horizon: <strong className="font-semibold text-slate-900 dark:text-slate-100">1 – 5 Tahun</strong></span>
             </div>
           </div>
         </div>

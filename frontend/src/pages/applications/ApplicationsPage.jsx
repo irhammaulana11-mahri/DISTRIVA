@@ -220,54 +220,80 @@ export default function ApplicationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            DISTRIVA / OPERASIONAL JARINGAN
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
-            Permohonan Pelanggan (PB/PD)
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Pendaftaran agenda penyambungan Pasang Baru (PB) dan Perubahan Daya (PD) terikat unit kerja ULP.
-          </p>
-        </div>
+      {/* Header Modul Permohonan Pelanggan (PB/PD) */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+              <IconFileText className="h-6 w-6" />
+            </div>
+            <div>
+              <nav className="text-xs text-slate-500 mb-1">
+                <span>DISTRIVA</span>
+                <span className="mx-1.5">/</span>
+                <span>Operasional</span>
+                <span className="mx-1.5">/</span>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Permohonan Pelanggan (PB/PD)</span>
+              </nav>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Permohonan Pelanggan (PB/PD)
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Pelayanan &amp; Penyambungan
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Pendaftaran agenda penyambungan Pasang Baru (PB) dan Perubahan Daya (PD) terikat unit kerja ULP dengan alur integrasi EIS / Daftung.
+              </p>
+            </div>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          {can['applications.create'] && (
-            <button
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
               type="button"
-              aria-label="Permohonan Baru"
-              onClick={() => navigate('/permohonan/baru')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+              variant="secondary"
+              size="sm"
+              onClick={loadApplications}
+              icon={IconRefresh}
+              aria-label="Segarkan"
             >
-              <IconPlus size={16} />
-              <span>Permohonan Baru</span>
-            </button>
-          )}
-          {can['applications.import'] && (
-            <button
-              type="button"
-              aria-label="Impor Berkas EIS"
-              onClick={() => navigate('/permohonan/impor')}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-3.5 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-            >
-              <IconUpload size={16} />
-              <span>Impor Berkas</span>
-            </button>
-          )}
-          {can['eis_sync.manage'] && (
-            <button
-              type="button"
-              aria-label="Sinkronisasi EIS"
-              onClick={() => navigate('/permohonan/sinkronisasi-eis')}
-              className="inline-flex items-center gap-2 rounded-xl border border-blue-200 dark:border-blue-800/80 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
-            >
-              <IconRefresh size={16} />
-              <span>Sinkronisasi EIS</span>
-            </button>
-          )}
+              Segarkan
+            </Button>
+            {can['eis_sync.manage'] && (
+              <button
+                type="button"
+                aria-label="Sinkronisasi EIS"
+                onClick={() => navigate('/permohonan/sinkronisasi-eis')}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 dark:border-blue-800/80 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+              >
+                <IconRefresh size={14} />
+                <span>Sinkronisasi EIS</span>
+              </button>
+            )}
+            {can['applications.import'] && (
+              <button
+                type="button"
+                aria-label="Impor Berkas EIS"
+                onClick={() => navigate('/permohonan/impor')}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+              >
+                <IconUpload size={14} />
+                <span>Impor Berkas</span>
+              </button>
+            )}
+            {can['applications.create'] && (
+              <button
+                type="button"
+                aria-label="Permohonan Baru"
+                onClick={() => navigate('/permohonan/baru')}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+              >
+                <IconPlus size={14} />
+                <span>Permohonan Baru</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
