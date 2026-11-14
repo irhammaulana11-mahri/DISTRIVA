@@ -352,6 +352,7 @@ export default function ApplicationsPage() {
               <option value="PK_PRINTED">Cetak PK</option>
               <option value="CONNECTION_IN_PROGRESS">PDL Awal</option>
               <option value="CONNECTION_DONE">Peremajaan</option>
+              <option value="COMPLETED">Selesai</option>
               <option value="CANCELLED">Batal</option>
               <option value="REFUNDED">Restitusi</option>
             </select>

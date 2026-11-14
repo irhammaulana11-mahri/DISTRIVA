@@ -643,7 +643,7 @@ export default function RkmVersionDetailPage() {
                 type="date"
                 value={reqsDate}
                 onChange={(e) => setReqsDate(e.target.value)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                className="px-3 py-1.5 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
               />
               <Button
                 variant="primary"

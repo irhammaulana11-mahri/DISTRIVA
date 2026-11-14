@@ -680,7 +680,7 @@ export default function ReportsPage() {
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
             </div>
 
@@ -690,7 +690,7 @@ export default function ReportsPage() {
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
             </div>
 
@@ -702,7 +702,7 @@ export default function ReportsPage() {
                 value={up3Id}
                 disabled={scopeInfo.scope === 'UP3' || scopeInfo.scope === 'ULP'}
                 onChange={(e) => handleUp3Change(e.target.value)}
-                className={`px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
+                className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
                   scopeInfo.scope !== 'GLOBAL'
                     ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
                     : ''
@@ -741,7 +741,7 @@ export default function ReportsPage() {
                 value={unitId}
                 disabled={scopeInfo.scope === 'ULP'}
                 onChange={(e) => setUnitId(e.target.value)}
-                className={`px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
+                className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
                   scopeInfo.scope === 'ULP'
                     ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
                     : ''
