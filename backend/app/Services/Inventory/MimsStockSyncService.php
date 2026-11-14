@@ -6,6 +6,7 @@ use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Notifications\WorkflowNotifier;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -31,7 +32,7 @@ class MimsStockSyncService
         'warehouse' => ['namastorloc', 'gudang', 'warehouse', 'storlocname'],
     ];
 
-    public function __construct(private readonly StockService $stock, private readonly WorkflowNotifier $flow) {}
+    public function __construct(private readonly StockService $stock, private readonly WorkflowNotifier $flow, private readonly MimsIssueSyncService $issues) {}
 
     public function configured(): bool
     {
@@ -80,7 +81,7 @@ class MimsStockSyncService
         $token = null;
         try {
             $token = $enc === null ? null : Crypt::decryptString($enc);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+        } catch (DecryptException) {
         }
         if ($user === null || $token === null) {
             $this->flow->mimsTokenRejected();
@@ -93,6 +94,11 @@ class MimsStockSyncService
             $r = $this->syncWarehouse($wh, $user, null, false, $token, $user);
             $count++;
             if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
+                $rejected = true;
+                break;
+            }
+            $i = $this->issues->syncWarehouse($wh, $token, $user);
+            if ($i['status'] === 'FAILED' && str_contains((string) $i['message'], 'token ditolak')) {
                 $rejected = true;
                 break;
             }

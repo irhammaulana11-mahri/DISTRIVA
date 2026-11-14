@@ -481,9 +481,19 @@ class ReportService
         $position = app(StockService::class)->position($warehouses, $today);
 
         // usage: what was actually handed over (TUG 7 shipments) in the window; a material without any handover falls back to what was allocated
-        $handedOver = DB::table('material_request_shipment_lines as sl')->join('material_request_shipments as s', 's.id', '=', 'sl.shipment_id')
-            ->whereIn('sl.warehouse_id', $warehouses)->where('s.sent_at', '>=', now()->subMonths($months))
+        // The real issues mirrored from MIMS count first; a TUG 7 shipment whose reference is a mirrored reservation is the same issue and is not counted twice.
+        $since = now()->subMonths($months);
+        $mirrored = DB::table('mims_issue_documents')->whereIn('warehouse_id', $warehouses)->where('issued_on', '>=', $since->toDateString())->distinct()->pluck('reservation_no');
+        $fromMims = DB::table('mims_issue_lines as l')->join('khs_material_map as m', 'm.material_no', '=', 'l.material_no')
+            ->whereIn('l.warehouse_id', $warehouses)->whereIn('l.reservation_no', $mirrored)
+            ->groupBy('m.khs_item_id')->selectRaw('m.khs_item_id, sum(l.quantity) as q')->pluck('q', 'khs_item_id');
+        $handedOverTug = DB::table('material_request_shipment_lines as sl')->join('material_request_shipments as s', 's.id', '=', 'sl.shipment_id')
+            ->whereIn('sl.warehouse_id', $warehouses)->where('s.sent_at', '>=', $since)->whereNotIn('s.reference', $mirrored)
             ->groupBy('sl.khs_item_id')->selectRaw('sl.khs_item_id, sum(sl.quantity) as q')->pluck('q', 'khs_item_id');
+        $handedOver = collect($fromMims)->map(fn ($q) => (float) $q);
+        foreach ($handedOverTug as $id => $q) {
+            $handedOver[$id] = ($handedOver[$id] ?? 0.0) + (float) $q;
+        }
         $allocated = DB::table('allocation_lines as l')->join('allocations as a', 'a.id', '=', 'l.allocation_id')
             ->whereNotNull('a.materials_confirmed_at')->where('a.status', '<>', 'CANCELLED')->whereIn('l.warehouse_id', $warehouses)
             ->where('a.materials_confirmed_at', '>=', now()->subMonths($months))

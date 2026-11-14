@@ -355,7 +355,7 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       await userEvent.click(saved)
       expect(screen.queryByPlaceholderText(/Tempel token sesi MIMS/i)).not.toBeInTheDocument()   // tidak perlu menempel
       await userEvent.click(screen.getByRole('button', { name: /Tarik Stok Sekarang/i }))
-      await waitFor(() => expect(warehousesApi.syncStock).toHaveBeenCalledWith({ use_saved_token: true, warehouse_ids: undefined, date: undefined, dry_run: undefined }))
+      await waitFor(() => expect(warehousesApi.syncStock).toHaveBeenCalledWith({ use_saved_token: true, warehouse_ids: undefined, date: undefined, dry_run: undefined, include_issues: true }))
 
       await userEvent.click(screen.getByRole('button', { name: /Tarik Ulang/i }))
       await userEvent.click(await screen.findByRole('radio', { name: /Tempel token baru/i }))

@@ -98,6 +98,7 @@ export default function WarehousesPage() {
   const [mimsWarehouseIds, setMimsWarehouseIds] = useState([])
   const [mimsDate, setMimsDate] = useState('')
   const [mimsDryRun, setMimsDryRun] = useState(false)
+  const [mimsIssues, setMimsIssues] = useState(true)
   const [mimsPulling, setMimsPulling] = useState(false)
   const [mimsResults, setMimsResults] = useState(null)
   const [mimsError, setMimsError] = useState('')
@@ -226,6 +227,7 @@ export default function WarehousesPage() {
         warehouse_ids: mimsWarehouseIds.length > 0 ? mimsWarehouseIds : undefined,
         date: mimsDate || undefined,
         dry_run: mimsDryRun || undefined,
+        include_issues: mimsIssues || undefined,
       })
       setMimsResults(res?.data || [])
       notify({
@@ -1432,6 +1434,20 @@ export default function WarehousesPage() {
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
+                id="mims-issues"
+                disabled={mimsPulling}
+                checked={mimsIssues}
+                onChange={(e) => setMimsIssues(e.target.checked)}
+                className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 disabled:opacity-60"
+              />
+              <label htmlFor="mims-issues" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                Sertakan pengeluaran material (riwayat pemakaian, baca-saja)
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
                 id="mims-dry-run"
                 disabled={mimsPulling}
                 checked={mimsDryRun}
@@ -1541,6 +1557,11 @@ export default function WarehousesPage() {
                           </td>
                           <td className="py-2 px-3 text-slate-600 dark:text-slate-400 text-[11px]">
                             {r.message || '-'}
+                            {r.issues && (
+                              <span className="block text-slate-500">
+                                Pengeluaran: {r.issues.status === 'OK' ? `${r.issues.documents_new} dokumen baru, ${r.issues.lines} baris material, ${r.issues.matched} pelanggan cocok permohonan` : r.issues.message || r.issues.status}
+                              </span>
+                            )}
                             {r.message && (r.message.includes('token ditolak') || r.message.includes('kedaluwarsa')) && (
                               <span className="block text-rose-500 font-medium">
                                 Ambil token baru dari MIMS.

@@ -6,9 +6,11 @@ use App\Formula\Parser;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Inventory\MaterialSupplier;
 use App\Services\Kkf\KkfCalculator;
 use App\Services\Mto\GambarReader;
 use App\Services\Mto\PdfGambarReader;
+use App\Services\WorkOrders\MaterialOutbox;
 use App\Support\Terbilang;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\DrawingPermissionSeeder;
@@ -1445,7 +1447,7 @@ class MtoTest extends PostgresTestCase
         $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
         $asman = $this->makeUser();
         $this->assign($asman, Role::query()->where('name', 'ASMAN_PERENCANAAN')->firstOrFail(), $this->ulpA->parent);
-        $mk =fn (string $code, string $scope) => (string) tap(Str::uuid(), fn ($id) => DB::table('vendor_companies')->insert(['id' => $id, 'code' => $code, 'name' => 'PT '.$code, 'status' => 'ACTIVE', 'work_scope' => $scope, 'created_by' => $this->admin->getKey(), 'created_at' => now(), 'updated_at' => now()]));
+        $mk = fn (string $code, string $scope) => (string) tap(Str::uuid(), fn ($id) => DB::table('vendor_companies')->insert(['id' => $id, 'code' => $code, 'name' => 'PT '.$code, 'status' => 'ACTIVE', 'work_scope' => $scope, 'created_by' => $this->admin->getKey(), 'created_at' => now(), 'updated_at' => now()]));
         $poleVendor = $mk('TIANG-1', 'TIANG');
         $netVendor = $mk('JARINGAN-1', 'JARINGAN');
         DB::table('vendor_accounts')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->vendor->getKey(), 'vendor_company_id' => $poleVendor, 'is_active' => true, 'created_by' => $this->admin->getKey(), 'created_at' => now(), 'updated_at' => now()]);
@@ -1459,7 +1461,7 @@ class MtoTest extends PostgresTestCase
         $wo = $this->as($this->perencanaan)->postJson('/api/pole-work-orders', $body(['line_meta' => [$ids[0] => ['condition' => 'BEKAS', 'note' => 'pakai tiang bekas Handal'], $ids[1] => ['condition' => 'RELOKASI', 'note' => 'limpahan dari Madiun']]]))->assertCreated()->json('data.id');
         $this->as($this->perencanaan)->postJson('/api/pole-work-orders', $body(['letter_number' => 'AMS/TIANG/002']))->assertStatus(409);   // the lines are already on a letter
         $this->assertCount(0, $cand($this->perencanaan)->json('data'));
-        $this->as($this->perencanaan)->postJson("/api/pole-work-orders/{$wo}/letter", ['file' => \Illuminate\Http\UploadedFile::fake()->create('surat.pdf', 20, 'application/pdf')])->assertCreated();
+        $this->as($this->perencanaan)->postJson("/api/pole-work-orders/{$wo}/letter", ['file' => UploadedFile::fake()->create('surat.pdf', 20, 'application/pdf')])->assertCreated();
         $this->as($this->vendor)->getJson("/api/pole-work-orders/{$wo}")->assertNotFound();                  // a draft is invisible to the vendor
         $this->as($this->perencanaan)->postJson("/api/pole-work-orders/{$wo}/issue", [])->assertOk();
         $this->assertCount(1, $this->as($this->vendor)->getJson('/api/pole-work-orders')->assertOk()->json('data'));
@@ -2153,6 +2155,20 @@ class MtoTest extends PostgresTestCase
         $this->assertSame('WARNING', $rows[$b]['stock_status']);                         // 4 < 6 now, but 4 + 10 arriving covers the minimum
         $this->assertEquals(14, $rows[$b]['projected']);
         $this->assertSame('CRITICAL', $this->as($konstruksi)->getJson('/api/reports/critical-stock')->json('data.rows.0.stock_status'));   // critical first
+
+        // real issues mirrored from MIMS: they count first, and a TUG 7 shipment whose reference is a mirrored reservation is the same issue (not counted twice)
+        foreach ([[$a, '90000001'], [$b, '90000002']] as [$khs, $sku]) {
+            DB::table('khs_material_map')->insert(['id' => (string) Str::uuid(), 'khs_item_id' => $khs, 'material_no' => $sku, 'created_by' => $konstruksi->getKey(), 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $mirror = fn (string $reservation, string $sku, float $qty) => DB::table('mims_issue_lines')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'reservation_no' => $reservation, 'material_no' => $sku, 'quantity' => $qty]);
+        foreach (['TUG7-1', 'RES-2'] as $res) {
+            DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => 'MD-'.$res, 'reservation_no' => $res, 'issued_on' => now()->subDays(3)->toDateString(), 'fetched_at' => now()]);
+        }
+        $mirror('TUG7-1', '90000002', 45);   // the same issue as the TUG 7 shipment of 30: 45 counts, not 75
+        $mirror('RES-2', '90000001', 12);
+        $rows = collect($this->as($konstruksi)->getJson('/api/reports/critical-stock')->assertOk()->json('data.rows'))->keyBy('khs_id');
+        $this->assertEquals(4, $rows[$a]['monthly_usage']);                             // 12 issued per MIMS in 3 months
+        $this->assertEquals(15, $rows[$b]['monthly_usage']);                            // 45, once
     }
 
     #[Test]
@@ -2294,7 +2310,7 @@ class MtoTest extends PostgresTestCase
     {
         $pkg = (string) DB::table('mto_packages')->where('application_id', $app)->where('status', 'APPROVED')->orderByDesc('created_at')->value('id');
         $lines = DB::table('mto_lines')->where('package_id', $pkg)->where('material', '>', 0)->whereRaw("khs_name not ilike 'Tiang Beton%'")->orderBy('khs_code')->get()->unique('khs_item_id');
-        $supplier = \App\Services\Inventory\MaterialSupplier::of($pkg, $lines->pluck('khs_item_id')->all());
+        $supplier = MaterialSupplier::of($pkg, $lines->pluck('khs_item_id')->all());
 
         return $lines->first(fn ($l) => ($supplier[$l->khs_item_id] ?? null) === 'PLN' && $this->needOf($app, $l->khs_item_id) >= $minNeed) ?? $this->fail('the fixture has no PLN material of that size');
     }
@@ -2357,7 +2373,7 @@ class MtoTest extends PostgresTestCase
 
         // 3. the rest arrives as a top-up: the SAME request (same WO number) shows it ready again
         $allocate(2, 1.0, $base);
-        \App\Services\WorkOrders\MaterialOutbox::refresh($app);
+        MaterialOutbox::refresh($app);
         $this->assertSame(1, DB::table('material_requests')->count());
         $this->assertTrue((bool) DB::table('material_requests')->where('id', $id)->value('ready_to_send'));
         $this->assertSame('SENT', DB::table('material_requests')->where('id', $id)->value('status'));
@@ -2409,7 +2425,7 @@ class MtoTest extends PostgresTestCase
         }
         DB::table('mto_packages')->where('id', $newPkg)->update(['status' => 'VERIFIED', 'valid_on' => $copy['valid_on'], 'snapshot_hash' => $copy['snapshot_hash'], 'verified_by' => $copy['verified_by'], 'verified_at' => $copy['verified_at']]);
         DB::table('mto_packages')->where('id', $newPkg)->update(['status' => 'APPROVED', 'approved_by' => $copy['approved_by'], 'approved_at' => now()]);
-        \App\Services\WorkOrders\MaterialOutbox::refresh($app);
+        MaterialOutbox::refresh($app);
         $p = $position();
         $this->assertSame($newPkg, $p['package_id']);
         $this->assertTrue($p['oversent']);

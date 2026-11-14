@@ -1346,7 +1346,7 @@ export default function ReportsPage() {
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Stok minimum = rata-rata pemakaian {criticalStockData.summary?.usage_months ?? 3} bulan terakhir (penyerahan material TUG 7; bila belum ada, alokasi terkonfirmasi) atau safety stock ERP bila lebih tinggi.
+            Stok minimum = rata-rata pemakaian {criticalStockData.summary?.usage_months ?? 3} bulan terakhir (pengeluaran material nyata dari MIMS dan penyerahan TUG 7 tanpa hitung ganda; bila belum ada, alokasi terkonfirmasi) atau safety stock ERP bila lebih tinggi.
             Kritis bila tersedia + kedatangan 1 bulan masih di bawah stok minimum; peringatan bila baru tercukupi oleh kedatangan atau kurang dari {reportSettings?.stock?.warning_factor ?? 1.5}× stok minimum.
             {criticalStockData.summary?.snapshot_newest && <> Data stok per {criticalStockData.summary.snapshot_newest}{criticalStockData.summary.snapshot_oldest !== criticalStockData.summary.snapshot_newest && <> (gudang tertua {criticalStockData.summary.snapshot_oldest})</>}.</>}
           </p>

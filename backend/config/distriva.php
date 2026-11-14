@@ -124,6 +124,11 @@ return [
         'regional' => env('DISTRIVA_MIMS_REGIONAL', '04'),            // REGIONAL JAWA BAGIAN TIMUR, BALI & NUSA TENGGARA
         'unit_upi' => env('DISTRIVA_MIMS_UNIT_UPI', '51'),            // UID JAWA TIMUR
         'valuation' => env('DISTRIVA_MIMS_VALUATION', 'NORMAL'),
+        // material issues (pengeluaran): the header list is a POST with the payload {plant, stor_loc, status_sap, …}; lines and customers are keyed by the reservation number (`no_pemesanan`)
+        'issue_header_path' => env('DISTRIVA_MIMS_ISSUE_HEADER_PATH', '/project-i-agodist-api//getDataPengeluaranHeader/'),
+        'issue_detail_path' => env('DISTRIVA_MIMS_ISSUE_DETAIL_PATH', '/project-i-agodist-api//getDataPengeluaranAll/{reservation}/'),
+        'issue_mapping_path' => env('DISTRIVA_MIMS_ISSUE_MAPPING_PATH', '/project-i-agodist-api//getDataReservasiMapping/{reservation}/'),
+        'issue_days' => (int) env('DISTRIVA_MIMS_ISSUE_DAYS', 90),
         'timeout_seconds' => (int) env('DISTRIVA_MIMS_TIMEOUT', 60),
         'sync_user_email' => env('DISTRIVA_MIMS_SYNC_USER_EMAIL'),       // the account recorded as the creator of automatic snapshots
         'sync_time' => env('DISTRIVA_MIMS_SYNC_TIME', '02:00'),

@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Inventory\MimsIssueSyncService;
 use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -273,6 +276,42 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_mims_issue_mirror_fetches_new_documents_once_ties_lines_to_the_reservation_and_never_stores_the_token(): void
+    {
+        $secret = 'rahasia-token-pengeluaran';
+        $wh = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $wh, 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-issue.test']);
+        $today = now(config('distriva.business_timezone'))->format('d-m-Y');
+        $header = fn (string $doc, string $res, string $date) => ['material_document' => $doc, 'no_pemesanan' => $res, 'tgl_pengeluaran' => $date, 'mat_doc_sap' => '4933740853', 'reservasi_sap' => '0020844046', 'jenis_pekerjaan' => '14', 'nama_jenis_pekerjaan' => 'PERUBAHAN DAYA', 'id_pel' => '514532044168', 'wbs' => 'I.5118.26', 'text' => 'x', 'asal_wo' => 'AP2T'];
+        Http::fake([
+            'mims-issue.test/*getDataPengeluaranHeader*' => Http::response(['data' => [$header('5145326111', '514532611125828', $today), $header('5145326222', '514532611199999', '01-01-2020'), $header('', 'x', $today)], 'msg' => '1']),
+            'mims-issue.test/*getDataPengeluaranAll/514532611125828*' => Http::response(['detail' => ['data' => [
+                ['material_no' => '000000000003250050', 'nama_material' => 'MCB', 'jumlah' => '4', 'satuan' => 'BH'], ['material_no' => '000000000002190224', 'nama_material' => 'METER', 'jumlah' => '6', 'satuan' => 'BH'], ['material_no' => '000000000009', 'jumlah' => '0']]], 'header' => ['data' => []]]),
+            'mims-issue.test/*getDataReservasiMapping/514532611125828*' => Http::response(['data' => [['nomor_reservasi' => '514532611125828', 'no_agenda' => '514530522610198789', 'nama' => 'JANGAN DISIMPAN', 'alamat' => 'JANGAN DISIMPAN', 'daya' => '900', 'tgl_bayar' => '02-11-2026', 'id_pelanggan' => '514530040526']]]),
+        ]);
+        $svc = app(MimsIssueSyncService::class);
+        $row = DB::table('warehouses')->where('id', $wh)->first();
+
+        $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);
+        $this->assertSame(['OK', 1, 2, 0], [$r['status'], $r['documents_new'], $r['lines'], $r['matched']]);          // the 2020 document is outside the window, the blank one is skipped
+        Http::assertSent(fn ($q) => $q->method() === 'POST' && $q->hasHeader('auth-token', $secret) && $q['plant'] === '5118' && $q['stor_loc'] === '2810' && $q['status_sap'] === 'S');
+        $this->assertSame(['3250050', '2190224'], DB::table('mims_issue_lines')->where('reservation_no', '514532611125828')->pluck('material_no')->all());
+        $this->assertSame(1, DB::table('mims_issue_customers')->count());
+        $this->assertStringNotContainsString('JANGAN DISIMPAN', json_encode(DB::table('mims_issue_customers')->get()));   // no name or address
+        $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);                                                      // known documents are not fetched again
+        $this->assertSame([0, 0], [$r['documents_new'], $r['lines']]);
+        $this->assertSame(2, DB::table('mims_issue_lines')->count());
+        $this->assertStringNotContainsString($secret, json_encode(DB::table('mims_issue_sync_runs')->get()));
+
+        Http::fake(['mims-issue-expired.test/*' => Http::response([], 401)]);
+        config(['distriva.mims.base_url' => 'https://mims-issue-expired.test']);
+        $r = $svc->syncWarehouse($row, $secret, $this->konstruksi);
+        $this->assertSame('FAILED', $r['status']);
+        $this->assertStringContainsString('token ditolak', $r['message']);
+    }
+
+    #[Test]
     public function the_scheduled_mims_pull_uses_the_saved_token_of_the_user_who_switched_it_on_once_a_day(): void
     {
         $secret = 'rahasia-token-otomatis';
@@ -292,14 +331,14 @@ class InventoryTest extends PostgresTestCase
         $this->artisan('distriva:mims-sync-auto')->assertSuccessful();                                                // already ran today
         $this->assertSame(1, DB::table('stock_sync_runs')->count());
 
-        \Illuminate\Support\Carbon::setTestNow(now()->addDay());                                                         // next day, token now rejected
+        Carbon::setTestNow(now()->addDay());                                                         // next day, token now rejected
         config(['distriva.mims.base_url' => 'https://mims-auto-expired.test/api']);
         Http::fake(['mims-auto-expired.test/*' => Http::response([], 401)]);
         $this->artisan('distriva:mims-sync-auto')->assertSuccessful();
         $this->assertSame('REJECTED', DB::table('user_mims_tokens')->value('last_result'));
         $this->assertGreaterThan(0, DB::table('user_notifications')->where('title', 'like', 'Sinkron stok MIMS gagal%')->count());
         $this->assertStringNotContainsString($secret, json_encode(DB::table('stock_sync_runs')->get()));
-        \Illuminate\Support\Carbon::setTestNow();
+        Carbon::setTestNow();
     }
 
     #[Test]
@@ -443,7 +482,7 @@ class InventoryTest extends PostgresTestCase
         $this->assertTrue($st['data']['saved']);
         $this->assertStringNotContainsString($secret, json_encode($st));                                                      // the token is never returned
         $this->assertStringNotContainsString($secret, (string) DB::table('user_mims_tokens')->value('token_encrypted'));      // encrypted at rest
-        $this->assertSame($secret, \Illuminate\Support\Facades\Crypt::decryptString((string) DB::table('user_mims_tokens')->value('token_encrypted')));
+        $this->assertSame($secret, Crypt::decryptString((string) DB::table('user_mims_tokens')->value('token_encrypted')));
         $this->assertStringNotContainsString($secret, json_encode(DB::table('stock_sync_runs')->get()));
         $this->assertFalse($status($this->viewer)->status() === 200 && $status($this->viewer)->json('data.saved'));           // a token belongs to its owner
 
@@ -559,4 +598,3 @@ class InventoryTest extends PostgresTestCase
         $this->assertSame(2, DB::table('khs_sku_exemptions')->count());
     }
 }
-

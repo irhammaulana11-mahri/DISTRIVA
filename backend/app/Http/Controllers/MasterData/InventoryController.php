@@ -7,9 +7,11 @@ use App\Exceptions\AssignmentRuleViolation;
 use App\Http\Controllers\Controller;
 use App\Services\Authorization\CatalogAuthorizer;
 use App\Services\Inventory\KhsMaterialMapService;
+use App\Services\Inventory\MimsIssueSyncService;
 use App\Services\Inventory\MimsStockSyncService;
 use App\Services\Inventory\PoleContractService;
 use App\Services\Inventory\StockService;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -19,7 +21,7 @@ use Illuminate\Support\Facades\Validator;
 /** Warehouses, stock snapshots and pole contracts / Kontrak Rinci (docs/62 §30). Violations -> 409, authorization -> 403/404. */
 class InventoryController extends Controller
 {
-    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims) {}
+    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims, private readonly MimsIssueSyncService $issueMirror) {}
 
     public function warehouses(Request $request): JsonResponse
     {
@@ -226,7 +228,7 @@ class InventoryController extends Controller
         $actor = $request->user();
         $this->authorizer->authorize($actor, 'stock.import'); // grant first, then validate
         @set_time_limit(600);   // up to one call per warehouse, each with its own timeout: the default web limit (30 s) would cut the request mid-way
-        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'dry_run' => ['sometimes', 'boolean']])->validate();
+        $d = Validator::make($request->all(), ['token' => ['required_without:use_saved_token', 'nullable', 'string', 'min:10', 'max:2000'], 'use_saved_token' => ['sometimes', 'boolean'], 'save_token' => ['sometimes', 'boolean'], 'include_issues' => ['sometimes', 'boolean'], 'warehouse_ids' => ['nullable', 'array', 'max:50'], 'warehouse_ids.*' => ['uuid', 'distinct'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'], 'dry_run' => ['sometimes', 'boolean']])->validate();
         if (! $this->mims->baseUrlConfigured()) {
             throw new AssignmentRuleViolation('Alamat dasar MIMS (DISTRIVA_MIMS_BASE_URL) belum diisi di server.');
         }
@@ -243,13 +245,22 @@ class InventoryController extends Controller
         $results = [];
         foreach ($warehouses as $wh) {
             $r = $this->mims->syncWarehouse($wh, $actor, $d['date'] ?? null, $request->boolean('dry_run'), $token, $actor);
-            $results[] = ['warehouse_id' => $wh->id, 'warehouse_code' => $wh->code, 'warehouse_name' => $wh->name] + $r;
+            $row = ['warehouse_id' => $wh->id, 'warehouse_code' => $wh->code, 'warehouse_name' => $wh->name] + $r;
             if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
+                $results[] = $row;
                 break;                                                                                  // an expired token fails every warehouse: stop at the first
             }
+            if ($request->boolean('include_issues') && ! $request->boolean('dry_run')) {
+                $row['issues'] = $this->issueMirror->syncWarehouse($wh, $token, $actor);
+                if ($row['issues']['status'] === 'FAILED' && str_contains((string) $row['issues']['message'], 'token ditolak')) {
+                    $results[] = $row;
+                    break;
+                }
+            }
+            $results[] = $row;
         }
 
-        $rejected = collect($results)->contains(fn ($r) => $r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak'));
+        $rejected = collect($results)->contains(fn ($r) => ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) || (($r['issues']['status'] ?? '') === 'FAILED' && str_contains((string) $r['issues']['message'], 'token ditolak')));
         $worked = collect($results)->contains(fn ($r) => in_array($r['status'], ['OK', 'SKIPPED'], true));
         if (! $useSaved && $request->boolean('save_token') && ! $rejected) {
             DB::table('user_mims_tokens')->upsert([['user_id' => $actor->getKey(), 'token_encrypted' => Crypt::encryptString($token), 'saved_at' => now(), 'last_used_at' => now(), 'last_result' => 'OK']], ['user_id'], ['token_encrypted', 'saved_at', 'last_used_at', 'last_result']);
@@ -306,7 +317,7 @@ class InventoryController extends Controller
         }
         try {
             return Crypt::decryptString($row);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+        } catch (DecryptException) {
             DB::table('user_mims_tokens')->where('user_id', $userId)->delete();
 
             throw new AssignmentRuleViolation('Token tersimpan tidak dapat dibaca lagi; tempel token sesi yang baru.');
