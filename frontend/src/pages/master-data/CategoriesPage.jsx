@@ -387,7 +387,7 @@ export default function CategoriesPage() {
       <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Kategori Utama (L1)</dt>
+            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Kategori Aktif</dt>
             <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
               <IconFolder className="h-4 w-4" />
             </div>
@@ -395,12 +395,12 @@ export default function CategoriesPage() {
           <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {activeCategoriesCount.toLocaleString('id-ID')}
           </dd>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Kelompok induk material PLN</p>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Tingkat 1 · Kelompok induk PLN</p>
         </div>
 
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Subkategori (L2)</dt>
+            <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Total Subkategori Aktif</dt>
             <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
               <IconCheckCircle className="h-4 w-4" />
             </div>
@@ -408,7 +408,7 @@ export default function CategoriesPage() {
           <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
             {activeSubcategoriesCount.toLocaleString('id-ID')}
           </dd>
-          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Sub-kelompok spesifikasi aktif</p>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Tingkat 2 · Sub-kelompok spesifikasi</p>
         </div>
 
         <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
@@ -472,32 +472,6 @@ export default function CategoriesPage() {
         <>
           {tab === 'categories' ? (
             <div className="space-y-4">
-              {/* Summary KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Kategori Aktif</span>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                      {activeCategoriesCount}
-                    </div>
-                  </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-semibold border border-blue-200/60 dark:border-blue-800/60">
-                    Tingkat 1
-                  </span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Subkategori Aktif</span>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                      {activeSubcategoriesCount}
-                    </div>
-                  </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200/60 dark:border-emerald-800/60">
-                    Tingkat 2
-                  </span>
-                </div>
-              </div>
-
               {/* Main Categories Tree Card */}
               <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
                 {/* Search & Inactive Toolbar */}
