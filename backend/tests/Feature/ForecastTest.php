@@ -373,4 +373,34 @@ SH);
         $this->assertSame(['Tiang Beton 9m - 200 daN'], array_column($b->json('data.poles'), 'item_label'));
         $this->as($this->vendor)->getJson('/api/forecast/derived')->assertForbidden();
     }
+
+    #[Test]
+    public function the_monthly_schedule_starts_each_kind_once_a_month_in_turn_only_when_enabled_and_due(): void
+    {
+        $svc = app(ForecastService::class);
+        $this->assertNull($svc->runScheduledIfDue());                                                   // off by default
+        $this->as($this->teknikA)->putJson('/api/forecast/schedule', ['auto_enabled' => true, 'day_of_month' => 1, 'run_time' => '03:00'])->assertForbidden();
+        $this->as($this->planner)->putJson('/api/forecast/schedule', ['auto_enabled' => true, 'day_of_month' => 29, 'run_time' => '03:00'])->assertStatus(422);
+        $this->as($this->planner)->putJson('/api/forecast/schedule', ['auto_enabled' => true, 'day_of_month' => 5, 'run_time' => '03:00'])->assertOk()->assertJsonPath('data.day_of_month', 5);
+        $this->as($this->teknikA)->getJson('/api/forecast/schedule')->assertOk()->assertJsonPath('data.auto_enabled', true)->assertJsonPath('data.updated_by_name', $this->planner->name);
+
+        $tz = config('distriva.business_timezone');
+        $this->travelTo(now($tz)->startOfMonth()->addDays(2)->setTime(12, 0));                           // the 3rd: before the 5th
+        $this->assertNull($svc->runScheduledIfDue());
+        $this->travelTo(now($tz)->startOfMonth()->addDays(4)->setTime(2, 0));                            // the 5th, before 03:00
+        $this->assertNull($svc->runScheduledIfDue());
+        $this->travelTo(now($tz)->startOfMonth()->addDays(4)->setTime(3, 5));
+        $first = $svc->runScheduledIfDue();
+        $this->assertNotNull($first);
+        $this->assertSame(['GARDU_LOAD', 'AUTO'], [DB::table('forecast_runs')->where('id', $first)->value('kind'), DB::table('forecast_runs')->where('id', $first)->value('trigger')]);
+        $this->assertNull($svc->runScheduledIfDue());                                                   // one runs at a time: the next kind waits
+        DB::table('forecast_runs')->where('id', $first)->update(['status' => 'FAILED', 'finished_at' => now()]);   // a failed run still counts for the month
+        $second = $svc->runScheduledIfDue();
+        $this->assertSame('DEMAND', DB::table('forecast_runs')->where('id', $second)->value('kind'));
+        DB::table('forecast_runs')->where('id', $second)->update(['status' => 'INSUFFICIENT', 'finished_at' => now()]);
+        $this->assertNull($svc->runScheduledIfDue());                                                   // both done this month
+        $this->travelTo(now($tz)->addMonthNoOverflow()->startOfMonth()->addDays(10));
+        $this->assertNotNull($svc->runScheduledIfDue());                                                // next month starts again
+        $this->travelBack();
+    }
 }

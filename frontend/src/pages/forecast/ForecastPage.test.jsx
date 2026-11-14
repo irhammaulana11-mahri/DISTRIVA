@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../../features/auth/AuthContext.jsx'
@@ -9,7 +9,7 @@ import ForecastPage, { exceedText, pct } from './ForecastPage.jsx'
 import { forecastApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
-  forecastApi: { derived: vi.fn(), runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
+  forecastApi: { schedule: vi.fn(), saveSchedule: vi.fn(), derived: vi.fn(), runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
   notificationsApi: { list: vi.fn().mockResolvedValue({ data: [] }), markRead: vi.fn(), markAllRead: vi.fn() },
 }))
 
@@ -160,5 +160,25 @@ describe('Forecast permintaan (pelanggan, VA, material)', () => {
     expect(screen.getByText('Tiang Beton 9m - 200 daN')).toBeInTheDocument()
     expect(screen.getByText(/315 kVA \(2 gardu\)/)).toBeInTheDocument()
     expect(screen.getByText(/Hanya material berstatus PLN/)).toBeInTheDocument()
+  })
+  it('menampilkan jadwal otomatis dan penjadwal dapat mengubahnya', async () => {
+    forecastApi.schedule.mockResolvedValue({ data: { auto_enabled: false, day_of_month: 1, run_time: '03:00', updated_by_name: null, last_auto: {} } })
+    forecastApi.saveSchedule.mockResolvedValue({ data: { auto_enabled: true, day_of_month: 5, run_time: '04:30', updated_by_name: 'Planner', last_auto: {} } })
+    renderPage({ 'forecast.view': true, 'forecast.run': true })
+    expect(await screen.findByText(/nonaktif/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Atur jadwal' }))
+    await userEvent.click(screen.getByLabelText(/Jalankan otomatis tiap bulan/))
+    fireEvent.change(screen.getByLabelText(/Tanggal/), { target: { value: '5' } })
+    fireEvent.change(screen.getByLabelText('Jam'), { target: { value: '04:30' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }))
+    await waitFor(() => expect(forecastApi.saveSchedule).toHaveBeenCalledWith({ auto_enabled: true, day_of_month: 5, run_time: '04:30' }))
+    expect(await screen.findByText(/aktif, tiap tanggal 5 pukul 04:30/)).toBeInTheDocument()
+  })
+
+  it('pembaca tanpa izin menjalankan hanya melihat jadwal, tanpa tombol atur', async () => {
+    forecastApi.schedule.mockResolvedValue({ data: { auto_enabled: true, day_of_month: 1, run_time: '03:00', updated_by_name: 'Planner', last_auto: {} } })
+    renderPage()
+    expect(await screen.findByText(/aktif, tiap tanggal 1 pukul 03:00/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Atur jadwal' })).not.toBeInTheDocument()
   })
 })

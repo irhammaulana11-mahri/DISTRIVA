@@ -29,3 +29,6 @@ Schedule::command('distriva:mims-sync-auto')->everyMinute()->withoutOverlapping(
 
 // Task reminders (docs/24 §8): once when a task is about to be due, once when overdue. Needs the usual `* * * * * php artisan schedule:run` cron entry.
 Schedule::command('distriva:tasks-remind')->hourly()->withoutOverlapping();
+
+// Monthly forecast of substation load and demand when due (settings in forecast_settings; docs/11). Needs the usual `* * * * * php artisan schedule:run` cron entry.
+Schedule::command('distriva:forecast-scheduled')->everyMinute()->withoutOverlapping();

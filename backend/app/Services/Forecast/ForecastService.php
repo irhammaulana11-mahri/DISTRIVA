@@ -36,16 +36,16 @@ class ForecastService
         .'beraktivitas) tidak diprakirakan. Rentang total 3/6/12 bulan adalah jumlah rentang bulanan, sengaja lebar. Rekomendasi, bukan keputusan pengadaan.';
 
     /** Registers a run and starts it in a detached process. */
-    public function start(User $actor, string $kind = self::KIND): string
+    public function start(User $actor, string $kind = self::KIND, string $trigger = 'MANUAL'): string
     {
         $id = (string) Str::uuid();
-        DB::transaction(function () use ($id, $actor, $kind): void {
+        DB::transaction(function () use ($id, $actor, $kind, $trigger): void {
             DB::table('forecast_runs')->where('kind', $kind)->where('status', 'RUNNING')->where('started_at', '<', now()->subHours(self::STALE_AFTER_HOURS))
                 ->update(['status' => 'FAILED', 'error' => 'Run berhenti tanpa hasil (melewati batas waktu).', 'finished_at' => now(), 'updated_at' => now()]);
             if (DB::table('forecast_runs')->where('kind', $kind)->where('status', 'RUNNING')->lockForUpdate()->exists()) {
                 throw new AssignmentRuleViolation('Masih ada forecast yang sedang berjalan; tunggu sampai selesai.');
             }
-            DB::table('forecast_runs')->insert(['id' => $id, 'kind' => $kind, 'status' => 'RUNNING', 'started_by' => $actor->getKey(), 'started_at' => now(), 'assumptions' => $kind === self::DEMAND ? self::DEMAND_ASSUMPTIONS : self::ASSUMPTIONS, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('forecast_runs')->insert(['id' => $id, 'kind' => $kind, 'status' => 'RUNNING', 'trigger' => $trigger, 'started_by' => $actor->getKey(), 'started_at' => now(), 'assumptions' => $kind === self::DEMAND ? self::DEMAND_ASSUMPTIONS : self::ASSUMPTIONS, 'created_at' => now(), 'updated_at' => now()]);
         });
         if (config('distriva.forecast.detach')) {
             $cmd = sprintf('nohup %s artisan distriva:forecast-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($id));
@@ -53,6 +53,56 @@ class ForecastService
         }
 
         return $id;
+    }
+
+    /** @return array{auto_enabled: bool, day_of_month: int, run_time: string, updated_by_name: ?string, updated_at: ?string, last_auto: array<string, ?string>} */
+    public function schedule(): array
+    {
+        $s = DB::table('forecast_settings as f')->leftJoin('users as u', 'u.id', '=', 'f.updated_by')->where('f.id', 1)->first(['f.*', 'u.name as updated_by_name']);
+        $last = [];
+        foreach (self::KINDS as $kind) {
+            $last[$kind] = DB::table('forecast_runs')->where('kind', $kind)->where('trigger', 'AUTO')->max('started_at');
+        }
+
+        return ['auto_enabled' => (bool) $s->auto_enabled, 'day_of_month' => (int) $s->day_of_month, 'run_time' => $s->run_time, 'updated_by_name' => $s->updated_by_name, 'updated_at' => $s->updated_at, 'last_auto' => $last];
+    }
+
+    public function saveSchedule(User $actor, bool $enabled, int $day, string $time): void
+    {
+        DB::table('forecast_settings')->where('id', 1)->update(['auto_enabled' => $enabled, 'day_of_month' => $day, 'run_time' => $time, 'updated_by' => $actor->getKey(), 'updated_at' => now()]);
+    }
+
+    /**
+     * Called every minute by the scheduler. Once a month, from the chosen day and time, each kind runs once (substation load first, then the demand forecast, never two at once). A run that
+     * failed or had too little data still counts for the month: nothing retries in a loop. Returns the started run id.
+     */
+    public function runScheduledIfDue(): ?string
+    {
+        $s = DB::table('forecast_settings')->where('id', 1)->first();
+        if (! $s->auto_enabled || $s->updated_by === null) {
+            return null;
+        }
+        $now = now(config('distriva.business_timezone'));
+        if ($now->day < (int) $s->day_of_month || ($now->day === (int) $s->day_of_month && $now->format('H:i') < $s->run_time)) {
+            return null;
+        }
+        $actor = User::query()->find($s->updated_by);
+        if ($actor === null || DB::table('forecast_runs')->where('status', 'RUNNING')->where('started_at', '>=', now()->subHours(self::STALE_AFTER_HOURS))->exists()) {
+            return null;
+        }
+        $monthStart = $now->copy()->startOfMonth()->utc();
+        foreach (self::KINDS as $kind) {
+            if (DB::table('forecast_runs')->where('kind', $kind)->where('trigger', 'AUTO')->where('started_at', '>=', $monthStart)->exists()) {
+                continue;
+            }
+            try {
+                return $this->start($actor, $kind, 'AUTO');
+            } catch (AssignmentRuleViolation) {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /** Runs a registered forecast to its end (called by the detached process); every failure ends as FAILED with a message. */

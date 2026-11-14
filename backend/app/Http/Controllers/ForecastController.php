@@ -106,6 +106,22 @@ class ForecastController extends Controller
         return response()->json(['data' => $this->derived->compute($this->scope($request->user()))]);
     }
 
+    public function schedule(Request $request): JsonResponse
+    {
+        $this->authorizer->authorizeScope($request->user(), 'forecast.view');
+
+        return response()->json(['data' => $this->forecast->schedule()]);
+    }
+
+    public function saveSchedule(Request $request): JsonResponse
+    {
+        $this->catalog->authorize($request->user(), 'forecast.run');
+        $d = $request->validate(['auto_enabled' => ['required', 'boolean'], 'day_of_month' => ['required', 'integer', 'between:1,28'], 'run_time' => ['required', 'regex:/^([01][0-9]|2[0-3]):[0-5][0-9]$/']]);
+        $this->forecast->saveSchedule($request->user(), (bool) $d['auto_enabled'], (int) $d['day_of_month'], $d['run_time']);
+
+        return response()->json(['data' => $this->forecast->schedule(), 'message' => 'Jadwal forecast disimpan.']);
+    }
+
     public function start(Request $request): JsonResponse
     {
         $this->catalog->authorize($request->user(), 'forecast.run');

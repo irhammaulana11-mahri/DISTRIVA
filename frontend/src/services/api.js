@@ -841,6 +841,8 @@ export const forecastApi = {
   substations: (id, params = {}) => request(`/forecast/runs/${id}/substations${qs(params)}`),
   series: (id, params = {}) => request(`/forecast/runs/${id}/series${qs(params)}`),
   derived: () => request('/forecast/derived'),
+  schedule: () => request('/forecast/schedule'),
+  saveSchedule: (body) => request('/forecast/schedule', { method: 'PUT', body }),
   start: (kind) => request('/forecast/runs', { method: 'POST', body: kind ? { kind } : undefined }),
   review: (id, note) => request(`/forecast/runs/${id}/review`, { method: 'POST', body: { note: note || null } }),
 }

@@ -139,7 +139,8 @@ export default function ForecastPage() {
 
       {/* Navigasi Tab */}
       <div className="border-b border-slate-200 dark:border-slate-800">
-        <div role="tablist" aria-label="Jenis forecast" className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <SchedulePanel />
+      <div role="tablist" aria-label="Jenis forecast" className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {TABS.map((t) => {
             const isActive = tab === t.key
             return (
@@ -571,6 +572,67 @@ function DerivedNeed() {
         )}
       </section>
       <ul className="list-disc space-y-1 pl-5 text-xs text-slate-500 dark:text-slate-400">{data.assumptions.map((a) => <li key={a}>{a}</li>)}</ul>
+    </div>
+  )
+}
+
+/** Jadwal forecast bulanan otomatis: beban gardu lalu prakiraan permintaan, sekali sebulan pada tanggal dan jam yang dipilih. */
+function SchedulePanel() {
+  const { can, isSysAdmin } = useAccess()
+  const canRun = Boolean(can['forecast.run'] || isSysAdmin)
+  const [sched, setSched] = useState(null)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({ auto_enabled: false, day_of_month: 1, run_time: '03:00' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let live = true
+    Promise.resolve(forecastApi.schedule?.()).then((r) => { if (live && r?.data) { setSched(r.data); setForm({ auto_enabled: r.data.auto_enabled, day_of_month: r.data.day_of_month, run_time: r.data.run_time }) } }).catch(() => {})
+    return () => { live = false }
+  }, [])
+  if (!sched) return null
+
+  const save = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      const r = await forecastApi.saveSchedule({ ...form, day_of_month: Number(form.day_of_month) })
+      setSched(r.data)
+      setEditing(false)
+    } catch (e) {
+      setError(e.message || 'Gagal menyimpan jadwal.')
+    } finally {
+      setSaving(false)
+    }
+  }
+  const last = sched.last_auto?.GARDU_LOAD || sched.last_auto?.DEMAND
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-slate-700 dark:text-slate-300">
+          <span className="font-semibold">Jadwal otomatis:</span>{' '}
+          {sched.auto_enabled ? `aktif, tiap tanggal ${sched.day_of_month} pukul ${sched.run_time}` : 'nonaktif'}
+          {sched.auto_enabled && sched.updated_by_name ? ` (dijalankan atas nama ${sched.updated_by_name})` : ''}
+          {last ? ` · terakhir otomatis ${fmtDate(last)}` : ''}
+        </p>
+        {canRun && !editing && <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>Atur jadwal</Button>}
+      </div>
+      {editing && (
+        <div className="mt-3 flex flex-wrap items-end gap-4">
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.auto_enabled} onChange={(e) => setForm({ ...form, auto_enabled: e.target.checked })} /> Jalankan otomatis tiap bulan</label>
+          <label className="flex flex-col text-xs text-slate-500">Tanggal (1-28)
+            <input type="number" min={1} max={28} value={form.day_of_month} onChange={(e) => setForm({ ...form, day_of_month: e.target.value })} className="mt-1 w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent px-2 py-1 text-sm text-slate-900 dark:text-slate-100" />
+          </label>
+          <label className="flex flex-col text-xs text-slate-500">Jam
+            <input type="time" value={form.run_time} onChange={(e) => setForm({ ...form, run_time: e.target.value })} className="mt-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent px-2 py-1 text-sm text-slate-900 dark:text-slate-100" />
+          </label>
+          <Button size="sm" loading={saving} onClick={save}>Simpan</Button>
+          <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>Batal</Button>
+        </div>
+      )}
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {editing && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Beban gardu dijalankan lebih dulu, lalu prakiraan permintaan, tidak pernah bersamaan. Run yang gagal atau datanya kurang tidak diulang pada bulan yang sama.</p>}
     </div>
   )
 }
