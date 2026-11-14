@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Authorization\CatalogAuthorizer;
-use App\Services\Output\XlsxRenderer;
+use App\Services\Output\DocumentDownload;
 use App\Services\Reports\ReportService;
 use App\Services\Reports\ReportSettings;
 use Illuminate\Http\JsonResponse;
@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Dashboard and reports (docs/62 §41). Scope follows `reports.view` (ULP roles: their ULP; UP3 roles: the child ULPs; SYS_ADMIN: all). `?format=json|xlsx`. */
+/** Dashboard and reports (docs/62 §41). Scope follows `reports.view` (ULP roles: their ULP; UP3 roles: the child ULPs; SYS_ADMIN: all). `?format=json|xlsx|pdf`. */
 class ReportController extends Controller
 {
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ReportService $reports, private readonly XlsxRenderer $xlsx, private readonly ReportSettings $settings, private readonly CatalogAuthorizer $catalog) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ReportService $reports, private readonly DocumentDownload $download, private readonly ReportSettings $settings, private readonly CatalogAuthorizer $catalog) {}
 
     /** GET /reports/settings: the parameters of the stock and vendor reports (read by every report viewer; `can_edit` for the administrator). */
     public function settings(Request $request): JsonResponse
@@ -50,7 +50,7 @@ class ReportController extends Controller
     {
         [$units, $from, $to] = $this->filters($request);
         $data = $this->reports->overview($units, $from, $to);
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             $rows = [];
             foreach ($data as $section => $values) {
                 foreach ((array) $values as $k => $v) {
@@ -74,7 +74,7 @@ class ReportController extends Controller
     {
         [$units, $from, $to] = $this->filters($request);
         $rows = $this->reports->pipeline($units, $from, $to);
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             return $this->file($this->reports->doc('ALUR PEKERJAAN PER ULP', [['Periode', ($from ?? 'awal').' s.d. '.($to ?? 'kini')]], [['columns' => ['KODE ULP', 'ULP', 'PERMOHONAN', 'SURVEY', 'GAMBAR DISETUJUI', 'MTO DISETUJUI', 'RAB', 'KKF', 'WO TERBIT', 'WO SELESAI', 'BASTP DITUTUP'],
                 'rows' => array_map(fn ($r) => array_values($r), $rows)]]), 'ALUR-PEKERJAAN');
         }
@@ -86,7 +86,7 @@ class ReportController extends Controller
     {
         [$units, $from, $to] = $this->filters($request);
         $data = $this->reports->sla($units, $from, $to);
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             $rows = array_map(function ($r) {
                 return [
                     $r['application_number'],
@@ -126,7 +126,7 @@ class ReportController extends Controller
     {
         [$units, $from, $to] = $this->filters($request);
         $rows = $this->reports->costVariance($units, $from, $to);
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             return $this->file($this->reports->doc('LAPORAN REALISASI BIAYA RAB VS SPK VS BASTP', [['Periode', ($from ?? 'awal').' s.d. '.($to ?? 'kini')]], [[
                 'columns' => ['NO. PERMOHONAN', 'KODE ULP', 'ULP', 'PELANGGAN', 'ESTIMASI RAB (RP)', 'NO. SPK / WO', 'STATUS SPK', 'VENDOR', 'NO. BASTP', 'STATUS BASTP'],
                 'rows' => array_map(fn ($r) => array_values($r), $rows),
@@ -140,7 +140,7 @@ class ReportController extends Controller
     {
         [$units, $from, $to] = $this->filters($request);
         $rows = $this->reports->vendorPerformance($units, $from, $to);
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             return $this->file($this->reports->doc('LAPORAN KINERJA DAN EVALUASI VENDOR', [['Tanggal Cetak', now()->toDateString()]], [[
                 'columns' => ['KODE MITRA', 'NAMA MITRA / VENDOR', 'TOTAL SPK', 'SELESAI', 'BERJALAN', 'DIBATALKAN', 'REVISI BASTP', 'TINGKAT SELESAI (%)', 'RATA-RATA PROGRES (%)', 'SPK TANPA LAPORAN >7 HARI', 'LAPORAN DITOLAK', 'RATA-RATA HARI SELESAI', 'TEPAT WAKTU', 'TERLAMBAT / LEWAT TARGET', 'SKOR', 'PENILAIAN'],
                 'rows' => array_map(fn ($r) => [$r['vendor_code'], $r['vendor_name'], $r['total_wo'], $r['completed_wo'], $r['in_progress_wo'], $r['cancelled_wo'], $r['bastp_revision_count'], $r['completion_rate'], $r['avg_progress'], $r['stale_wo'], $r['rejected_progress'], $r['avg_days_to_complete'], $r['on_time_rate'], $r['late_wo'] + $r['overdue_wo'], $r['score'], $r['rating']], $rows),
@@ -163,7 +163,7 @@ class ReportController extends Controller
         [$units] = $this->filters($request);
         $res = $this->reports->criticalStock($units);
 
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             return $this->file($this->reports->doc('MONITORING STOK KRITIS & BUFFER MATERIAL', [['Tanggal Cetak', now()->toDateString()]], [[
                 'columns' => ['KODE KHS', 'NAMA MATERIAL', 'SATUAN', 'STOK FISIK', 'TERALOKASI', 'TERSEDIA', 'PEMAKAIAN/BULAN', 'STOK MINIMUM', 'DATANG (1 BULAN)', 'PROYEKSI', 'KEKURANGAN', 'STATUS STOK'],
                 'rows' => array_map(fn ($r) => [
@@ -192,7 +192,7 @@ class ReportController extends Controller
         [$units, $from, $to] = $this->filters($request);
         $res = $this->reports->kkfFeasibility($units, $from, $to);
 
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             return $this->file($this->reports->doc('ANALISIS KELAYAKAN KKF & PROYEKSI PENDAPATAN', [['Tanggal Cetak', now()->toDateString()]], [[
                 'columns' => ['NO. PERMOHONAN', 'ULP', 'PELANGGAN', 'TARIF & DAYA', 'CAPEX RAB', 'STATUS KKF', 'PBP (BULAN)', 'PBP (TAHUN)', 'NPV', 'IRR (%)', 'PERLUASAN KHUSUS'],
                 'rows' => array_map(fn ($r) => [
@@ -220,7 +220,7 @@ class ReportController extends Controller
         [$units] = $this->filters($request);
         $res = $this->reports->erpAnomalies($units);
 
-        if ($request->query('format') === 'xlsx') {
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
             return $this->file($this->reports->doc('REKONSILIASI & ANOMALI SINKRONISASI ERP MIMS', [['Tanggal Cetak', now()->toDateString()]], [[
                 'columns' => ['SKU ERP', 'NAMA MATERIAL', 'SATUAN', 'STOK SIAP', 'KODE GUDANG', 'NAMA GUDANG', 'TANGGAL CUPLIKAN'],
                 'rows' => array_map(fn ($r) => [
@@ -252,7 +252,7 @@ class ReportController extends Controller
         }
         $doc = $this->reports->rkm($version, $type);
 
-        return $request->query('format') === 'xlsx' ? $this->file($doc, 'RKM-'.$type) : response()->json(['data' => $doc]);
+        return in_array($request->query('format'), DocumentDownload::FORMATS, true) ? $this->file($doc, 'RKM-'.$type) : response()->json(['data' => $doc]);
     }
 
     /** GET /reports/units — Returns accessible UP3 and ULP units for report filters based on user role and scope. */
@@ -410,7 +410,7 @@ class ReportController extends Controller
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'unit_id' => ['nullable', 'uuid'],
             'up3_id' => ['nullable', 'uuid'],
-            'format' => ['nullable', 'in:json,xlsx'],
+            'format' => ['nullable', 'in:json,xlsx,pdf'],
         ]);
         $units = $scope['unrestricted'] ? DB::table('organizational_units')->where('unit_type', 'ULP')->pluck('id')->all() : $scope['units'];
 
@@ -436,6 +436,6 @@ class ReportController extends Controller
     /** @param array<string,mixed> $doc */
     private function file(array $doc, string $name): Response
     {
-        return response($this->xlsx->render($doc), 200, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition' => 'attachment; filename="'.$name.'.xlsx"']);
+        return $this->download->response($doc, (string) request()->query('format'), $name);
     }
 }

@@ -77,8 +77,8 @@ export default function OutputDocumentModal({
     }
   }
 
-  // Handle Download XLSX with Bearer auth token
-  const handleDownloadXlsx = async () => {
+  // Unduh berkas dari server (XLSX atau PDF) dengan token Bearer
+  const handleDownloadXlsx = async (format = 'xlsx') => {
     if (!runId && !doc) return
     setDownloading(true)
     setError('')
@@ -116,18 +116,18 @@ export default function OutputDocumentModal({
 
       let blob, filename
       if (category === 'bastp') {
-        const res = await bastpApi.document(runId, 'xlsx')
+        const res = await bastpApi.document(runId, format)
         blob = res.blob
-        filename = res.filename || `BASTP-${runId.slice(0, 8)}.xlsx`
+        filename = res.filename || `BASTP-${runId.slice(0, 8)}.${format}`
       } else {
         const api = category === 'rab' ? rabRunsApi : kkfRunsApi
-        const res = await api.document(runId, type, 'xlsx')
+        const res = await api.document(runId, type, format)
         blob = res.blob
-        filename = res.filename || `${type.toUpperCase()}-${runId.slice(0, 8)}.xlsx`
+        filename = res.filename || `${type.toUpperCase()}-${runId.slice(0, 8)}.${format}`
       }
       triggerFileDownload(blob, filename)
     } catch (err) {
-      setError(err?.message || 'Gagal mengunduh berkas XLSX.')
+      setError(err?.message || `Gagal mengunduh berkas ${format.toUpperCase()}.`)
     } finally {
       setDownloading(false)
     }
@@ -337,7 +337,7 @@ export default function OutputDocumentModal({
                 {doc?.title || title || `Dokumen ${type.toUpperCase()}`}
               </h3>
               <p className="text-[11px] text-slate-500 truncate">
-                Pratinjau formulir resmi PLN · Siap cetak & unduh Excel
+                Pratinjau formulir resmi PLN · Siap cetak & unduh Excel/PDF
               </p>
             </div>
           </div>
@@ -355,7 +355,7 @@ export default function OutputDocumentModal({
 
             <button
               type="button"
-              onClick={handleDownloadXlsx}
+              onClick={() => handleDownloadXlsx('xlsx')}
               disabled={loading || downloading || !doc}
               className="px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition inline-flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
             >
@@ -366,6 +366,18 @@ export default function OutputDocumentModal({
               )}
               <span>Unduh XLSX</span>
             </button>
+
+            {category !== 'kko' && !customDoc && (
+              <button
+                type="button"
+                onClick={() => handleDownloadXlsx('pdf')}
+                disabled={loading || downloading || !doc}
+                className="px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition inline-flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                <IconDownload size={14} />
+                <span>Unduh PDF</span>
+              </button>
+            )}
 
             <button
               type="button"

@@ -6,11 +6,11 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Documents\DocumentService;
+use App\Services\Notifications\WorkflowNotifier;
+use App\Services\Output\DocumentDownload;
 use App\Services\Output\OutputDocumentService;
-use App\Services\Output\XlsxRenderer;
 use App\Services\WorkOrders\BastpService;
 use App\Services\WorkOrders\VendorService;
-use App\Services\Notifications\WorkflowNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class BastpController extends Controller
 {
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BastpService $bastp, private readonly DocumentService $documents, private readonly OutputDocumentService $docs, private readonly XlsxRenderer $xlsx, private readonly WorkflowNotifier $flow) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BastpService $bastp, private readonly DocumentService $documents, private readonly OutputDocumentService $docs, private readonly DocumentDownload $download, private readonly WorkflowNotifier $flow) {}
 
     public function create(Request $request, string $wo): JsonResponse
     {
@@ -140,13 +140,13 @@ class BastpController extends Controller
         $b = $this->find($bastp);
         $this->viewable($request, DB::table('work_orders')->where('id', $b->work_order_id)->first());
         $format = $request->query('format', 'json');
-        if (! in_array($format, ['json', 'xlsx'], true)) {
-            throw new AdministrationDenied('Format tidak dikenal (json atau xlsx).', 422);
+        if (! in_array($format, ['json', ...DocumentDownload::FORMATS], true)) {
+            throw new AdministrationDenied('Format tidak dikenal (json, xlsx atau pdf).', 422);
         }
         $doc = $this->docs->bastp($bastp);
 
         return $format === 'json' ? response()->json(['data' => $doc])
-            : response($this->xlsx->render($doc), 200, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition' => 'attachment; filename="BASTP-'.str_replace('/', '-', (string) ($b->bastp_number ?? $b->id)).'.xlsx"']);
+            : $this->download->response($doc, $format, 'BASTP-'.str_replace('/', '-', (string) ($b->bastp_number ?? $b->id)));
     }
 
     private function step(Request $request, string $bastp, string $step, string $key, string $message): JsonResponse

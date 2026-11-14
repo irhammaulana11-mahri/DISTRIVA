@@ -348,6 +348,27 @@ describe('OutputDocumentModal Workflow (docs/70 & docs/57)', () => {
     expect(triggerFileDownload).toHaveBeenCalledWith(mockBlob, 'RAB-rekap-1.xlsx')
   })
 
+  it('6b. downloads a PDF file when "Unduh PDF" is clicked calling API with format=pdf', async () => {
+    rabRunsApi.document.mockResolvedValueOnce({ data: mockRekapDoc })
+    const mockBlob = new Blob(['%PDF-mock'], { type: 'application/pdf' })
+    rabRunsApi.document.mockResolvedValueOnce({ blob: mockBlob, filename: 'RAB-rekap-1.pdf' })
+
+    render(
+      <OutputDocumentModal
+        open={true}
+        onClose={vi.fn()}
+        runId="rab-uuid-1"
+        type="rekap"
+        category="rab"
+      />
+    )
+
+    await userEvent.click(await screen.findByRole('button', { name: /Unduh PDF/i }))
+
+    expect(rabRunsApi.document).toHaveBeenCalledWith('rab-uuid-1', 'rekap', 'pdf')
+    expect(triggerFileDownload).toHaveBeenCalledWith(mockBlob, 'RAB-rekap-1.pdf')
+  })
+
   it('7. displays error messages for 403, 404, 422 verbatim', async () => {
     rabRunsApi.document.mockRejectedValueOnce({
       status: 403,

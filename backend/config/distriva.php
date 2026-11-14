@@ -91,6 +91,12 @@ return [
      * Output documents (stage 5D, docs/62 §28): header lines of the PLN forms and the REKAP rows in workbook order. `volume_rows` = BOM rows (workbook cells REKAP!D14:D23:
      * SUTM!H11, MVTIC!H11, SKTM!H11+H24, GTT KHUSUS!H25, GTT UMUM!H25, KUBIKEL!H16, SUTR!H11, 53-197!H10, 6,6-41,5!H10) whose quantity is the group volume; SR1PH volume = row 13 (total SR 1 phase customers, SDES-1 + SDES-2).
      */
+    /** PDF of output documents and reports: headless Chrome/Chromium prints an HTML page built by `PdfRenderer`. Empty binary = look for google-chrome / chromium on the PATH. */
+    'pdf' => [
+        'binary' => env('DISTRIVA_PDF_BINARY'),
+        'timeout_seconds' => (int) env('DISTRIVA_PDF_TIMEOUT', 60),
+    ],
+
     'document' => [
         'company' => ['PT. PLN (PERSERO)', 'UNIT INDUK DISTRIBUSI JAWA TIMUR'],
         'funding_source' => 'Anggaran Investasi PLN',

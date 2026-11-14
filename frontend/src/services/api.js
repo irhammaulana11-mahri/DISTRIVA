@@ -282,8 +282,8 @@ export const kkfRunsApi = {
   preview: (appId, params) => request(`/applications/${appId}/kkf-preview${qs(params)}`),
   get: (runId) => request(`/kkf-runs/${runId}`),
   document: (runId, type = 'kkf', format = 'json') => {
-    if (format === 'xlsx') {
-      return downloadBlob(`/kkf-runs/${runId}/documents/${type}?format=xlsx`)
+    if (format === 'xlsx' || format === 'pdf') {
+      return downloadBlob(`/kkf-runs/${runId}/documents/${type}?format=${format}`)
     }
     return request(`/kkf-runs/${runId}/documents/${type}?format=json`)
   },
@@ -294,8 +294,8 @@ export const rabRunsApi = {
   run: (packageId, body = {}) => request(`/mto/${packageId}/rab-runs`, { method: 'POST', body }),
   get: (runId) => request(`/rab-runs/${runId}`),
   document: (runId, type = 'rekap', format = 'json') => {
-    if (format === 'xlsx') {
-      return downloadBlob(`/rab-runs/${runId}/documents/${type}?format=xlsx`)
+    if (format === 'xlsx' || format === 'pdf') {
+      return downloadBlob(`/rab-runs/${runId}/documents/${type}?format=${format}`)
     }
     return request(`/rab-runs/${runId}/documents/${type}?format=json`)
   },
@@ -495,8 +495,8 @@ export const bastpApi = {
   close: (bastpId, body) => request(`/bastp/${bastpId}/close`, { method: 'POST', body }),
   return: (bastpId, body) => request(`/bastp/${bastpId}/return`, { method: 'POST', body }),
   document: (bastpId, format = 'json') => {
-    if (format === 'xlsx') {
-      return downloadBlob(`/bastp/${bastpId}/document?format=xlsx`)
+    if (format === 'xlsx' || format === 'pdf') {
+      return downloadBlob(`/bastp/${bastpId}/document?format=${format}`)
     }
     return request(`/bastp/${bastpId}/document?format=json`)
   },

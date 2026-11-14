@@ -1109,8 +1109,11 @@ class MtoTest extends PostgresTestCase
         $this->assertContains('JUMLAH', array_column($sheet->toArray(), 1));
         $this->assertContains('Tujuh puluh tujuh ribu empat ratus rupiah', array_column($sheet->toArray(), 2));
 
+        $pdf = $this->as($this->teknik)->get("/api/rab-runs/{$runId}/documents/rekap?format=pdf");
+        $pdf->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $pdf->getContent());
         $this->as($this->teknik)->getJson("/api/rab-runs/{$runId}/documents/xyz")->assertNotFound();
-        $this->as($this->teknik)->getJson("/api/rab-runs/{$runId}/documents/rekap?format=pdf")->assertStatus(422);
+        $this->as($this->teknik)->getJson("/api/rab-runs/{$runId}/documents/rekap?format=docx")->assertStatus(422);
         $this->as($this->vendor)->getJson("/api/rab-runs/{$runId}/documents/rekap")->assertForbidden();
         $this->as($this->managerB)->getJson("/api/kkf-runs/{$kkfId}/documents/kkf")->assertNotFound();      // another ULP
     }
@@ -1930,7 +1933,7 @@ class MtoTest extends PostgresTestCase
         $this->assertSame(4, count($doc['signatures']));
         $this->assertTrue($doc['signatures'][0]['electronic']);
         $this->as($asman)->get("/api/bastp/{$b}/document?format=xlsx")->assertOk()->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        $this->as($this->vendor)->getJson("/api/bastp/{$b}/document?format=pdf")->assertStatus(422);
+        $this->as($this->vendor)->getJson("/api/bastp/{$b}/document?format=docx")->assertStatus(422);
     }
 
     #[Test]

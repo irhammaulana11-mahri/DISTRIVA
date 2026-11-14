@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Output\DocumentDownload;
 use App\Services\Output\OutputDocumentService;
-use App\Services\Output\XlsxRenderer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Output documents (docs/62 §28): `?format=json` (default) or `xlsx`. Reading follows kkf.view / rab.view and the application scope (outside it: 404). */
+/** Output documents (docs/62 §28): `?format=json` (default), `xlsx` or `pdf`. Reading follows kkf.view / rab.view and the application scope (outside it: 404). */
 class OutputDocumentController extends Controller
 {
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly OutputDocumentService $docs, private readonly XlsxRenderer $xlsx) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly OutputDocumentService $docs, private readonly DocumentDownload $download) {}
 
     /** GET /rab-runs/{run}/documents/{type}  type = rekap | rinci */
     public function rab(Request $request, string $run, string $type): JsonResponse|Response
@@ -44,14 +44,14 @@ class OutputDocumentController extends Controller
     private function respond(Request $request, array $doc, string $name): JsonResponse|Response
     {
         $format = $request->query('format', 'json');
-        if (! in_array($format, ['json', 'xlsx'], true)) {
-            throw new AdministrationDenied('Format tidak dikenal (json atau xlsx).', 422);
+        if (! in_array($format, ['json', ...DocumentDownload::FORMATS], true)) {
+            throw new AdministrationDenied('Format tidak dikenal (json, xlsx atau pdf).', 422);
         }
         if ($format === 'json') {
             return response()->json(['data' => $doc]);
         }
 
-        return response($this->xlsx->render($doc), 200, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition' => 'attachment; filename="'.$name.'.xlsx"']);
+        return $this->download->response($doc, $format, $name);
     }
 
     private function viewable(Request $request, string $permission, string $applicationId): void
