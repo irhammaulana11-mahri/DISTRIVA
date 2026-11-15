@@ -45,20 +45,43 @@ class MimsReservationSyncService
         $since = $from ?? $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
         $until = $to ?? $now->toDateString();
         $payload = fn (string $a, string $b) => ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => '', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => $a, 'tanggal_akhir' => $b];
-        try {
-            $res = $http()->asJson()->post($base.config('distriva.mims.reservation_header_path'), $payload(CarbonImmutable::parse($since)->format('d-m-Y'), CarbonImmutable::parse($until)->format('d-m-Y')));
-            if (in_array($res->status(), [400, 422, 500], true)) {
-                $res = $http()->asJson()->post($base.config('distriva.mims.reservation_header_path'), $payload('', ''));
+        // MIMS answers a short range in seconds but times out on a wide one, so the list is requested in windows (default 7 days).
+        $window = max(1, (int) config('distriva.mims.reservation_window_days'));
+        $rows = [];
+        $failedWindows = [];
+        $okWindows = 0;
+        $cursor = CarbonImmutable::parse($since);
+        $end = CarbonImmutable::parse($until);
+        while ($cursor->lte($end)) {
+            $to2 = $cursor->addDays($window - 1)->min($end);
+            $label = $cursor->format('d-m-Y').' s/d '.$to2->format('d-m-Y');
+            try {
+                $res = $http()->asJson()->post($base.config('distriva.mims.reservation_header_path'), $payload($cursor->format('d-m-Y'), $to2->format('d-m-Y')));
+            } catch (\Throwable $e) {
+                $failedWindows[] = $label.': '.MimsStockSyncService::connectionMessage($e, 'mengambil daftar reservasi');
+                $cursor = $to2->addDay();
+
+                continue;
             }
-        } catch (\Throwable $e) {
-            return $finish('FAILED', MimsStockSyncService::connectionMessage($e, 'mengambil daftar reservasi'));
+            if (in_array($res->status(), [401, 403], true)) {
+                return $finish('FAILED', 'MIMS menjawab status HTTP '.$res->status().' (token ditolak atau kedaluwarsa).');
+            }
+            if (! $res->successful()) {
+                $failedWindows[] = $label.': HTTP '.$res->status();
+                $cursor = $to2->addDay();
+
+                continue;
+            }
+            $part = $res->json('data');
+            if (! is_array($part)) {
+                return $finish('FAILED', 'Jawaban MIMS tidak memuat daftar reservasi (data).');
+            }
+            array_push($rows, ...array_values($part));
+            $okWindows++;
+            $cursor = $to2->addDay();
         }
-        if (! $res->successful()) {
-            return $finish('FAILED', 'MIMS menjawab status HTTP '.$res->status().($res->status() === 401 || $res->status() === 403 ? ' (token ditolak atau kedaluwarsa).' : '.'));
-        }
-        $rows = $res->json('data');
-        if (! is_array($rows)) {
-            return $finish('FAILED', 'Jawaban MIMS tidak memuat daftar reservasi (data).');
+        if ($okWindows === 0) {
+            return $finish('FAILED', 'Daftar reservasi MIMS gagal diambil di semua rentang ('.implode(' | ', array_slice($failedWindows, 0, 2)).').');
         }
         $parsed = [];
         foreach ($rows as $r) {
@@ -126,6 +149,9 @@ class MimsReservationSyncService
                 return $tied;
             });
             $docs++;
+        }
+        foreach ($failedWindows as $w) {
+            $skipped[] = 'rentang '.$w;
         }
         if ($skipped !== []) {
             return $finish($docs > 0 ? 'OK' : 'FAILED', count($skipped).' reservasi dilewati ('.implode('; ', array_slice($skipped, 0, 3)).(count($skipped) > 3 ? '; …' : '').').', $docs, $matched);

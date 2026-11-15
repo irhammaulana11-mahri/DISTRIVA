@@ -187,6 +187,7 @@ return [
         // material receipts (penerimaan): GET list of the deliveries to the warehouse in a date range ({from}/{to} as d-m-Y), then the detail per delivery document
         'receipt_list_path' => env('DISTRIVA_MIMS_RECEIPT_LIST_PATH', '/project-i-agodist-api//getDataPengirimanForPenerimaan/{plant}&&{stor_loc}&{from}&{to}&&S&&/'),
         'receipt_detail_path' => env('DISTRIVA_MIMS_RECEIPT_DETAIL_PATH', '/project-i-agodist-api//getDataPenerimaanAll/{document}/'),
+        'reservation_window_days' => (int) env('DISTRIVA_MIMS_RESERVATION_WINDOW_DAYS', 7),   // the reservation list is requested in windows of this many days (a wide range times out)
         'issue_days' => (int) env('DISTRIVA_MIMS_ISSUE_DAYS', 90),
         // Verifying the server certificate stays ON. Only switch it off (false) temporarily when MIMS' own certificate is expired/untrusted and cannot be fixed yet: the token is then sent without proof of who is answering.
         'verify_ssl' => filter_var(env('DISTRIVA_MIMS_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),

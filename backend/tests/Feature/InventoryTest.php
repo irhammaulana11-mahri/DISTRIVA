@@ -493,7 +493,7 @@ class InventoryTest extends PostgresTestCase
     {
         $wh = (string) Str::uuid();
         DB::table('warehouses')->insert(['id' => $wh, 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        config(['distriva.mims.base_url' => 'https://mims-resv.test']);
+        config(['distriva.mims.base_url' => 'https://mims-resv.test', 'distriva.mims.reservation_window_days' => 365]);
         $row = DB::table('warehouses')->where('id', $wh)->first();
         $today = now(config('distriva.business_timezone'))->format('d-m-Y');
         $head = fn (string $no, string $status) => ['no_pemesanan' => $no, 'tgl_pemesanan' => $today, 'status_pemakaian' => $status, 'nama_jenis_pekerjaan' => 'PERUBAHAN DAYA'];
@@ -520,6 +520,33 @@ class InventoryTest extends PostgresTestCase
         $this->assertSame(['R2'], array_column($this->as($this->konstruksi)->getJson('/api/master-data/mims-reservations?pending=1')->json('data'), 'reservation_no'));
         $this->assertSame('AG-1', $all->json('data.0.customers.0.agenda_no'));
         $this->as($this->vendor)->getJson('/api/master-data/mims-reservations')->assertForbidden();
+    }
+
+    #[Test]
+    public function the_reservation_list_is_requested_in_windows_and_one_slow_window_does_not_lose_the_others(): void
+    {
+        DB::table('warehouses')->insert(['id' => $wh = (string) Str::uuid(), 'code' => '5118-2810', 'name' => 'Gd Ry Jombang', 'organizational_unit_id' => $this->up3->getKey(), 'plant' => '5118', 'stor_loc' => '2810', 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        config(['distriva.mims.base_url' => 'https://mims-window.test', 'distriva.mims.reservation_window_days' => 7]);
+        $today = now(config('distriva.business_timezone'));
+        $calls = 0;
+        Http::fake(function ($request) use (&$calls, $today) {
+            $url = $request->url();
+            if (str_contains($url, 'getDataReservasiHeader')) {
+                $calls++;
+                if ($calls === 2) {
+                    throw new ConnectionException('cURL error 28: Operation timed out after 180001 milliseconds');
+                }
+
+                return Http::response(['data' => [['nomor_reservasi' => "R{$calls}", 'tgl_reservasi' => $today->format('d-m-Y'), 'status_pemakaian' => 'BELUM']]]);
+            }
+
+            return Http::response(['data' => []]);
+        });
+
+        $r = app(MimsReservationSyncService::class)->syncWarehouse(DB::table('warehouses')->where('id', $wh)->first(), 'token-uji-123456', $this->konstruksi, 20);
+        $this->assertSame(3, $calls);                                                                                    // 20 days = windows of 7, 7 and 6 days
+        $this->assertSame(['OK', 2], [$r['status'], $r['documents_new']]);                                               // the slow middle window is reported, the others are kept
+        $this->assertStringContainsString('rentang', $r['message']);
     }
 
     #[Test]
