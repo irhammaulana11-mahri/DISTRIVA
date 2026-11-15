@@ -5,8 +5,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../../features/auth/AuthContext.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
-import ForecastPage, { exceedText, pct } from './ForecastPage.jsx'
+import ForecastPage, { exceedText, pct, getNextTrafoKva, exportSubstationsCsv } from './ForecastPage.jsx'
 import { forecastApi } from '../../services/api.js'
+import * as csvTemplates from '../../utils/csvTemplates.js'
 
 vi.mock('../../services/api.js', () => ({
   forecastApi: { schedule: vi.fn(), saveSchedule: vi.fn(), derived: vi.fn(), runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
@@ -44,6 +45,21 @@ describe('helpers', () => {
     expect(exceedText({ state: 'already' })).toBe('sudah')
     expect(exceedText({ state: 'none' })).toBe('tidak dalam 5 tahun')
     expect(exceedText({ state: 'forecast', date: '2028-03-01' })).toMatch(/^sekitar /)
+  })
+
+  it('rekomendasi kapasitas trafo berikutnya (getNextTrafoKva)', () => {
+    expect(getNextTrafoKva(50)).toBe(100)
+    expect(getNextTrafoKva(100)).toBe(160)
+    expect(getNextTrafoKva(160)).toBe(200)
+    expect(getNextTrafoKva(630)).toBe(1000)
+    expect(getNextTrafoKva(2500)).toBe(3750)
+  })
+
+  it('ekspor CSV hasil forecast gardu', () => {
+    const downloadSpy = vi.spyOn(csvTemplates, 'downloadCsv').mockImplementation(() => {})
+    exportSubstationsCsv('test.csv', [gardu])
+    expect(downloadSpy).toHaveBeenCalledWith('test.csv', expect.stringContaining('JB0001'))
+    downloadSpy.mockRestore()
   })
 })
 

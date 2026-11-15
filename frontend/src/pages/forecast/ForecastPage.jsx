@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { forecastApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { useDebounce } from '../../utils/useDebounce.js'
+import { downloadCsv } from '../../utils/csvTemplates.js'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
@@ -21,6 +23,8 @@ import {
   IconClock,
   IconBuilding,
   IconX,
+  IconDownload,
+  IconArrowRight,
 } from '../../components/icons.jsx'
 
 /**
@@ -46,6 +50,61 @@ export function exceedText(e) {
   if (e.state === 'already') return 'sudah'
   if (e.state === 'forecast') return `sekitar ${fmtDate(e.date)}`
   return 'tidak dalam 5 tahun'
+}
+
+/** Standar kapasitas trafo distribusi PLN (kVA) untuk rekomendasi up-rating */
+const PLN_TRAFO_SIZES = [25, 50, 100, 160, 200, 250, 315, 400, 630, 1000, 1250, 1600, 2000, 2500]
+export function getNextTrafoKva(currentKva) {
+  const current = Number(currentKva) || 0
+  const next = PLN_TRAFO_SIZES.find((s) => s > current)
+  return next || (current > 0 ? Math.round(current * 1.5) : 100)
+}
+
+/** Ekspor data hasil forecast gardu ke file CSV standar */
+export function exportSubstationsCsv(filename, rows) {
+  const headers = [
+    'Kode Gardu',
+    'Nama Gardu',
+    'ULP',
+    'Penyulang',
+    'Kapasitas Trafo (kVA)',
+    'Tingkat Risiko',
+    'Beban Terakhir (%)',
+    'Tgl Beban Terakhir',
+    'Prakiraan 1 Thn (%)',
+    'Rentang 1 Thn (p10-p90)',
+    'Prakiraan 3 Thn (%)',
+    'Rentang 3 Thn (p10-p90)',
+    'Prakiraan 5 Thn (%)',
+    'Rentang 5 Thn (p10-p90)',
+    'Estimasi Lewat 80%',
+    'Estimasi Lewat 100%',
+    'Dasar Pembacaan',
+  ]
+  const lines = [headers.join(',')]
+  rows.forEach((r) => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    lines.push([
+      esc(r.code),
+      esc(r.name || ''),
+      esc(r.unit_name),
+      esc(r.feeder_code || ''),
+      esc(r.capacity_kva),
+      esc(r.risk),
+      esc(pct(r.last_ratio)),
+      esc(fmtDate(r.last_reading_on)),
+      esc(pct(r.horizons?.['1']?.p50)),
+      esc(`${pct(r.horizons?.['1']?.p10)} - ${pct(r.horizons?.['1']?.p90)}`),
+      esc(pct(r.horizons?.['3']?.p50)),
+      esc(`${pct(r.horizons?.['3']?.p10)} - ${pct(r.horizons?.['3']?.p90)}`),
+      esc(pct(r.horizons?.['5']?.p50)),
+      esc(`${pct(r.horizons?.['5']?.p10)} - ${pct(r.horizons?.['5']?.p90)}`),
+      esc(exceedText(r.exceed_80)),
+      esc(exceedText(r.exceed_100)),
+      esc(r.history_readings),
+    ].join(','))
+  })
+  downloadCsv(filename, lines.join('\n'))
 }
 
 /** Daftar run satu jenis forecast: dipilih otomatis, disegarkan tiap 8 detik selama ada yang berjalan. */
@@ -466,7 +525,86 @@ function ExceedBadge({ title, exceed, is100 = false }) {
   )
 }
 
+/** Pilihan A: Mini Sparkline kurva trajektori beban 5 tahun (SVG) */
+function SparklineTrajectory({ row }) {
+  const pts = [
+    { label: 'Skrg', x: 22, p50: row.last_ratio || 0, p10: row.last_ratio || 0, p90: row.last_ratio || 0 },
+    { label: '+1th', x: 70, p50: row.horizons?.['1']?.p50 || 0, p10: row.horizons?.['1']?.p10 || 0, p90: row.horizons?.['1']?.p90 || 0 },
+    { label: '+3th', x: 122, p50: row.horizons?.['3']?.p50 || 0, p10: row.horizons?.['3']?.p10 || 0, p90: row.horizons?.['3']?.p90 || 0 },
+    { label: '+5th', x: 174, p50: row.horizons?.['5']?.p50 || 0, p10: row.horizons?.['5']?.p10 || 0, p90: row.horizons?.['5']?.p90 || 0 },
+  ]
+
+  const maxVal = Math.max(1.35, ...pts.map((p) => p.p90))
+  const svgH = 80
+  const topPad = 8
+  const bottomPad = 20
+  const chartH = svgH - topPad - bottomPad
+
+  const getY = (val) => svgH - bottomPad - Math.min(Math.max((val / maxVal) * chartH, 0), chartH)
+
+  const y100 = getY(1.0)
+  const y80 = getY(0.8)
+
+  const upperPath = pts.map((p) => `${p.x},${getY(p.p90)}`).join(' ')
+  const lowerPath = [...pts].reverse().map((p) => `${p.x},${getY(p.p10)}`).join(' ')
+  const polygonPoints = `${upperPath} ${lowerPath}`
+  const linePoints = pts.map((p) => `${p.x},${getY(p.p50)}`).join(' ')
+
+  const strokeColor =
+    row.risk === 'KRITIS'
+      ? '#e11d48'
+      : row.risk === 'TINGGI'
+      ? '#ea580c'
+      : row.risk === 'WASPADA'
+      ? '#d97706'
+      : '#059669'
+
+  const fillColor =
+    row.risk === 'KRITIS'
+      ? 'rgba(244, 63, 94, 0.18)'
+      : row.risk === 'TINGGI'
+      ? 'rgba(249, 115, 22, 0.18)'
+      : row.risk === 'WASPADA'
+      ? 'rgba(245, 158, 11, 0.18)'
+      : 'rgba(16, 185, 129, 0.18)'
+
+  return (
+    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-2.5 flex flex-col justify-between">
+      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        <span className="uppercase tracking-wider">Tren Beban</span>
+        <span className="text-[10px] text-slate-400">Batas 80% &amp; 100%</span>
+      </div>
+      <svg viewBox="0 0 196 80" className="w-full h-18 mt-0.5 overflow-visible" role="img" aria-label="Grafik trajektori beban">
+        {/* Garis batas 100% */}
+        <line x1="16" y1={y100} x2="184" y2={y100} stroke="#f43f5e" strokeWidth="1" strokeDasharray="3 3" opacity="0.8" />
+        <text x="2" y={y100 + 3} fontSize="7.5" fill="#f43f5e" fontWeight="bold">100% Kap.</text>
+
+        {/* Garis batas 80% */}
+        <line x1="16" y1={y80} x2="184" y2={y80} stroke="#f59e0b" strokeWidth="1" strokeDasharray="2 2" opacity="0.8" />
+        <text x="5" y={y80 + 3} fontSize="7.5" fill="#f59e0b" fontWeight="600">80% Kap.</text>
+
+        {/* Area rentang p10 - p90 */}
+        <polygon points={polygonPoints} fill={fillColor} />
+
+        {/* Garis tengah p50 */}
+        <polyline points={linePoints} fill="none" stroke={strokeColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Titik data p50 */}
+        {pts.map((p, idx) => (
+          <g key={idx}>
+            <circle cx={p.x} cy={getY(p.p50)} r="3" fill={strokeColor} stroke="#ffffff" strokeWidth="1.2" />
+            <text x={p.x} y={svgH - 4} fontSize="8" fill="#64748b" textAnchor="middle" fontWeight="500">
+              {p.label}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
 function RunView({ run, canReview, onReview }) {
+  const { notify } = useNotifications()
   const m = run.metrics?.all || {}
   const [unit, setUnit] = useState('')
   const [risk, setRisk] = useState('')
@@ -499,6 +637,27 @@ function RunView({ run, canReview, onReview }) {
     setStale(false)
     setPage(1)
   }
+
+  // Pilihan B: Ekspor CSV Hasil Filter
+  const handleExportCsv = () => {
+    if (!state.rows.length) return
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const filename = `forecast-gardu-${run?.id?.slice(0, 8) || 'run'}-${dateStr}.csv`
+    exportSubstationsCsv(filename, state.rows)
+    notify({
+      type: 'success',
+      title: 'Ekspor Berhasil',
+      desc: `${state.rows.length} baris data gardu berhasil diunduh dalam file CSV.`,
+      tag: 'Forecast',
+    })
+  }
+
+  // Helper persentase keparahan untuk Pilihan D (Stacked Bar)
+  const totalAgregat = totals.total || 1
+  const totKritisPct = Math.round((totals.kritis / totalAgregat) * 100)
+  const totTinggiPct = Math.round((totals.tinggi / totalAgregat) * 100)
+  const totWaspadaPct = Math.round((totals.waspada / totalAgregat) * 100)
+  const totAmanPct = Math.max(0, 100 - totKritisPct - totTinggiPct - totWaspadaPct)
 
   return (
     <div className="space-y-6">
@@ -546,7 +705,7 @@ function RunView({ run, canReview, onReview }) {
         )}
       </section>
 
-      {/* 2. Ringkasan per ULP (Tabel Card Modern & Interaktif) */}
+      {/* 2. Ringkasan per ULP dengan Pilihan D (Stacked Bar Proporsi Keparahan) */}
       <section aria-labelledby="fc-s" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -579,11 +738,18 @@ function RunView({ run, canReview, onReview }) {
                 <th className="px-3 py-3 text-right">Kritis (&gt;100% / 1 th)</th>
                 <th className="px-3 py-3 text-right">Tinggi (&lt;3 th)</th>
                 <th className="px-3 py-3 text-right">Waspada (&lt;5 th)</th>
+                <th className="px-4 py-3">Proporsi Risiko</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs sm:text-sm">
               {run.summary.map((s) => {
                 const isSelected = unit === s.unit_id
+                const totU = s.total || 1
+                const kPct = Math.round((s.kritis / totU) * 100)
+                const tPct = Math.round((s.tinggi / totU) * 100)
+                const wPct = Math.round((s.waspada / totU) * 100)
+                const aPct = Math.max(0, 100 - kPct - tPct - wPct)
+
                 return (
                   <tr
                     key={s.unit_id}
@@ -629,6 +795,20 @@ function RunView({ run, canReview, onReview }) {
                         <span className="text-slate-400">0</span>
                       )}
                     </td>
+                    {/* Pilihan D: Stacked Horizontal Bar */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-28 sm:w-36 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-750 flex">
+                          {kPct > 0 && <div style={{ width: `${kPct}%` }} className="bg-rose-500 h-full" title={`Kritis: ${s.kritis} (${kPct}%)`} />}
+                          {tPct > 0 && <div style={{ width: `${tPct}%` }} className="bg-orange-500 h-full" title={`Tinggi: ${s.tinggi} (${tPct}%)`} />}
+                          {wPct > 0 && <div style={{ width: `${wPct}%` }} className="bg-amber-400 h-full" title={`Waspada: ${s.waspada} (${wPct}%)`} />}
+                          {aPct > 0 && <div style={{ width: `${aPct}%` }} className="bg-emerald-500 h-full" title={`Aman: ${aPct}%`} />}
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          {kPct}% kritis
+                        </span>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -638,15 +818,28 @@ function RunView({ run, canReview, onReview }) {
                 <td className="px-3 py-3 text-right text-rose-700 dark:text-rose-300">{totals.kritis}</td>
                 <td className="px-3 py-3 text-right text-orange-700 dark:text-orange-300">{totals.tinggi}</td>
                 <td className="px-3 py-3 text-right text-amber-700 dark:text-amber-300">{totals.waspada}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-28 sm:w-36 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-750 flex">
+                      {totKritisPct > 0 && <div style={{ width: `${totKritisPct}%` }} className="bg-rose-500 h-full" title={`Kritis: ${totals.kritis} (${totKritisPct}%)`} />}
+                      {totTinggiPct > 0 && <div style={{ width: `${totTinggiPct}%` }} className="bg-orange-500 h-full" title={`Tinggi: ${totals.tinggi} (${totTinggiPct}%)`} />}
+                      {totWaspadaPct > 0 && <div style={{ width: `${totWaspadaPct}%` }} className="bg-amber-400 h-full" title={`Waspada: ${totals.waspada} (${totWaspadaPct}%)`} />}
+                      {totAmanPct > 0 && <div style={{ width: `${totAmanPct}%` }} className="bg-emerald-500 h-full" title={`Aman: ${totAmanPct}%`} />}
+                    </div>
+                    <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                      {totKritisPct}% kritis
+                    </span>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* 3. Daftar Gardu Hasil Prediksi (Filter Panel & Tampilan Proporsional) */}
+      {/* 3. Daftar Gardu Hasil Prediksi (Filter Panel, Ekspor CSV & Tampilan) */}
       <section aria-labelledby="fc-l" className="space-y-4">
-        {/* Section Header with View Mode Switch */}
+        {/* Section Header with Ekspor CSV & View Mode Switch */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 id="fc-l" className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -658,8 +851,22 @@ function RunView({ run, canReview, onReview }) {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 dark:text-slate-400">Mode:</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Pilihan B: Tombol Ekspor CSV */}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={IconDownload}
+              onClick={handleExportCsv}
+              disabled={state.rows.length === 0}
+              aria-label="Ekspor CSV"
+              title="Unduh data gardu sesuai filter saat ini ke CSV"
+            >
+              Ekspor CSV
+            </Button>
+
+            {/* Mode Switcher */}
             <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
@@ -886,7 +1093,11 @@ function RunView({ run, canReview, onReview }) {
 }
 
 function SubstationRow({ row }) {
+  const navigate = useNavigate()
   const rk = RISK[row.risk] || RISK.AMAN
+  const isHighRisk = row.risk === 'KRITIS' || row.risk === 'TINGGI'
+  const recommendedKva = getNextTrafoKva(row.capacity_kva)
+
   return (
     <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs hover:border-blue-300 dark:hover:border-blue-700/60 transition-all">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -937,8 +1148,9 @@ function SubstationRow({ row }) {
         </div>
       </div>
 
-      {/* Grid 4 Kolom: Beban Nyata + Horizon 1, 3, 5 */}
-      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+      {/* Grid 5 Kolom: Beban Nyata + Horizon 1, 3, 5 + Pilihan A: Sparkline Kurva Trajektori */}
+      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5 text-xs">
+        {/* Beban Terakhir */}
         <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3 flex flex-col justify-between">
           <div>
             <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -955,8 +1167,9 @@ function SubstationRow({ row }) {
           <LoadBar value={row.last_ratio} />
         </div>
 
+        {/* 1, 3, 5 Tahun */}
         {['1', '3', '5'].map((y) => {
-          const h = row.horizons[y]
+          const h = row.horizons?.[y] || { p10: 0, p50: 0, p90: 0 }
           const isOver100 = h.p50 >= 1.0
           const isOver80 = h.p50 >= 0.8
           return (
@@ -982,7 +1195,41 @@ function SubstationRow({ row }) {
             </div>
           )
         })}
+
+        {/* Pilihan A: Mini Sparkline Kurva Trajektori (SVG) */}
+        <div className="col-span-2 sm:col-span-2 lg:col-span-1">
+          <SparklineTrajectory row={row} />
+        </div>
       </dl>
+
+      {/* Pilihan C: Rekomendasi Tindakan Cepat (Up-rating / Sisip Gardu) */}
+      {isHighRisk && (
+        <div className="mt-3.5 rounded-xl border border-rose-200/90 dark:border-rose-900/50 bg-linear-to-r from-rose-50/80 via-rose-50/40 to-amber-50/40 dark:from-rose-950/40 dark:via-rose-950/20 dark:to-amber-950/20 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-start gap-2.5">
+            <div className="rounded-lg p-1.5 bg-rose-600 text-white shrink-0 mt-0.5 shadow-2xs">
+              <IconZap className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="font-bold text-rose-900 dark:text-rose-200">
+                Rekomendasi Tindakan:
+              </span>{' '}
+              <span className="text-rose-800 dark:text-rose-300">
+                Up-rating trafo dari <strong className="font-semibold">{row.capacity_kva} kVA</strong> ke <strong className="font-semibold">{recommendedKva} kVA</strong>
+                {row.feeder_code ? ` atau sisip gardu pada penyulang ${row.feeder_code}` : ''}.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/survei', { state: { substation_code: row.code, feeder_code: row.feeder_code, recommended_kva: recommendedKva } })}
+            className="inline-flex items-center justify-center gap-1.5 shrink-0 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-semibold px-3 py-1.5 text-xs shadow-2xs transition focus-ring cursor-pointer"
+            title={`Buat usulan survei up-rating untuk gardu ${row.code}`}
+          >
+            <span>Buat Usulan Survei</span>
+            <IconArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Footer Kartu: Ambang Batas & Dasar Data */}
       <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5 text-xs">
@@ -1004,6 +1251,7 @@ function SubstationRow({ row }) {
 }
 
 function SubstationTable({ rows }) {
+  const navigate = useNavigate()
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
       <table className="w-full text-left text-xs">
@@ -1017,11 +1265,15 @@ function SubstationTable({ rows }) {
             <th className="px-3 py-3 text-center">3 Thn Lagi (p50)</th>
             <th className="px-3 py-3 text-center">5 Thn Lagi (p50)</th>
             <th className="px-4 py-3">Ambang 80% / 100%</th>
+            <th className="px-4 py-3 text-right">Aksi Tindakan</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {rows.map((row) => {
             const rk = RISK[row.risk] || RISK.AMAN
+            const isHighRisk = row.risk === 'KRITIS' || row.risk === 'TINGGI'
+            const nextKva = getNextTrafoKva(row.capacity_kva)
+
             return (
               <tr key={row.substation_id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                 <td className="px-4 py-3">
@@ -1048,28 +1300,44 @@ function SubstationTable({ rows }) {
                   <div className="text-[10px] text-slate-400">{fmtDate(row.last_reading_on)}</div>
                 </td>
                 <td className="px-3 py-3 text-center whitespace-nowrap">
-                  <div className={`font-bold ${row.horizons['1'].p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                    {pct(row.horizons['1'].p50)}
+                  <div className={`font-bold ${row.horizons?.['1']?.p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                    {pct(row.horizons?.['1']?.p50)}
                   </div>
-                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons['1'].p10)}–{pct(row.horizons['1'].p90)}</div>
+                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons?.['1']?.p10)}–{pct(row.horizons?.['1']?.p90)}</div>
                 </td>
                 <td className="px-3 py-3 text-center whitespace-nowrap">
-                  <div className={`font-bold ${row.horizons['3'].p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                    {pct(row.horizons['3'].p50)}
+                  <div className={`font-bold ${row.horizons?.['3']?.p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                    {pct(row.horizons?.['3']?.p50)}
                   </div>
-                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons['3'].p10)}–{pct(row.horizons['3'].p90)}</div>
+                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons?.['3']?.p10)}–{pct(row.horizons?.['3']?.p90)}</div>
                 </td>
                 <td className="px-3 py-3 text-center whitespace-nowrap">
-                  <div className={`font-bold ${row.horizons['5'].p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                    {pct(row.horizons['5'].p50)}
+                  <div className={`font-bold ${row.horizons?.['5']?.p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                    {pct(row.horizons?.['5']?.p50)}
                   </div>
-                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons['5'].p10)}–{pct(row.horizons['5'].p90)}</div>
+                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons?.['5']?.p10)}–{pct(row.horizons?.['5']?.p90)}</div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="space-y-1">
                     <ExceedBadge title="80%" exceed={row.exceed_80} is100={false} />
                     <ExceedBadge title="100%" exceed={row.exceed_100} is100={true} />
                   </div>
+                </td>
+                {/* Pilihan C di tabel: Pintasan Up-rating */}
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {isHighRisk ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/survei', { state: { substation_code: row.code, feeder_code: row.feeder_code, recommended_kva: nextKva } })}
+                      className="inline-flex items-center gap-1 rounded-lg bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100 px-2.5 py-1 font-semibold transition cursor-pointer"
+                      title={`Buat usulan up-rating ke ${nextKva} kVA`}
+                    >
+                      <span>Up-rating ({nextKva} kVA)</span>
+                      <IconArrowRight className="h-3 w-3" />
+                    </button>
+                  ) : (
+                    <span className="text-slate-400 text-[11px]">-</span>
+                  )}
                 </td>
               </tr>
             )
