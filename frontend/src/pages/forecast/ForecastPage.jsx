@@ -156,103 +156,91 @@ function useRuns(kind) {
 }
 
 const TABS = [
-  { key: 'gardu', label: 'Beban gardu' },
-  { key: 'customers', label: 'Pelanggan & daya (VA)' },
-  { key: 'material', label: 'Material' },
-  { key: 'derived', label: 'Kebutuhan material PLN' },
+  { key: 'gardu', label: 'Beban gardu', hint: 'Trafo mana yang akan penuh' },
+  { key: 'customers', label: 'Pelanggan & daya (VA)', hint: 'Sambungan baru per ULP' },
+  { key: 'material', label: 'Material', hint: 'Pemakaian gudang 12 bulan' },
+  { key: 'derived', label: 'Kebutuhan material PLN', hint: 'Trafo, tiang, dan bahan turunan' },
 ]
 
 export default function ForecastPage() {
   const [tab, setTab] = useState('gardu')
+  const active = TABS.find((t) => t.key === tab)
   return (
-    <div className="space-y-6">
-      {/* Header Modul Forecast Beban Gardu & Kebutuhan */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3.5">
-            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+    <div className="space-y-5">
+      <header className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs shrink-0">
               <IconChart className="h-6 w-6" />
             </div>
-            <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Perencanaan</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Forecast Beban Gardu &amp; Kebutuhan</span>
-              </nav>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Forecast Beban Gardu &amp; Kebutuhan
-                </h1>
-                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                  Model Ansambel GRU
-                </span>
-              </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Forecast Beban Gardu &amp; Kebutuhan</h1>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-                Prakiraan berbasis deep learning (ansambel kuantil GRU 1–5 tahun): evaluasi beban gardu, pertumbuhan pelanggan &amp; daya (VA), serta proyeksi kebutuhan material PLN.
+                Prakiraan 1–5 tahun untuk beban trafo, 12 bulan untuk pelanggan, daya, dan material. Angka berupa nilai tengah (p50) dengan rentang p10–p90; gunakan bersama survei lapangan.
               </p>
             </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 shadow-2xs">
-              <IconZap size={14} className="text-amber-500" />
-              <span>Model: <strong className="font-semibold text-slate-900 dark:text-slate-100">Ansambel GRU</strong></span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 shadow-2xs">
-              <IconActivity size={14} className="text-emerald-500" />
-              <span>Horizon: <strong className="font-semibold text-slate-900 dark:text-slate-100">1 – 5 Tahun</strong></span>
-            </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300 shrink-0">
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 shadow-2xs"><IconActivity size={14} className="text-emerald-500" /> Horizon 1–5 tahun</span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 shadow-2xs"><IconZap size={14} className="text-amber-500" /> Model dipilih otomatis</span>
           </div>
         </div>
-      </div>
-
-      {/* Navigasi Tab */}
-      <div className="border-b border-slate-200 dark:border-slate-800">
         <SchedulePanel />
-      <div role="tablist" aria-label="Jenis forecast" className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      </header>
+
+      <nav aria-label="Jenis forecast">
+        <div role="tablist" aria-label="Jenis forecast" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           {TABS.map((t) => {
             const isActive = tab === t.key
             return (
               <button
                 key={t.key}
                 role="tab"
+                aria-label={t.label}
                 aria-selected={isActive}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-t-xl px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-all cursor-pointer ${
+                className={`rounded-xl border px-3.5 py-2.5 text-left transition cursor-pointer focus-ring ${
                   isActive
-                    ? 'border-blue-600 bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/50 dark:hover:bg-slate-800'
                 }`}
               >
-                <span>{t.label}</span>
+                <span className="block text-sm font-semibold leading-tight">{t.label}</span>
+                <span className={`mt-0.5 hidden text-[11px] sm:block ${isActive ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'}`}>{t.hint}</span>
               </button>
             )
           })}
         </div>
-      </div>
+      </nav>
 
-      {tab === 'gardu' ? <GarduForecast /> : tab === 'derived' ? <DerivedNeed /> : <DemandForecast key={tab} kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']} />}
+      <div role="tabpanel" aria-label={active.label}>
+        {tab === 'gardu' ? <GarduForecast /> : tab === 'derived' ? <DerivedNeed /> : <DemandForecast key={tab} kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']} />}
+      </div>
     </div>
   )
 }
 
+const RUN_STATUS = { SUCCEEDED: ['selesai', 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'], RUNNING: ['berjalan', 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'], INSUFFICIENT: ['data kurang', 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'] }
+
 function RunHeader({ title, hook, canRun, disabledReason }) {
-  const { runs, runId, setRunId, loadRuns, running, starting, start } = hook
+  const { runs, runId, setRunId, loadRuns, running, starting, start, selected } = hook
+  const [label, cls] = RUN_STATUS[selected?.status] || ['gagal', 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800']
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-        {disabledReason && <p className="text-xs text-slate-500">{disabledReason}</p>}
+    <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+          {selected && <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cls}`}>{label}</span>}
+        </div>
+        {disabledReason && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 max-w-xl">{disabledReason}</p>}
       </div>
       <div className="flex flex-wrap items-end gap-2">
         {runs.rows.length > 0 && (
           <div>
-            <label htmlFor={`fc-run-${title}`} className="block text-xs text-slate-500">Hasil forecast</label>
-            <select id={`fc-run-${title}`} value={runId} onChange={(e) => setRunId(e.target.value)} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
-              {runs.rows.map((r) => <option key={r.id} value={r.id}>{fmtDate(r.started_at)} · {{ SUCCEEDED: 'selesai', RUNNING: 'berjalan', INSUFFICIENT: 'data kurang' }[r.status] || 'gagal'}</option>)}
+            <label htmlFor={`fc-run-${title}`} className="block text-[11px] font-medium text-slate-500">Hasil forecast</label>
+            <select id={`fc-run-${title}`} value={runId} onChange={(e) => setRunId(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-base sm:text-sm focus-ring">
+              {runs.rows.map((r) => <option key={r.id} value={r.id}>{fmtDate(r.started_at)} · {({ SUCCEEDED: 'selesai', RUNNING: 'berjalan', INSUFFICIENT: 'data kurang' })[r.status] || 'gagal'}</option>)}
             </select>
           </div>
         )}
@@ -399,28 +387,41 @@ function DemandView({ run, kinds }) {
     return () => { live = false }
   }, [run.id, kind, unit, debounced, page])
 
+  const unitSuffix = KIND_UNIT[kind] ? ` ${KIND_UNIT[kind]}` : ''
   return (
     <div className="space-y-4">
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Selisih relatif (WAPE)" value={`${Math.round((m.wape ?? 0) * 100)}%`} hint="jumlah selisih prakiraan dan kenyataan dibanding jumlah kenyataan (diuji pada bulan yang tidak dipakai melatih)" />
-        <Stat label="Rentang p10–p90 tepat" value={`${Math.round((m.coverage_p10_p90 ?? 0) * 100)}%`} hint="idealnya sekitar 80%" />
-        <Stat label="Dibanding rata-rata 12 bulan" value={m.wape_gain_vs_persistence_pct == null ? '-' : `${m.wape_gain_vs_persistence_pct > 0 ? 'lebih baik ' : 'lebih buruk '}${Math.abs(m.wape_gain_vs_persistence_pct).toString().replace('.', ',')}%`} hint="dibanding menganggap tiap bulan sama dengan rata-rata 12 bulan terakhir" />
-        <Stat label="Deret diprakirakan" value={`${run.counts?.sufficient_series ?? 0} dari ${run.counts?.series ?? 0}`} hint="deret dengan riwayat < 24 bulan tidak diprakirakan" />
-      </dl>
-      <p className="text-xs text-slate-500 dark:text-slate-400">Data s.d. {fmtDate(run.data_cutoff)} · dijalankan oleh {run.started_by_name}. {run.assumptions}</p>
-      <div className="flex flex-wrap items-end gap-3">
+      <section aria-label="Ringkasan akurasi" className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Seberapa dapat dipercaya</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Data s.d. {fmtDate(run.data_cutoff)} · oleh {run.started_by_name}</p>
+        </div>
+        <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label="Selisih relatif (WAPE)" value={`${Math.round((m.wape ?? 0) * 100)}%`} hint="jumlah selisih prakiraan dan kenyataan dibanding jumlah kenyataan (diuji pada bulan yang tidak dipakai melatih)" />
+          <Stat label="Rentang p10–p90 tepat" value={`${Math.round((m.coverage_p10_p90 ?? 0) * 100)}%`} hint="idealnya sekitar 80%" />
+          <Stat label="Dibanding rata-rata 12 bulan" value={m.wape_gain_vs_persistence_pct == null ? '-' : `${m.wape_gain_vs_persistence_pct > 0 ? 'lebih baik ' : 'lebih buruk '}${Math.abs(m.wape_gain_vs_persistence_pct).toString().replace('.', ',')}%`} hint="dibanding menganggap tiap bulan sama dengan rata-rata 12 bulan terakhir" />
+          <Stat label="Deret diprakirakan" value={`${run.counts?.sufficient_series ?? 0} dari ${run.counts?.series ?? 0}`} hint="deret dengan riwayat < 24 bulan tidak diprakirakan" />
+        </dl>
+        {run.assumptions && (
+          <details className="rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-300">
+            <summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-200">Asumsi model</summary>
+            <p className="mt-1.5 leading-relaxed">{run.assumptions}</p>
+          </details>
+        )}
+      </section>
+
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-xs">
         {kinds.length > 1 && (
           <div>
-            <label htmlFor="dm-kind" className="block text-xs text-slate-500">Yang diprakirakan</label>
-            <select id="dm-kind" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
+            <label htmlFor="dm-kind" className="block text-[11px] font-medium text-slate-500">Yang diprakirakan</label>
+            <select id="dm-kind" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-base sm:text-sm focus-ring">
               {kinds.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
             </select>
           </div>
         )}
         {material && (
           <div className="flex-1 min-w-48">
-            <label htmlFor="dm-search" className="block text-xs text-slate-500">Cari material</label>
-            <input id="dm-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Nomor atau nama material" className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-sm" />
+            <label htmlFor="dm-search" className="block text-[11px] font-medium text-slate-500">Cari material</label>
+            <input id="dm-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Nomor atau nama material" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-sm focus-ring" />
           </div>
         )}
       </div>
@@ -429,32 +430,39 @@ function DemandView({ run, kinds }) {
         <EmptyState icon={IconChart} title="Tidak ada prakiraan" description="Tidak ada deret yang memenuhi syarat riwayat untuk filter ini." />
       ) : (
         <div className="space-y-3">
-          {state.rows.map((r) => (
-            <article key={r.series_id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs hover:border-blue-300 dark:hover:border-blue-700/60 transition-all">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight break-words">{r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{r.unit_name} · riwayat {r.history_months} bulan</p>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-850 p-2 rounded-xl border border-slate-200/80 dark:border-slate-800">
-                  <MiniBars months={r.months} />
-                </div>
-              </div>
-              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
-                <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3">
-                  <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">12 bulan terakhir (nyata)</dt>
-                  <dd className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{num(r.last_12_months)} <span className="text-xs font-normal text-slate-500">{KIND_UNIT[r.kind]}</span></dd>
-                </div>
-                {['3', '6', '12'].map((n) => (
-                  <div key={n} className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3">
-                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{n} bulan ke depan</dt>
-                    <dd className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{num(r.totals[n].p50)} <span className="text-xs font-normal text-slate-500">{KIND_UNIT[r.kind]}</span></dd>
-                    <dd className="mt-0.5 text-[11px] text-slate-500 font-medium">rentang {num(r.totals[n].p10)}–{num(r.totals[n].p90)}</dd>
-                  </div>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <table className="w-full min-w-176 text-left text-sm">
+              <caption className="sr-only">Prakiraan {KIND_LABEL[kind]} per ULP</caption>
+              <thead className="bg-slate-50/90 dark:bg-slate-850 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th scope="col" className="px-4 py-3">{material ? 'Material & ULP' : 'ULP'}</th>
+                  <th scope="col" className="px-3 py-3 text-right">12 bulan terakhir</th>
+                  <th scope="col" className="px-3 py-3 text-right">3 bulan ke depan</th>
+                  <th scope="col" className="px-3 py-3 text-right">6 bulan ke depan</th>
+                  <th scope="col" className="px-3 py-3 text-right">12 bulan ke depan</th>
+                  <th scope="col" className="px-4 py-3">Pola 12 bulan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {state.rows.map((r) => (
+                  <tr key={r.series_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                    <td className="px-4 py-3 max-w-72">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words">{r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}</h3>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{r.unit_name} · riwayat {r.history_months} bulan</div>
+                    </td>
+                    <td className="px-3 py-3 text-right whitespace-nowrap text-slate-700 dark:text-slate-300">{num(r.last_12_months)}<span className="text-xs text-slate-400">{unitSuffix}</span></td>
+                    {['3', '6', '12'].map((n) => (
+                      <td key={n} className="px-3 py-3 text-right whitespace-nowrap">
+                        <div className="font-bold text-slate-900 dark:text-slate-100">{num(r.totals[n].p50)}<span className="text-xs font-normal text-slate-500">{unitSuffix}</span></div>
+                        <div className="text-[11px] text-slate-500">rentang {num(r.totals[n].p10)}–{num(r.totals[n].p90)}</div>
+                      </td>
+                    ))}
+                    <td className="px-4 py-3"><MiniBars months={r.months} /></td>
+                  </tr>
                 ))}
-              </dl>
-            </article>
-          ))}
+              </tbody>
+            </table>
+          </div>
           {state.meta && <TableFooter itemCount={state.rows.length} total={state.meta.total} entityLabel="deret" page={state.meta.current_page} perPage={25} onPage={setPage} onPerPage={() => {}} perPageOptions={[25]} />}
         </div>
       )}
@@ -612,7 +620,7 @@ function RunView({ run, canReview, onReview }) {
   const debounced = useDebounce(search, 350)
   const [stale, setStale] = useState(false)
   const [page, setPage] = useState(1)
-  const [viewMode, setViewMode] = useState('cards') // 'cards' | 'table'
+  const [viewMode, setViewMode] = useState(() => { try { return localStorage.getItem('fc-view') === 'cards' ? 'cards' : 'table' } catch { return 'table' } }) // 'cards' | 'table'; tabel lebih cepat dipindai, pilihan diingat
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
 
   useEffect(() => {
@@ -661,15 +669,38 @@ function RunView({ run, canReview, onReview }) {
 
   return (
     <div className="space-y-6">
-      {/* 1. Evaluasi Keandalan & Metrik Keterpercayaan Model */}
-      <section aria-labelledby="fc-q" className="space-y-3">
+      {/* 1. Ringkasan risiko: yang paling penting dibaca lebih dulu; tiap kotak menyaring daftar gardu */}
+      <section aria-label="Ringkasan risiko" className="space-y-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { key: '', label: 'Gardu diprakirakan', value: totals.total, cls: 'text-slate-900 dark:text-slate-100', ring: 'border-slate-200 dark:border-slate-800', hint: 'semua tingkat risiko' },
+            { key: 'KRITIS', label: 'Kritis', value: totals.kritis, cls: 'text-rose-600 dark:text-rose-400', ring: 'border-rose-200 dark:border-rose-900', hint: 'sudah atau segera di atas 100%' },
+            { key: 'TINGGI', label: 'Tinggi', value: totals.tinggi, cls: 'text-orange-600 dark:text-orange-400', ring: 'border-orange-200 dark:border-orange-900', hint: 'melewati 100% dalam 3 tahun' },
+            { key: 'WASPADA', label: 'Waspada', value: totals.waspada, cls: 'text-amber-600 dark:text-amber-400', ring: 'border-amber-200 dark:border-amber-900', hint: 'melewati 100% dalam 5 tahun' },
+          ].map((t) => (
+            <button key={t.label} type="button" onClick={() => { setRisk(t.key); setPage(1) }} aria-pressed={risk === t.key}
+              className={`rounded-2xl border bg-white dark:bg-slate-900 p-4 text-left shadow-xs transition hover:shadow-sm cursor-pointer focus-ring ${risk === t.key ? 'ring-2 ring-blue-500 border-blue-400' : t.ring}`}>
+              <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t.label}</span>
+              <span className={`mt-1 block text-2xl sm:text-3xl font-bold ${t.cls}`}>{(t.value ?? 0).toLocaleString('id-ID')}</span>
+              <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">{t.hint}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" role="img" aria-label={`Proporsi risiko: ${totKritisPct}% kritis, ${totTinggiPct}% tinggi, ${totWaspadaPct}% waspada, ${totAmanPct}% aman`}>
+          {totKritisPct > 0 && <div style={{ width: `${totKritisPct}%` }} className="bg-rose-500" />}
+          {totTinggiPct > 0 && <div style={{ width: `${totTinggiPct}%` }} className="bg-orange-500" />}
+          {totWaspadaPct > 0 && <div style={{ width: `${totWaspadaPct}%` }} className="bg-amber-400" />}
+          {totAmanPct > 0 && <div style={{ width: `${totAmanPct}%` }} className="bg-emerald-500" />}
+        </div>
+      </section>
+
+      {/* 2. Seberapa dapat dipercaya: ringkas, rinciannya dilipat */}
+      <section aria-labelledby="fc-q" className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 id="fc-q" className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>Seberapa dapat dipercaya</span>
-            </h2>
+          <div className="min-w-0">
+            <h2 id="fc-q" className="text-base font-semibold text-slate-900 dark:text-slate-100">Seberapa dapat dipercaya</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Evaluasi kinerja model prakiraan pada data uji independen.
+              <span className="font-medium text-slate-700 dark:text-slate-300">{run.model?.name} v{run.model?.version}</span> · {run.counts?.forecast_substations?.toLocaleString('id-ID')} gardu · data s.d. {fmtDate(run.data_cutoff)} · oleh {run.started_by_name}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -689,28 +720,26 @@ function RunView({ run, canReview, onReview }) {
           <Stat label="Dibanding pembacaan terakhir" value={m.mae_gain_vs_persistence_pct == null ? '-' : `${m.mae_gain_vs_persistence_pct > 0 ? 'lebih baik ' : 'lebih buruk '}${Math.abs(m.mae_gain_vs_persistence_pct).toString().replace('.', ',')}%`} hint="dibanding menganggap beban sama dengan pembacaan terakhir" />
         </dl>
 
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-          Model: <span className="font-medium text-slate-700 dark:text-slate-300">{run.model?.name} v{run.model?.version}</span> · <span className="font-medium text-slate-700 dark:text-slate-300">{run.counts?.forecast_substations?.toLocaleString('id-ID')} gardu</span> · data pembacaan s.d. {fmtDate(run.data_cutoff)} · dijalankan oleh {run.started_by_name}. Prakiraan per gardu bersifat indikatif (kebanyakan gardu hanya diukur sekitar setahun sekali); gunakan bersama survei lapangan.
-        </p>
-        {run.model?.candidates && (
-          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed" data-testid="model-candidates">
-            Model dipilih otomatis dari galat terkecil pada data validasi:{' '}
-            {Object.entries(run.model.candidates).map(([key, c], i) => (
-              <span key={key}>
-                {i > 0 && ' · '}
-                <span className={key === run.model.chosen ? 'font-semibold text-slate-700 dark:text-slate-200' : ''}>
-                  {{ gru: 'GRU', gbm: 'LightGBM', ensemble: 'Gabungan' }[key] || key} {String(c.val_mae_pp).replace('.', ',')} poin{key === run.model.chosen ? ' (dipakai)' : ''}
-                </span>
-              </span>
-            ))}.
-          </p>
-        )}
-        {run.assumptions && (
-          <details className="text-xs text-slate-600 dark:text-slate-300 rounded-xl bg-slate-50 dark:bg-slate-850 p-3 border border-slate-200/80 dark:border-slate-800">
-            <summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-200">Asumsi Model &amp; Parameter Pembelajaran</summary>
-            <p className="mt-1.5 leading-relaxed">{run.assumptions}</p>
-          </details>
-        )}
+        <details className="group rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-300">
+          <summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-200">Cara model dipilih dan asumsinya</summary>
+          <div className="mt-2 space-y-2 leading-relaxed">
+            <p>Prakiraan per gardu bersifat indikatif: kebanyakan gardu hanya diukur sekitar setahun sekali. Skenario ini tanpa sisipan atau pecah beban, jadi beban tidak turun.</p>
+            {run.model?.candidates && (
+              <p data-testid="model-candidates">
+                Model dipilih otomatis dari galat terkecil pada data validasi:{' '}
+                {Object.entries(run.model.candidates).map(([key, c], i) => (
+                  <span key={key}>
+                    {i > 0 && ' · '}
+                    <span className={key === run.model.chosen ? 'font-semibold text-slate-800 dark:text-slate-100' : ''}>
+                      {{ gru: 'GRU', gbm: 'LightGBM', ensemble: 'Gabungan' }[key] || key} {String(c.val_mae_pp).replace('.', ',')} poin{key === run.model.chosen ? ' (dipakai)' : ''}
+                    </span>
+                  </span>
+                ))}.
+              </p>
+            )}
+            {run.assumptions && <p>{run.assumptions}</p>}
+          </div>
+        </details>
         {run.review_note && (
           <div className="rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 p-3 text-xs text-blue-900 dark:text-blue-200">
             <span className="font-semibold">Catatan telaah ({run.reviewed_by_name}):</span> {run.review_note}
@@ -883,7 +912,7 @@ function RunView({ run, canReview, onReview }) {
             <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
-                onClick={() => setViewMode('cards')}
+                onClick={() => { setViewMode('cards'); try { localStorage.setItem('fc-view', 'cards') } catch { /* diabaikan */ } }}
                 className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   viewMode === 'cards'
                     ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
@@ -894,7 +923,7 @@ function RunView({ run, canReview, onReview }) {
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode('table')}
+                onClick={() => { setViewMode('table'); try { localStorage.setItem('fc-view', 'table') } catch { /* diabaikan */ } }}
                 className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   viewMode === 'table'
                     ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
@@ -1375,45 +1404,58 @@ function DerivedNeed() {
   if (error) return <Alert variant="error">{error}</Alert>
   if (!data) return <div className="flex justify-center py-12"><Spinner /></div>
   const { gardu, customers, materials, poles } = data
+  const th = 'px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'
+  const notices = [
+    !gardu.run_id && <Alert key="g" variant="warning">Forecast beban gardu belum pernah dijalankan, jadi kebutuhan trafo pengganti belum bisa dihitung.</Alert>,
+    customers.status !== 'SUCCEEDED' && <Alert key="c" variant="warning">Kebutuhan material untuk pelanggan baru belum bisa dihitung: forecast pelanggan belum berhasil (riwayat data belum cukup). Lihat tab Pelanggan & daya (VA).</Alert>,
+    gardu.without_bom?.length > 0 && <Alert key="b" variant="info">{`Ukuran trafo pengganti tanpa baris konstruksi di BOM (hanya trafo yang dihitung, bila ada di KHS): ${gardu.without_bom.map((x) => `${x.kva} kVA (${x.count} gardu)`).join(', ')}.`}</Alert>,
+  ].filter(Boolean)
   return (
     <div className="space-y-5">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Kebutuhan material yang disediakan PLN</h2>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 max-w-3xl">Dihitung dari dua sumber: trafo pengganti untuk gardu yang sudah di atas ambang, dan bahan sambungan untuk pelanggan baru. Semua angka untuk 12 bulan ke depan.</p>
+      </div>
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label={`Gardu di atas ${Math.round(data.threshold * 100)}%`} value={num(gardu.trigger_count)} hint="Trafo PLN aktif; diganti satu tingkat kapasitas di atasnya" />
         <Stat label="Pelanggan baru, 12 bulan" value={customers.new_customers ? range(customers.new_customers) : '-'} hint="Median (rentang p10-p90)" />
         <Stat label="Jenis material PLN" value={num(materials.length)} />
         <Stat label="Jenis tiang diprakirakan" value={num(new Set(poles.map((p) => p.item_code)).size)} />
       </dl>
-      {!gardu.run_id && <Alert variant="warning">Forecast beban gardu belum pernah dijalankan, jadi kebutuhan trafo pengganti belum bisa dihitung.</Alert>}
-      {customers.status !== 'SUCCEEDED' && <Alert variant="warning">Kebutuhan material untuk pelanggan baru belum bisa dihitung: forecast pelanggan belum berhasil (riwayat data belum cukup). Lihat tab Pelanggan & daya (VA).</Alert>}
-      {gardu.without_bom?.length > 0 && <Alert variant="info">{`Ukuran trafo pengganti tanpa baris konstruksi di BOM (hanya trafo yang dihitung, bila ada di KHS): ${gardu.without_bom.map((x) => `${x.kva} kVA (${x.count} gardu)`).join(', ')}.`}</Alert>}
+      {notices.length > 0 && <div className="space-y-2" aria-label="Yang perlu dilengkapi">{notices}</div>}
       {materials.length === 0 ? <EmptyState icon={IconChart} title="Belum ada kebutuhan turunan" description="Belum ada gardu di atas ambang atau forecast pelanggan yang berhasil." /> : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <table className="w-full text-left text-sm">
-            <thead><tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700"><th className="px-3 py-2">Kode</th><th className="px-3 py-2">Material (disediakan PLN)</th><th className="px-3 py-2 text-right">Dari gardu</th><th className="px-3 py-2 text-right">Dari pelanggan baru</th><th className="px-3 py-2 text-right">Total 12 bulan</th></tr></thead>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <table className="w-full min-w-160 text-left text-sm">
+            <caption className="sr-only">Material PLN yang dibutuhkan 12 bulan ke depan</caption>
+            <thead className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800"><tr><th scope="col" className={th}>Kode</th><th scope="col" className={th}>Material (disediakan PLN)</th><th scope="col" className={`${th} text-right`}>Dari gardu</th><th scope="col" className={`${th} text-right`}>Dari pelanggan baru</th><th scope="col" className={`${th} text-right`}>Total 12 bulan</th></tr></thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {materials.map((m) => (
-                <tr key={m.code}><td className="px-3 py-2 font-mono text-xs">{m.code}</td><td className="px-3 py-2">{m.name}</td><td className="px-3 py-2 text-right">{num(m.gardu)}</td><td className="px-3 py-2 text-right">{customers.new_customers ? range(m.customers) : '-'}</td><td className="px-3 py-2 text-right font-medium">{range(m.total)}</td></tr>
+                <tr key={m.code} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"><td className="px-3 py-3 font-mono text-xs">{m.code}</td><td className="px-3 py-3 text-slate-900 dark:text-slate-100">{m.name}</td><td className="px-3 py-3 text-right">{num(m.gardu)}</td><td className="px-3 py-3 text-right">{customers.new_customers ? range(m.customers) : '-'}</td><td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-slate-100">{range(m.total)}</td></tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
       <section aria-label="Kebutuhan tiang" className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Kebutuhan tiang</h2>
-        {poles.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">Prakiraan tiang belum ada: dihitung dari pemakaian tiang di MIMS dan butuh riwayat minimal 24 bulan (lihat tab Material).</p> : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <table className="w-full text-left text-sm">
-              <thead><tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700"><th className="px-3 py-2">ULP</th><th className="px-3 py-2">Tiang</th><th className="px-3 py-2 text-right">12 bulan terakhir</th><th className="px-3 py-2 text-right">12 bulan ke depan</th></tr></thead>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Kebutuhan tiang</h2>
+        {poles.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-sm text-slate-500 dark:text-slate-400">Prakiraan tiang belum ada: dihitung dari pemakaian tiang di MIMS dan butuh riwayat minimal 24 bulan (lihat tab Material).</p> : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <table className="w-full min-w-136 text-left text-sm">
+              <caption className="sr-only">Tiang yang dibutuhkan per ULP</caption>
+              <thead className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800"><tr><th scope="col" className={th}>ULP</th><th scope="col" className={th}>Tiang</th><th scope="col" className={`${th} text-right`}>12 bulan terakhir</th><th scope="col" className={`${th} text-right`}>12 bulan ke depan</th></tr></thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {poles.map((p) => (
-                  <tr key={`${p.unit_code}-${p.item_code}`}><td className="px-3 py-2">{p.unit_name}</td><td className="px-3 py-2">{p.item_label}</td><td className="px-3 py-2 text-right">{num(p.last_12_months)}</td><td className="px-3 py-2 text-right font-medium">{range(p.next_12_months)}</td></tr>
+                  <tr key={`${p.unit_code}-${p.item_code}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"><td className="px-3 py-3">{p.unit_name}</td><td className="px-3 py-3">{p.item_label}</td><td className="px-3 py-3 text-right">{num(p.last_12_months)}</td><td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-slate-100">{range(p.next_12_months)}</td></tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
       </section>
-      <ul className="list-disc space-y-1 pl-5 text-xs text-slate-500 dark:text-slate-400">{data.assumptions.map((a) => <li key={a}>{a}</li>)}</ul>
+      <details className="rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-300">
+        <summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-200">Cara angka ini dihitung</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5 leading-relaxed">{data.assumptions.map((a) => <li key={a}>{a}</li>)}</ul>
+      </details>
     </div>
   )
 }
@@ -1450,7 +1492,7 @@ function SchedulePanel() {
   }
   const last = sched.last_auto?.GARDU_LOAD || sched.last_auto?.DEMAND
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm">
+    <div className="mt-3 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-slate-700 dark:text-slate-300">
           <span className="font-semibold">Jadwal otomatis:</span>{' '}
