@@ -876,4 +876,23 @@ class InventoryTest extends PostgresTestCase
         $ex(['khs_code' => '1', 'reason' => 'Diadakan per proyek'])->assertCreated();                                             // exempting again after a lift is allowed
         $this->assertSame(2, DB::table('khs_sku_exemptions')->count());
     }
+
+    #[Test]
+    public function the_reservation_probe_reports_the_key_names_and_what_they_cover_without_values_or_saving(): void
+    {
+        config(['distriva.mims.base_url' => 'https://mims-probe.test']);
+        $wh = (object) ['plant' => '5118', 'stor_loc' => '2810'];
+        $svc = app(MimsReservationSyncService::class);
+        Http::fake(['mims-probe.test/*' => Http::sequence()->push(['data' => [['no_pemesanan' => '5145000001', 'tgl_pemesanan' => '14-11-2026', 'status_pemakaian' => 'SUDAH', 'nilai_rahasia' => 'JANGAN-TAMPIL']]])
+            ->push(['data' => [['kolom_baru' => 'x']]])->push('', 401)]);
+        $r = $svc->probe($wh, 'token-uji-123456');
+        $this->assertSame(['OK', 1], [$r['status'], $r['rows']]);
+        $this->assertSame('no_pemesanan', $r['covered']['nomor reservasi']);
+        $this->assertNull($r['covered']['reservasi SAP']);
+        $this->assertStringNotContainsString('JANGAN-TAMPIL', json_encode($r));
+        $this->assertSame(0, DB::table('mims_reservations')->count());
+
+        $this->assertSame('UNKNOWN_KEYS', $svc->probe($wh, 'token-uji-123456')['status']);
+        $this->assertStringContainsString('401', (string) $svc->probe($wh, 'token-uji-123456')['message']);
+    }
 }

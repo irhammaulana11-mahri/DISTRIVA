@@ -134,6 +134,39 @@ class MimsReservationSyncService
         return $finish('OK', null, $docs, $matched);
     }
 
+    /**
+     * Verifies the answer of getDataReservasiHeader on ONE warehouse without saving anything: the HTTP status, the number of rows, the KEY NAMES of the first row (never values) and which of
+     * the expected fields they cover, so the key mapping above can be confirmed or corrected.
+     *
+     * @return array{status:string,http:?int,rows:int,keys:list<string>,covered:array<string,?string>,message:?string}
+     */
+    public function probe(object $wh, string $token, int $days = 30): array
+    {
+        $base = rtrim((string) config('distriva.mims.base_url'), '/');
+        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
+        $payload = ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => '', 'stor_loc' => (string) $wh->stor_loc,
+            'tanggal' => $now->subDays($days)->format('d-m-Y'), 'tanggal_akhir' => $now->format('d-m-Y')];
+        try {
+            $res = Http::withHeaders(['auth-token' => $token, 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])
+                ->timeout((int) config('distriva.mims.mirror_timeout_seconds'))->asJson()->post($base.config('distriva.mims.reservation_header_path'), $payload);
+        } catch (\Throwable $e) {
+            return ['status' => 'FAILED', 'http' => null, 'rows' => 0, 'keys' => [], 'covered' => [], 'message' => MimsStockSyncService::connectionMessage($e, 'mengambil daftar reservasi')];
+        }
+        if (! $res->successful()) {
+            return ['status' => 'FAILED', 'http' => $res->status(), 'rows' => 0, 'keys' => [], 'covered' => [], 'message' => 'MIMS menjawab status HTTP '.$res->status().'.'];
+        }
+        $rows = $res->json('data');
+        if (! is_array($rows)) {
+            return ['status' => 'FAILED', 'http' => $res->status(), 'rows' => 0, 'keys' => [], 'covered' => [], 'message' => 'Jawaban tidak memuat daftar reservasi (data).'];
+        }
+        $keys = $rows === [] ? [] : array_map('strval', array_keys((array) $rows[array_key_first($rows)]));
+        $cover = fn (array $wanted): ?string => collect($wanted)->first(fn (string $k) => in_array($k, $keys, true));
+        $covered = ['nomor reservasi' => $cover(self::RESERVATION_KEYS), 'tanggal' => $cover(self::DATE_KEYS), 'status' => $cover(self::STATUS_KEYS), 'reservasi SAP' => $cover(['reservasi_sap', 'no_reservasi_sap']),
+            'jenis pekerjaan' => $cover(['nama_jenis_pekerjaan', 'jenis_pekerjaan_nama']), 'keterangan' => $cover(['text', 'keterangan'])];
+
+        return ['status' => $rows === [] ? 'EMPTY' : ($covered['nomor reservasi'] === null ? 'UNKNOWN_KEYS' : 'OK'), 'http' => $res->status(), 'rows' => count($rows), 'keys' => $keys, 'covered' => $covered, 'message' => null];
+    }
+
     /** @param  array<string,mixed>  $row  @param  list<string>  $keys */
     private function first(array $row, array $keys): ?string
     {
