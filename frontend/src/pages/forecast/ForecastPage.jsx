@@ -9,7 +9,19 @@ import EmptyState from '../../components/EmptyState.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
-import { IconChart, IconRefresh, IconZap, IconActivity, IconLayers } from '../../components/icons.jsx'
+import {
+  IconChart,
+  IconRefresh,
+  IconZap,
+  IconActivity,
+  IconLayers,
+  IconSearch,
+  IconCheckCircle,
+  IconAlertCircle,
+  IconClock,
+  IconBuilding,
+  IconX,
+} from '../../components/icons.jsx'
 
 /**
  * Forecast beban gardu (docs/11; deep learning, keputusan pemilik Nov 2026): satu jaringan saraf bersama memprakirakan beban kVA gardu terhadap kapasitas trafo pada 1, 3, dan 5 tahun ke depan,
@@ -359,18 +371,27 @@ function DemandView({ run, kinds }) {
       ) : (
         <div className="space-y-3">
           {state.rows.map((r) => (
-            <article key={r.series_id} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
+            <article key={r.series_id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs hover:border-blue-300 dark:hover:border-blue-700/60 transition-all">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words">{r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{r.unit_name} · riwayat {r.history_months} bulan</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight break-words">{r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{r.unit_name} · riwayat {r.history_months} bulan</p>
                 </div>
-                <MiniBars months={r.months} />
+                <div className="bg-slate-50 dark:bg-slate-850 p-2 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                  <MiniBars months={r.months} />
+                </div>
               </div>
-              <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
-                <div><dt className="text-slate-400">12 bulan terakhir (nyata)</dt><dd className="text-base font-semibold text-slate-900 dark:text-slate-100">{num(r.last_12_months)} {KIND_UNIT[r.kind]}</dd></div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+                <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3">
+                  <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">12 bulan terakhir (nyata)</dt>
+                  <dd className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{num(r.last_12_months)} <span className="text-xs font-normal text-slate-500">{KIND_UNIT[r.kind]}</span></dd>
+                </div>
                 {['3', '6', '12'].map((n) => (
-                  <div key={n}><dt className="text-slate-400">{n} bulan ke depan</dt><dd className="text-base font-semibold text-slate-900 dark:text-slate-100">{num(r.totals[n].p50)} {KIND_UNIT[r.kind]}</dd><dd className="text-slate-500">rentang {num(r.totals[n].p10)}–{num(r.totals[n].p90)}</dd></div>
+                  <div key={n} className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3">
+                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{n} bulan ke depan</dt>
+                    <dd className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{num(r.totals[n].p50)} <span className="text-xs font-normal text-slate-500">{KIND_UNIT[r.kind]}</span></dd>
+                    <dd className="mt-0.5 text-[11px] text-slate-500 font-medium">rentang {num(r.totals[n].p10)}–{num(r.totals[n].p90)}</dd>
+                  </div>
                 ))}
               </dl>
             </article>
@@ -392,6 +413,59 @@ function Stat({ label, value, hint }) {
   )
 }
 
+function LoadBar({ value }) {
+  const ratio = value ?? 0
+  const pctDisplay = Math.min(Math.max(ratio * 100, 0), 100)
+  const isOver100 = ratio >= 1.0
+  const isOver80 = ratio >= 0.8
+
+  const barColor = isOver100
+    ? 'bg-rose-500 dark:bg-rose-500'
+    : isOver80
+    ? 'bg-amber-500 dark:bg-amber-500'
+    : 'bg-emerald-500 dark:bg-emerald-500'
+
+  return (
+    <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-750">
+      <div
+        className="absolute top-0 bottom-0 z-10 w-0.5 bg-amber-400 dark:bg-amber-300"
+        style={{ left: '80%' }}
+        title="Batas ambang 80%"
+      />
+      <div
+        className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+        style={{ width: `${pctDisplay}%` }}
+      />
+    </div>
+  )
+}
+
+function ExceedBadge({ title, exceed, is100 = false }) {
+  const text = exceedText(exceed)
+  const isAlready = exceed?.state === 'already'
+  const isForecast = exceed?.state === 'forecast'
+
+  let badgeCls = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+  if (isAlready) {
+    badgeCls = is100
+      ? 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800'
+      : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800'
+  } else if (isForecast) {
+    badgeCls = is100
+      ? 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-800'
+      : 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-950/70 dark:text-yellow-300 dark:border-yellow-800'
+  }
+
+  return (
+    <div className="inline-flex items-center gap-1.5 text-xs">
+      <span className="text-slate-500 dark:text-slate-400 font-medium">{title}:</span>
+      <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${badgeCls}`}>
+        {text}
+      </span>
+    </div>
+  )
+}
+
 function RunView({ run, canReview, onReview }) {
   const m = run.metrics?.all || {}
   const [unit, setUnit] = useState('')
@@ -400,6 +474,7 @@ function RunView({ run, canReview, onReview }) {
   const debounced = useDebounce(search, 350)
   const [stale, setStale] = useState(false)
   const [page, setPage] = useState(1)
+  const [viewMode, setViewMode] = useState('cards') // 'cards' | 'table'
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
 
   useEffect(() => {
@@ -411,80 +486,398 @@ function RunView({ run, canReview, onReview }) {
     return () => { live = false }
   }, [run.id, unit, risk, debounced, stale, page])
 
-  const totals = run.summary.reduce((a, s) => ({ total: a.total + s.total, kritis: a.kritis + s.kritis, tinggi: a.tinggi + s.tinggi, waspada: a.waspada + s.waspada }), { total: 0, kritis: 0, tinggi: 0, waspada: 0 })
+  const totals = run.summary.reduce(
+    (a, s) => ({ total: a.total + s.total, kritis: a.kritis + s.kritis, tinggi: a.tinggi + s.tinggi, waspada: a.waspada + s.waspada }),
+    { total: 0, kritis: 0, tinggi: 0, waspada: 0 }
+  )
+
+  const isFiltered = Boolean(unit || risk || search || stale)
+  const resetFilters = () => {
+    setUnit('')
+    setRisk('')
+    setSearch('')
+    setStale(false)
+    setPage(1)
+  }
 
   return (
-    <div className="space-y-5">
-      <section aria-labelledby="fc-q" className="space-y-2">
+    <div className="space-y-6">
+      {/* 1. Evaluasi Keandalan & Metrik Keterpercayaan Model */}
+      <section aria-labelledby="fc-q" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="fc-q" className="text-base font-semibold text-slate-900 dark:text-slate-100">Seberapa dapat dipercaya</h2>
+          <div>
+            <h2 id="fc-q" className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <span>Seberapa dapat dipercaya</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Evaluasi kinerja pemodelan Deep Learning GRU kuantil pada data validasi independen.
+            </p>
+          </div>
           <div className="flex items-center gap-2">
-            <span className={`${pill} ${run.review_status === 'REVIEWED' ? RISK.AMAN.cls : RISK.WASPADA.cls}`}>{run.review_status === 'REVIEWED' ? 'Sudah ditelaah' : 'Belum ditelaah'}</span>
-            {canReview && run.review_status !== 'REVIEWED' && <Button size="sm" variant="outline" onClick={onReview}>Tandai ditelaah</Button>}
+            <span className={`${pill} ${run.review_status === 'REVIEWED' ? RISK.AMAN.cls : RISK.WASPADA.cls}`}>
+              {run.review_status === 'REVIEWED' ? 'Sudah ditelaah' : 'Belum ditelaah'}
+            </span>
+            {canReview && run.review_status !== 'REVIEWED' && (
+              <Button size="sm" variant="outline" onClick={onReview}>Tandai ditelaah</Button>
+            )}
           </div>
         </div>
+
         <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="Selisih rata-rata" value={`${(m.mae_pp ?? 0).toString().replace('.', ',')} poin`} hint="antara prakiraan dan pengukuran nyata, dalam % kapasitas trafo (diuji pada data yang tidak dipakai melatih)" />
           <Stat label="Rentang p10–p90 tepat" value={`${Math.round((m.coverage_p10_p90 ?? 0) * 100)}%`} hint="hasil nyata yang jatuh di dalam rentang prakiraan (idealnya sekitar 80%)" />
           <Stat label="Gardu overload terdeteksi" value={`${Math.round((m.overload_recall_p90 ?? 0) * 100)}%`} hint={`bila memakai batas atas rentang (p90); dengan nilai tengah saja ${Math.round((m.overload_recall_p50 ?? 0) * 100)}%`} />
           <Stat label="Dibanding pembacaan terakhir" value={m.mae_gain_vs_persistence_pct == null ? '-' : `${m.mae_gain_vs_persistence_pct > 0 ? 'lebih baik ' : 'lebih buruk '}${Math.abs(m.mae_gain_vs_persistence_pct).toString().replace('.', ',')}%`} hint="dibanding menganggap beban sama dengan pembacaan terakhir" />
         </dl>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Model: {run.model?.name} v{run.model?.version} · {run.counts?.forecast_substations?.toLocaleString('id-ID')} gardu · data pembacaan s.d. {fmtDate(run.data_cutoff)} · dijalankan oleh {run.started_by_name}. Prakiraan per gardu bersifat indikatif (kebanyakan gardu hanya diukur sekitar setahun sekali); gunakan bersama survei lapangan.
+
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          Model: <span className="font-medium text-slate-700 dark:text-slate-300">{run.model?.name} v{run.model?.version}</span> · <span className="font-medium text-slate-700 dark:text-slate-300">{run.counts?.forecast_substations?.toLocaleString('id-ID')} gardu</span> · data pembacaan s.d. {fmtDate(run.data_cutoff)} · dijalankan oleh {run.started_by_name}. Prakiraan per gardu bersifat indikatif (kebanyakan gardu hanya diukur sekitar setahun sekali); gunakan bersama survei lapangan.
         </p>
-        {run.assumptions && <details className="text-xs text-slate-600 dark:text-slate-300"><summary className="cursor-pointer font-medium">Asumsi</summary><p className="mt-1">{run.assumptions}</p></details>}
-        {run.review_note && <p className="text-xs text-slate-600 dark:text-slate-300">Catatan telaah ({run.reviewed_by_name}): {run.review_note}</p>}
+        {run.assumptions && (
+          <details className="text-xs text-slate-600 dark:text-slate-300 rounded-xl bg-slate-50 dark:bg-slate-850 p-3 border border-slate-200/80 dark:border-slate-800">
+            <summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-200">Asumsi Model &amp; Parameter Pembelajaran</summary>
+            <p className="mt-1.5 leading-relaxed">{run.assumptions}</p>
+          </details>
+        )}
+        {run.review_note && (
+          <div className="rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 p-3 text-xs text-blue-900 dark:text-blue-200">
+            <span className="font-semibold">Catatan telaah ({run.reviewed_by_name}):</span> {run.review_note}
+          </div>
+        )}
       </section>
 
-      <section aria-labelledby="fc-s" className="space-y-2">
-        <h2 id="fc-s" className="text-base font-semibold text-slate-900 dark:text-slate-100">Ringkasan per ULP</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+      {/* 2. Ringkasan per ULP (Tabel Card Modern & Interaktif) */}
+      <section aria-labelledby="fc-s" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 id="fc-s" className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <IconBuilding className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span>Ringkasan per ULP</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Distribusi status risiko trafo per unit layanan. Klik baris ULP untuk langsung memfilter daftar gardu di bawahnya.
+            </p>
+          </div>
+          {unit && (
+            <button
+              type="button"
+              onClick={() => { setUnit(''); setPage(1) }}
+              className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            >
+              <IconX className="h-3.5 w-3.5" />
+              <span>Reset filter ULP</span>
+            </button>
+          )}
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
           <table className="w-full text-left text-sm">
-            <thead><tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700">
-              <th className="px-3 py-2">ULP</th><th className="px-3 py-2 text-right">Gardu</th><th className="px-3 py-2 text-right">Kritis</th><th className="px-3 py-2 text-right">Tinggi</th><th className="px-3 py-2 text-right">Waspada</th></tr></thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {run.summary.map((s) => (
-                <tr key={s.unit_id}><td className="px-3 py-2">{s.unit_code} · {s.unit_name}</td><td className="px-3 py-2 text-right">{s.total}</td>
-                  <td className="px-3 py-2 text-right font-semibold text-red-700 dark:text-red-300">{s.kritis}</td><td className="px-3 py-2 text-right">{s.tinggi}</td><td className="px-3 py-2 text-right">{s.waspada}</td></tr>
-              ))}
-              <tr className="font-semibold"><td className="px-3 py-2">Jumlah</td><td className="px-3 py-2 text-right">{totals.total}</td><td className="px-3 py-2 text-right">{totals.kritis}</td><td className="px-3 py-2 text-right">{totals.tinggi}</td><td className="px-3 py-2 text-right">{totals.waspada}</td></tr>
+            <thead className="bg-slate-50/90 dark:bg-slate-850 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="px-4 py-3">ULP</th>
+                <th className="px-3 py-3 text-right">Total Gardu</th>
+                <th className="px-3 py-3 text-right">Kritis (&gt;100% / 1 th)</th>
+                <th className="px-3 py-3 text-right">Tinggi (&lt;3 th)</th>
+                <th className="px-3 py-3 text-right">Waspada (&lt;5 th)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs sm:text-sm">
+              {run.summary.map((s) => {
+                const isSelected = unit === s.unit_id
+                return (
+                  <tr
+                    key={s.unit_id}
+                    onClick={() => { setUnit(isSelected ? '' : s.unit_id); setPage(1) }}
+                    className={`cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-blue-50/80 dark:bg-blue-950/50 font-medium'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                    title="Klik untuk menyaring gardu ULP ini"
+                  >
+                    <td className="px-4 py-3 flex items-center gap-2">
+                      <span className={`inline-block w-2 h-2 rounded-full ${isSelected ? 'bg-blue-600' : 'bg-transparent'}`} />
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">{s.unit_code} · {s.unit_name}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
+                      {s.total?.toLocaleString('id-ID')}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {s.kritis > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
+                          {s.kritis}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">0</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {s.tinggi > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-50 text-orange-700 dark:bg-orange-950/70 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60">
+                          {s.tinggi}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">0</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {s.waspada > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                          {s.waspada}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">0</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              <tr className="bg-slate-50/90 dark:bg-slate-850 font-bold border-t-2 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100">
+                <td className="px-4 py-3">Jumlah Keseluruhan</td>
+                <td className="px-3 py-3 text-right">{totals.total?.toLocaleString('id-ID')}</td>
+                <td className="px-3 py-3 text-right text-rose-700 dark:text-rose-300">{totals.kritis}</td>
+                <td className="px-3 py-3 text-right text-orange-700 dark:text-orange-300">{totals.tinggi}</td>
+                <td className="px-3 py-3 text-right text-amber-700 dark:text-amber-300">{totals.waspada}</td>
+              </tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <section aria-labelledby="fc-l" className="space-y-3">
-        <h2 id="fc-l" className="text-base font-semibold text-slate-900 dark:text-slate-100">Daftar gardu</h2>
-        <div className="flex flex-wrap items-end gap-3">
+      {/* 3. Daftar Gardu Hasil Prediksi (Filter Panel & Tampilan Proporsional) */}
+      <section aria-labelledby="fc-l" className="space-y-4">
+        {/* Section Header with View Mode Switch */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <label htmlFor="fc-risk" className="block text-xs text-slate-500">Tingkat risiko</label>
-            <select id="fc-risk" value={risk} onChange={(e) => { setRisk(e.target.value); setPage(1) }} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
-              <option value="">Semua</option>
-              {Object.entries(RISK).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
+            <h2 id="fc-l" className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <IconZap className="h-4 w-4 text-amber-500" />
+              <span>Daftar gardu</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Evaluasi beban trafo real-time dan prakiraan horizon 1, 3, dan 5 tahun berdasarkan model ansambel GRU.
+            </p>
           </div>
-          {run.summary.length > 1 && (
-            <div>
-              <label htmlFor="fc-unit" className="block text-xs text-slate-500">ULP</label>
-              <select id="fc-unit" value={unit} onChange={(e) => { setUnit(e.target.value); setPage(1) }} className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 text-base sm:text-sm">
-                <option value="">Semua</option>
-                {run.summary.map((s) => <option key={s.unit_id} value={s.unit_id}>{s.unit_code} · {s.unit_name}</option>)}
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 dark:text-slate-400">Mode:</span>
+            <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  viewMode === 'cards'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                Kartu Detail
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                Tabel Ringkas
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Panel Card */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-slate-50/80 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-4 sm:p-5 shadow-xs space-y-3.5">
+          {/* Baris 1: Filter Form Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+            {/* Search Input */}
+            <div className="lg:col-span-5">
+              <label htmlFor="fc-search" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Cari Gardu
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <IconSearch className="h-4 w-4" />
+                </div>
+                <input
+                  id="fc-search"
+                  type="search"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                  placeholder="Kode, nama gardu, atau penyulang"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus-ring"
+                />
+              </div>
+            </div>
+
+            {/* Select Tingkat Risiko */}
+            <div className="lg:col-span-3">
+              <label htmlFor="fc-risk" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Tingkat risiko
+              </label>
+              <select
+                id="fc-risk"
+                value={risk}
+                onChange={(e) => { setRisk(e.target.value); setPage(1) }}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus-ring"
+              >
+                <option value="">Semua Tingkat Risiko</option>
+                {Object.entries(RISK).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
               </select>
             </div>
-          )}
-          <div className="flex-1 min-w-48">
-            <label htmlFor="fc-search" className="block text-xs text-slate-500">Cari</label>
-            <input id="fc-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Kode, nama gardu, atau penyulang" className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-sm" />
+
+            {/* Select ULP */}
+            {run.summary.length > 1 && (
+              <div className="lg:col-span-4">
+                <label htmlFor="fc-unit" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  ULP
+                </label>
+                <select
+                  id="fc-unit"
+                  value={unit}
+                  onChange={(e) => { setUnit(e.target.value); setPage(1) }}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus-ring"
+                >
+                  <option value="">Semua Unit Layanan (ULP)</option>
+                  {run.summary.map((s) => (
+                    <option key={s.unit_id} value={s.unit_id}>{s.unit_code} · {s.unit_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 pb-2"><input type="checkbox" checked={stale} onChange={(e) => { setStale(e.target.checked); setPage(1) }} /> Pembacaan terakhir &gt; 3 tahun</label>
+
+          {/* Baris 2: Quick Filter Chips & Stale Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/80 dark:border-slate-800 text-xs">
+            {/* Quick Chips */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-slate-500 dark:text-slate-400 font-medium mr-1">Filter Cepat:</span>
+              <button
+                type="button"
+                onClick={() => { setRisk(''); setPage(1) }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  risk === ''
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
+                }`}
+              >
+                Semua ({totals.total})
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRisk('KRITIS'); setPage(1) }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  risk === 'KRITIS'
+                    ? 'bg-rose-600 text-white shadow-2xs'
+                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100'
+                }`}
+              >
+                Kritis ({totals.kritis})
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRisk('TINGGI'); setPage(1) }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  risk === 'TINGGI'
+                    ? 'bg-orange-600 text-white shadow-2xs'
+                    : 'bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:bg-orange-100'
+                }`}
+              >
+                Tinggi ({totals.tinggi})
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRisk('WASPADA'); setPage(1) }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  risk === 'WASPADA'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                Waspada ({totals.waspada})
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRisk('AMAN'); setPage(1) }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  risk === 'AMAN'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+                }`}
+              >
+                Aman
+              </button>
+            </div>
+
+            {/* Checkbox Pembacaan Lama & Reset Button */}
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={stale}
+                  onChange={(e) => { setStale(e.target.checked); setPage(1) }}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span>Pembacaan terakhir &gt; 3 tahun</span>
+              </label>
+
+              {isFiltered && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                >
+                  <IconX className="h-3.5 w-3.5" />
+                  <span>Reset Filter</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Alerts & Data Results */}
         {state.error && <Alert variant="error">{state.error}</Alert>}
-        {state.loading ? <div className="flex justify-center py-10"><Spinner /></div> : state.rows.length === 0 ? (
-          <EmptyState icon={IconChart} title="Tidak ada gardu" description="Tidak ada gardu yang sesuai filter." />
+        {state.loading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <Spinner />
+            <p className="text-xs text-slate-500 dark:text-slate-400">Memuat data prakiraan gardu...</p>
+          </div>
+        ) : state.rows.length === 0 ? (
+          <EmptyState
+            icon={IconChart}
+            title="Tidak ada gardu ditemukan"
+            description="Tidak ada data gardu yang cocok dengan kriteria pencarian dan filter yang dipilih."
+            action={isFiltered ? <Button size="sm" variant="secondary" onClick={resetFilters}>Bersihkan Filter</Button> : null}
+          />
         ) : (
-          <div className="space-y-3">
-            {state.rows.map((r) => <SubstationRow key={r.substation_id} row={r} />)}
-            {state.meta && <TableFooter itemCount={state.rows.length} total={state.meta.total} entityLabel="gardu" page={state.meta.current_page} perPage={25} onPage={setPage} onPerPage={() => {}} perPageOptions={[25]} />}
+          <div className="space-y-3.5">
+            {/* View Mode Switching: Cards vs Table */}
+            {viewMode === 'cards' ? (
+              <div className="grid grid-cols-1 gap-3.5">
+                {state.rows.map((r) => (
+                  <SubstationRow key={r.substation_id} row={r} />
+                ))}
+              </div>
+            ) : (
+              <SubstationTable rows={state.rows} />
+            )}
+
+            {/* Footer Pagination */}
+            {state.meta && (
+              <TableFooter
+                itemCount={state.rows.length}
+                total={state.meta.total}
+                entityLabel="gardu"
+                page={state.meta.current_page}
+                perPage={25}
+                onPage={setPage}
+                onPerPage={() => {}}
+                perPageOptions={[25]}
+              />
+            )}
           </div>
         )}
       </section>
@@ -495,27 +888,195 @@ function RunView({ run, canReview, onReview }) {
 function SubstationRow({ row }) {
   const rk = RISK[row.risk] || RISK.AMAN
   return (
-    <article className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words">{row.code} {row.name ? `· ${row.name}` : ''}</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{row.unit_name}{row.feeder_code ? ` · penyulang ${row.feeder_code}` : ''} · {row.capacity_kva} kVA</p>
+    <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs hover:border-blue-300 dark:hover:border-blue-700/60 transition-all">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className={`rounded-xl p-2.5 shrink-0 shadow-2xs ${
+            row.risk === 'KRITIS' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' :
+            row.risk === 'TINGGI' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
+            row.risk === 'WASPADA' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' :
+            'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+          }`}>
+            <IconZap className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight break-words">
+              {row.code} · {row.name || ''}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{row.unit_name}</span>
+              {row.feeder_code && (
+                <>
+                  <span>•</span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 px-2 py-0.5 font-medium">
+                    Penyulang {row.feeder_code}
+                  </span>
+                </>
+              )}
+              <span>•</span>
+              <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 px-2 py-0.5 font-semibold">
+                {row.capacity_kva} kVA
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <span className={`${pill} ${rk.cls}`} title={rk.hint}>{rk.label}</span>
-          {row.stale && <span className={`${pill} bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700`}>Pembacaan lama</span>}
+
+        <div className="flex flex-wrap items-center gap-1.5 self-start shrink-0">
+          <span className={`${pill} ${rk.cls} font-semibold shadow-2xs`} title={rk.hint}>
+            {row.risk === 'KRITIS' && <IconAlertCircle className="h-3.5 w-3.5 mr-1 text-rose-600 dark:text-rose-400 inline" />}
+            {row.risk === 'TINGGI' && <IconClock className="h-3.5 w-3.5 mr-1 text-orange-600 dark:text-orange-400 inline" />}
+            {row.risk === 'WASPADA' && <IconActivity className="h-3.5 w-3.5 mr-1 text-amber-600 dark:text-amber-400 inline" />}
+            {row.risk === 'AMAN' && <IconCheckCircle className="h-3.5 w-3.5 mr-1 text-emerald-600 dark:text-emerald-400 inline" />}
+            {rk.label}
+          </span>
+          {row.stale && (
+            <span className={`${pill} bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-medium`}>
+              Pembacaan lama
+            </span>
+          )}
         </div>
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
-        <div><dt className="text-slate-400">Beban terakhir ({fmtDate(row.last_reading_on)})</dt><dd className="text-base font-semibold text-slate-900 dark:text-slate-100">{pct(row.last_ratio)}</dd></div>
-        {['1', '3', '5'].map((y) => (
-          <div key={y}><dt className="text-slate-400">{y} tahun lagi</dt>
-            <dd className={`text-base font-semibold ${row.horizons[y].p50 >= 1 ? 'text-red-700 dark:text-red-300' : 'text-slate-900 dark:text-slate-100'}`}>{pct(row.horizons[y].p50)}</dd>
-            <dd className="text-slate-500">rentang {pct(row.horizons[y].p10)}–{pct(row.horizons[y].p90)}</dd></div>
-        ))}
+
+      {/* Grid 4 Kolom: Beban Nyata + Horizon 1, 3, 5 */}
+      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3 flex flex-col justify-between">
+          <div>
+            <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Beban terakhir ({fmtDate(row.last_reading_on)})
+            </dt>
+            <dd className={`mt-1 text-xl font-bold ${
+              row.last_ratio >= 1.0 ? 'text-rose-600 dark:text-rose-400' :
+              row.last_ratio >= 0.8 ? 'text-amber-600 dark:text-amber-400' :
+              'text-slate-900 dark:text-slate-100'
+            }`}>
+              {pct(row.last_ratio)}
+            </dd>
+          </div>
+          <LoadBar value={row.last_ratio} />
+        </div>
+
+        {['1', '3', '5'].map((y) => {
+          const h = row.horizons[y]
+          const isOver100 = h.p50 >= 1.0
+          const isOver80 = h.p50 >= 0.8
+          return (
+            <div key={y} className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3 flex flex-col justify-between">
+              <div>
+                <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  {y} tahun lagi
+                </dt>
+                <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+                  <dd className={`text-xl font-bold ${
+                    isOver100 ? 'text-rose-600 dark:text-rose-400' :
+                    isOver80 ? 'text-amber-600 dark:text-amber-400' :
+                    'text-slate-900 dark:text-slate-100'
+                  }`}>
+                    {pct(h.p50)}
+                  </dd>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    rentang {pct(h.p10)}–{pct(h.p90)}
+                  </span>
+                </div>
+              </div>
+              <LoadBar value={h.p50} />
+            </div>
+          )
+        })}
       </dl>
-      <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">Melewati 80%: {exceedText(row.exceed_80)} · melewati 100%: {exceedText(row.exceed_100)} · dasar prakiraan {row.history_readings} pembacaan</p>
+
+      {/* Footer Kartu: Ambang Batas & Dasar Data */}
+      <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <ExceedBadge title="Melewati 80%" exceed={row.exceed_80} is100={false} />
+          <ExceedBadge title="Melewati 100%" exceed={row.exceed_100} is100={true} />
+          {/* Format teks pendukung aksesibilitas */}
+          <span className="sr-only">
+            Melewati 80%: {exceedText(row.exceed_80)} · melewati 100%: {exceedText(row.exceed_100)} · dasar prakiraan {row.history_readings} pembacaan
+          </span>
+        </div>
+        <div className="text-slate-500 dark:text-slate-400 text-xs flex items-center gap-1.5">
+          <span>Dasar prakiraan:</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">{row.history_readings} pembacaan</span>
+        </div>
+      </div>
     </article>
+  )
+}
+
+function SubstationTable({ rows }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-slate-50/90 dark:bg-slate-850 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+          <tr>
+            <th className="px-4 py-3">Gardu &amp; Lokasi</th>
+            <th className="px-3 py-3 text-right">Trafo</th>
+            <th className="px-3 py-3">Risiko</th>
+            <th className="px-3 py-3 text-right">Beban Terakhir</th>
+            <th className="px-3 py-3 text-center">1 Thn Lagi (p50)</th>
+            <th className="px-3 py-3 text-center">3 Thn Lagi (p50)</th>
+            <th className="px-3 py-3 text-center">5 Thn Lagi (p50)</th>
+            <th className="px-4 py-3">Ambang 80% / 100%</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.map((row) => {
+            const rk = RISK[row.risk] || RISK.AMAN
+            return (
+              <tr key={row.substation_id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                <td className="px-4 py-3">
+                  <div className="font-bold text-slate-900 dark:text-slate-100">{row.code} · {row.name || ''}</div>
+                  <div className="text-slate-500 dark:text-slate-400 mt-0.5">
+                    {row.unit_name} {row.feeder_code ? `· Penyulang ${row.feeder_code}` : ''}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-right font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                  {row.capacity_kva} kVA
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <span className={`${pill} ${rk.cls}`} title={rk.hint}>{rk.label}</span>
+                  {row.stale && <span className={`${pill} ml-1 bg-slate-100 text-slate-600 dark:bg-slate-800`}>Lama</span>}
+                </td>
+                <td className="px-3 py-3 text-right whitespace-nowrap">
+                  <span className={`font-bold ${
+                    row.last_ratio >= 1.0 ? 'text-rose-600 dark:text-rose-400' :
+                    row.last_ratio >= 0.8 ? 'text-amber-600 dark:text-amber-400' :
+                    'text-slate-900 dark:text-slate-100'
+                  }`}>
+                    {pct(row.last_ratio)}
+                  </span>
+                  <div className="text-[10px] text-slate-400">{fmtDate(row.last_reading_on)}</div>
+                </td>
+                <td className="px-3 py-3 text-center whitespace-nowrap">
+                  <div className={`font-bold ${row.horizons['1'].p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                    {pct(row.horizons['1'].p50)}
+                  </div>
+                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons['1'].p10)}–{pct(row.horizons['1'].p90)}</div>
+                </td>
+                <td className="px-3 py-3 text-center whitespace-nowrap">
+                  <div className={`font-bold ${row.horizons['3'].p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                    {pct(row.horizons['3'].p50)}
+                  </div>
+                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons['3'].p10)}–{pct(row.horizons['3'].p90)}</div>
+                </td>
+                <td className="px-3 py-3 text-center whitespace-nowrap">
+                  <div className={`font-bold ${row.horizons['5'].p50 >= 1.0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                    {pct(row.horizons['5'].p50)}
+                  </div>
+                  <div className="text-[10px] text-slate-400">rentang {pct(row.horizons['5'].p10)}–{pct(row.horizons['5'].p90)}</div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="space-y-1">
+                    <ExceedBadge title="80%" exceed={row.exceed_80} is100={false} />
+                    <ExceedBadge title="100%" exceed={row.exceed_100} is100={true} />
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
