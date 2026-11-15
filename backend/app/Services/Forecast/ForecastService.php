@@ -160,11 +160,17 @@ class ForecastService
         return $this->call($dir, 'run_monthly.py', config('distriva.forecast.monthly_script'), fn (string $script) => ['--series', "{$dir}/series.csv", '--cutoff', $cutoff]);
     }
 
+    /** The Python of the forecast service (configured, or the virtual environment in tools/forecast). */
+    public function pythonBinary(): string
+    {
+        return config('distriva.forecast.python') ?: base_path('..').'/tools/forecast/.venv/bin/python';
+    }
+
     /** @param callable(string):list<string> $args @return array<string,mixed> */
     private function call(string $dir, string $default, ?string $configured, callable $args): array
     {
         $root = base_path('..').'/tools/forecast';
-        $python = config('distriva.forecast.python') ?: "{$root}/.venv/bin/python";
+        $python = $this->pythonBinary();
         $script = $configured ?: "{$root}/{$default}";
         if (! is_executable($python) || ! is_file($script)) {
             throw new AssignmentRuleViolation('Layanan forecast belum terpasang di server ini (tools/forecast dan PyTorch).');

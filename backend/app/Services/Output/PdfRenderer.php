@@ -127,6 +127,16 @@ final class PdfRenderer
         return htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
+    /** Path of the Chrome/Chromium that prints the PDFs, or null when none is installed. */
+    public function binaryOrNull(): ?string
+    {
+        try {
+            return $this->binary();
+        } catch (AdministrationDenied) {
+            return null;
+        }
+    }
+
     private function binary(): string
     {
         $configured = config('distriva.pdf.binary');

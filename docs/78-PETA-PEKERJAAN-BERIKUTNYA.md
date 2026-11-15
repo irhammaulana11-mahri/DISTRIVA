@@ -44,3 +44,9 @@ Permintaan pemilik: tahap survei, gambar, KKO, KKF, dan penerbitan WO harus memp
 Dimulai atas arahan pemilik: forecast mencakup beban gardu, memakai deep learning saja. Terbangun: layanan `tools/forecast` (PyTorch), perintah `distriva:forecast-execute`, tabel `forecast_runs`/`forecast_gardu_results`, API `/forecast/*`, dan halaman `/forecast` (rincian, hasil uji, dan keterbatasan di docs/11 addendum). Hasil nyata pertama sudah tersimpan di `distriva_db`. **Belum:** konversi gardu berisiko → pekerjaan → material (BOM), forecast volume permohonan, dan penjadwalan berkala.
 - **Forecast pelanggan, VA, dan material (14 Nov 2026):** model GRU kuantil bulanan, tab baru di `/forecast`, run `DEMAND`; hasil nyata: **INSUFFICIENT** (riwayat 6–10 bulan, 0 dari 154 deret memenuhi 24 bulan). Menunggu penarikan riwayat panjang (EIS lookback, MIMS per 366 hari, DIL lama). Material turunan via BOM menunggu pemetaan pemilik.
 
+
+## 10. Penutup Tahap 12 dan kemajuan penarikan (15 Nov 2026)
+- **Kemajuan penarikan MIMS:** halaman Tarik Stok menampilkan gudang ke berapa, langkah (stok, pengeluaran, reservasi, penerimaan), bilah kemajuan, waktu berjalan, dan perkiraan sisa; halaman yang dibuka belakangan atau percobaan mulai saat ada penarikan lain langsung mengikuti penarikan yang berjalan (`GET /master-data/stock-sync/runs/active`).
+- **Forecast terjadwal:** sekali sebulan pada tanggal 1-28 dan jam yang dipilih (panel "Jadwal otomatis" di halaman Forecast, hanya pemegang `forecast.run` yang mengubah); beban gardu lebih dulu lalu permintaan, tidak pernah bersamaan, run gagal tidak diulang pada bulan yang sama. Dijalankan atas nama pengguna yang mengaktifkan jadwal.
+- **Kesiapan server:** `php artisan distriva:preflight` dan docs/84 (cron, folder backup, Chrome, PyTorch, lingkungan aman).
+- **Reservasi MIMS:** `distriva:mims-reservations-probe` memeriksa kolom jawaban asli tanpa menyimpan; menunggu dijalankan pada satu gudang.

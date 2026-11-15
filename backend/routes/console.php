@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
@@ -32,3 +33,6 @@ Schedule::command('distriva:tasks-remind')->hourly()->withoutOverlapping();
 
 // Monthly forecast of substation load and demand when due (settings in forecast_settings; docs/11). Needs the usual `* * * * * php artisan schedule:run` cron entry.
 Schedule::command('distriva:forecast-scheduled')->everyMinute()->withoutOverlapping();
+
+// Heartbeat of the scheduler: `distriva:preflight` reports when the `schedule:run` cron entry stopped (every other scheduled job depends on it).
+Schedule::call(fn () => Cache::forever('distriva.scheduler.heartbeat', now()->toIso8601String()))->everyMinute()->name('scheduler-heartbeat');
