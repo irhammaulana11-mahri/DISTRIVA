@@ -29,6 +29,7 @@ import PriceBookDetailPage from './pages/master-data/PriceBookDetailPage.jsx'
 import KkfParametersPage from './pages/master-data/KkfParametersPage.jsx'
 import KkfParameterDetailPage from './pages/master-data/KkfParameterDetailPage.jsx'
 import TariffBooksPage from './pages/master-data/TariffBooksPage.jsx'
+import MasterExcelImportPage from './pages/master-data/MasterExcelImportPage.jsx'
 import TariffBookDetailPage from './pages/master-data/TariffBookDetailPage.jsx'
 import VendorsPage from './pages/master-data/VendorsPage.jsx'
 import VendorFormPage from './pages/master-data/VendorFormPage.jsx'
@@ -137,6 +138,7 @@ export default function App() {
         <Route path="master-data/kkf-parameters/baru" element={<RequireCapability capability="master_data.view"><KkfParameterCreatePage /></RequireCapability>} />
         <Route path="master-data/kkf-parameters/:id/ubah" element={<RequireCapability capability="master_data.view"><KkfParameterEditPage /></RequireCapability>} />
         <Route path="master-data/kkf-parameters/:id" element={<RequireCapability capability="master_data.view"><KkfParameterDetailPage /></RequireCapability>} />
+        <Route path="master-data/excel-import" element={<RequireCapability capability="master_data.view"><MasterExcelImportPage /></RequireCapability>} />
         <Route path="master-data/tariff-books" element={<RequireCapability capability="master_data.view"><TariffBooksPage /></RequireCapability>} />
         <Route path="master-data/tariff-books/impor" element={<RequireCapability capability="tariffs.manage"><TariffBookImportPage /></RequireCapability>} />
         <Route path="master-data/tariff-books/:id" element={<RequireCapability capability="master_data.view"><TariffBookDetailPage /></RequireCapability>} />

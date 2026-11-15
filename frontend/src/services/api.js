@@ -229,6 +229,16 @@ export const kkfParametersApi = {
   retire: (id, body) => request(`/master-data/kkf-parameters/${id}/retire`, { method: 'POST', body }),
 }
 
+// Excel master dari layar: unggah, periksa terhadap data berlaku, terapkan perubahan sebagai DRAFT
+export const masterExcelApi = {
+  list: () => request('/master-data/excel-imports'),
+  get: (id) => request(`/master-data/excel-imports/${id}`),
+  upload: (formData) => request('/master-data/excel-imports', { method: 'POST', body: formData }),
+  recheck: (id) => request(`/master-data/excel-imports/${id}/recheck`, { method: 'POST' }),
+  apply: (id, body) => request(`/master-data/excel-imports/${id}/apply`, { method: 'POST', body }),
+  remove: (id) => request(`/master-data/excel-imports/${id}`, { method: 'DELETE' }),
+}
+
 export const tariffBooksApi = {
   list: (params = {}) => request(`/master-data/tariff-books${qs(params)}`),
   get: (id) => request(`/master-data/tariff-books/${id}`),

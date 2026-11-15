@@ -6,6 +6,7 @@ import { useNotifications, formatRelativeTime } from '../features/notifications/
 import StatusBadge from '../components/StatusBadge.jsx'
 import {
   IconHome,
+  IconUpload,
   IconUser,
   IconKey,
   IconUsers,
@@ -103,6 +104,7 @@ const masterDataNav = [
   { to: '/master-data/pole-contracts', label: 'Kontrak Rinci Tiang', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi'], icon: IconClipboard, group: 'Keuangan & Tarif' },
   { to: '/master-data/kkf-parameters', label: 'Parameter KKF', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconChart, group: 'Keuangan & Tarif' },
   { to: '/master-data/tariff-books', label: 'Buku Tarif Listrik', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconZap, group: 'Keuangan & Tarif' },
+  { to: '/master-data/excel-import', label: 'Impor dari Excel', capability: 'master_data.view', profiles: ['perencanaan'], icon: IconUpload, group: 'Keuangan & Tarif' },
 ]
 
 // 4. Laporan & Monitoring (Terbagi ke sub-halaman sesuai peran & kewenangan)
@@ -174,6 +176,7 @@ const titles = {
   '/master-data/pole-contracts': 'Master Data / Kontrak Rinci Tiang',
   '/master-data/kkf-parameters': 'Master Data / Parameter Kelayakan Keuangan (KKF)',
   '/master-data/tariff-books': 'Master Data / Buku Tarif Listrik',
+  '/master-data/excel-import': 'Master Data / Impor dari Excel',
   '/master-data/categories': 'Master Data / Kategori & Satuan',
   '/admin/users': 'Administrasi / Pengguna',
   '/admin/users/new': 'Administrasi / Pengguna / Tambah',

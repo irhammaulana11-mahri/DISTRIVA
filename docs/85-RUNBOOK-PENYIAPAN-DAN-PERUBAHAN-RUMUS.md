@@ -82,6 +82,18 @@ Keputusan pemilik 15 November 2026: **satu-satunya** salinan `MASTER RAB & KKF.x
 
 Setelah perubahan apa pun: `python3 tools/runbook.py tests`, lalu hitung ulang satu contoh permohonan dan bandingkan dengan Excel.
 
+## 5b. Lewat layar: Master Data → Impor dari Excel (15 November 2026)
+Bagian data dari `runbook.py` (ekstrak, bandingkan, muat) tersedia di aplikasi, jadi tidak perlu CLI untuk perubahan rutin.
+1. **Unggah** `MASTER RAB & KKF.xlsx` (BOM dan buku harga) atau `MASTER TARIF & JAM NYALA.xlsx` (tarif, jam nyala, UJL; pilih ULP asal jam nyala, atau "semua ULP"). Hanya `.xlsx`, maksimal 60 MB (`DISTRIVA_MASTER_EXCEL_MAX_MB`), tanpa makro; berkas yang bukan zip Excel, berisi makro, atau mengembang tak wajar ditolak sebelum dibaca.
+2. **Periksa** (otomatis, di latar belakang): ekstraktor yang sama dengan `tools/` membaca Excel di folder kerja pribadi `storage/app/master-excel/<id>/` dengan lingkungan minimal (tanpa kredensial aplikasi) dan batas waktu 300 detik. Hasilnya dibandingkan dengan data **yang disetujui**: BOM baris demi baris (per kelompok), buku harga per kode, buku tarif per ULP/tarif/daya. Kode KHS lama diterjemahkan lewat `peta_kode_lama_baru.csv`; kode tanpa terjemahan dilaporkan sebagai KHS baru dan tidak ikut diterapkan.
+3. **Tinjau**: kartu per dataset menampilkan status (sama / ada perubahan / perlu dibereskan), jumlah, dan contoh sebelum → sesudah. Jam nyala yang tampak bukan jam per bulan (ribuan) menahan buku tarif.
+4. **Terapkan sebagai DRAFT** per dataset, setelah konfirmasi. Yang dibuat hanya **perubahan**: BOM = versi DRAFT baru untuk kelompok terpilih; harga = buku harga DRAFT dari buku berlaku dengan harga yang berbeda ditimpa (status PLN/HARGA, nilai MDU, dan zona UP3 dipertahankan, sehingga perbaikan manual seperti docs/83 §8 tidak hilang); tarif = buku tarif DRAFT dari buku berlaku, baris ULP lain dipertahankan dan baris dari Excel menggantikan/menambah. Tiap dataset diterapkan sekali per berkas.
+5. **Persetujuan tetap oleh akun lain** di halaman BOM / Buku Harga / Buku Tarif (pemisahan tugas tidak berubah; penyetuju diberi notifikasi). Tidak ada yang otomatis disetujui dan tidak ada data berstatus APPROVED yang diubah.
+
+**Izin:** menyiapkan dan menerapkan memerlukan izin kelola dataset itu (`bom.manage`, `prices.manage`, `tariffs.manage`: ENGINEERING, PERENCANAAN, SYS_ADMIN). Penyetuju (UP3_MANAGER) tidak bisa menyiapkan.
+**Belum dicakup (tahap berikut):** KHS baru, jenis konstruksi dan pemetaannya, dan BOM SR 1 fasa; semuanya butuh keputusan kode dan nama pilihan pemilik. Perintah operasional `runbook.py` (`check`, `golden`, `tests`, `forecast-venv`, `preflight`) **sengaja tidak** dibuka dari web (menjalankan tes atau memasang paket dari browser bukan fungsi aplikasi); tetap lewat terminal.
+**Server:** perlu `python3` dan folder `tools/` beserta `tools/output/rebuild/peta_kode_lama_baru.csv` (lokasi dapat diubah dengan `DISTRIVA_MASTER_EXCEL_TOOLS` dan `DISTRIVA_MASTER_EXCEL_CODE_MAP`). Berkas Excel yang diunggah disimpan sampai dihapus dari layar.
+
 ## 6. Daftar periksa akhir
 - [ ] `runbook.py check` tanpa GAGAL; `runbook.py preflight` tanpa FAIL.
 - [ ] `runbook.py tests` hijau (Python forecast, golden, BOM).
