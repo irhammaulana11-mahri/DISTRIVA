@@ -36,7 +36,7 @@ const chip = (map, key) => {
 const card = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs'
 const input = 'rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus-ring'
 
-function UploadCard({ kind, title, hint, disabled, units, onUploaded }) {
+function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploaded }) {
   const { notify } = useNotifications()
   const ref = useRef(null)
   const [file, setFile] = useState(null)
@@ -76,6 +76,19 @@ function UploadCard({ kind, title, hint, disabled, units, onUploaded }) {
                 <option value="">Semua ULP (berlaku umum)</option>
                 {units.map((u) => <option key={u.id} value={u.code}>{u.code} · {u.name}</option>)}
               </select>
+            </div>
+          )}
+          {kind === 'TARIF' && coverage.length > 0 && (
+            <div aria-label="Cakupan ULP pada buku tarif berlaku">
+              <p className="text-[11px] font-medium text-slate-500">Jam nyala dan UJL pada buku tarif berlaku</p>
+              <ul className="mt-1 flex flex-wrap gap-1.5">
+                {coverage.filter((c) => c.code !== '').map((c) => (
+                  <li key={c.code} className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${c.rows > 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}>
+                    {c.name} · {c.rows > 0 ? `${c.rows} baris` : 'belum ada'}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-[11px] text-slate-500">Untuk menambah atau memperbarui satu ULP: pilih ULP itu, unggah laporan penjualannya, terapkan. ULP lain tidak berubah.</p>
             </div>
           )}
           <Button icon={IconUpload} onClick={submit} loading={busy} disabled={!file}>Unggah &amp; periksa</Button>
@@ -219,6 +232,10 @@ function TariffSection({ imp, can, onApply }) {
       </dl>
       {t.samples?.length > 0 && <ul className="mt-3 space-y-1 text-xs">{t.samples.map((s) => <li key={s.key}><strong>{s.key}</strong>: <span className="line-through text-slate-400">{s.before}</span> → {s.after}</li>)}</ul>}
       {t.note && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t.note}</p>}
+      {t.warnings?.map((w) => <div key={w} className="mt-2"><Alert variant="warning">{w}</Alert></div>)}
+      {t.coverage_after?.length > 0 && (
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Setelah diterapkan: {t.coverage_after.filter((c) => c.rows > 0).map((c) => `${c.name} ${c.rows} baris`).join(', ') || 'belum ada baris'}{t.coverage_after.some((c) => c.rows === 0 && c.code !== '') ? `. Belum ada: ${t.coverage_after.filter((c) => c.rows === 0 && c.code !== '').map((c) => c.name).join(', ')}.` : '.'}</p>
+      )}
       <Problems items={t.problems} />
       <ApplyBar dataset="TARIFF" label="Buat buku tarif DRAFT" needName defaultName={`Buku tarif ${today()}`} disabled={!can || t.status !== 'CHANGED'} applied={imp.applied?.TARIFF} onApply={onApply} />
       {!can && <p className="mt-2 text-xs text-slate-500">Membuat buku tarif memerlukan izin kelola tarif.</p>}
@@ -272,14 +289,14 @@ function Detail({ imp, can, onChanged, onRemoved }) {
 
 /** Impor master dari Excel: unggah, periksa terhadap data yang berlaku, lalu terapkan hanya perubahan sebagai DRAFT (disetujui akun lain). */
 export default function MasterExcelImportPage() {
-  const [state, setState] = useState({ loading: true, error: '', rows: [], can: {}, limits: {} })
+  const [state, setState] = useState({ loading: true, error: '', rows: [], can: {}, limits: {}, coverage: [] })
   const [selected, setSelected] = useState(null)
   const [units, setUnits] = useState([])
 
   const load = useCallback(async () => {
     try {
       const r = await masterExcelApi.list()
-      setState({ loading: false, error: '', rows: r?.data || [], can: r?.can || {}, limits: r?.limits || {} })
+      setState({ loading: false, error: '', rows: r?.data || [], can: r?.can || {}, limits: r?.limits || {}, coverage: r?.tariff_coverage || [] })
       return r?.data || []
     } catch (err) {
       setState((s) => ({ ...s, loading: false, error: err?.message || 'Gagal memuat daftar berkas.' }))
@@ -319,7 +336,7 @@ export default function MasterExcelImportPage() {
         <>
           <div className="grid gap-4 lg:grid-cols-2">
             <UploadCard kind="RAB_KKF" title="Excel RAB & KKF" hint="Memeriksa BOM dan buku harga (MASTER RAB & KKF.xlsx)." disabled={!state.can.rab} units={units} onUploaded={(imp) => { setSelected(imp); load() }} />
-            <UploadCard kind="TARIF" title="Excel Tarif & Jam Nyala" hint="Memeriksa harga rata-rata, jam nyala, dan UJL (MASTER TARIF & JAM NYALA.xlsx)." disabled={!state.can.tariff} units={units} onUploaded={(imp) => { setSelected(imp); load() }} />
+            <UploadCard kind="TARIF" title="Excel Tarif & Jam Nyala" hint="Memeriksa harga rata-rata, jam nyala, dan UJL (MASTER TARIF & JAM NYALA.xlsx)." disabled={!state.can.tariff} units={units} coverage={state.coverage} onUploaded={(imp) => { setSelected(imp); load() }} />
           </div>
 
           {selected && <Detail key={selected.id} imp={selected} can={state.can} onChanged={(imp) => { imp && setSelected(imp); load() }} onRemoved={() => { setSelected(null); load() }} />}

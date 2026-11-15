@@ -451,12 +451,39 @@ class MasterExcelImportService
             }
             $merged[$key] = $new;
         }
+        $after = [];
+        foreach ($merged as $m) {
+            $after[(string) ($m['ulp'] ?? '')] = ($after[(string) ($m['ulp'] ?? '')] ?? 0) + 1;
+        }
+        $warnings = [];
+        if ($ulp === null && collect($currentRows)->contains(fn ($r) => $r['ulp'] !== null)) {
+            $warnings[] = 'ULP tidak dipilih, jadi baris dari Excel berlaku untuk semua ULP. Karena buku berlaku sudah punya baris khusus per ULP, pilih ULP asal laporan penjualan agar jam nyala tidak tercampur.';
+        }
         $out = array_map(fn ($m) => [$m['tarif'], $m['daya_va'] ?? '', $m['harga_rata2'] ?? '', $m['jam_nyala'] ?? '', $m['ujl'] ?? '', $m['ulp'] ?? ''], array_values($merged));
         $this->writeCsv($work.'/tariff_candidate.csv', ['tarif', 'daya_va', 'harga_rata2', 'jam_nyala', 'ujl', 'ulp'], $out);
 
         return ['tariff' => ['status' => $problems !== [] ? 'BLOCKED' : ($changed + $added === 0 ? 'UNCHANGED' : 'CHANGED'), 'excel_rows' => count($rows), 'current_rows' => count($currentRows), 'changed_rows' => $changed, 'added_rows' => $added, 'unchanged_rows' => $same,
-            'samples' => $samples, 'problems' => array_values($problems), 'book' => $cur?->name,
+            'samples' => $samples, 'problems' => array_values($problems), 'warnings' => $warnings, 'coverage_after' => $this->tariffCoverage($after), 'book' => $cur?->name,
             'note' => 'Baris ULP lain di buku yang berlaku dipertahankan; baris dari Excel menggantikan/menambah baris dengan tarif, daya, dan ULP yang sama.']];
+    }
+
+    /**
+     * Rows of the tariff book per ULP: which ULPs have jam nyala and UJL and which still wait for their sales report. `rows` of the key "" are the rows that apply to every ULP.
+     *
+     * @param  array<string,int>|null  $counts  ULP code => rows (null: read the approved book)
+     * @return list<array{code:string,name:string,rows:int}>
+     */
+    public function tariffCoverage(?array $counts = null): array
+    {
+        if ($counts === null) {
+            $book = DB::table('tariff_books')->where('status', 'APPROVED')->orderByDesc('valid_from')->first();
+            $counts = $book === null ? [] : DB::table('tariff_book_rows as r')->leftJoin('organizational_units as u', 'u.id', '=', 'r.ulp_unit_id')->where('r.tariff_book_id', $book->id)
+                ->selectRaw("coalesce(u.code, '') as code, count(*) as n")->groupBy('code')->pluck('n', 'code')->map(fn ($n) => (int) $n)->all();
+        }
+        $out = DB::table('organizational_units')->where('unit_type', 'ULP')->where('is_active', true)->orderBy('code')->get(['code', 'name'])->map(fn ($u) => ['code' => $u->code, 'name' => $u->name, 'rows' => (int) ($counts[$u->code] ?? 0)])->all();
+        isset($counts['']) && $out[] = ['code' => '', 'name' => 'Berlaku untuk semua ULP', 'rows' => (int) $counts['']];
+
+        return $out;
     }
 
     private function tariffKey(?string $ulp, string $tariff, mixed $power): string

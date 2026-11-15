@@ -172,7 +172,7 @@ class TariffBookService
         };
         // EIS writes the prepaid (token) variant with a trailing T (B2T, P1T, R3T, LT); the tariff book lists the base tariff, which carries the same price and jam nyala
         $row = $find($tariff) ?? (strlen($tariff) >= 2 && str_ends_with($tariff, 'T') ? $find(substr($tariff, 0, -1)) : null)
-            ?? throw new AssignmentRuleViolation("Buku tarif \"{$book->name}\" tidak memuat tarif {$tariff}".($powerVa === null ? '' : " daya {$powerVa} VA").' untuk ULP ini.');
+            ?? throw new AssignmentRuleViolation("Buku tarif \"{$book->name}\" tidak memuat tarif {$tariff}".($powerVa === null ? '' : " daya {$powerVa} VA").' untuk ULP ini. Jam nyala dan UJL ULP ini belum ada di buku tarif: unggah laporan penjualan ULP ini di Master Data > Impor dari Excel.');
         $row->book_name = $book->name;
 
         return $row;

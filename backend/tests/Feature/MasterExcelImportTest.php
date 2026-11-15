@@ -37,6 +37,8 @@ class MasterExcelImportTest extends PostgresTestCase
 
     private OrganizationalUnit $ulp;
 
+    private OrganizationalUnit $otherUlp;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -44,6 +46,7 @@ class MasterExcelImportTest extends PostgresTestCase
         $this->seed(MasterDataPermissionSeeder::class);
         $this->up3 = $this->makeUnit('UP3');
         $this->ulp = $this->makeUnit('ULP', $this->up3);
+        $this->otherUlp = $this->makeUnit('ULP', $this->up3);
         $mk = function (string $role): User {
             $u = $this->makeUser();
             $this->assign($u, Role::query()->where('name', $role)->firstOrFail(), $this->up3);
@@ -164,11 +167,21 @@ class MasterExcelImportTest extends PostgresTestCase
         app(MasterExcelImportService::class)->process($up['id']);
         $t = $this->as($this->engineer)->getJson("/api/master-data/excel-imports/{$up['id']}")->json('data.report.tariff');
         $this->assertSame(['CHANGED', 1, 0, 1], [$t['status'], $t['changed_rows'], $t['added_rows'], $t['unchanged_rows'] + 0 === 0 ? 1 : 0]);   // jam nyala 137 -> 140; the 900 VA row is not in the Excel
+        $cov = collect($this->as($this->engineer)->getJson('/api/master-data/excel-imports')->json('tariff_coverage'))->keyBy('code');
+        $this->assertSame([2, 0], [$cov[$this->ulp->code]['rows'], $cov[$this->otherUlp->code]['rows']]);                                   // which ULPs have jam nyala and UJL, and which still wait
+        $after = collect($t['coverage_after'])->keyBy('code');
+        $this->assertSame([2, 0], [$after[$this->ulp->code]['rows'], $after[$this->otherUlp->code]['rows']]);
+        $this->assertSame([], $t['warnings']);
         $this->as($this->engineer)->postJson("/api/master-data/excel-imports/{$up['id']}/apply", ['dataset' => 'TARIFF', 'valid_from' => '2026-12-01', 'name' => 'Buku tarif baru'])->assertCreated();
         $id = DB::table('tariff_books')->where('name', 'Buku tarif baru')->value('id');
         $rows = DB::table('tariff_book_rows')->where('tariff_book_id', $id)->orderBy('power_va')->get(['power_va', 'jam_nyala']);
         $this->assertSame([[450, 140.0], [900, 149.0]], $rows->map(fn ($r) => [(int) $r->power_va, (float) $r->jam_nyala])->all());       // the row that is not in the Excel is kept
         $this->assertSame('DRAFT', DB::table('tariff_books')->where('id', $id)->value('status'));
+
+        $general = $this->as($this->engineer)->post('/api/master-data/excel-imports', ['file' => $this->workbook(), 'kind' => 'TARIF'], ['Accept' => 'application/json'])->assertStatus(202)->json('data');
+        app(MasterExcelImportService::class)->process($general['id']);
+        $w = $this->as($this->engineer)->getJson("/api/master-data/excel-imports/{$general['id']}")->json('data.report.tariff.warnings');
+        $this->assertCount(1, $w);                                                                                                      // no ULP chosen while the book has per-ULP rows: warned
     }
 
     #[Test]

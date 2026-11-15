@@ -71,6 +71,19 @@ describe('Impor Master dari Excel', () => {
     expect(screen.getByRole('link', { name: /disetujui akun lain/ })).toHaveAttribute('href', '/master-data/harga')
   })
 
+  it('kartu tarif menunjukkan ULP mana yang sudah punya jam nyala dan hasil pemeriksaan menunjukkan cakupan setelah diterapkan', async () => {
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...ready, kind: 'TARIF', report: null }], can: CAN, limits: { max_mb: 60 },
+      tariff_coverage: [{ code: '51453', name: 'ULP Jombang', rows: 204 }, { code: '51452', name: 'ULP Mojokerto', rows: 0 }] })
+    masterExcelApi.get.mockResolvedValue({ data: { ...ready, kind: 'TARIF', ulp_code: '51452', report: { tariff: { status: 'CHANGED', excel_rows: 200, current_rows: 204, changed_rows: 0, added_rows: 200, unchanged_rows: 0, samples: [], problems: [], warnings: [],
+      coverage_after: [{ code: '51453', name: 'ULP Jombang', rows: 204 }, { code: '51452', name: 'ULP Mojokerto', rows: 200 }, { code: '51454', name: 'ULP Ngoro', rows: 0 }] } } } })
+    renderPage()
+    const card = await screen.findByRole('region', { name: 'Excel Tarif & Jam Nyala' })
+    expect(within(card).getByText('ULP Jombang · 204 baris')).toBeInTheDocument()
+    expect(within(card).getByText('ULP Mojokerto · belum ada')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    expect(await screen.findByText(/Setelah diterapkan: ULP Jombang 204 baris, ULP Mojokerto 200 baris\. Belum ada: ULP Ngoro\./)).toBeInTheDocument()
+  })
+
   it('akun tanpa izin tidak bisa menyiapkan data dan tombol terapkan nonaktif', async () => {
     masterExcelApi.list.mockResolvedValue({ data: [{ ...ready, report: null }], can: { rab: true, tariff: false, bom: false, price: false, tariffs: false }, limits: { max_mb: 60 } })
     renderPage()

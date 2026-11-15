@@ -25,7 +25,7 @@ class MasterExcelImportController extends Controller
     {
         $this->requireAny($request);
 
-        return response()->json(['data' => $this->imports->list(), 'limits' => ['max_mb' => (int) config('distriva.master_excel.max_mb'), 'accept' => ['.xlsx']],
+        return response()->json(['data' => $this->imports->list(), 'tariff_coverage' => $this->imports->tariffCoverage(), 'limits' => ['max_mb' => (int) config('distriva.master_excel.max_mb'), 'accept' => ['.xlsx']],
             'can' => ['rab' => $this->hasAny($request, self::NEED['RAB_KKF']), 'tariff' => $this->hasAny($request, self::NEED['TARIF']), 'bom' => $this->authorizer->allows($request->user(), 'bom.manage'),
                 'price' => $this->authorizer->allows($request->user(), 'prices.manage'), 'tariffs' => $this->authorizer->allows($request->user(), 'tariffs.manage')]]);
     }
