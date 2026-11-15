@@ -21,7 +21,8 @@ describe('warehousesApi.syncStock (penarikan MIMS di latar belakang)', () => {
     await vi.runAllTimersAsync()
     const res = await p
     expect(res.data.map((r) => r.warehouse_code)).toEqual(['A', 'B'])
-    expect(progress).toHaveBeenCalledTimes(2)
+    expect(progress).toHaveBeenCalledTimes(3)                                       // awal (antre), berjalan, selesai
+    expect(progress.mock.calls[0][1].status).toBe('QUEUED')
     expect(fetchMock.mock.calls[0][0]).toContain('/master-data/stock-sync/runs')
     expect(fetchMock.mock.calls[0][1].method).toBe('POST')
     expect(fetchMock.mock.calls[1][0]).toContain('/master-data/stock-sync/runs/r1')
