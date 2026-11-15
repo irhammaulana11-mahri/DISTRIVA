@@ -2,3 +2,4 @@
 # Install:  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
 torch>=2.9
 numpy>=2.0
+lightgbm>=4.5

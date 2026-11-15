@@ -8,7 +8,7 @@ from datetime import date, timedelta
 import numpy as np
 import torch
 
-from . import data, metrics, model
+from . import data, gbm, metrics, model
 
 GRID = [0.5 * k for k in range(1, 11)]            # 0.5 .. 5 years ahead
 SHOWN = (1.0, 3.0, 5.0)
@@ -67,22 +67,39 @@ def run(readings: str, substations: str, seeds: int = 3, epochs: int = 40, threa
     if len(tr) < 500 or len(va) < 100:
         raise ValueError(f'Data pembacaan terlalu sedikit untuk melatih model (latih {len(tr)}, validasi {len(va)}).')
 
-    # 1. honest evaluation: train on the early period, stop on validation, score the later test period
+    # 1. honest evaluation of the candidates: train on the early period, stop on validation, pick on the validation outcomes, score the later test period
     eval_nets, best_epochs = [], []
     for k in range(seeds):
         net, ep = model.train(samples.take(tr), samples.take(va), len(units), seed=100 + k, epochs=epochs)
         eval_nets.append(net)
         best_epochs.append(ep)
         log(f'eval seed {k}: best epoch {ep}')
-    val = samples.take(va)
-    scale = calibrate(model.predict_samples(eval_nets, val), val.y)             # the ranges are widened until they cover 80 % of the validation outcomes
-    log(f'range scale {scale:.2f}')
-    test = samples.take(te)
-    report = metrics.report(no_relief(widen(model.predict_samples(eval_nets, test), scale), test.last_ratio), test.y, test.last_ratio, test.gap) if len(te) else {'all': {'n': 0}, 'by_horizon': {}}
+    val, test = samples.take(va), samples.take(te)
+    eval_trees = gbm.train(samples.take(tr), val, seed=1)
+    log(f'trees: {gbm.best_rounds(eval_trees)} rounds')
+    gru_fn = lambda s: model.predict_samples(eval_nets, s)                                                      # noqa: E731
+    gbm_fn = lambda s: gbm.predict(eval_trees, s.seq, s.static, s.unit, s.gap)                                  # noqa: E731
+    candidates = {'gru': gru_fn, 'gbm': gbm_fn, 'ensemble': lambda s: (gru_fn(s) + gbm_fn(s)) / 2.0}
+    scales, scored, shown = {}, {}, {}
+    for name, fn in candidates.items():
+        pv = fn(val)
+        scales[name] = calibrate(pv, val.y)                                                                     # the ranges are widened until they cover 80 % of the validation outcomes
+        adj = lambda s_, p_: no_relief(widen(p_, scales[name]), s_.last_ratio)                                  # noqa: E731
+        scored[name] = float(np.mean(np.abs(adj(val, pv)[:, 1] - val.y)))
+        shown[name] = {'val_mae_pp': round(scored[name] * 100, 2), 'range_scale': round(scales[name], 2)}
+        if len(te):
+            pt = adj(test, fn(test))
+            shown[name]['test_mae_pp'] = round(float(np.mean(np.abs(pt[:, 1] - test.y)) * 100), 2)
+            shown[name]['test_coverage_p10_p90'] = round(float(np.mean((test.y >= pt[:, 0]) & (test.y <= pt[:, 2]))), 4)
+    chosen = min(scored, key=scored.get)
+    scale = scales[chosen]
+    log(f'candidates {shown} -> {chosen}')
+    report = metrics.report(no_relief(widen(candidates[chosen](test), scale), test.last_ratio), test.y, test.last_ratio, test.gap) if len(te) else {'all': {'n': 0}, 'by_horizon': {}}
     final_epochs = max(3, int(round(float(np.mean(best_epochs)))))
 
-    # 2. production networks: the same recipe on all the data, for as many epochs as the evaluation needed
-    final_nets = [model.train(samples, None, len(units), seed=200 + k, epochs=final_epochs, fixed_epochs=final_epochs)[0] for k in range(seeds)]
+    # 2. production models: the chosen recipe on all the data, for as many epochs / rounds as the evaluation needed
+    final_nets = [model.train(samples, None, len(units), seed=200 + k, epochs=final_epochs, fixed_epochs=final_epochs)[0] for k in range(seeds)] if chosen in ('gru', 'ensemble') else []
+    final_trees = gbm.train(samples, None, seed=2, rounds=gbm.best_rounds(eval_trees)) if chosen in ('gbm', 'ensemble') else []
 
     # 3. forecast every substation from its latest reading
     ids, seqs, statics, unit_idx, asofs, caps, lasts, counts = [], [], [], [], [], [], [], []
@@ -101,7 +118,9 @@ def run(readings: str, substations: str, seeds: int = 3, epochs: int = 40, threa
     n = len(ids)
     grid = np.array(GRID, dtype=np.float32)
     rep = lambda a, dt: np.repeat(np.stack(a) if isinstance(a[0], np.ndarray) else np.array(a, dtype=dt), len(grid), axis=0)      # noqa: E731
-    pred = widen(model.predict(final_nets, rep(seqs, np.float32), rep(statics, np.float32), rep(unit_idx, np.int64), np.tile(grid, n)).reshape(n, len(grid), 3), scale)
+    args = (rep(seqs, np.float32), rep(statics, np.float32), rep(unit_idx, np.int64), np.tile(grid, n))
+    parts = ([model.predict(final_nets, *args)] if final_nets else []) + ([gbm.predict(final_trees, *args)] if final_trees else [])
+    pred = widen(np.mean(parts, axis=0).reshape(n, len(grid), 3), scale)
     pred = no_relief(pred, np.array(lasts, dtype=np.float32).reshape(n, 1))
     pred[:, :, 1] = np.maximum.accumulate(pred[:, :, 1], axis=1)               # without intervention the median does not turn back down with the horizon
     pred[:, :, 0] = np.minimum(pred[:, :, 0], pred[:, :, 1])
@@ -119,7 +138,7 @@ def run(readings: str, substations: str, seeds: int = 3, epochs: int = 40, threa
         results.append(item)
 
     return {
-        'model': {'name': 'GRU-kuantil (ansambel)', 'version': '1', 'framework': f'torch {torch.__version__}', 'seeds': seeds, 'epochs_eval': best_epochs, 'epochs_final': final_epochs,
+        'model': {'name': {'gru': 'GRU-kuantil (ansambel)', 'gbm': 'Pohon gradient boosting (LightGBM)', 'ensemble': 'Gabungan GRU-kuantil dan LightGBM'}[chosen], 'chosen': chosen, 'candidates': shown, 'version': '2', 'framework': f'torch {torch.__version__}, lightgbm {gbm.lgb.__version__}', 'seeds': seeds, 'epochs_eval': best_epochs, 'epochs_final': final_epochs,
                   'target': 'beban kVA dibagi kapasitas trafo pada pembacaan terakhir', 'scenario': 'tanpa sisipan atau pecah beban (beban tidak turun)', 'quantiles': list(model.QUANTILES), 'history_readings': data.K, 'range_scale': round(scale, 2)},
         'window': {'first_reading': min(r[0] for s in subs.values() for r in s.readings).isoformat(), 'last_reading': max(r[0] for s in subs.values() for r in s.readings).isoformat(),
                    'train_targets_before': data.TRAIN_END.isoformat(), 'validation_until': data.VAL_END.isoformat()},
