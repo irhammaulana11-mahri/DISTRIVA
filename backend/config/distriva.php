@@ -135,6 +135,19 @@ return [
     ],
 
     /**
+     * Excel master uploaded from the screen (Master Data -> Impor dari Excel): read by the extractors of tools/, compared with the approved data, applied as DRAFT versions.
+     * `code_map` translates the OLD KHS codes of the workbook to the codes in use (tools/output/rebuild/peta_kode_lama_baru.csv).
+     */
+    'master_excel' => [
+        'python' => env('DISTRIVA_MASTER_EXCEL_PYTHON', 'python3'),
+        'tools' => env('DISTRIVA_MASTER_EXCEL_TOOLS', base_path('../tools')),
+        'code_map' => env('DISTRIVA_MASTER_EXCEL_CODE_MAP', base_path('../tools/output/rebuild/peta_kode_lama_baru.csv')),
+        'max_mb' => (int) env('DISTRIVA_MASTER_EXCEL_MAX_MB', 60),
+        'timeout_seconds' => (int) env('DISTRIVA_MASTER_EXCEL_TIMEOUT', 300),
+        'detach' => true,                                                  // false only in tests: the process is then executed by the caller
+    ],
+
+    /**
      * DIL sync started from Master Pelanggan: the .mdb / .csv files of the DIL are placed in `inbox` (outside the web root) and read there by a detached process.
      * `mdb-export` / `mdb-tables` are the mdbtools programs (apt install mdbtools); only the columns the master needs are read, and names are masked.
      */

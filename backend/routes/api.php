@@ -21,6 +21,7 @@ use App\Http\Controllers\MasterData\ConstructionTypeController;
 use App\Http\Controllers\MasterData\InventoryController;
 use App\Http\Controllers\MasterData\KhsController;
 use App\Http\Controllers\MasterData\KkfParameterController;
+use App\Http\Controllers\MasterData\MasterExcelImportController;
 use App\Http\Controllers\MasterData\MaterialController;
 use App\Http\Controllers\MasterData\MaterialImportController;
 use App\Http\Controllers\MasterData\PriceBookController;
@@ -424,6 +425,12 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
 
         Route::get('/tariff-books', [TariffBookController::class, 'index']);
         Route::post('/tariff-books/import', [TariffBookController::class, 'import']);
+        Route::get('/excel-imports', [MasterExcelImportController::class, 'index']);
+        Route::post('/excel-imports', [MasterExcelImportController::class, 'store']);
+        Route::get('/excel-imports/{id}', [MasterExcelImportController::class, 'show'])->whereUuid('id');
+        Route::post('/excel-imports/{id}/recheck', [MasterExcelImportController::class, 'recheck'])->whereUuid('id');
+        Route::post('/excel-imports/{id}/apply', [MasterExcelImportController::class, 'apply'])->whereUuid('id');
+        Route::delete('/excel-imports/{id}', [MasterExcelImportController::class, 'destroy'])->whereUuid('id');
         Route::post('/tariff-books/approve', [TariffBookController::class, 'approve']);
         Route::get('/tariff-books/{book}', [TariffBookController::class, 'show'])->whereUuid('book');
         Route::get('/tariff-books/{book}/rows', [TariffBookController::class, 'rows'])->whereUuid('book');
