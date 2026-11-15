@@ -69,6 +69,17 @@ Keputusan pemilik 15 November 2026: **satu-satunya** salinan `MASTER RAB & KKF.x
 | **Parameter KKF** (discount rate, BPP, faktor beban 0,8) | Ubah lewat layar Parameter KKF (versi baru, disetujui); bukan dari Excel. |
 | **Ambang forecast** (80 %, tingkat kVA) | `backend/config/distriva.php`, bagian `derived_demand`. |
 
+### 5a. Master UJL dan jam nyala (buku tarif)
+- **Tempatnya:** UJL dan jam nyala adalah kolom pada **buku tarif** (`tariff_books` / `tariff_book_rows`: tarif, daya VA, harga rata-rata Rp/kWh, `jam_nyala`, `ujl` per VA, dan ULP). KKF memilih satu baris menurut ULP permohonan, tarif, dan daya; tarif prabayar berakhiran T (B2T, R3T) memakai baris tarif dasarnya.
+- **Sumbernya:** `MASTER TARIF & JAM NYALA.xlsx`, lembar `MASTER TARIF & JN` (harga rata-rata, jam nyala, UJL), `UJL`, dan `309` (laporan penjualan **satu ULP**, contoh berisi ULP Jombang). Jam nyala berasal dari laporan itu, jadi **per ULP**.
+- **Keadaan sekarang (15 Nov 2026):** satu buku tarif berlaku, "Buku tarif & jam nyala ULP Jombang 2026" (berlaku 10 Nov), **204 baris, semuanya ULP Jombang**; jam nyala 41–240 jam, UJL terisi di 203 baris. Satuan jam nyala sudah dikoreksi (docs/83 §9).
+- **Konsekuensi:** KKF untuk permohonan di **ULP selain Jombang gagal** dengan pesan "Buku tarif … tidak memuat tarif … untuk ULP ini", karena tidak ada baris untuk ULP itu dan belum ada baris berlaku umum (kolom ULP kosong).
+- **Pilihan bagi pemilik (belum diputuskan):**
+  1. Minta laporan penjualan tiap ULP (format lembar `309`), ekstrak per ULP dengan `runbook.py extract --ulp <kode ULP>`, lalu gabungkan menjadi satu buku tarif. Paling tepat karena jam nyala memang berbeda antar ULP.
+  2. Sementara, pakai baris Jombang untuk semua ULP: ekstrak **tanpa** `--ulp` (baris berlaku umum). Cepat, tetapi jam nyala ULP lain hanya perkiraan; tandai di catatan buku tarif.
+- **Cara memperbarui:** buku tarif **baru** lewat alur resmi (buku yang disetujui tidak diubah; buku lama ditutup sehari sebelum buku baru berlaku), pembuat dan penyetuju akun berbeda. Sesudahnya KKF yang sudah tersimpan tetap memakai angka lamanya; hitung ulang bila perlu.
+- **Periksa sebelum impor:** jam nyala wajar (puluhan sampai ratusan jam per bulan; nilai ribuan menandakan satuan salah), harga rata-rata tidak nol, dan UJL terisi untuk tarif pascabayar (tanpa UJL biaya penyambungan pascabayar tidak bisa dihitung).
+
 Setelah perubahan apa pun: `python3 tools/runbook.py tests`, lalu hitung ulang satu contoh permohonan dan bandingkan dengan Excel.
 
 ## 6. Daftar periksa akhir
