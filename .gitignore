@@ -29,3 +29,6 @@ MASTER RAB & KKF.xlsx
 *.mdb
 *.accdb
 .fuse_hidden*
+
+# hasil ekstraksi sementara tools/runbook.py (kode lama, tidak untuk di-commit)
+tools/output/regen/
