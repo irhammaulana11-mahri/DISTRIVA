@@ -12,6 +12,9 @@ vi.mock('../../services/api.js', () => ({
     list: vi.fn(),
     get: vi.fn(),
     link: vi.fn(),
+    syncInfo: vi.fn(),
+    syncStart: vi.fn(),
+    syncRun: vi.fn(),
   },
   substationsApi: {
     list: vi.fn(),
@@ -337,5 +340,42 @@ describe('Master Pelanggan Page (docs/81)', () => {
     await waitFor(() => {
       expect(screen.getByText('Gardu harus berada di ULP yang sama dengan pelanggan.')).toBeInTheDocument()
     })
+  })
+
+  it('kartu statistik memakai total seluruh data dari server, bukan baris pada halaman ini', async () => {
+    connectionsApi.list.mockResolvedValue({
+      data: SAMPLE_CONNECTIONS,
+      meta: { current_page: 1, per_page: 25, total: 1429072, last_page: 57163 },
+      summary: { total: 1429072, active: 1411323, active_va: 2779063650, unlinked: 6631 },
+    })
+    renderPage()
+    expect(await screen.findByText('1.429.072')).toBeInTheDocument()
+    expect(screen.getByText('1.411.323')).toBeInTheDocument()
+    expect(screen.getByText('2.779.064')).toBeInTheDocument()                      // kVA
+    expect(screen.getByText('6.631')).toBeInTheDocument()
+    expect(screen.queryByText(/halaman ini/i)).not.toBeInTheDocument()
+  })
+
+  it('tombol Sinkron DIL hanya untuk yang boleh impor, menampilkan cara peletakan berkas dan memulai sinkron', async () => {
+    connectionsApi.syncInfo.mockResolvedValue({ data: { inbox: 'backend/storage/app/dil-inbox', naming: 'DIL_SALDO_MASK_UP_<YYYYMM>_<kode ULP>.mdb', mdbtools: true, needs_mdbtools: true, active: null, recent: [],
+      files: [{ name: 'DIL_SALDO_MASK_UP_202603_51453.mdb', size: 397185024, modified: '2026-11-15T10:00:00+07:00', kind: 'mdb', ulp_code: '51453', month: '202603' }] } })
+    connectionsApi.syncStart.mockResolvedValue({ data: { id: 'run-1', status: 'QUEUED', files: [{ name: 'DIL_SALDO_MASK_UP_202603_51453.mdb', size: 397185024 }], results: [], rows_done: 0, started_by_name: 'Admin' } })
+    connectionsApi.syncRun.mockResolvedValue({ data: { id: 'run-1', status: 'RUNNING', files: [{ name: 'x', size: 1 }], results: [], rows_done: 1000 } })
+
+    const { unmount } = renderPage()
+    await screen.findByText('514530761001')
+    expect(screen.queryByRole('button', { name: 'Sinkron DIL' })).not.toBeInTheDocument()
+    unmount()
+
+    renderPage({ can: { 'customers.view': true, 'customers.import': true } })
+    await userEvent.click(await screen.findByRole('button', { name: 'Sinkron DIL' }))
+    expect(await screen.findByText('Cara meletakkan berkas')).toBeInTheDocument()
+    expect(screen.getAllByText(/backend\/storage\/app\/dil-inbox/).length).toBeGreaterThan(0)
+    expect(await screen.findByText('DIL_SALDO_MASK_UP_202603_51453.mdb')).toBeInTheDocument()
+    expect(screen.getByText('379 MB')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Mulai sinkron/i }))
+    await waitFor(() => expect(connectionsApi.syncStart).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('Sedang berjalan')).toBeInTheDocument()
   })
 })

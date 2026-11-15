@@ -384,6 +384,9 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::delete('/stock-sync/token', [InventoryController::class, 'mimsTokenForget']);
         Route::get('/stock-snapshots/{snapshot}/unmapped', [InventoryController::class, 'unmapped'])->whereUuid('snapshot');
         Route::get('/customer-connections', [ConnectionController::class, 'index']);
+        Route::get('/customer-connections/sync', [ConnectionController::class, 'syncInfo']);
+        Route::post('/customer-connections/sync/runs', [ConnectionController::class, 'syncStart']);
+        Route::get('/customer-connections/sync/runs/{run}', [ConnectionController::class, 'syncShow'])->whereUuid('run');
         Route::post('/customer-connections/batches', [ConnectionController::class, 'start']);
         Route::get('/customer-connections/batches/{batch}', [ConnectionController::class, 'batch'])->whereUuid('batch');
         Route::post('/customer-connections/batches/{batch}/items', [ConnectionController::class, 'items'])->whereUuid('batch');

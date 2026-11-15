@@ -117,6 +117,13 @@ class InventoryTest extends PostgresTestCase
         $this->as($this->viewer)->getJson("/api/master-data/stock-snapshots/{$snap}")->assertOk()->assertJsonCount(2, 'data.lines');
         $pos = $this->as($this->viewer)->getJson("/api/master-data/stock-position?warehouse_ids[]={$wh}&date=2026-11-05")->assertOk()->json('data');
         $this->assertEquals(8, $pos[0]['available']);                                         // 10 on hand - 2 reserved
+        $khsId = (string) DB::table('khs_items')->where('code', $pos[0]['khs_code'])->value('id');
+        $approver = $this->makeUser();
+        DB::table('khs_item_versions')->insert(['id' => (string) Str::uuid(), 'khs_item_id' => $khsId, 'version_number' => 1, 'name' => 'Old name', 'unit_text' => 'BH', 'valid_from' => '2025-01-01', 'status' => 'INACTIVE', 'valid_until' => '2025-12-31', 'created_by' => $this->viewer->getKey(), 'approved_by' => $approver->getKey(), 'approved_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('khs_item_versions')->insert(['id' => (string) Str::uuid(), 'khs_item_id' => $khsId, 'version_number' => 2, 'name' => 'Segel Plastik', 'unit_text' => 'BH', 'valid_from' => '2026-01-01', 'status' => 'APPROVED', 'created_by' => $this->viewer->getKey(), 'approved_by' => $approver->getKey(), 'approved_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        $named = $this->as($this->viewer)->getJson("/api/master-data/stock-position?warehouse_ids[]={$wh}&date=2026-11-05")->assertOk()->json('data.0');
+        $this->assertSame(['Segel Plastik', 'BH'], [$named['khs_name'], $named['unit']]);            // the name of the latest version, so the screen can show a name instead of the code
+        $this->assertSame('Segel Plastik', $this->as($this->viewer)->getJson("/api/master-data/stock-snapshots/{$snap}")->assertOk()->json('data.lines.0.khs_name'));
         $this->assertEquals(3, $pos[0]['safety']);
         $this->as($this->viewer)->getJson("/api/master-data/stock-position?warehouse_ids[]={$wh}&date=2026-10-01")->assertOk()->assertJsonCount(0, 'data');   // before the first snapshot
     }

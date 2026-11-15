@@ -10,6 +10,7 @@ import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import DilSyncDrawer from './DilSyncDrawer.jsx'
 import {
   IconSearch,
   IconUsers,
@@ -19,6 +20,7 @@ import {
   IconX,
   IconWrench,
   IconRefresh,
+  IconUpload,
   IconCheckCircle,
   IconAlertCircle,
 } from '../../components/icons.jsx'
@@ -432,12 +434,16 @@ function CustomerDetail({ id, canManage, onClose, onLinked }) {
 }
 
 export default function CustomersPage() {
-  const { can } = useAccess()
+  const { can, isSysAdmin } = useAccess()
+  const { notify } = useNotifications()
   const canManage = Boolean(can?.['customers.manage'])
+  const canImport = Boolean(can?.['customers.import'] || isSysAdmin)
+  const [syncOpen, setSyncOpen] = useState(false)
   const [searchParams] = useSearchParams()
 
   const [rows, setRows] = useState([])
   const [meta, setMeta] = useState(null)
+  const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -495,6 +501,7 @@ export default function CustomersPage() {
       })
       setRows(res?.data || [])
       setMeta(res?.meta || null)
+      setSummary(res?.summary || null)
     } catch (err) {
       setError(err?.message || 'Gagal memuat daftar pelanggan.')
     } finally {
@@ -517,11 +524,12 @@ export default function CustomersPage() {
     loadCustomers()
   }, [loadCustomers])
 
+  // Kartu menghitung seluruh data yang cocok dengan filter (dari server), bukan hanya baris pada halaman ini.
   const stats = useMemo(() => {
-    const total = meta?.total ?? rows.length
-    const activeCount = rows.filter((r) => r.status === 'AKTIF').length
-    const totalPowerVa = rows.reduce((acc, r) => acc + (Number(r.power_va) || 0), 0)
-    const unlinkedCount = rows.filter((r) => !r.substation_code && !r.substation_id).length
+    const total = summary?.total ?? meta?.total ?? rows.length
+    const activeCount = summary?.active ?? rows.filter((r) => r.status === 'AKTIF').length
+    const totalPowerVa = summary?.active_va ?? rows.reduce((acc, r) => acc + (r.status === 'AKTIF' ? Number(r.power_va) || 0 : 0), 0)
+    const unlinkedCount = summary?.unlinked ?? rows.filter((r) => !r.substation_code && !r.substation_id).length
     return {
       total,
       activeCount,
@@ -529,7 +537,9 @@ export default function CustomersPage() {
       totalPowerKva: Math.round(totalPowerVa / 1000),
       unlinkedCount,
     }
-  }, [rows, meta])
+  }, [rows, meta, summary])
+  const filtered = Boolean(query || unitId || feederId || substationId || tariffCode || status || serviceType || unlinkedOnly)
+  const scopeNote = filtered ? 'sesuai filter' : 'seluruh data'
 
   return (
     <div className="space-y-6">
@@ -572,6 +582,11 @@ export default function CustomersPage() {
             >
               Segarkan
             </Button>
+            {canImport && (
+              <Button size="sm" icon={IconUpload} onClick={() => setSyncOpen(true)} aria-label="Sinkron DIL">
+                Sinkron DIL
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -588,7 +603,7 @@ export default function CustomersPage() {
           <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {stats.total.toLocaleString('id-ID')}
           </dd>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Pelanggan terdaftar di sistem</p>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Pelanggan terdaftar ({scopeNote})</p>
         </div>
 
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
@@ -601,7 +616,7 @@ export default function CustomersPage() {
           <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
             {stats.activeCount.toLocaleString('id-ID')}
           </dd>
-          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Sambungan aktif (halaman ini)</p>
+          <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Sambungan aktif ({scopeNote})</p>
         </div>
 
         <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
@@ -615,7 +630,7 @@ export default function CustomersPage() {
             {stats.totalPowerKva.toLocaleString('id-ID')} <span className="text-sm font-semibold">kVA</span>
           </dd>
           <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">
-            {stats.totalPowerVa.toLocaleString('id-ID')} VA (halaman ini)
+            {stats.totalPowerVa.toLocaleString('id-ID')} VA sambungan aktif ({scopeNote})
           </p>
         </div>
 
@@ -629,7 +644,7 @@ export default function CustomersPage() {
           <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
             {stats.unlinkedCount.toLocaleString('id-ID')}
           </dd>
-          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Perlu pemetaan gardu (halaman ini)</p>
+          <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Perlu pemetaan gardu ({scopeNote})</p>
         </div>
       </dl>
 
@@ -897,6 +912,16 @@ export default function CustomersPage() {
           />
         )}
       </Drawer>
+      {canImport && (
+        <DilSyncDrawer
+          open={syncOpen}
+          onClose={() => setSyncOpen(false)}
+          onFinished={(run) => {
+            loadCustomers()
+            notify({ type: run.status === 'OK' ? 'success' : 'error', title: run.status === 'OK' ? 'Sinkron DIL selesai' : 'Sinkron DIL belum sempurna', desc: `${Number(run.rows_done || 0).toLocaleString('id-ID')} baris diproses.`, tag: 'DIL' })
+          }}
+        />
+      )}
     </div>
   )
 }

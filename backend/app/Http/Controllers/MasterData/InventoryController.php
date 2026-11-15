@@ -70,9 +70,27 @@ class InventoryController extends Controller
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
         $s = DB::table('stock_snapshots')->where('id', $snapshot)->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
-        $lines = DB::table('stock_snapshot_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.snapshot_id', $snapshot)->orderByRaw('length(k.code), k.code')->get(['k.code', 'l.on_hand', 'l.reserved', 'l.incoming_confirmed', 'l.safety_stock']);
+        $lines = DB::table('stock_snapshot_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.snapshot_id', $snapshot)->orderByRaw('length(k.code), k.code')->get(['k.id as khs_id', 'k.code', 'l.on_hand', 'l.reserved', 'l.incoming_confirmed', 'l.safety_stock']);
+        $names = $this->khsNames($lines->pluck('khs_id')->all());
 
-        return response()->json(['data' => ['id' => $s->id, 'warehouse_id' => $s->warehouse_id, 'as_of' => $s->as_of, 'lines' => $lines->map(fn ($l) => ['khs_code' => $l->code, 'on_hand' => (float) $l->on_hand, 'reserved' => (float) $l->reserved, 'incoming' => (float) $l->incoming_confirmed, 'safety_stock' => (float) $l->safety_stock])->all()]]);
+        return response()->json(['data' => ['id' => $s->id, 'warehouse_id' => $s->warehouse_id, 'as_of' => $s->as_of, 'lines' => $lines->map(fn ($l) => ['khs_code' => $l->code, 'khs_name' => $names[$l->khs_id]['name'] ?? null, 'unit' => $names[$l->khs_id]['unit'] ?? null, 'on_hand' => (float) $l->on_hand, 'reserved' => (float) $l->reserved, 'incoming' => (float) $l->incoming_confirmed, 'safety_stock' => (float) $l->safety_stock])->all()]]);
+    }
+
+    /**
+     * The name and unit of the latest version of each KHS item (what people read instead of the code).
+     *
+     * @param  list<string>  $ids
+     * @return array<string,array{name:?string,unit:?string}>
+     */
+    private function khsNames(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return DB::table('khs_item_versions as v')->whereIn('v.khs_item_id', $ids)
+            ->whereRaw('v.version_number = (select max(x.version_number) from khs_item_versions x where x.khs_item_id = v.khs_item_id)')
+            ->get(['v.khs_item_id', 'v.name', 'v.unit_text'])->mapWithKeys(fn ($r) => [$r->khs_item_id => ['name' => $r->name, 'unit' => $r->unit_text]])->all();
     }
 
     /** GET /master-data/stock-position?warehouse_ids[]=&date= — what the allocation and the RKM read. */
@@ -82,8 +100,9 @@ class InventoryController extends Controller
         $d = $request->validate(['warehouse_ids' => ['required', 'array', 'min:1', 'max:50'], 'warehouse_ids.*' => ['uuid'], 'date' => ['nullable', 'date_format:Y-m-d']]);
         $pos = $this->stock->position($d['warehouse_ids'], $d['date'] ?? now(config('distriva.business_timezone'))->toDateString());
         $codes = DB::table('khs_items')->whereIn('id', array_keys($pos))->pluck('code', 'id');
+        $names = $this->khsNames(array_keys($pos));
 
-        return response()->json(['data' => collect($pos)->map(fn ($p, $id) => ['khs_code' => $codes[$id] ?? $id] + $p)->sortBy(fn ($r) => (int) $r['khs_code'])->values()->all()]);
+        return response()->json(['data' => collect($pos)->map(fn ($p, $id) => ['khs_code' => $codes[$id] ?? $id, 'khs_name' => $names[$id]['name'] ?? null, 'unit' => $names[$id]['unit'] ?? null] + $p)->sortBy(fn ($r) => (int) $r['khs_code'])->values()->all()]);
     }
 
     /** GET /master-data/khs-material-map?search=&per_page= */

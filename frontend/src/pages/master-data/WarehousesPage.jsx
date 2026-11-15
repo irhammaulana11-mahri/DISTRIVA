@@ -269,7 +269,8 @@ export default function WarehousesPage() {
 
   const filteredPositions = stockPositions.filter((pos) => {
     if (!positionSearch) return true
-    return String(pos.khs_code).toLowerCase().includes(positionSearch.toLowerCase())
+    const needle = positionSearch.toLowerCase()
+    return String(pos.khs_code).toLowerCase().includes(needle) || String(pos.khs_name || '').toLowerCase().includes(needle)
   })
 
   const stats = useMemo(() => {
@@ -711,7 +712,7 @@ export default function WarehousesPage() {
                 <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari kode KHS..."
+                  placeholder="Cari nama atau kode material..."
                   value={positionSearch}
                   onChange={(e) => setPositionSearch(e.target.value)}
                   className="block w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
@@ -741,7 +742,7 @@ export default function WarehousesPage() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold text-[11px]">
-                      <th className="py-2.5 px-3">Kode KHS</th>
+                      <th className="py-2.5 px-3">Material</th>
                       <th className="py-2.5 px-3 text-right">Stok Fisik (On Hand)</th>
                       <th className="py-2.5 px-3 text-right">Reservasi</th>
                       <th className="py-2.5 px-3 text-right">Pasokan Masuk</th>
@@ -766,8 +767,9 @@ export default function WarehousesPage() {
                           key={idx}
                           className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                         >
-                          <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200 font-mono">
-                            {p.khs_code}
+                          <td className="py-2 px-3 font-sans min-w-56 max-w-80">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs leading-snug">{p.khs_name || p.khs_code}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{p.khs_name ? `${p.khs_code}${p.unit ? ` · ${p.unit}` : ''}` : p.unit || ''}</div>
                           </td>
                           <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
                             {p.on_hand?.toLocaleString('id-ID')}
@@ -1127,7 +1129,7 @@ export default function WarehousesPage() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50 dark:bg-slate-800/60 font-semibold text-[11px] text-slate-600 dark:text-slate-400 border-b">
                     <tr>
-                      <th className="py-2 px-3">Kode KHS</th>
+                      <th className="py-2 px-3">Material</th>
                       <th className="py-2 px-3 text-right">Stok Fisik</th>
                       <th className="py-2 px-3 text-right">Reservasi</th>
                       <th className="py-2 px-3 text-right">Pasokan Masuk</th>
@@ -1139,8 +1141,9 @@ export default function WarehousesPage() {
                       .slice((snapshotLinePage - 1) * snapshotLinePerPage, snapshotLinePage * snapshotLinePerPage)
                       .map((l, idx) => (
                       <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">
-                          {l.khs_code}
+                        <td className="py-2 px-3 font-sans min-w-56 max-w-80">
+                          <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs leading-snug">{l.khs_name || l.khs_code}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{l.khs_name ? `${l.khs_code}${l.unit ? ` · ${l.unit}` : ''}` : l.unit || ''}</div>
                         </td>
                         <td className="py-2 px-3 text-right">{l.on_hand?.toLocaleString('id-ID')}</td>
                         <td className="py-2 px-3 text-right text-amber-600">{l.reserved?.toLocaleString('id-ID')}</td>

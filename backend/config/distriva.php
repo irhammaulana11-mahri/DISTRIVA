@@ -134,6 +134,17 @@ return [
         'detach' => true,                                                  // false only in tests: the run is then executed by the caller
     ],
 
+    /**
+     * DIL sync started from Master Pelanggan: the .mdb / .csv files of the DIL are placed in `inbox` (outside the web root) and read there by a detached process.
+     * `mdb-export` / `mdb-tables` are the mdbtools programs (apt install mdbtools); only the columns the master needs are read, and names are masked.
+     */
+    'dil' => [
+        'inbox' => env('DISTRIVA_DIL_INBOX', storage_path('app/dil-inbox')),
+        'mdb_export' => env('DISTRIVA_DIL_MDB_EXPORT', 'mdb-export'),
+        'mdb_tables' => env('DISTRIVA_DIL_MDB_TABLES', 'mdb-tables'),
+        'detach' => true,                                                  // false only in tests: the run is then executed by the caller
+    ],
+
     /** Derived material need from the forecast (owner Nov 2026): a PLN transformer already above `gardu_threshold` of its capacity is replaced by the next step of `kva_steps`. */
     'derived_demand' => [
         'gardu_threshold' => 0.8,

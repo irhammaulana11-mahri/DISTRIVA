@@ -48,3 +48,10 @@ php artisan distriva:mims-reservations-probe 5118-2810 --user=email@pengguna --d
 ```
 
 Pengguna itu harus sudah menyimpan token di halaman Tarik Stok MIMS. Bila kolom nomor reservasi "TIDAK DITEMUKAN", kirim daftar kolom yang tercetak agar pemetaan diperbaiki. Bila terus kehabisan waktu, naikkan `DISTRIVA_MIMS_MIRROR_TIMEOUT` atau persempit `--days`.
+
+## Sinkron DIL dari Master Pelanggan (folder berkas)
+Tombol **Sinkron DIL** (Master Data → Master Pelanggan, untuk yang berhak `customers.import`) memuat berkas DIL yang diletakkan di folder server, tanpa mengunggah lewat browser (berkas `.mdb` bisa ratusan MB).
+- **Folder**: `backend/storage/app/dil-inbox` (ubah dengan `DISTRIVA_DIL_INBOX`, harus di luar folder publik). Hanya `.mdb` dan `.csv` yang dibaca; tautan simbolik dan berkas lain diabaikan. Berkas yang selesai dimuat dipindah ke `diproses/` di dalamnya.
+- **Pembaca .mdb**: `sudo apt install mdbtools` (`mdb-export` dan `mdb-tables` harus ada di PATH; atau atur `DISTRIVA_DIL_MDB_EXPORT` / `DISTRIVA_DIL_MDB_TABLES`). Tanpa itu, taruh berkas dalam bentuk `.csv`.
+- **Keamanan**: hanya 17 kolom master yang dibaca; nama pelanggan disamarkan; NIK, NPWP, telepon, email, alamat, dan koordinat tidak pernah dibaca. Idempoten per IDPEL.
+- **Proses**: berjalan di latar belakang (`php artisan distriva:dil-sync-execute`), satu run pada satu waktu; kemajuan terlihat di panel. Tabel `dil_sync_runs` menyimpan riwayatnya.

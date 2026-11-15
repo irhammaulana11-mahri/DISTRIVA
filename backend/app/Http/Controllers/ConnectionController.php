@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\MfaService;
 use App\Services\Substations\ConnectionService;
+use App\Services\Substations\DilSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Validator;
 /** Master pelanggan (docs/81). Grant (403/404) -> validation (422) -> rule (409). SYS_ADMIN writes need MFA. */
 class ConnectionController extends Controller
 {
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ConnectionService $connections) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ConnectionService $connections, private readonly DilSyncService $dilSync) {}
 
     /** GET /master-data/customer-connections */
     public function index(Request $request): JsonResponse
@@ -75,6 +76,31 @@ class ConnectionController extends Controller
         $this->authorizer->authorizeScope($request->user(), 'customers.import');
 
         return response()->json(['data' => $this->connections->batch($batch, $request->user())]);
+    }
+
+    /** GET /master-data/customer-connections/sync — the inbox folder, the files in it, and the latest runs. */
+    public function syncInfo(Request $request): JsonResponse
+    {
+        $this->authorizer->authorizeScope($request->user(), 'customers.import');
+
+        return response()->json(['data' => $this->dilSync->info()]);
+    }
+
+    /** POST /master-data/customer-connections/sync/runs — load the files now in the inbox (detached process). */
+    public function syncStart(Request $request): JsonResponse
+    {
+        $this->write($request, 'customers.import');
+        $id = $this->dilSync->start($request->user());
+
+        return response()->json(['data' => $this->dilSync->show($id), 'message' => 'Sinkron DIL dimulai di latar belakang.'], 202);
+    }
+
+    /** GET /master-data/customer-connections/sync/runs/{run} */
+    public function syncShow(Request $request, string $run): JsonResponse
+    {
+        $this->authorizer->authorizeScope($request->user(), 'customers.import');
+
+        return response()->json(['data' => $this->dilSync->show($run) ?? throw new AdministrationDenied('Data tidak ditemukan.', 404)]);
     }
 
     /** @return array{unrestricted: bool, units: list<string>} */

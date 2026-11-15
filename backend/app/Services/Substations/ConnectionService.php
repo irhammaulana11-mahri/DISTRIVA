@@ -162,9 +162,12 @@ class ConnectionService
         if (isset($f['linked'])) {
             $f['linked'] ? $q->whereNotNull('c.substation_id') : $q->whereNull('c.substation_id');
         }
-        $page = $q->orderBy('c.idpel')->paginate(max(1, min((int) ($f['per_page'] ?? 25), 100)));
+        // Totals over everything the filters select (not just the page on screen): one aggregate, which also serves as the page count.
+        $sum = (clone $q)->select(DB::raw("count(*) as total, count(*) filter (where c.status = 'AKTIF') as active, coalesce(sum(c.power_va) filter (where c.status = 'AKTIF'), 0) as active_va, count(*) filter (where c.substation_id is null) as unlinked"))->first();
+        $page = $q->orderBy('c.idpel')->paginate(max(1, min((int) ($f['per_page'] ?? 25), 100)), ['*'], 'page', null, (int) $sum->total);
 
-        return ['data' => collect($page->items())->map(fn ($r) => $this->present($r))->all(), 'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]];
+        return ['data' => collect($page->items())->map(fn ($r) => $this->present($r))->all(), 'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()],
+            'summary' => ['total' => (int) $sum->total, 'active' => (int) $sum->active, 'active_va' => (int) round((float) $sum->active_va), 'unlinked' => (int) $sum->unlinked]];
     }
 
     /** @param array{unrestricted: bool, units: list<string>} $scope @return array<string,mixed> */

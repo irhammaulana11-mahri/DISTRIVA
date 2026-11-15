@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Substations\ConnectionService;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\KkoPermissionSeeder;
 use Database\Seeders\SubstationPermissionSeeder;
@@ -217,6 +218,9 @@ class ConnectionTest extends PostgresTestCase
             $this->assertNull($link($none)->substation_id);
         }
         $this->assertSame(4, $this->as($this->planning)->getJson('/api/master-data/customer-connections?linked=1')->json('meta.total'));
+        $all = $this->as($this->planning)->getJson('/api/master-data/customer-connections?per_page=2')->assertOk();            // the cards count everything the filters select, not the two rows on this page
+        $this->assertSame([7, 3, 2], [$all->json('summary.total'), $all->json('summary.unlinked'), count($all->json('data'))]);
+        $this->assertSame(4, $this->as($this->planning)->getJson('/api/master-data/customer-connections?linked=1')->json('summary.total'));
 
         // a gardu that arrives later picks up the waiting short codes; the same short code in another ULP is not touched
         $this->send($this->planning, [$this->item('514530000008', 'HD555')]);
@@ -233,16 +237,16 @@ class ConnectionTest extends PostgresTestCase
         $this->as($this->teknik)->patchJson("/api/master-data/customer-connections/{$cid}/link", ['substation_id' => null])->assertOk();
         $this->send($this->planning, [$this->item('514530000001', 'HD127')]);
         $this->assertNull($link('514530000001')->substation_id);
-        $this->assertSame(0, app(\App\Services\Substations\ConnectionService::class)->linkPending());
+        $this->assertSame(0, app(ConnectionService::class)->linkPending());
         $this->assertNull($link('514530000001')->substation_id);
     }
 
     #[Test]
     public function the_gardu_named_in_the_dil_name_links_the_customer_in_its_own_ulp_and_a_gardu_that_arrives_later_picks_it_up(): void
     {
-        $this->assertSame(['HD0008', 'HD0742', 'HL0141', null, null], array_map([\App\Services\Substations\ConnectionService::class, 'codeFromName'],
+        $this->assertSame(['HD0008', 'HD0742', 'HL0141', null, null], array_map([ConnectionService::class, 'codeFromName'],
             ['GD HD0008 PENYULANG DENANYAR', 'CEWENG-HD742', 'gd hl0141 penyulang x', 'GARDU PORTAL', 'XHD0008']));
-        $this->assertSame(['HL0141', 'HD0001', null], array_map([\App\Services\Substations\ConnectionService::class, 'paddedCode'], ['hl141', 'HD1', 'D0049']));
+        $this->assertSame(['HL0141', 'HD0001', null], array_map([ConnectionService::class, 'paddedCode'], ['hl141', 'HD1', 'D0049']));
         $this->loadGardu([$this->gardu('HD0008', 'GD514530003'), $this->gardu('HD0742', 'GD514530535')]);                  // the GADIS numbers of the master differ from the NOMOR_GARDU of the new DIL
         $sid = fn (string $code) => (string) DB::table('substations')->where('code', $code)->value('id');
         $long = '51453GD010000330276';
@@ -264,5 +268,4 @@ class ConnectionTest extends PostgresTestCase
         $this->assertSame(1, $applied['customers_linked']);
         $this->assertSame('DIL_NAMA', $link('514530000003')->link_source);
     }
-
 }

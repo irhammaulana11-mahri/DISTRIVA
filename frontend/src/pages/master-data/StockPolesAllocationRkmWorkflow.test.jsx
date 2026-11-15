@@ -95,7 +95,7 @@ describe('Gudang & Posisi Stok Master Data Workflow', () => {
     data: [
       {
         khs_code: 'KHS-KBL-01',
-        material_name: 'Kabel A3CS 150mm2',
+        khs_name: 'Kabel A3CS 150mm2',
         unit: 'MTR',
         on_hand: 5000,
         reserved: 1000,
@@ -168,7 +168,8 @@ describe('Gudang & Posisi Stok Master Data Workflow', () => {
     const queryBtn = await screen.findByRole('button', { name: /Hitung Posisi/i })
     await userEvent.click(queryBtn)
 
-    expect(await screen.findByText('KHS-KBL-01')).toBeInTheDocument()
+    expect(await screen.findByText('Kabel A3CS 150mm2')).toBeInTheDocument()   // nama material lebih dulu, kode KHS hanya penanda kecil
+    expect(screen.getByText('KHS-KBL-01 · MTR')).toBeInTheDocument()
     expect(screen.getByText('3.700')).toBeInTheDocument() // available: 5000 - 1000 + 200 - 500 = 3700
   })
 
