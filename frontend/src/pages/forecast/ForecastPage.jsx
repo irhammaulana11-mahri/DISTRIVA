@@ -669,7 +669,7 @@ function RunView({ run, canReview, onReview }) {
               <span>Seberapa dapat dipercaya</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Evaluasi kinerja pemodelan Deep Learning GRU kuantil pada data validasi independen.
+              Evaluasi kinerja model prakiraan pada data uji independen.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -692,6 +692,19 @@ function RunView({ run, canReview, onReview }) {
         <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
           Model: <span className="font-medium text-slate-700 dark:text-slate-300">{run.model?.name} v{run.model?.version}</span> · <span className="font-medium text-slate-700 dark:text-slate-300">{run.counts?.forecast_substations?.toLocaleString('id-ID')} gardu</span> · data pembacaan s.d. {fmtDate(run.data_cutoff)} · dijalankan oleh {run.started_by_name}. Prakiraan per gardu bersifat indikatif (kebanyakan gardu hanya diukur sekitar setahun sekali); gunakan bersama survei lapangan.
         </p>
+        {run.model?.candidates && (
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed" data-testid="model-candidates">
+            Model dipilih otomatis dari galat terkecil pada data validasi:{' '}
+            {Object.entries(run.model.candidates).map(([key, c], i) => (
+              <span key={key}>
+                {i > 0 && ' · '}
+                <span className={key === run.model.chosen ? 'font-semibold text-slate-700 dark:text-slate-200' : ''}>
+                  {{ gru: 'GRU', gbm: 'LightGBM', ensemble: 'Gabungan' }[key] || key} {String(c.val_mae_pp).replace('.', ',')} poin{key === run.model.chosen ? ' (dipakai)' : ''}
+                </span>
+              </span>
+            ))}.
+          </p>
+        )}
         {run.assumptions && (
           <details className="text-xs text-slate-600 dark:text-slate-300 rounded-xl bg-slate-50 dark:bg-slate-850 p-3 border border-slate-200/80 dark:border-slate-800">
             <summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-200">Asumsi Model &amp; Parameter Pembelajaran</summary>
@@ -847,7 +860,7 @@ function RunView({ run, canReview, onReview }) {
               <span>Daftar gardu</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Evaluasi beban trafo real-time dan prakiraan horizon 1, 3, dan 5 tahun berdasarkan model ansambel GRU.
+              Evaluasi beban trafo real-time dan prakiraan horizon 1, 3, dan 5 tahun berdasarkan model terpilih pada run ini.
             </p>
           </div>
 

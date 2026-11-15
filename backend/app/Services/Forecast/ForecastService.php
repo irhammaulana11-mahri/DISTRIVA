@@ -26,7 +26,7 @@ class ForecastService
 
     private const STALE_AFTER_HOURS = 3;
 
-    private const ASSUMPTIONS = 'Prakiraan beban gardu dari riwayat pembacaan (jaringan saraf GRU kuantil, satu model bersama untuk semua gardu). Nilai adalah rasio beban kVA terhadap kapasitas trafo '
+    private const ASSUMPTIONS = 'Prakiraan beban gardu dari riwayat pembacaan (model kuantil bersama untuk semua gardu: GRU, LightGBM, atau gabungan keduanya, dipilih dari galat validasi terkecil; skenario tanpa sisipan atau pecah beban sehingga beban tidak turun). Nilai adalah rasio beban kVA terhadap kapasitas trafo '
         .'pada pembacaan terakhir, dengan rentang p10-p90. Tidak memodelkan pemindahan beban, sisip trafo, atau penggantian trafo setelah pembacaan terakhir. Satu pembacaan per gardu per beberapa bulan '
         .'(sebagian besar pembacaan tahunan) membuat prakiraan per gardu bersifat indikatif; gunakan bersama survei lapangan. Rekomendasi, bukan keputusan pengadaan.';
 

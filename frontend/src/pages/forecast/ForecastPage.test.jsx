@@ -73,6 +73,15 @@ describe('Forecast Beban Gardu', () => {
     forecastApi.review.mockResolvedValue({})
   })
 
+  it('menampilkan model yang dipilih beserta galat tiap kandidat', async () => {
+    forecastApi.run.mockResolvedValue({ data: { ...detail, model: { name: 'Gabungan GRU-kuantil dan LightGBM', version: '2', chosen: 'ensemble', candidates: { gru: { val_mae_pp: 9.08 }, gbm: { val_mae_pp: 9.1 }, ensemble: { val_mae_pp: 9.03 } } } } })
+    renderPage()
+    const line = await screen.findByTestId('model-candidates')
+    expect(line).toHaveTextContent('GRU 9,08 poin')
+    expect(line).toHaveTextContent('LightGBM 9,1 poin')
+    expect(line).toHaveTextContent('Gabungan 9,03 poin (dipakai)')
+  })
+
   it('menampilkan keterpercayaan, ringkasan per ULP, dan gardu berisiko dengan rentang prakiraan', async () => {
     renderPage()
     expect(await screen.findByText('JB0001 · Gardu Pasar')).toBeInTheDocument()
