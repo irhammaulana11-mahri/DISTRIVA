@@ -37,6 +37,15 @@ def widen(pred: np.ndarray, scale: float) -> np.ndarray:
     return out
 
 
+def no_relief(pred: np.ndarray, last_ratio: np.ndarray) -> np.ndarray:
+    """Scenario without intervention: the median never falls below the last reading, and the ranges stay around it."""
+    out = pred.copy()
+    out[..., 1] = np.maximum(pred[..., 1], last_ratio)
+    out[..., 0] = np.minimum(pred[..., 0], out[..., 1])
+    out[..., 2] = np.maximum(pred[..., 2], out[..., 1])
+    return out
+
+
 def calibrate(pred: np.ndarray, y: np.ndarray, target: float = 0.80) -> float:
     """Smallest scale (1.0 .. 3.0) with which the p10-p90 range covers `target` of the validation outcomes."""
     for k in range(0, 41):
@@ -69,7 +78,7 @@ def run(readings: str, substations: str, seeds: int = 3, epochs: int = 40, threa
     scale = calibrate(model.predict_samples(eval_nets, val), val.y)             # the ranges are widened until they cover 80 % of the validation outcomes
     log(f'range scale {scale:.2f}')
     test = samples.take(te)
-    report = metrics.report(widen(model.predict_samples(eval_nets, test), scale), test.y, test.last_ratio, test.gap) if len(te) else {'all': {'n': 0}, 'by_horizon': {}}
+    report = metrics.report(no_relief(widen(model.predict_samples(eval_nets, test), scale), test.last_ratio), test.y, test.last_ratio, test.gap) if len(te) else {'all': {'n': 0}, 'by_horizon': {}}
     final_epochs = max(3, int(round(float(np.mean(best_epochs)))))
 
     # 2. production networks: the same recipe on all the data, for as many epochs as the evaluation needed
@@ -93,6 +102,10 @@ def run(readings: str, substations: str, seeds: int = 3, epochs: int = 40, threa
     grid = np.array(GRID, dtype=np.float32)
     rep = lambda a, dt: np.repeat(np.stack(a) if isinstance(a[0], np.ndarray) else np.array(a, dtype=dt), len(grid), axis=0)      # noqa: E731
     pred = widen(model.predict(final_nets, rep(seqs, np.float32), rep(statics, np.float32), rep(unit_idx, np.int64), np.tile(grid, n)).reshape(n, len(grid), 3), scale)
+    pred = no_relief(pred, np.array(lasts, dtype=np.float32).reshape(n, 1))
+    pred[:, :, 1] = np.maximum.accumulate(pred[:, :, 1], axis=1)               # without intervention the median does not turn back down with the horizon
+    pred[:, :, 0] = np.minimum(pred[:, :, 0], pred[:, :, 1])
+    pred[:, :, 2] = np.maximum(pred[:, :, 2], pred[:, :, 1])
     results = []
     for k in range(n):
         asof = asofs[k]
@@ -107,7 +120,7 @@ def run(readings: str, substations: str, seeds: int = 3, epochs: int = 40, threa
 
     return {
         'model': {'name': 'GRU-kuantil (ansambel)', 'version': '1', 'framework': f'torch {torch.__version__}', 'seeds': seeds, 'epochs_eval': best_epochs, 'epochs_final': final_epochs,
-                  'target': 'beban kVA dibagi kapasitas trafo pada pembacaan terakhir', 'quantiles': list(model.QUANTILES), 'history_readings': data.K, 'range_scale': round(scale, 2)},
+                  'target': 'beban kVA dibagi kapasitas trafo pada pembacaan terakhir', 'scenario': 'tanpa sisipan atau pecah beban (beban tidak turun)', 'quantiles': list(model.QUANTILES), 'history_readings': data.K, 'range_scale': round(scale, 2)},
         'window': {'first_reading': min(r[0] for s in subs.values() for r in s.readings).isoformat(), 'last_reading': max(r[0] for s in subs.values() for r in s.readings).isoformat(),
                    'train_targets_before': data.TRAIN_END.isoformat(), 'validation_until': data.VAL_END.isoformat()},
         'counts': {'substations': len(subs), 'forecast_substations': n, 'samples': len(samples), 'train': int(len(tr)), 'validation': int(len(va)), 'test': int(len(te))},

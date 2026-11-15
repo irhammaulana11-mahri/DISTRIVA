@@ -110,5 +110,25 @@ class PipelineSmokeTest(unittest.TestCase):
         self.assertIn('persistence_mae_pp', out['metrics']['all'])
 
 
+class NoReliefTest(unittest.TestCase):
+    def test_a_big_drop_or_capacity_change_is_an_intervention_and_cuts_the_targets(self):
+        d = date(2024, 1, 1)
+        rd = lambda k, load, cap: (d + timedelta(days=200 * k), load, cap, None)  # noqa: E731
+        self.assertTrue(data.is_intervention(rd(0, 80, 100), rd(1, 40, 100)))        # pecah beban: 80 % -> 40 %
+        self.assertTrue(data.is_intervention(rd(0, 80, 100), rd(1, 85, 160)))        # trafo replaced
+        self.assertFalse(data.is_intervention(rd(0, 80, 100), rd(1, 70, 100)))       # a normal dip
+        self.assertFalse(data.is_intervention(rd(0, 20, 100), rd(1, 5, 100)))        # low load is never "relief"
+        sub = data.Substation('a', 1, 100.0, 1.0, None, None, [rd(0, 60, 100), rd(1, 66, 100), rd(2, 30, 100), rd(3, 33, 100)])
+        s = data.build_samples({'a': sub})
+        # targets reachable: 0->1 only from reading 0; reading 1 cannot see 2 or 3 (relief in between); reading 2 -> 3
+        self.assertEqual(len(s), 2)
+
+    def test_the_forecast_never_falls_below_the_last_reading_nor_turns_down_with_the_horizon(self):
+        pred = np.array([[[0.5, 0.6, 0.9], [0.4, 0.5, 0.8], [0.3, 0.7, 1.0]]])         # one gardu, three horizons
+        out = pipeline.no_relief(pred, np.array([[0.85]], dtype=np.float32))
+        self.assertTrue(np.all(out[0, :, 1] >= 0.85))
+        self.assertTrue(np.all(out[0, :, 0] <= out[0, :, 1]) and np.all(out[0, :, 2] >= out[0, :, 1]))
+
+
 if __name__ == '__main__':
     unittest.main()

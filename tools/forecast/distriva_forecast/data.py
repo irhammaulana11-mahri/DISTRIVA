@@ -21,6 +21,9 @@ MAX_RATIO = 2.5             # readings above 250 % of capacity are treated as me
 TRAIN_END = date(2024, 7, 1)
 VAL_END = date(2025, 7, 1)
 YEAR = 365.25
+RELIEF_DROP = 0.30          # a load drop of this share between two readings (from a ratio >= RELIEF_MIN_RATIO) or a capacity change is an intervention: pecah beban, sisipan, trafo diganti
+RELIEF_MIN_RATIO = 0.5
+CAPACITY_CHANGE = 0.05
 
 
 @dataclass
@@ -85,6 +88,13 @@ def _step(rd: tuple, prev_ratio: float | None, asof: date, asof_cap: float, pres
     ]
 
 
+def is_intervention(prev: tuple, cur: tuple) -> bool:
+    """True when the step between two readings looks like the substation was relieved (load moved to another substation or the transformer was replaced), not like organic load change."""
+    if abs(cur[2] / prev[2] - 1.0) > CAPACITY_CHANGE:
+        return True
+    return prev[1] / prev[2] >= RELIEF_MIN_RATIO and prev[1] > 0 and (cur[1] - prev[1]) / prev[1] <= -RELIEF_DROP
+
+
 def features(s: Substation, i: int) -> tuple[np.ndarray, np.ndarray, float, date, float]:
     """History up to reading `i` -> (sequence [K, STEP_DIM], static [STATIC_DIM], capacity at the as-of, as-of date, last ratio)."""
     asof, _, asof_cap, _ = s.readings[i]
@@ -138,6 +148,8 @@ def build_samples(subs: dict[str, Substation]) -> Samples:
         for i in range(n - 1):
             seq, static, cap_i, asof, last_ratio = features(s, i)
             for j in range(i + 1, n):
+                if is_intervention(s.readings[j - 1], s.readings[j]):
+                    break                                                # the model learns the load WITHOUT relief: later readings of this gardu are not targets of this history
                 gap = (s.readings[j][0] - asof).days / YEAR
                 if gap < MIN_GAP_YEARS or gap > MAX_GAP_YEARS:
                     continue
