@@ -12,6 +12,17 @@ import * as csvTemplates from '../../utils/csvTemplates.js'
 vi.mock('../../services/api.js', () => ({
   forecastApi: { schedule: vi.fn(), saveSchedule: vi.fn(), derived: vi.fn(), runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
   notificationsApi: { list: vi.fn().mockResolvedValue({ data: [] }), markRead: vi.fn(), markAllRead: vi.fn() },
+  warehousesApi: {
+    materialDetail: vi.fn().mockResolvedValue({
+      data: {
+        material: { khs_code: '3110025', khs_name: 'Kabel TIC 3x70', unit: 'M', category: 'Kabel TM' },
+        position: { on_hand: 500, available: 450, reserved: 50 },
+        movements: { monthly: [], weekly: [], summary: { total_in: 0, total_out: 0 } },
+        warehouse_breakdown: [],
+        recent_transactions: { receipts: [], issues: [] },
+      },
+    }),
+  },
 }))
 
 function renderPage(can = { 'forecast.view': true }) {
@@ -146,6 +157,29 @@ describe('Forecast permintaan (pelanggan, VA, material)', () => {
     expect(forecastApi.series).toHaveBeenCalledWith('d-1', expect.objectContaining({ kind: 'MATERIAL_ISSUE' }))
     await userEvent.click(screen.getByRole('button', { name: 'Jalankan forecast' }))
     expect(forecastApi.start).toHaveBeenCalledWith('DEMAND')
+  })
+
+  it('dapat membuka drawer detail material dan menampilkan grafik/tabel proyeksi saat tombol Detail Stok & Proyeksi diklik', async () => {
+    renderPage({ 'forecast.view': true, 'forecast.run': true })
+    await userEvent.click(screen.getByRole('tab', { name: 'Material' }))
+    expect(await screen.findByText('3110025 · Kabel TIC 3x70')).toBeInTheDocument()
+
+    // Klik tombol aksi detail material
+    const detailBtn = screen.getByRole('button', { name: /Detail Stok & Proyeksi/i })
+    await userEvent.click(detailBtn)
+
+    // Memverifikasi drawer detail terbuka dengan tab proyeksi aktif
+    expect(await screen.findByText(/Proyeksi 3 Bulan \(p50\)/i)).toBeInTheDocument()
+    expect(screen.getByText('Proyeksi 6 Bulan (p50)')).toBeInTheDocument()
+    expect(screen.getByText('Proyeksi 12 Bulan (p50)')).toBeInTheDocument()
+    expect(screen.getByText(/Kecukupan Stok \(Runway\)/i)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Grafik Proyeksi Kebutuhan Material 12 Bulan/i })).toBeInTheDocument()
+
+    // Beralih ke tabel rincian
+    const tableBtn = screen.getByRole('button', { name: /Tabel Rincian/i })
+    await userEvent.click(tableBtn)
+    expect(screen.getByText(/Kebutuhan Kumulatif/i)).toBeInTheDocument()
+    expect(screen.getByText(/Estimasi Sisa Stok/i)).toBeInTheDocument()
   })
 
   it('tab Pelanggan & daya memilih jenis yang diprakirakan', async () => {

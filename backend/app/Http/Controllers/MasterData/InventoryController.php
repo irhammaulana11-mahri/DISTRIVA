@@ -341,7 +341,8 @@ class InventoryController extends Controller
                         $weeklyBuckets[$wKey]['qty_in'] += $qty;
                         $weeklyBuckets[$wKey]['receipt_docs_count']++;
                     }
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
             }
 
             $recentReceipts = $receiptRecords->sortByDesc(fn ($r) => $r->received_on ?? $r->delivered_on)->take(15)->values();
@@ -383,7 +384,8 @@ class InventoryController extends Controller
                         $weeklyBuckets[$wKey]['qty_out'] += $qty;
                         $weeklyBuckets[$wKey]['issue_docs_count']++;
                     }
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
             }
 
             $recentIssues = $issueRecords->sortByDesc('issued_on')->take(15)->values();
@@ -423,6 +425,45 @@ class InventoryController extends Controller
             'warehouse_count' => count($warehouseBreakdown),
         ];
 
+        // Latest demand forecast for this material if available
+        $latestDemandRun = DB::table('forecast_runs')
+            ->where('kind', 'DEMAND')
+            ->where('status', 'SUCCEEDED')
+            ->orderByDesc('completed_at')
+            ->first();
+
+        $forecastResult = null;
+        if ($latestDemandRun) {
+            $searchCodes = array_values(array_unique(array_merge([$khsCode], $allSearchNos)));
+            $seriesRow = DB::table('forecast_series_results as r')
+                ->join('organizational_units as o', 'o.id', '=', 'r.unit_id')
+                ->where('r.run_id', $latestDemandRun->id)
+                ->where('r.kind', 'MATERIAL_ISSUE')
+                ->whereIn('r.item_code', $searchCodes)
+                ->select('r.*', 'o.code as unit_code', 'o.name as unit_name')
+                ->first();
+
+            if ($seriesRow) {
+                $forecastResult = [
+                    'run_id' => $latestDemandRun->id,
+                    'completed_at' => $latestDemandRun->completed_at,
+                    'data_cutoff' => $latestDemandRun->data_cutoff,
+                    'item_code' => $seriesRow->item_code,
+                    'item_label' => $seriesRow->item_label,
+                    'unit_code' => $seriesRow->unit_code,
+                    'unit_name' => $seriesRow->unit_name,
+                    'history_months' => (int) $seriesRow->history_months,
+                    'last_12_months' => (float) $seriesRow->last_12_months,
+                    'months' => json_decode($seriesRow->months, true) ?: [],
+                    'totals' => [
+                        '3' => ['p10' => (float) $seriesRow->t3_p10, 'p50' => (float) $seriesRow->t3_p50, 'p90' => (float) $seriesRow->t3_p90],
+                        '6' => ['p10' => (float) $seriesRow->t6_p10, 'p50' => (float) $seriesRow->t6_p50, 'p90' => (float) $seriesRow->t6_p90],
+                        '12' => ['p10' => (float) $seriesRow->t12_p10, 'p50' => (float) $seriesRow->t12_p50, 'p90' => (float) $seriesRow->t12_p90],
+                    ],
+                ];
+            }
+        }
+
         return response()->json([
             'data' => [
                 'material' => [
@@ -451,6 +492,7 @@ class InventoryController extends Controller
                     'weekly' => array_values($weeklyBuckets),
                     'summary' => $summary,
                 ],
+                'forecast' => $forecastResult,
                 'recent_transactions' => [
                     'receipts' => $recentReceipts->map(fn ($r) => [
                         'delivery_document' => $r->delivery_document,

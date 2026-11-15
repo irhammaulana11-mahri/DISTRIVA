@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import Drawer from '../../components/Drawer.jsx'
 import Button from '../../components/Button.jsx'
@@ -12,14 +12,19 @@ import {
   IconBuilding,
   IconTruck,
   IconCheckCircle,
+  IconAlertCircle,
   IconSearch,
   IconFolder,
+  IconActivity,
+  IconZap,
+  IconClock,
 } from '../../components/icons.jsx'
 
 /**
  * Drawer Detail Material & Riwayat Mutasi (Penerimaan & Pengeluaran)
+ * Serta Grafik dan Tabel Proyeksi Kebutuhan (Forecasting).
  * Memuat data material lengkap, status stok konsolidasi & per gudang,
- * serta histori mutasi mingguan & bulanan dalam format visual chart maupun tabel rincian.
+ * histori mutasi mingguan & bulanan, serta proyeksi kebutuhan AI masa depan.
  */
 export default function MaterialStockDetailDrawer({
   isOpen,
@@ -27,26 +32,32 @@ export default function MaterialStockDetailDrawer({
   materialSummary,
   warehouseIds = [],
   warehouses = [],
+  initialTab = 'movements',
+  forecastData = null,
 }) {
-  const [activeTab, setActiveTab] = useState('movements') // 'movements' | 'warehouses' | 'transactions' | 'specs'
+  const [activeTab, setActiveTab] = useState(initialTab || 'movements') // 'forecast' | 'movements' | 'warehouses' | 'transactions' | 'specs'
   const [periodType, setPeriodType] = useState('monthly') // 'monthly' | 'weekly'
   const [viewMode, setViewMode] = useState('chart') // 'chart' | 'table'
+  const [forecastViewMode, setForecastViewMode] = useState('chart') // 'chart' | 'table'
   const [transactionKind, setTransactionKind] = useState('issues') // 'issues' | 'receipts'
   const [hoveredIndex, setHoveredIndex] = useState(null)
+  const [hoveredForecastMonth, setHoveredForecastMonth] = useState(null)
   const [searchWh, setSearchWh] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [detailData, setDetailData] = useState(null)
 
-  const khsCode = materialSummary?.khs_code || ''
+  const khsCode = materialSummary?.khs_code || materialSummary?.code || materialSummary?.item_code || ''
+  const warehouseKey = useMemo(() => (warehouseIds || []).join(','), [warehouseIds])
 
   const loadDetail = useCallback(async () => {
     if (!khsCode) return
     setLoading(true)
     setError('')
     try {
-      const res = await warehousesApi.materialDetail(khsCode, warehouseIds, {
+      const selectedWhIds = warehouseKey ? warehouseKey.split(',') : []
+      const res = await warehousesApi.materialDetail(khsCode, selectedWhIds, {
         period_months: 12,
         period_weeks: 16,
       })
@@ -56,18 +67,23 @@ export default function MaterialStockDetailDrawer({
     } finally {
       setLoading(false)
     }
-  }, [khsCode, warehouseIds])
+  }, [khsCode, warehouseKey])
 
+  const prevOpenRef = useRef(false)
   useEffect(() => {
-    if (isOpen && khsCode) {
-      loadDetail()
-    } else if (!isOpen) {
+    if (isOpen && !prevOpenRef.current) {
+      setActiveTab(initialTab || 'movements')
+      if (khsCode) {
+        loadDetail()
+      }
+    } else if (!isOpen && prevOpenRef.current) {
       setDetailData(null)
       setError('')
-      setActiveTab('movements')
       setHoveredIndex(null)
+      setHoveredForecastMonth(null)
     }
-  }, [isOpen, khsCode, loadDetail])
+    prevOpenRef.current = isOpen
+  }, [isOpen, khsCode, initialTab, loadDetail])
 
   // Material attributes (merge summary & detailed backend data)
   const mat = detailData?.material || {}
@@ -94,6 +110,126 @@ export default function MaterialStockDetailDrawer({
   }
 
   const currentBuckets = periodType === 'monthly' ? monthlyBuckets : weeklyBuckets
+
+  // Forecast normalization and stock runway calculation
+  const effectiveForecast = useMemo(() => {
+    if (forecastData) {
+      let totals = forecastData.totals
+      let months = forecastData.months
+      if (!totals && forecastData.total) {
+        const t = forecastData.total
+        totals = {
+          '3': { p10: Math.round(t.p10 * 0.25), p50: Math.round(t.p50 * 0.25), p90: Math.round(t.p90 * 0.25) },
+          '6': { p10: Math.round(t.p10 * 0.5), p50: Math.round(t.p50 * 0.5), p90: Math.round(t.p90 * 0.5) },
+          '12': t,
+        }
+      }
+      if ((!months || months.length === 0) && totals?.['12']) {
+        const m12 = totals['12']
+        const now = new Date()
+        months = Array.from({ length: 12 }, (_, i) => {
+          const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1)
+          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+          return {
+            month: ym,
+            p10: Math.round(((m12.p10 || 0) / 12) * 10) / 10,
+            p50: Math.round(((m12.p50 || 0) / 12) * 10) / 10,
+            p90: Math.round(((m12.p90 || 0) / 12) * 10) / 10,
+          }
+        })
+      }
+      return {
+        ...forecastData,
+        totals: totals || {},
+        months: months || [],
+      }
+    }
+    return detailData?.forecast || null
+  }, [forecastData, detailData?.forecast])
+
+  const forecastAnalysis = useMemo(() => {
+    if (!effectiveForecast) return null
+    const months = effectiveForecast.months || []
+    const totals = effectiveForecast.totals || {}
+    const availableStock = position.available ?? position.on_hand ?? 0
+
+    let cum = 0
+    let deficitMonthIndex = null
+    const monthlyList = months.map((m, idx) => {
+      const p50 = Number(m.p50) || 0
+      cum += p50
+      const remaining = availableStock - cum
+      if (remaining < 0 && deficitMonthIndex === null) {
+        deficitMonthIndex = idx + 1
+      }
+      let monthLabel = `M+${idx + 1}`
+      if (m.month) {
+        try {
+          const parts = m.month.split('-')
+          if (parts.length === 2) {
+            const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1)
+            monthLabel = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' })
+          }
+        } catch {
+          // fallback to M+
+        }
+      }
+      return {
+        ...m,
+        index: idx + 1,
+        monthLabel,
+        p10: Number(m.p10) || 0,
+        p50,
+        p90: Number(m.p90) || 0,
+        cumulativeDemand: Math.round(cum * 10) / 10,
+        remainingStock: Math.round(remaining * 10) / 10,
+        isDeficit: remaining < 0,
+      }
+    })
+
+    let status = 'SAFE'
+    let label = 'Stok Aman'
+    let desc = 'Stok mencukupi kebutuhan proyeksi 12 bulan ke depan'
+    let badgeCls = 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+
+    if (availableStock <= 0) {
+      status = 'CRITICAL'
+      label = 'Stok Habis / Kosong'
+      desc = 'Tidak ada stok fisik tersedia saat ini'
+      badgeCls = 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+    } else if (deficitMonthIndex === 1) {
+      status = 'CRITICAL'
+      label = 'Kritis (< 1 Bulan)'
+      desc = 'Stok diperkirakan habis pada bulan pertama proyeksi'
+      badgeCls = 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+    } else if (deficitMonthIndex !== null && deficitMonthIndex <= 3) {
+      status = 'CRITICAL'
+      label = `Kritis (~${deficitMonthIndex - 1} Bulan)`
+      desc = `Stok diperkirakan defisit pada bulan ke-${deficitMonthIndex}`
+      badgeCls = 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+    } else if (deficitMonthIndex !== null && deficitMonthIndex <= 6) {
+      status = 'WARNING'
+      label = `Waspada (~${deficitMonthIndex - 1} Bulan)`
+      desc = `Stok mencukupi s.d. bulan ke-${deficitMonthIndex - 1}, butuh pengadaan sebelum bulan ke-${deficitMonthIndex}`
+      badgeCls = 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+    } else if (deficitMonthIndex !== null) {
+      status = 'SAFE'
+      label = `Cukup (~${deficitMonthIndex - 1} Bulan)`
+      desc = `Stok mencukupi untuk ${deficitMonthIndex - 1} bulan ke depan`
+      badgeCls = 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
+    }
+
+    return {
+      monthlyList,
+      totals,
+      availableStock,
+      deficitMonthIndex,
+      status,
+      label,
+      desc,
+      badgeCls,
+    }
+  }, [effectiveForecast, position.available, position.on_hand])
 
   // Chart calculations
   const chartMax = useMemo(() => {
@@ -250,11 +386,28 @@ export default function MaterialStockDetailDrawer({
 
         {/* Tab Selection */}
         <div className="border-b border-slate-200 dark:border-slate-800">
-          <nav className="flex space-x-4 text-xs font-medium" aria-label="Tabs Detail Material">
+          <nav className="flex space-x-4 text-xs font-medium overflow-x-auto" aria-label="Tabs Detail Material">
+            <button
+              type="button"
+              onClick={() => setActiveTab('forecast')}
+              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'forecast'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <IconActivity size={16} />
+              <span>Proyeksi Kebutuhan (Forecast)</span>
+              {effectiveForecast && (
+                <span className="ml-1 inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+                  AI
+                </span>
+              )}
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab('movements')}
-              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'movements'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
                   : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -266,7 +419,7 @@ export default function MaterialStockDetailDrawer({
             <button
               type="button"
               onClick={() => setActiveTab('warehouses')}
-              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'warehouses'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
                   : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -278,7 +431,7 @@ export default function MaterialStockDetailDrawer({
             <button
               type="button"
               onClick={() => setActiveTab('transactions')}
-              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'transactions'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
                   : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -290,7 +443,7 @@ export default function MaterialStockDetailDrawer({
             <button
               type="button"
               onClick={() => setActiveTab('specs')}
-              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`py-2 px-1 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'specs'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
                   : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -301,6 +454,450 @@ export default function MaterialStockDetailDrawer({
             </button>
           </nav>
         </div>
+
+        {/* TAB FORECAST: GRAFIK & TABEL PROYEKSI KEBUTUHAN */}
+        {activeTab === 'forecast' && (
+          <div className="space-y-4">
+            {!effectiveForecast ? (
+              <div className="p-8 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 space-y-3">
+                <div className="mx-auto w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <IconActivity size={24} />
+                </div>
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                  Belum Ada Hasil Forecast untuk Material Ini
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  Model deep learning belum memproses proyeksi untuk nomor material ini, atau riwayat transaksi material MIMS belum mencukupi ambang batas latihan (minimal 24 bulan).
+                </p>
+                <div className="pt-2">
+                  <Link
+                    to="/forecast"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
+                  >
+                    <span>Buka Menu Forecast Beban & Kebutuhan</span>
+                    <IconZap size={14} />
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* KPI Cards Ringkasan Proyeksi & Analisis Kecukupan Stok */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-xl border border-blue-200/90 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 flex flex-col justify-between">
+                    <div className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300 tracking-wider">
+                      Proyeksi 3 Bulan (p50)
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-blue-900 dark:text-blue-100 mt-1">
+                      {(forecastAnalysis.totals?.['3']?.p50 ?? 0).toLocaleString('id-ID')}
+                      <span className="text-xs font-normal text-blue-600 dark:text-blue-400 ml-1">
+                        {mat.unit || materialSummary?.unit || ''}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-blue-700/80 dark:text-blue-300/80 mt-1">
+                      Rentang: {(forecastAnalysis.totals?.['3']?.p10 ?? 0).toLocaleString('id-ID')} – {(forecastAnalysis.totals?.['3']?.p90 ?? 0).toLocaleString('id-ID')}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-indigo-200/90 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/30 flex flex-col justify-between">
+                    <div className="text-[10px] uppercase font-bold text-indigo-700 dark:text-indigo-300 tracking-wider">
+                      Proyeksi 6 Bulan (p50)
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-indigo-900 dark:text-indigo-100 mt-1">
+                      {(forecastAnalysis.totals?.['6']?.p50 ?? 0).toLocaleString('id-ID')}
+                      <span className="text-xs font-normal text-indigo-600 dark:text-indigo-400 ml-1">
+                        {mat.unit || materialSummary?.unit || ''}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80 mt-1">
+                      Rentang: {(forecastAnalysis.totals?.['6']?.p10 ?? 0).toLocaleString('id-ID')} – {(forecastAnalysis.totals?.['6']?.p90 ?? 0).toLocaleString('id-ID')}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between">
+                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                      Proyeksi 12 Bulan (p50)
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">
+                      {(forecastAnalysis.totals?.['12']?.p50 ?? 0).toLocaleString('id-ID')}
+                      <span className="text-xs font-normal text-slate-500 ml-1">
+                        {mat.unit || materialSummary?.unit || ''}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      Rentang: {(forecastAnalysis.totals?.['12']?.p10 ?? 0).toLocaleString('id-ID')} – {(forecastAnalysis.totals?.['12']?.p90 ?? 0).toLocaleString('id-ID')}
+                    </div>
+                  </div>
+
+                  {/* Kartu Kecukupan Stok / Stock Runway */}
+                  <div className={`p-3.5 rounded-xl border flex flex-col justify-between ${
+                    forecastAnalysis.status === 'CRITICAL'
+                      ? 'border-rose-300 dark:border-rose-800/80 bg-rose-50/70 dark:bg-rose-950/40'
+                      : forecastAnalysis.status === 'WARNING'
+                      ? 'border-amber-300 dark:border-amber-800/80 bg-amber-50/70 dark:bg-amber-950/40'
+                      : 'border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/40'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-600 dark:text-slate-300">
+                        Kecukupan Stok (Runway)
+                      </span>
+                      <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold ${forecastAnalysis.badgeCls}`}>
+                        {forecastAnalysis.label}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                      {forecastAnalysis.desc}
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>Stok Tersedia:</span>
+                      <span className="font-bold font-mono text-slate-800 dark:text-slate-200">
+                        {(forecastAnalysis.availableStock).toLocaleString('id-ID')} {mat.unit || materialSummary?.unit || ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub-toolbar: Toggle Grafik vs Tabel Proyeksi */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                    <IconActivity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <span className="font-semibold">Proyeksi 12 Bulan ke Depan:</span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px]">
+                      Pita rentang p10–p90 &amp; nilai tengah (p50)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-md border border-slate-200 dark:border-slate-700 shadow-sm text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setForecastViewMode('chart')}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                        forecastViewMode === 'chart'
+                          ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      Grafik Visual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForecastViewMode('table')}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                        forecastViewMode === 'table'
+                          ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      Tabel Rincian
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mode Tampilan: Grafik Proyeksi (Chart) */}
+                {forecastViewMode === 'chart' && (
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                    {/* SVG Chart Proyeksi */}
+                    {(() => {
+                      const list = forecastAnalysis.monthlyList
+                      const maxDemand = Math.max(...list.map((m) => m.p90 || 0), 1)
+                      const maxScale = Math.max(maxDemand * 1.15, (forecastAnalysis.availableStock > 0 ? forecastAnalysis.availableStock * 1.05 : 0), 10)
+                      const svgW = 740
+                      const svgH = 240
+                      const padLeft = 55
+                      const padRight = 25
+                      const padTop = 25
+                      const padBottom = 40
+                      const chartW = svgW - padLeft - padRight
+                      const chartH = svgH - padTop - padBottom
+
+                      const getX = (idx) => padLeft + (idx / Math.max(list.length - 1, 1)) * chartW
+                      const getY = (val) => padTop + chartH - Math.min(Math.max((val / maxScale) * chartH, 0), chartH)
+
+                      const upperPoints = list.map((m, idx) => `${getX(idx)},${getY(m.p90)}`).join(' ')
+                      const lowerPoints = [...list].reverse().map((m, idx) => {
+                        const originalIdx = list.length - 1 - idx
+                        return `${getX(originalIdx)},${getY(m.p10)}`
+                      }).join(' ')
+                      const polygonPoints = `${upperPoints} ${lowerPoints}`
+                      const p50LinePoints = list.map((m, idx) => `${getX(idx)},${getY(m.p50)}`).join(' ')
+
+                      const yStock = forecastAnalysis.availableStock > 0 ? getY(forecastAnalysis.availableStock) : null
+
+                      return (
+                        <div className="relative">
+                          <svg
+                            viewBox={`0 0 ${svgW} ${svgH}`}
+                            className="w-full h-64 overflow-visible"
+                            role="img"
+                            aria-label="Grafik Proyeksi Kebutuhan Material 12 Bulan"
+                          >
+                            {/* Garis Grid Horizontal */}
+                            {[0.25, 0.5, 0.75, 1.0].map((ratio) => {
+                              const y = padTop + chartH - ratio * chartH
+                              const val = Math.round(maxScale * ratio)
+                              return (
+                                <g key={ratio}>
+                                  <line
+                                    x1={padLeft}
+                                    y1={y}
+                                    x2={svgW - padRight}
+                                    y2={y}
+                                    stroke="currentColor"
+                                    className="text-slate-100 dark:text-slate-800"
+                                    strokeDasharray="3 3"
+                                  />
+                                  <text
+                                    x={padLeft - 8}
+                                    y={y + 3}
+                                    textAnchor="end"
+                                    fontSize="10"
+                                    className="fill-slate-400 font-mono"
+                                  >
+                                    {val.toLocaleString('id-ID')}
+                                  </text>
+                                </g>
+                              )
+                            })}
+
+                            {/* Garis Referensi Stok Tersedia */}
+                            {yStock !== null && yStock >= padTop && yStock <= padTop + chartH && (
+                              <g>
+                                <line
+                                  x1={padLeft}
+                                  y1={yStock}
+                                  x2={svgW - padRight}
+                                  y2={yStock}
+                                  stroke="#10b981"
+                                  strokeWidth="1.8"
+                                  strokeDasharray="4 3"
+                                  opacity="0.9"
+                                />
+                                <text
+                                  x={svgW - padRight}
+                                  y={yStock - 5}
+                                  textAnchor="end"
+                                  fontSize="9.5"
+                                  fill="#059669"
+                                  fontWeight="bold"
+                                >
+                                  Stok Tersedia Saat Ini ({(forecastAnalysis.availableStock).toLocaleString('id-ID')})
+                                </text>
+                              </g>
+                            )}
+
+                            {/* Area Pita Rentang Kepercayaan (p10–p90) */}
+                            <polygon
+                              points={polygonPoints}
+                              fill="rgba(59, 130, 246, 0.18)"
+                              className="dark:fill-blue-500/20"
+                            />
+
+                            {/* Garis Tren Median p50 */}
+                            <polyline
+                              points={p50LinePoints}
+                              fill="none"
+                              stroke="#2563eb"
+                              strokeWidth="2.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+
+                            {/* Titik Interaktif per Bulan & Label Sumbu X */}
+                            {list.map((m, idx) => {
+                              const x = getX(idx)
+                              const y = getY(m.p50)
+                              const isHovered = hoveredForecastMonth === idx
+
+                              return (
+                                <g key={m.month || idx}>
+                                  {/* Sumbu X Label */}
+                                  <text
+                                    x={x}
+                                    y={svgH - padBottom + 16}
+                                    textAnchor="middle"
+                                    fontSize="10"
+                                    className={`font-medium ${isHovered ? 'fill-blue-600 dark:fill-blue-400 font-bold' : 'fill-slate-500 dark:fill-slate-400'}`}
+                                  >
+                                    {m.monthLabel}
+                                  </text>
+
+                                  {/* Hover Area Vertikal */}
+                                  <rect
+                                    x={x - (chartW / list.length) / 2}
+                                    y={padTop}
+                                    width={chartW / list.length}
+                                    height={chartH}
+                                    fill="transparent"
+                                    className="cursor-pointer"
+                                    onMouseEnter={() => setHoveredForecastMonth(idx)}
+                                    onMouseLeave={() => setHoveredForecastMonth(null)}
+                                  />
+
+                                  {/* Garis Bantu Hover Vertikal */}
+                                  {isHovered && (
+                                    <line
+                                      x1={x}
+                                      y1={padTop}
+                                      x2={x}
+                                      y2={padTop + chartH}
+                                      stroke="#3b82f6"
+                                      strokeWidth="1.2"
+                                      strokeDasharray="2 2"
+                                      opacity="0.7"
+                                    />
+                                  )}
+
+                                  {/* Lingkaran Titik p50 */}
+                                  <circle
+                                    cx={x}
+                                    cy={y}
+                                    r={isHovered ? 5.5 : 3.5}
+                                    fill={isHovered ? '#1d4ed8' : '#2563eb'}
+                                    stroke="#ffffff"
+                                    strokeWidth="1.8"
+                                    className="transition-all"
+                                  />
+                                </g>
+                              )
+                            })}
+                          </svg>
+
+                          {/* Tooltip Card Saat Titik Bulan Di-hover */}
+                          {hoveredForecastMonth !== null && list[hoveredForecastMonth] && (
+                            <div className="mt-2 p-3 rounded-lg bg-slate-900 text-white text-xs shadow-lg flex flex-wrap items-center justify-between gap-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-blue-400">
+                                  Bulan: {list[hoveredForecastMonth].monthLabel} ({list[hoveredForecastMonth].month || `Bulan ke-${hoveredForecastMonth + 1}`})
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs font-mono">
+                                <div>
+                                  <span className="text-slate-400 font-sans">Kebutuhan (p50): </span>
+                                  <strong className="text-emerald-400">{(list[hoveredForecastMonth].p50).toLocaleString('id-ID')}</strong>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 font-sans">Rentang p10–p90: </span>
+                                  <span>{(list[hoveredForecastMonth].p10).toLocaleString('id-ID')} – {(list[hoveredForecastMonth].p90).toLocaleString('id-ID')}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 font-sans">Akumulasi s.d. Bulan Ini: </span>
+                                  <strong className="text-amber-300">{(list[hoveredForecastMonth].cumulativeDemand).toLocaleString('id-ID')}</strong>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 font-sans">Estimasi Sisa Stok: </span>
+                                  <strong className={list[hoveredForecastMonth].remainingStock < 0 ? 'text-rose-400' : 'text-blue-300'}>
+                                    {(list[hoveredForecastMonth].remainingStock).toLocaleString('id-ID')}
+                                  </strong>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-4">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-3 h-0.5 bg-blue-600 rounded"></span>
+                                Nilai Tengah (p50)
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-3 h-2 bg-blue-500/20 border border-blue-400/40 rounded-xs"></span>
+                                Rentang Ketidakpastian (p10–p90)
+                              </span>
+                              {forecastAnalysis.availableStock > 0 && (
+                                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                                  <span className="w-3 h-0.5 border-t border-dashed border-emerald-500"></span>
+                                  Garis Stok Tersedia Saat Ini
+                                </span>
+                              )}
+                            </div>
+                            <div>Arahkan kursor ke titik grafik untuk rincian per bulan.</div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                {/* Mode Tampilan: Tabel Rincian Proyeksi */}
+                {forecastViewMode === 'table' && (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50/90 dark:bg-slate-850 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                          <th className="px-4 py-3">Periode Bulan</th>
+                          <th className="px-3 py-3 text-right">Nilai Tengah (p50)</th>
+                          <th className="px-3 py-3 text-right">Rentang Bawah (p10)</th>
+                          <th className="px-3 py-3 text-right">Rentang Atas (p90)</th>
+                          <th className="px-3 py-3 text-right">Kebutuhan Kumulatif</th>
+                          <th className="px-3 py-3 text-right">Estimasi Sisa Stok</th>
+                          <th className="px-4 py-3 text-center">Status Stok</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {forecastAnalysis.monthlyList.map((m) => (
+                          <tr key={m.index} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
+                              <span>{m.monthLabel}</span>
+                              {m.month && (
+                                <span className="ml-1.5 text-[11px] text-slate-400 font-mono">
+                                  ({m.month})
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-right font-bold text-blue-600 dark:text-blue-400 font-mono">
+                              {(m.p50).toLocaleString('id-ID')}
+                            </td>
+                            <td className="px-3 py-3 text-right text-slate-600 dark:text-slate-400 font-mono">
+                              {(m.p10).toLocaleString('id-ID')}
+                            </td>
+                            <td className="px-3 py-3 text-right text-slate-600 dark:text-slate-400 font-mono">
+                              {(m.p90).toLocaleString('id-ID')}
+                            </td>
+                            <td className="px-3 py-3 text-right font-semibold text-slate-700 dark:text-slate-300 font-mono">
+                              {(m.cumulativeDemand).toLocaleString('id-ID')}
+                            </td>
+                            <td className={`px-3 py-3 text-right font-bold font-mono ${
+                              m.isDeficit ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'
+                            }`}>
+                              {(m.remainingStock).toLocaleString('id-ID')}
+                            </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              {m.isDeficit ? (
+                                <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800">
+                                  Defisit / Habis
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
+                                  Tercukupi
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-slate-50 dark:bg-slate-850 font-semibold border-t-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200">
+                        <tr>
+                          <td className="px-4 py-3">Total Proyeksi 12 Bulan</td>
+                          <td className="px-3 py-3 text-right font-mono text-blue-700 dark:text-blue-300">
+                            {(forecastAnalysis.totals?.['12']?.p50 ?? 0).toLocaleString('id-ID')}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono">
+                            {(forecastAnalysis.totals?.['12']?.p10 ?? 0).toLocaleString('id-ID')}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono">
+                            {(forecastAnalysis.totals?.['12']?.p90 ?? 0).toLocaleString('id-ID')}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono" colSpan="3">
+                            Stok Saat Ini: {(forecastAnalysis.availableStock).toLocaleString('id-ID')} {mat.unit || materialSummary?.unit || ''}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* TAB 1: MUTASI PENERIMAAN & PENGELUARAN */}
         {activeTab === 'movements' && (

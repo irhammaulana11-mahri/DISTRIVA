@@ -313,4 +313,56 @@ describe('MaterialStockDetailDrawer', () => {
     expect(screen.getByText(/Baut mata galvanis hot dip/i)).toBeInTheDocument()
     expect(screen.getByText('Buka Meja Kerja Pemetaan →')).toHaveAttribute('href', '/master-data/pemetaan-sku')
   })
+
+  it('dapat menampilkan tab Proyeksi Kebutuhan (Forecast) beserta grafik dan tabel forecasting', async () => {
+    const user = userEvent.setup()
+    const mockForecast = {
+      totals: {
+        '3': { p10: 30, p50: 45, p90: 60 },
+        '6': { p10: 65, p50: 90, p90: 120 },
+        '12': { p10: 130, p50: 180, p90: 240 },
+      },
+      months: [
+        { month: '2026-12', p10: 10, p50: 15, p90: 20 },
+        { month: '2027-01', p10: 11, p50: 16, p90: 22 },
+        { month: '2027-02', p10: 9, p50: 14, p90: 18 },
+      ],
+      history_months: 24,
+      last_12_months: 150,
+    }
+
+    render(
+      <MemoryRouter>
+        <MaterialStockDetailDrawer
+          isOpen={true}
+          onClose={vi.fn()}
+          materialSummary={mockSummary}
+          initialTab="forecast"
+          forecastData={mockForecast}
+        />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Proyeksi 3 Bulan \(p50\)/i)).toBeInTheDocument()
+    })
+
+    // Memverifikasi KPI Card Proyeksi
+    expect(screen.getByText('45')).toBeInTheDocument()
+    expect(screen.getByText('90')).toBeInTheDocument()
+    expect(screen.getByText('180')).toBeInTheDocument()
+    expect(screen.getByText(/Kecukupan Stok \(Runway\)/i)).toBeInTheDocument()
+
+    // Memverifikasi keberadaan Grafik SVG
+    expect(screen.getByRole('img', { name: /Grafik Proyeksi Kebutuhan Material 12 Bulan/i })).toBeInTheDocument()
+
+    // Berpindah ke mode Tabel Rincian Proyeksi
+    const tableToggle = screen.getByRole('button', { name: /Tabel Rincian/i })
+    await user.click(tableToggle)
+
+    // Memverifikasi isi tabel
+    expect(screen.getByText(/Kebutuhan Kumulatif/i)).toBeInTheDocument()
+    expect(screen.getByText(/Estimasi Sisa Stok/i)).toBeInTheDocument()
+    expect(screen.getByText('Total Proyeksi 12 Bulan')).toBeInTheDocument()
+  })
 })

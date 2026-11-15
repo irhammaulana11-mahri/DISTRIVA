@@ -11,6 +11,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
+import MaterialStockDetailDrawer from '../master-data/MaterialStockDetailDrawer.jsx'
 import {
   IconChart,
   IconRefresh,
@@ -25,6 +26,7 @@ import {
   IconX,
   IconDownload,
   IconArrowRight,
+  IconEye,
 } from '../../components/icons.jsx'
 
 /**
@@ -164,6 +166,7 @@ const TABS = [
 
 export default function ForecastPage() {
   const [tab, setTab] = useState('gardu')
+  const [selectedMaterialForDrawer, setSelectedMaterialForDrawer] = useState(null)
   const active = TABS.find((t) => t.key === tab)
   return (
     <div className="space-y-5">
@@ -215,8 +218,27 @@ export default function ForecastPage() {
       </nav>
 
       <div role="tabpanel" aria-label={active.label}>
-        {tab === 'gardu' ? <GarduForecast /> : tab === 'derived' ? <DerivedNeed /> : <DemandForecast key={tab} kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']} />}
+        {tab === 'gardu' ? (
+          <GarduForecast />
+        ) : tab === 'derived' ? (
+          <DerivedNeed onSelectMaterial={setSelectedMaterialForDrawer} />
+        ) : (
+          <DemandForecast
+            key={tab}
+            kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']}
+            onSelectMaterial={setSelectedMaterialForDrawer}
+          />
+        )}
       </div>
+
+      {/* Drawer Detail Stok Material, Histori Mutasi & Proyeksi Kebutuhan (Forecasting) */}
+      <MaterialStockDetailDrawer
+        isOpen={Boolean(selectedMaterialForDrawer)}
+        onClose={() => setSelectedMaterialForDrawer(null)}
+        materialSummary={selectedMaterialForDrawer}
+        initialTab="forecast"
+        forecastData={selectedMaterialForDrawer?.forecast}
+      />
     </div>
   )
 }
@@ -300,7 +322,7 @@ const KIND_LABEL = { CUSTOMERS_ADDED: 'Pelanggan baru (permohonan PB)', VA_ADDED
 const KIND_UNIT = { CUSTOMERS_ADDED: 'pelanggan', VA_ADDED: 'kVA', MATERIAL_ISSUE: '' }
 const num = (v) => (v == null ? '-' : Number(v).toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : 1 }))
 
-function DemandForecast({ kinds }) {
+function DemandForecast({ kinds, onSelectMaterial }) {
   const { can, isSysAdmin } = useAccess()
   const hook = useRuns('DEMAND')
   const { runs, runId, running, selected } = hook
@@ -327,7 +349,7 @@ function DemandForecast({ kinds }) {
           {running && <Alert variant="info">Forecast sedang berjalan di latar belakang. Halaman ini menyegarkan diri sendiri.</Alert>}
           {selected?.status === 'FAILED' && <Alert variant="error">{selected.error || 'Forecast gagal.'}</Alert>}
           {run?.status === 'INSUFFICIENT' && <InsufficientNotice run={run} kinds={kinds} />}
-          {run?.status === 'SUCCEEDED' && <DemandView run={run} kinds={kinds} />}
+          {run?.status === 'SUCCEEDED' && <DemandView run={run} kinds={kinds} onSelectMaterial={onSelectMaterial} />}
         </>
       )}
     </div>
@@ -368,7 +390,7 @@ function MiniBars({ months }) {
   )
 }
 
-function DemandView({ run, kinds }) {
+function DemandView({ run, kinds, onSelectMaterial }) {
   const m = run.metrics?.all || {}
   const [kind, setKind] = useState(kinds[0])
   const [unit, setUnit] = useState('')
@@ -441,13 +463,38 @@ function DemandView({ run, kinds }) {
                   <th scope="col" className="px-3 py-3 text-right">6 bulan ke depan</th>
                   <th scope="col" className="px-3 py-3 text-right">12 bulan ke depan</th>
                   <th scope="col" className="px-4 py-3">Pola 12 bulan</th>
+                  {material && <th scope="col" className="px-4 py-3 text-right">Aksi</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {state.rows.map((r) => (
-                  <tr key={r.series_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                  <tr
+                    key={r.series_id}
+                    onClick={() => {
+                      if (material && onSelectMaterial) {
+                        onSelectMaterial({
+                          khs_code: r.item_code,
+                          khs_name: r.item_label,
+                          unit: r.unit_name,
+                          forecast: {
+                            totals: r.totals,
+                            months: r.months,
+                            history_months: r.history_months,
+                            last_12_months: r.last_12_months,
+                            unit_name: r.unit_name,
+                            kind: r.kind,
+                          },
+                        })
+                      }
+                    }}
+                    className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition ${
+                      material ? 'cursor-pointer hover:bg-blue-50/60 dark:hover:bg-blue-950/20' : ''
+                    }`}
+                  >
                     <td className="px-4 py-3 max-w-72">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words">{r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}</h3>
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words flex items-center gap-1.5">
+                        {r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}
+                      </h3>
                       <div className="text-xs text-slate-500 dark:text-slate-400">{r.unit_name} · riwayat {r.history_months} bulan</div>
                     </td>
                     <td className="px-3 py-3 text-right whitespace-nowrap text-slate-700 dark:text-slate-300">{num(r.last_12_months)}<span className="text-xs text-slate-400">{unitSuffix}</span></td>
@@ -458,6 +505,36 @@ function DemandView({ run, kinds }) {
                       </td>
                     ))}
                     <td className="px-4 py-3"><MiniBars months={r.months} /></td>
+                    {material && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (onSelectMaterial) {
+                              onSelectMaterial({
+                                khs_code: r.item_code,
+                                khs_name: r.item_label,
+                                unit: r.unit_name,
+                                forecast: {
+                                  totals: r.totals,
+                                  months: r.months,
+                                  history_months: r.history_months,
+                                  last_12_months: r.last_12_months,
+                                  unit_name: r.unit_name,
+                                  kind: r.kind,
+                                },
+                              })
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 hover:bg-blue-100 dark:hover:bg-blue-900 transition cursor-pointer shadow-2xs"
+                          title="Buka rincian stok fisik, mutasi penerimaan/pengeluaran & grafik proyeksi"
+                        >
+                          <IconEye size={13} />
+                          <span>Detail Stok &amp; Proyeksi</span>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -1393,7 +1470,7 @@ function SubstationTable({ rows }) {
 const range = (r) => (r ? `${num(r.p50)} (${num(r.p10)}-${num(r.p90)})` : '-')
 
 /** Kebutuhan material yang disediakan PLN, diturunkan dari forecast beban gardu dan pelanggan baru lewat BOM yang berlaku (keputusan pemilik Nov 2026). */
-function DerivedNeed() {
+function DerivedNeed({ onSelectMaterial }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -1427,10 +1504,65 @@ function DerivedNeed() {
         <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
           <table className="w-full min-w-160 text-left text-sm">
             <caption className="sr-only">Material PLN yang dibutuhkan 12 bulan ke depan</caption>
-            <thead className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800"><tr><th scope="col" className={th}>Kode</th><th scope="col" className={th}>Material (disediakan PLN)</th><th scope="col" className={`${th} text-right`}>Dari gardu</th><th scope="col" className={`${th} text-right`}>Dari pelanggan baru</th><th scope="col" className={`${th} text-right`}>Total 12 bulan</th></tr></thead>
+            <thead className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th scope="col" className={th}>Kode</th>
+                <th scope="col" className={th}>Material (disediakan PLN)</th>
+                <th scope="col" className={`${th} text-right`}>Dari gardu</th>
+                <th scope="col" className={`${th} text-right`}>Dari pelanggan baru</th>
+                <th scope="col" className={`${th} text-right`}>Total 12 bulan</th>
+                <th scope="col" className={`${th} text-right`}>Aksi</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {materials.map((m) => (
-                <tr key={m.code} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"><td className="px-3 py-3 font-mono text-xs">{m.code}</td><td className="px-3 py-3 text-slate-900 dark:text-slate-100">{m.name}</td><td className="px-3 py-3 text-right">{num(m.gardu)}</td><td className="px-3 py-3 text-right">{customers.new_customers ? range(m.customers) : '-'}</td><td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-slate-100">{range(m.total)}</td></tr>
+                <tr
+                  key={m.code}
+                  onClick={() => {
+                    if (onSelectMaterial) {
+                      onSelectMaterial({
+                        khs_code: m.code,
+                        khs_name: m.name,
+                        forecast: {
+                          total: m.total,
+                          gardu: m.gardu,
+                          customers: m.customers,
+                        },
+                      })
+                    }
+                  }}
+                  className="hover:bg-blue-50/60 dark:hover:bg-blue-950/20 transition cursor-pointer"
+                >
+                  <td className="px-3 py-3 font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{m.code}</td>
+                  <td className="px-3 py-3 text-slate-900 dark:text-slate-100 font-medium">{m.name}</td>
+                  <td className="px-3 py-3 text-right">{num(m.gardu)}</td>
+                  <td className="px-3 py-3 text-right">{customers.new_customers ? range(m.customers) : '-'}</td>
+                  <td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-slate-100">{range(m.total)}</td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (onSelectMaterial) {
+                          onSelectMaterial({
+                            khs_code: m.code,
+                            khs_name: m.name,
+                            forecast: {
+                              total: m.total,
+                              gardu: m.gardu,
+                              customers: m.customers,
+                            },
+                          })
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 hover:bg-blue-100 dark:hover:bg-blue-900 transition cursor-pointer"
+                      title="Buka rincian stok fisik, mutasi penerimaan/pengeluaran & proyeksi material"
+                    >
+                      <IconEye size={13} />
+                      <span>Detail</span>
+                    </button>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -1442,10 +1574,65 @@ function DerivedNeed() {
           <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
             <table className="w-full min-w-136 text-left text-sm">
               <caption className="sr-only">Tiang yang dibutuhkan per ULP</caption>
-              <thead className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800"><tr><th scope="col" className={th}>ULP</th><th scope="col" className={th}>Tiang</th><th scope="col" className={`${th} text-right`}>12 bulan terakhir</th><th scope="col" className={`${th} text-right`}>12 bulan ke depan</th></tr></thead>
+              <thead className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th scope="col" className={th}>ULP</th>
+                  <th scope="col" className={th}>Tiang</th>
+                  <th scope="col" className={`${th} text-right`}>12 bulan terakhir</th>
+                  <th scope="col" className={`${th} text-right`}>12 bulan ke depan</th>
+                  <th scope="col" className={`${th} text-right`}>Aksi</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {poles.map((p) => (
-                  <tr key={`${p.unit_code}-${p.item_code}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"><td className="px-3 py-3">{p.unit_name}</td><td className="px-3 py-3">{p.item_label}</td><td className="px-3 py-3 text-right">{num(p.last_12_months)}</td><td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-slate-100">{range(p.next_12_months)}</td></tr>
+                  <tr
+                    key={`${p.unit_code}-${p.item_code}`}
+                    onClick={() => {
+                      if (onSelectMaterial) {
+                        onSelectMaterial({
+                          khs_code: p.item_code,
+                          khs_name: p.item_label,
+                          unit: p.unit_name,
+                          forecast: {
+                            total: p.next_12_months,
+                            last_12_months: p.last_12_months,
+                            unit_name: p.unit_name,
+                          },
+                        })
+                      }
+                    }}
+                    className="hover:bg-blue-50/60 dark:hover:bg-blue-950/20 transition cursor-pointer"
+                  >
+                    <td className="px-3 py-3">{p.unit_name}</td>
+                    <td className="px-3 py-3 font-medium text-slate-900 dark:text-slate-100">{p.item_label}</td>
+                    <td className="px-3 py-3 text-right">{num(p.last_12_months)}</td>
+                    <td className="px-3 py-3 text-right font-bold text-slate-900 dark:text-slate-100">{range(p.next_12_months)}</td>
+                    <td className="px-3 py-3 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (onSelectMaterial) {
+                            onSelectMaterial({
+                              khs_code: p.item_code,
+                              khs_name: p.item_label,
+                              unit: p.unit_name,
+                              forecast: {
+                                total: p.next_12_months,
+                                last_12_months: p.last_12_months,
+                                unit_name: p.unit_name,
+                              },
+                            })
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 hover:bg-blue-100 dark:hover:bg-blue-900 transition cursor-pointer"
+                        title="Buka rincian stok fisik, mutasi penerimaan/pengeluaran & proyeksi material"
+                      >
+                        <IconEye size={13} />
+                        <span>Detail</span>
+                      </button>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
