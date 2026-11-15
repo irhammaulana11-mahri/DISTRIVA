@@ -326,18 +326,10 @@ export default function WarehousesPage() {
                 >
                   Pengaturan Tarik
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={IconRefresh}
-                  onClick={() => setMimsModalOpen(true)}
-                >
-                  Tarik Stok dari MIMS
-                </Button>
                 <Link
                   to="/master-data/warehouses/tarik-mims"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                  title="Buka Formulir Tarik MIMS Layar Penuh"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-2xs"
+                  title="Buka Halaman Tarik MIMS"
                 >
                   <IconRefresh size={14} />
                   <span>Halaman Tarik MIMS</span>

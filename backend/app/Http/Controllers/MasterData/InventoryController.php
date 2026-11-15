@@ -429,7 +429,7 @@ class InventoryController extends Controller
         $latestDemandRun = DB::table('forecast_runs')
             ->where('kind', 'DEMAND')
             ->where('status', 'SUCCEEDED')
-            ->orderByDesc('completed_at')
+            ->orderByDesc('finished_at')
             ->first();
 
         $forecastResult = null;
@@ -446,7 +446,7 @@ class InventoryController extends Controller
             if ($seriesRow) {
                 $forecastResult = [
                     'run_id' => $latestDemandRun->id,
-                    'completed_at' => $latestDemandRun->completed_at,
+                    'completed_at' => $latestDemandRun->finished_at,
                     'data_cutoff' => $latestDemandRun->data_cutoff,
                     'item_code' => $seriesRow->item_code,
                     'item_label' => $seriesRow->item_label,

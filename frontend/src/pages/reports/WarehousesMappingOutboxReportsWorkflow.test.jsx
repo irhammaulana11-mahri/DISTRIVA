@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import WarehousesPage from '../master-data/WarehousesPage.jsx'
+import MimsStockPullPage from '../master-data/MimsStockPullPage.jsx'
 import WarehouseCreatePage from '../master-data/WarehouseCreatePage.jsx'
 import WarehouseSnapshotImportPage from '../master-data/WarehouseSnapshotImportPage.jsx'
 import KhsMaterialMapPage from '../master-data/KhsMaterialMapPage.jsx'
@@ -348,9 +349,15 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       warehousesApi.mimsTokenStatus.mockResolvedValue({ data: { saved: true, saved_at: '2026-11-01T08:00:00Z', last_used_at: '2026-11-10T08:00:00Z', last_result: 'OK' } })
       warehousesApi.forgetMimsToken.mockResolvedValue({ message: 'ok' })
       warehousesApi.syncStock.mockResolvedValue({ data: [{ warehouse_id: 'w-1', warehouse_code: 'GDG-UP3', warehouse_name: 'Gudang', status: 'OK', message: 'ok', snapshot_id: 's1', total: 5, mapped: 5 }] })
+      
+      // Verifikasi di WarehousesPage: button "Tarik Stok dari MIMS" sudah dihapus, tersedia link Halaman Tarik MIMS
       renderWithProviders(<WarehousesPage />, { can: { 'stock.import': true, 'master_data.view': true } })
       await screen.findByText('GDG-UP3')
-      await userEvent.click(screen.getByRole('button', { name: /Tarik Stok dari MIMS/i }))
+      expect(screen.queryByRole('button', { name: /^Tarik Stok dari MIMS$/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /Halaman Tarik MIMS/i })).toHaveAttribute('href', '/master-data/warehouses/tarik-mims')
+
+      // Eksekusi penarikan pada halaman MimsStockPullPage
+      renderWithProviders(<MimsStockPullPage asPage={false} onClose={vi.fn()} />, { can: { 'stock.import': true, 'master_data.view': true } })
 
       const saved = await screen.findByRole('radio', { name: /Gunakan token tersimpan/i })
       await userEvent.click(saved)
@@ -364,10 +371,11 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       await userEvent.click(screen.getByLabelText(/Simpan token ini untuk penarikan berikutnya/i))
       await userEvent.click(screen.getByRole('button', { name: /Tarik Stok Sekarang/i }))
       await waitFor(() => expect(warehousesApi.syncStock).toHaveBeenLastCalledWith(expect.objectContaining({ token: 'token-baru-abcdef123456', save_token: true }), expect.any(Function)))
+      await screen.findByRole('button', { name: /Tarik Ulang/i })
     })
 
     it('membuka dialog Tarik stok dari MIMS, mengirimkan token jenis password, segera mengosongkan token, dan menampilkan hasil per gudang', async () => {
-      warehousesApi.syncStock.mockResolvedValueOnce({
+      warehousesApi.syncStock.mockResolvedValue({
         data: [
           {
             warehouse_id: 'w-1',
@@ -382,22 +390,19 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
         ],
       })
 
-      renderWithProviders(<WarehousesPage />, {
+      const onClose = vi.fn()
+      renderWithProviders(<MimsStockPullPage asPage={true} onClose={onClose} />, {
         can: { 'stock.import': true, 'master_data.view': true },
       })
 
-      await waitFor(() => {
-        expect(screen.getByText('GDG-UP3')).toBeInTheDocument()
-      })
-
-      // Click button Tarik Stok dari MIMS
-      const mimsBtn = screen.getByRole('button', { name: /Tarik Stok dari MIMS/i })
-      await userEvent.click(mimsBtn)
-
-      // Dialog opens
+      // Heading Tarik Stok dari MIMS
       expect(screen.getByRole('heading', { name: /Tarik Stok dari MIMS/i })).toBeInTheDocument()
 
-      const tokenInput = screen.getByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i)
+      // Pilih Tempel token baru
+      const radioNew = await screen.findByRole('radio', { name: /Tempel token baru/i })
+      await userEvent.click(radioNew)
+
+      const tokenInput = await screen.findByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i)
       expect(tokenInput).toHaveAttribute('type', 'password')
 
       // Fill in token
@@ -423,10 +428,10 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       // Verify results rendered and close/reset buttons are functional
       await waitFor(() => {
         expect(screen.getByText(/Hasil Penarikan Stok MIMS/i)).toBeInTheDocument()
-        expect(screen.getByText('1.254')).toBeInTheDocument()
-        expect(screen.getByText('97')).toBeInTheDocument()
-        expect(screen.getByText('1.157')).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /SKU Belum Terpetakan/i })).toBeInTheDocument()
+        expect(screen.getAllByText('1.254').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('97').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('1.157').length).toBeGreaterThan(0)
+        expect(screen.getByRole('link', { name: /SKU Belum Terpetakan/i })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: /Tutup \/ Selesai/i })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: /Tarik Ulang/i })).toBeInTheDocument()
       })
@@ -438,9 +443,7 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
 
       // Close modal using "Batal"
       await userEvent.click(screen.getByRole('button', { name: /Batal/i }))
-      await waitFor(() => {
-        expect(screen.queryByRole('heading', { name: /Tarik Stok dari MIMS/i })).not.toBeInTheDocument()
-      })
+      expect(onClose).toHaveBeenCalled()
     })
 
     it('menampilkan petunjuk ambil token baru bila token MIMS ditolak atau kedaluwarsa', async () => {
@@ -448,18 +451,15 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
         new Error('Token ditolak atau kedaluwarsa pada server MIMS.')
       )
 
-      renderWithProviders(<WarehousesPage />, {
+      renderWithProviders(<MimsStockPullPage asPage={true} onClose={vi.fn()} />, {
         can: { 'stock.import': true, 'master_data.view': true },
       })
 
-      await waitFor(() => {
-        expect(screen.getByText('GDG-UP3')).toBeInTheDocument()
-      })
+      // Pilih Tempel token baru
+      const radioNew = await screen.findByRole('radio', { name: /Tempel token baru/i })
+      await userEvent.click(radioNew)
 
-      const mimsBtn = screen.getByRole('button', { name: /Tarik Stok dari MIMS/i })
-      await userEvent.click(mimsBtn)
-
-      const tokenInput = screen.getByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i)
+      const tokenInput = await screen.findByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i)
       fireEvent.change(tokenInput, { target: { value: 'token-kedaluwarsa-9999' } })
 
       const submitBtn = screen.getByRole('button', { name: /Tarik Stok Sekarang/i })
