@@ -1411,20 +1411,22 @@ export default function MaterialStockDetailDrawer({
                       recentTransactions.issues.map((i, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                           <td className="py-2 px-3 font-sans text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                            {i.date || i.issued_on}
+                            {i.date || i.issued_on || '-'}
                           </td>
                           <td className="py-2 px-3">
-                            <div className="font-semibold text-slate-800 dark:text-slate-200">{i.material_document}</div>
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              {i.material_document || i.reservation_no || '-'}
+                            </div>
                             <div className="text-[10px] text-slate-400">Pemesanan: {i.reservation_no || '-'}</div>
                           </td>
                           <td className="py-2 px-3 font-sans text-slate-600 dark:text-slate-400 text-[11px]">
-                            {i.warehouse_name || i.warehouse_code}
+                            {i.warehouse_name || i.warehouse_code || 'Gudang MIMS'}
                           </td>
                           <td className="py-2 px-3 font-sans text-slate-600 dark:text-slate-400 max-w-xs truncate text-[11px]">
                             {i.work_type_name || i.text || i.wbs || '-'}
                           </td>
                           <td className="py-2 px-3 text-right font-bold text-rose-600 whitespace-nowrap">
-                            -{(i.quantity || 0).toLocaleString('id-ID')} {i.unit || mat.unit}
+                            -{(i.quantity || 0).toLocaleString('id-ID')} {i.unit || mat.unit || ''}
                           </td>
                         </tr>
                       ))
@@ -1455,14 +1457,16 @@ export default function MaterialStockDetailDrawer({
                       recentTransactions.receipts.map((r, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                           <td className="py-2 px-3 font-sans text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                            {r.date || r.received_on || r.delivered_on}
+                            {r.date || r.received_on || r.delivered_on || '-'}
                           </td>
                           <td className="py-2 px-3">
-                            <div className="font-semibold text-slate-800 dark:text-slate-200">{r.delivery_document}</div>
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              {r.delivery_document || r.receipt_document || '-'}
+                            </div>
                             <div className="text-[10px] text-slate-400">Penerimaan: {r.receipt_document || '-'}</div>
                           </td>
                           <td className="py-2 px-3 font-sans text-slate-600 dark:text-slate-400 text-[11px]">
-                            {r.warehouse_name || r.warehouse_code}
+                            {r.warehouse_name || r.warehouse_code || 'Gudang MIMS'}
                           </td>
                           <td className="py-2 px-3 font-sans text-slate-600 dark:text-slate-400 text-[11px]">
                             {r.origin_name || '-'}
@@ -1473,7 +1477,7 @@ export default function MaterialStockDetailDrawer({
                             )}
                           </td>
                           <td className="py-2 px-3 text-right font-bold text-emerald-600 whitespace-nowrap">
-                            +{(r.quantity || 0).toLocaleString('id-ID')} {r.unit || mat.unit}
+                            +{(r.quantity || 0).toLocaleString('id-ID')} {r.unit || mat.unit || ''}
                           </td>
                         </tr>
                       ))

@@ -231,7 +231,7 @@ class InventoryController extends Controller
 
         // Active warehouses
         $activeWarehouses = DB::table('warehouses as w')
-            ->join('organizational_units as u', 'u.id', '=', 'w.organizational_unit_id')
+            ->leftJoin('organizational_units as u', 'u.id', '=', 'w.organizational_unit_id')
             ->where('w.is_active', true)
             ->orderBy('w.code')
             ->get(['w.id', 'w.code', 'w.name', 'w.plant', 'w.stor_loc', 'w.kind', 'u.name as unit_name', 'u.code as unit_code']);
@@ -306,25 +306,22 @@ class InventoryController extends Controller
             ];
         }
 
-        // MIMS movements: gather material numbers to match
-        $skuList = $mappedSkus->pluck('material_no')->all();
-        if (empty($skuList) && $item) {
-            $extraSkus = DB::table('stock_snapshot_materials')
-                ->where('khs_item_id', $item->id)
-                ->pluck('material_no')
-                ->unique()
-                ->all();
-            $skuList = array_unique(array_merge($skuList, $extraSkus));
-        }
-        if (empty($skuList)) {
-            $skuList = [$khsCode];
-        }
+        // MIMS movements: gather material numbers to match (KHS code, mapped ERP SKUs, raw SKUs)
+        $skuList = array_values(array_unique(array_filter(array_merge(
+            [$khsCode, ltrim($khsCode, '0')],
+            $item ? [$item->code, ltrim($item->code, '0')] : [],
+            $mappedSkus->pluck('material_no')->all(),
+            $item ? DB::table('stock_snapshot_materials')->where('khs_item_id', $item->id)->pluck('material_no')->all() : [],
+            DB::table('stock_snapshot_materials')->where('material_no', $khsCode)->pluck('material_no')->all(),
+            DB::table('khs_material_map')->where('material_no', $khsCode)->pluck('material_no')->all()
+        ))));
 
         $allSearchNos = collect($skuList)
             ->flatMap(fn ($n) => [
                 (string) $n,
                 ltrim((string) $n, '0'),
-                str_pad((string) $n, 18, '0', STR_PAD_LEFT),
+                rtrim((string) $n),
+                str_pad(ltrim((string) $n, '0'), 18, '0', STR_PAD_LEFT),
             ])
             ->filter()
             ->unique()
@@ -380,24 +377,38 @@ class InventoryController extends Controller
         $recentIssues = collect();
 
         if (! empty($allSearchNos)) {
-            // Receipts query
+            // Receipts query (left join to allow lines without perfect document sync or cross-warehouse discrepancies)
             $receiptQ = DB::table('mims_receipt_lines as l')
-                ->join('mims_receipt_documents as d', function ($join) {
-                    $join->on('d.delivery_document', '=', 'l.delivery_document')
-                        ->on('d.warehouse_id', '=', 'l.warehouse_id');
-                })
-                ->join('warehouses as w', 'w.id', '=', 'd.warehouse_id')
-                ->whereIn('l.material_no', $allSearchNos);
+                ->leftJoin('mims_receipt_documents as d', 'd.delivery_document', '=', 'l.delivery_document')
+                ->leftJoin('warehouses as w', 'w.id', '=', DB::raw('coalesce(d.warehouse_id, l.warehouse_id)'))
+                ->where(function ($q) use ($allSearchNos) {
+                    $q->whereIn('l.material_no', $allSearchNos);
+                    foreach ($allSearchNos as $no) {
+                        if (strlen($no) >= 4) {
+                            $q->orWhere('l.material_no', 'like', "%{$no}%");
+                        }
+                    }
+                });
 
-            if (! empty($selectedWarehouseIds)) {
-                $receiptQ->whereIn('d.warehouse_id', $selectedWarehouseIds);
+            if (! empty($d['warehouse_ids'])) {
+                $receiptQ->whereIn(DB::raw('coalesce(d.warehouse_id, l.warehouse_id)'), $d['warehouse_ids']);
             }
 
             $receiptRecords = $receiptQ->get([
-                'l.material_no', 'l.material_name', 'l.quantity_received', 'l.quantity_sent', 'l.unit',
-                'd.delivery_document', 'd.receipt_document', 'd.delivered_on', 'd.received_on',
-                'd.warehouse_id', 'd.origin_name', 'd.status',
-                'w.code as warehouse_code', 'w.name as warehouse_name',
+                'l.material_no',
+                'l.material_name',
+                'l.quantity_received',
+                'l.quantity_sent',
+                'l.unit',
+                'l.delivery_document',
+                'd.receipt_document',
+                'd.delivered_on',
+                'd.received_on',
+                DB::raw('coalesce(d.warehouse_id, l.warehouse_id) as warehouse_id'),
+                'd.origin_name',
+                'd.status',
+                'w.code as warehouse_code',
+                'w.name as warehouse_name',
             ]);
 
             foreach ($receiptRecords as $rec) {
@@ -424,26 +435,45 @@ class InventoryController extends Controller
                 }
             }
 
-            $recentReceipts = $receiptRecords->sortByDesc(fn ($r) => $r->received_on ?? $r->delivered_on)->take(15)->values();
+            $recentReceipts = $receiptRecords
+                ->sortByDesc(fn ($r) => $r->received_on ?? $r->delivered_on ?? '')
+                ->unique(fn ($r) => ($r->receipt_document ?? $r->delivery_document ?? uniqid()).'-'.$r->material_no)
+                ->take(15)
+                ->values();
 
-            // Issues query
+            // Issues query (left join to mirror MIMS lines even if headers or warehouses differ)
             $issueQ = DB::table('mims_issue_lines as l')
-                ->join('mims_issue_documents as d', function ($join) {
-                    $join->on('d.reservation_no', '=', 'l.reservation_no')
-                        ->on('d.warehouse_id', '=', 'l.warehouse_id');
-                })
-                ->join('warehouses as w', 'w.id', '=', 'd.warehouse_id')
-                ->whereIn('l.material_no', $allSearchNos);
+                ->leftJoin('mims_issue_documents as d', 'd.reservation_no', '=', 'l.reservation_no')
+                ->leftJoin('warehouses as w', 'w.id', '=', DB::raw('coalesce(d.warehouse_id, l.warehouse_id)'))
+                ->where(function ($q) use ($allSearchNos) {
+                    $q->whereIn('l.material_no', $allSearchNos);
+                    foreach ($allSearchNos as $no) {
+                        if (strlen($no) >= 4) {
+                            $q->orWhere('l.material_no', 'like', "%{$no}%");
+                        }
+                    }
+                });
 
-            if (! empty($selectedWarehouseIds)) {
-                $issueQ->whereIn('d.warehouse_id', $selectedWarehouseIds);
+            if (! empty($d['warehouse_ids'])) {
+                $issueQ->whereIn(DB::raw('coalesce(d.warehouse_id, l.warehouse_id)'), $d['warehouse_ids']);
             }
 
             $issueRecords = $issueQ->get([
-                'l.material_no', 'l.material_name', 'l.quantity', 'l.unit',
-                'd.material_document', 'd.reservation_no', 'd.sap_document', 'd.issued_on',
-                'd.warehouse_id', 'd.text', 'd.work_type_name', 'd.wbs', 'd.origin',
-                'w.code as warehouse_code', 'w.name as warehouse_name',
+                'l.material_no',
+                'l.material_name',
+                'l.quantity',
+                'l.unit',
+                'l.reservation_no',
+                'd.material_document',
+                'd.sap_document',
+                'd.issued_on',
+                DB::raw('coalesce(d.warehouse_id, l.warehouse_id) as warehouse_id'),
+                'd.text',
+                'd.work_type_name',
+                'd.wbs',
+                'd.origin',
+                'w.code as warehouse_code',
+                'w.name as warehouse_name',
             ]);
 
             foreach ($issueRecords as $iss) {
@@ -467,7 +497,11 @@ class InventoryController extends Controller
                 }
             }
 
-            $recentIssues = $issueRecords->sortByDesc('issued_on')->take(15)->values();
+            $recentIssues = $issueRecords
+                ->sortByDesc(fn ($i) => $i->issued_on ?? '')
+                ->unique(fn ($i) => ($i->material_document ?? $i->reservation_no ?? uniqid()).'-'.$i->material_no)
+                ->take(15)
+                ->values();
         }
 
         // Finalize net change for monthly buckets
@@ -582,6 +616,8 @@ class InventoryController extends Controller
                         'material_no' => $r->material_no,
                         'material_name' => $r->material_name,
                         'quantity' => (float) ($r->quantity_received > 0 ? $r->quantity_received : $r->quantity_sent),
+                        'quantity_received' => (float) $r->quantity_received,
+                        'quantity_sent' => (float) $r->quantity_sent,
                         'unit' => $r->unit,
                         'origin_name' => $r->origin_name,
                         'status' => $r->status,
