@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\OrganizationalUnit;
 use App\Models\User;
 use App\Services\Substations\OmtLoadService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\PostgresTestCase;
 
@@ -65,9 +67,9 @@ class OmtLoadTest extends PostgresTestCase
     public function it_forms_missing_gardu_and_feeders_loads_readings_with_time_and_capacity_and_is_idempotent(): void
     {
         $past = now()->subDays(40)->toDateString();
-        $feederId = (string) \Illuminate\Support\Str::uuid();
+        $feederId = (string) Str::uuid();
         DB::table('distribution_feeders')->insert(['id' => $feederId, 'code' => 'WTGLH', 'name' => 'WATU GALUH', 'owner_unit_id' => $this->up3->getKey(), 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now()]);
-        $existing = (string) \Illuminate\Support\Str::uuid();
+        $existing = (string) Str::uuid();
         DB::table('substations')->insert(['id' => $existing, 'code' => 'HD0001', 'organizational_unit_id' => $this->ulp->getKey(), 'ownership' => 'PLN', 'name' => 'GARDU MAXIMO', 'capacity_kva' => 200, 'status' => 'AKTIF',
             'transformer_count' => 1, 'needs_review' => false, 'created_at' => now(), 'updated_at' => now()]);
         $rows = [
@@ -104,7 +106,7 @@ class OmtLoadTest extends PostgresTestCase
         $this->assertEquals([61.25, 60.0], $reads->map(fn ($x) => round((float) $x->loading_pct, 2))->all());                        // 61.252 of 100 kVA, 96 of 160 kVA
         $this->assertSame([229.0, 226.0, 232.0], [(float) $reads[0]->base_voltage_r_v, (float) $reads[0]->base_voltage_s_v, (float) $reads[0]->base_voltage_t_v]);
         $this->assertSame('IMPORT', $reads[0]->source);
-        $this->assertStringContainsString('08:15:30', (string) \Carbon\CarbonImmutable::parse($reads[0]->measured_at)->setTimezone(config('distriva.business_timezone'))->toTimeString());
+        $this->assertStringContainsString('08:15:30', (string) CarbonImmutable::parse($reads[0]->measured_at)->setTimezone(config('distriva.business_timezone'))->toTimeString());
         $jur = DB::table('substation_reading_feeders as f')->join('substation_readings as r', 'r.id', '=', 'f.reading_id')->where('r.substation_id', $g->id)->select('f.*')->get();
         $this->assertSame(['B'], $jur->pluck('label')->all());                                                                       // only jurusan with a measured current
         $this->assertSame([30.0, 20.0, 10.0], [(float) $jur[0]->current_r_a, (float) $jur[0]->current_s_a, (float) $jur[0]->current_t_a]);
@@ -116,11 +118,36 @@ class OmtLoadTest extends PostgresTestCase
     }
 
     #[Test]
+    public function an_old_feeder_spelling_uses_the_official_feeder_and_no_feeder_is_formed_for_a_gardu_that_already_has_one(): void
+    {
+        $past = now()->subDays(40)->toDateString();
+        $official = (string) Str::uuid();
+        $other = (string) Str::uuid();
+        DB::table('distribution_feeders')->insert([
+            ['id' => $official, 'code' => 'ELKS', 'name' => 'ELKISHI', 'owner_unit_id' => $this->up3->getKey(), 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => $other, 'code' => 'WTGLH', 'name' => 'WATU GALUH', 'owner_unit_id' => $this->up3->getKey(), 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('substations')->insert(['id' => (string) Str::uuid(), 'code' => 'HD0001', 'organizational_unit_id' => $this->ulp->getKey(), 'ownership' => 'PLN', 'name' => 'G', 'capacity_kva' => 100, 'status' => 'AKTIF',
+            'transformer_count' => 1, 'needs_review' => false, 'feeder_id' => $other, 'feeder_code' => 'WTGLH', 'created_at' => now(), 'updated_at' => now()]);
+        $file = $this->csv([
+            $this->row('HD1', "{$past} 08:00:00", ['Nama Penyulang' => 'ELKISI']),                    // an existing gardu with a feeder: the (old) feeder name is not even resolved
+            $this->row('HD2', "{$past} 08:00:00", ['Nama Penyulang' => 'ELKISI']),                    // a new gardu: the old spelling maps to the official ELKISHI
+        ]);
+
+        $c = app(OmtLoadService::class)->load($file, $this->actor)['counts'];
+
+        $this->assertSame(0, $c['feeders_created']);
+        $this->assertSame(2, DB::table('distribution_feeders')->count());
+        $this->assertSame($official, DB::table('substations')->where('code', 'HD0002')->value('feeder_id'));
+        $this->assertSame($other, DB::table('substations')->where('code', 'HD0001')->value('feeder_id'));
+    }
+
+    #[Test]
     public function the_gi_name_of_the_feeders_comes_from_the_owners_list_by_name_or_by_the_omt_prefix_and_near_misses_are_only_suggested(): void
     {
         $owner = $this->up3->getKey();
         foreach ([['KLWNG', 'KALIWUNGU'], ['MJA_BANCANG', 'MJA_BANCANG'], ['SKP', 'SIKEPU'], ['TBRNG', 'TEBUIRENG'], ['XYZ', 'LAIN SAMA SEKALI'], ['BNTNG', 'BENTENG PANCASILA']] as [$code, $name]) {
-            DB::table('distribution_feeders')->insert(['id' => (string) \Illuminate\Support\Str::uuid(), 'code' => $code, 'name' => $name, 'owner_unit_id' => $owner, 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('distribution_feeders')->insert(['id' => (string) Str::uuid(), 'code' => $code, 'name' => $name, 'owner_unit_id' => $owner, 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now()]);
         }
         $path = tempnam(sys_get_temp_dir(), 'gi');
         file_put_contents($path, "PENYULANG,RAYON,GARDU INDUK\nKALIWUNGU,JOMBANG,JOMBANG\nBANCANG,PACET,MOJOAGUNG\nSIKEPUH,NGORO,SIMAN\nTEBU IRENG,JOMBANG,JOMBANG\nWIDAS,NGANJUK,NGANJUK\nBENTENG,MOJOKERTO,SEKAR PUTIH\n");
@@ -143,5 +170,4 @@ class OmtLoadTest extends PostgresTestCase
         $this->assertSame(0, DB::table('distribution_feeders')->where('name', 'BENTENG')->count());                      // BENTENG ~ BENTENG PANCASILA is not guessed
         $this->assertSame(0, DB::table('distribution_feeders')->where('name', 'LAIN SAMA SEKALI')->whereNotNull('gi_name')->count());
     }
-
 }

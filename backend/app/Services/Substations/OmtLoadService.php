@@ -16,6 +16,9 @@ class OmtLoadService
     /** OMT ULP name (normalised) => our ULP name (normalised): OMT says MOJOKERTO KOTA, the organisation has ULP Mojokerto (51452). */
     private const ULP_ALIASES = ['MOJOKERTOKOTA' => 'MOJOKERTO'];
 
+    /** Old OMT spellings of feeders that were corrected to the official name (docs/83 section 6) => the official name (normalised): older files must not form a second feeder. */
+    private const FEEDER_ALIASES = ['ELKISI' => 'ELKISHI', 'SONOPATIK' => 'SENOPATIK', 'SIKEPU' => 'SIKEPUH', 'MOJOKRAPAK' => 'MOJOKRAPYAK', 'MITRASARUTA' => 'MITRASAROTA', 'CATAKGAYAM' => 'GAYAM', 'BENTENG' => 'BENTENGPANCASILA'];
+
     public function __construct(private readonly SubstationService $substations, private readonly FeederService $feeders) {}
 
     /** HD762 -> HD0762 (two letters and 1-3 digits); any other form is kept. */
@@ -85,8 +88,8 @@ class OmtLoadService
                 $code = self::code($d('Nama Aset'));
                 $cap = is_numeric($d('Kapasitas Aset')) && (float) $d('Kapasitas Aset') > 0 ? (float) $d('Kapasitas Aset') : null;
                 $coord = self::coordinate($d('Latitude Aset'), $d('Longitude Aset'));
-                $feeder = $this->feeder($d('Nama Penyulang'), $unitId, $feederByName, $feederByCode, $actorId, $c);
                 $s = $gardu[$code] ?? null;
+                $feeder = $s === null || $s->feeder_id === null ? $this->feeder($d('Nama Penyulang'), $unitId, $feederByName, $feederByCode, $actorId, $c) : null;   // a feeder is only resolved (or formed) when the gardu needs one
                 if ($s === null) {
                     $id = (string) Str::uuid();
                     DB::table('substations')->insert(['id' => $id, 'code' => $code, 'organizational_unit_id' => $unitId, 'feeder_code' => $feeder['code'] ?? null, 'feeder_id' => $feeder['id'] ?? null, 'type_code' => $d('Konstruksi Aset') === '' ? null : mb_substr(mb_strtoupper($d('Konstruksi Aset')), 0, 20),
@@ -141,6 +144,7 @@ class OmtLoadService
         if ($n === '') {
             return null;
         }
+        $n = self::FEEDER_ALIASES[$n] ?? $n;
         $f = $byName[$n] ?? $byCode[$n] ?? null;
         if ($f === null) {
             $made = $this->feeders->createFromName($name, $unitId, $actorId);
