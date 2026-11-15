@@ -14,6 +14,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import MimsMirrorTab from './MimsMirrorTab.jsx'
 import MimsSettingsDrawer from './MimsSettingsDrawer.jsx'
 import MimsStockPullPage from './MimsStockPullPage.jsx'
+import MaterialStockDetailDrawer from './MaterialStockDetailDrawer.jsx'
 import {
   IconPlus,
   IconRefresh,
@@ -82,6 +83,7 @@ export default function WarehousesPage() {
   const [loadingPositions, setLoadingPositions] = useState(false)
   const [positionError, setPositionError] = useState('')
   const [positionSearch, setPositionSearch] = useState('')
+  const [selectedMaterialForDetail, setSelectedMaterialForDetail] = useState(null)
 
   // Sync Runs State
   const [syncRuns, setSyncRuns] = useState([])
@@ -738,73 +740,108 @@ export default function WarehousesPage() {
                 }
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold text-[11px]">
-                      <th className="py-2.5 px-3">Material</th>
-                      <th className="py-2.5 px-3 text-right">Stok Fisik (On Hand)</th>
-                      <th className="py-2.5 px-3 text-right">Reservasi</th>
-                      <th className="py-2.5 px-3 text-right">Pasokan Masuk</th>
-                      <th className="py-2.5 px-3 text-right">Stok Pengaman</th>
-                      <th className="py-2.5 px-3 text-right">Dialokasi Sesudahnya</th>
-                      <th className="py-2.5 px-3 text-right" title="Pasokan tambahan dari Kontrak Rinci (KR) yang materialnya belum masuk stok ERP.">
-                        Pasokan KR
-                      </th>
-                      <th className="py-2.5 px-3 text-right bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200">
-                        Stok Tersedia (Available)
-                      </th>
-                      <th className="py-2.5 px-3 text-right" title="Tersedia + Pasokan KR. Tidak menggantikan kolom Available.">
-                        Tersedia + KR
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-mono text-[11px]">
-                    {filteredPositions
-                      .slice((posPage - 1) * posPerPage, posPage * posPerPage)
-                      .map((p, idx) => (
-                        <tr
-                          key={idx}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                        >
-                          <td className="py-2 px-3 font-sans min-w-56 max-w-80">
-                            <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs leading-snug">{p.khs_name || p.khs_code}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{p.khs_name ? `${p.khs_code}${p.unit ? ` · ${p.unit}` : ''}` : p.unit || ''}</div>
-                          </td>
-                          <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
-                            {p.on_hand?.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right text-amber-600">
-                            {p.reserved?.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right text-emerald-600">
-                            {p.incoming?.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right text-slate-500">
-                            {p.safety?.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right text-slate-400">
-                            {p.allocated_after?.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right text-violet-600">
-                            {(p.kr_supply ?? 0).toLocaleString('id-ID')}
-                          </td>
-                          <td
-                            className={`py-2 px-3 text-right font-bold bg-blue-50/40 dark:bg-blue-950/20 ${
-                              p.available > 0
-                                ? 'text-blue-700 dark:text-blue-300'
-                                : 'text-rose-600'
-                            }`}
+              <div>
+                <div className="px-4 py-2 bg-blue-50/60 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/50 flex items-center justify-between text-xs text-blue-900 dark:text-blue-300">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold shrink-0">💡 Petunjuk:</span>
+                    <span>Klik pada baris material untuk melihat data material lengkap, rincian per gudang, serta histori mutasi penerimaan & pengeluaran (mingguan/bulanan) dalam format grafik dan tabel.</span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold text-[11px]">
+                        <th className="py-2.5 px-3">Material</th>
+                        <th className="py-2.5 px-3 text-right">Stok Fisik (On Hand)</th>
+                        <th className="py-2.5 px-3 text-right">Reservasi</th>
+                        <th className="py-2.5 px-3 text-right">Pasokan Masuk</th>
+                        <th className="py-2.5 px-3 text-right">Stok Pengaman</th>
+                        <th className="py-2.5 px-3 text-right">Dialokasi Sesudahnya</th>
+                        <th className="py-2.5 px-3 text-right" title="Pasokan tambahan dari Kontrak Rinci (KR) yang materialnya belum masuk stok ERP.">
+                          Pasokan KR
+                        </th>
+                        <th className="py-2.5 px-3 text-right bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200">
+                          Stok Tersedia (Available)
+                        </th>
+                        <th className="py-2.5 px-3 text-right" title="Tersedia + Pasokan KR. Tidak menggantikan kolom Available.">
+                          Tersedia + KR
+                        </th>
+                        <th className="py-2.5 px-3 text-center">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-mono text-[11px]">
+                      {filteredPositions
+                        .slice((posPage - 1) * posPerPage, posPage * posPerPage)
+                        .map((p, idx) => (
+                          <tr
+                            key={idx}
+                            onClick={() => setSelectedMaterialForDetail(p)}
+                            className="hover:bg-blue-50/70 dark:hover:bg-blue-950/30 transition-colors cursor-pointer group"
+                            title={`Klik untuk melihat detail & mutasi ${p.khs_name || p.khs_code}`}
                           >
-                            {p.available?.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300 font-semibold">
-                            {p.available_with_kr?.toLocaleString('id-ID') ?? '-'}
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                            <td className="py-2 px-3 font-sans min-w-56 max-w-80">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                  {p.khs_name || p.khs_code}
+                                </span>
+                                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900">
+                                  Detail →
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {p.khs_name ? `${p.khs_code}${p.unit ? ` · ${p.unit}` : ''}` : p.unit || ''}
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                              {p.on_hand?.toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2 px-3 text-right text-amber-600">
+                              {p.reserved?.toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2 px-3 text-right text-emerald-600">
+                              {p.incoming?.toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-500">
+                              {p.safety?.toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-400">
+                              {p.allocated_after?.toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2 px-3 text-right text-violet-600">
+                              {(p.kr_supply ?? 0).toLocaleString('id-ID')}
+                            </td>
+                            <td
+                              className={`py-2 px-3 text-right font-bold bg-blue-50/40 dark:bg-blue-950/20 ${
+                                p.available > 0
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-rose-600'
+                              }`}
+                            >
+                              {p.available?.toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300 font-semibold">
+                              {p.available_with_kr?.toLocaleString('id-ID') ?? '-'}
+                            </td>
+                            <td
+                              className="py-2 px-3 text-center"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedMaterialForDetail(p)
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 transition-colors"
+                                title="Lihat detail lengkap, grafik & tabel mutasi"
+                              >
+                                <IconEye size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
@@ -1297,6 +1334,15 @@ export default function WarehousesPage() {
         isOpen={mimsSettingsOpen}
         onClose={() => setMimsSettingsOpen(false)}
         onChanged={() => loadSyncRuns()}
+      />
+
+      {/* DRAWER: Detail Material & Riwayat Mutasi (Penerimaan / Pengeluaran) */}
+      <MaterialStockDetailDrawer
+        isOpen={Boolean(selectedMaterialForDetail)}
+        onClose={() => setSelectedMaterialForDetail(null)}
+        materialSummary={selectedMaterialForDetail}
+        warehouseIds={positionWarehouseIds.length > 0 ? positionWarehouseIds : warehouses.map((w) => w.id)}
+        warehouses={warehouses}
       />
     </div>
   )

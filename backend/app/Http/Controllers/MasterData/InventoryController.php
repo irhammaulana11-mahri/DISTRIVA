@@ -105,6 +105,390 @@ class InventoryController extends Controller
         return response()->json(['data' => collect($pos)->map(fn ($p, $id) => ['khs_code' => $codes[$id] ?? $id, 'khs_name' => $names[$id]['name'] ?? null, 'unit' => $names[$id]['unit'] ?? null] + $p)->sortBy(fn ($r) => (int) $r['khs_code'])->values()->all()]);
     }
 
+    /**
+     * GET /master-data/stock-material-detail?khs_code=&warehouse_ids[]=&period_months=12&period_weeks=16
+     * Detailed material information, consolidated & per-warehouse stock, movements (weekly & monthly receipts and issues).
+     */
+    public function materialStockDetail(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $request->validate([
+            'khs_code' => ['required', 'string', 'max:50'],
+            'warehouse_ids' => ['nullable', 'array', 'max:50'],
+            'warehouse_ids.*' => ['uuid'],
+            'period_months' => ['nullable', 'integer', 'min:1', 'max:36'],
+            'period_weeks' => ['nullable', 'integer', 'min:1', 'max:52'],
+        ]);
+
+        $khsCode = trim($d['khs_code']);
+        $item = DB::table('khs_items')->where('code', $khsCode)->first();
+        if (! $item) {
+            $item = DB::table('khs_items')->whereRaw('UPPER(code) = ?', [strtoupper($khsCode)])->first();
+        }
+
+        // Active version of KHS item
+        $version = null;
+        if ($item) {
+            $version = DB::table('khs_item_versions')
+                ->where('khs_item_id', $item->id)
+                ->orderByDesc('version_number')
+                ->first();
+        }
+
+        // SKU exemption
+        $exemption = null;
+        if ($item) {
+            $exemption = DB::table('khs_sku_exemptions')
+                ->where('khs_item_id', $item->id)
+                ->whereNull('lifted_at')
+                ->first();
+        }
+
+        // Mapped ERP SKUs
+        $mappedSkus = collect();
+        if ($item) {
+            $mappedSkus = DB::table('khs_material_map')
+                ->where('khs_item_id', $item->id)
+                ->orderBy('material_no')
+                ->get(['id', 'material_no', 'note', 'created_at']);
+        }
+
+        // Active warehouses
+        $activeWarehouses = DB::table('warehouses as w')
+            ->join('organizational_units as u', 'u.id', '=', 'w.organizational_unit_id')
+            ->where('w.is_active', true)
+            ->orderBy('w.code')
+            ->get(['w.id', 'w.code', 'w.name', 'w.plant', 'w.stor_loc', 'w.kind', 'u.name as unit_name', 'u.code as unit_code']);
+
+        $selectedWarehouseIds = ! empty($d['warehouse_ids'])
+            ? $d['warehouse_ids']
+            : $activeWarehouses->pluck('id')->all();
+
+        // Calculate consolidated stock position for this item
+        $today = now(config('distriva.business_timezone'))->toDateString();
+        $calcPosition = $item && ! empty($selectedWarehouseIds)
+            ? $this->stock->position($selectedWarehouseIds, $today)
+            : [];
+        $itemPosition = $calcPosition[$item?->id] ?? [
+            'on_hand' => 0.0,
+            'reserved' => 0.0,
+            'incoming' => 0.0,
+            'safety' => 0.0,
+            'allocated_after' => 0.0,
+            'available' => 0.0,
+            'kr_supply' => 0.0,
+            'available_with_kr' => 0.0,
+        ];
+
+        // Per-warehouse stock breakdown
+        $warehouseBreakdown = [];
+        foreach ($activeWarehouses as $wh) {
+            if (! in_array($wh->id, $selectedWarehouseIds, true)) {
+                continue;
+            }
+            $snap = DB::table('stock_snapshots')
+                ->where('warehouse_id', $wh->id)
+                ->where('as_of', '<=', $today)
+                ->orderByDesc('as_of')
+                ->first();
+
+            $snapLine = null;
+            $rawMaterial = null;
+            if ($snap && $item) {
+                $snapLine = DB::table('stock_snapshot_lines')
+                    ->where('snapshot_id', $snap->id)
+                    ->where('khs_item_id', $item->id)
+                    ->first();
+                $rawMaterial = DB::table('stock_snapshot_materials')
+                    ->where('snapshot_id', $snap->id)
+                    ->where('khs_item_id', $item->id)
+                    ->first();
+            }
+
+            $onHand = (float) ($snapLine->on_hand ?? 0);
+            $reserved = (float) ($snapLine->reserved ?? 0);
+            $incoming = (float) ($snapLine->incoming_confirmed ?? 0);
+            $safety = (float) ($snapLine->safety_stock ?? 0);
+            $available = $onHand - $reserved;
+
+            $warehouseBreakdown[] = [
+                'warehouse_id' => $wh->id,
+                'warehouse_code' => $wh->code,
+                'warehouse_name' => $wh->name,
+                'unit_code' => $wh->unit_code,
+                'unit_name' => $wh->unit_name,
+                'plant' => $wh->plant,
+                'stor_loc' => $wh->stor_loc,
+                'snapshot_date' => $snap?->as_of,
+                'on_hand' => $onHand,
+                'reserved' => $reserved,
+                'incoming' => $incoming,
+                'safety' => $safety,
+                'available' => $available,
+                'erp_material_no' => $rawMaterial?->material_no,
+                'erp_material_name' => $rawMaterial?->material_name,
+            ];
+        }
+
+        // MIMS movements: gather material numbers to match
+        $skuList = $mappedSkus->pluck('material_no')->all();
+        if (empty($skuList) && $item) {
+            $extraSkus = DB::table('stock_snapshot_materials')
+                ->where('khs_item_id', $item->id)
+                ->pluck('material_no')
+                ->unique()
+                ->all();
+            $skuList = array_unique(array_merge($skuList, $extraSkus));
+        }
+
+        $allSearchNos = collect($skuList)
+            ->flatMap(fn ($n) => [
+                (string) $n,
+                ltrim((string) $n, '0'),
+                str_pad((string) $n, 18, '0', STR_PAD_LEFT),
+            ])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        // Prepare monthly buckets (last N months)
+        $monthsCount = (int) ($d['period_months'] ?? 12);
+        $nowTz = Carbon::now(config('distriva.business_timezone'));
+        $monthlyBuckets = [];
+        for ($i = $monthsCount - 1; $i >= 0; $i--) {
+            $dt = (clone $nowTz)->startOfMonth()->subMonths($i);
+            $key = $dt->format('Y-m');
+            $monthlyBuckets[$key] = [
+                'period_key' => $key,
+                'period_label' => $dt->isoFormat('MMM YYYY'),
+                'year' => (int) $dt->format('Y'),
+                'month' => (int) $dt->format('m'),
+                'start_date' => $dt->toDateString(),
+                'end_date' => (clone $dt)->endOfMonth()->toDateString(),
+                'qty_in' => 0.0,
+                'qty_out' => 0.0,
+                'net_change' => 0.0,
+                'receipt_docs_count' => 0,
+                'issue_docs_count' => 0,
+            ];
+        }
+
+        // Prepare weekly buckets (last N weeks)
+        $weeksCount = (int) ($d['period_weeks'] ?? 16);
+        $currentWeekStart = (clone $nowTz)->startOfWeek();
+        $weeklyBuckets = [];
+        for ($i = $weeksCount - 1; $i >= 0; $i--) {
+            $wStart = (clone $currentWeekStart)->subWeeks($i);
+            $wEnd = (clone $wStart)->endOfWeek();
+            $key = $wStart->format('o-\WW');
+            $weekNum = (int) $wStart->format('W');
+            $weeklyBuckets[$key] = [
+                'period_key' => $key,
+                'period_label' => "M-{$weekNum} ({$wStart->format('d/m')}–{$wEnd->format('d/m')})",
+                'week_number' => $weekNum,
+                'start_date' => $wStart->toDateString(),
+                'end_date' => $wEnd->toDateString(),
+                'qty_in' => 0.0,
+                'qty_out' => 0.0,
+                'net_change' => 0.0,
+                'receipt_docs_count' => 0,
+                'issue_docs_count' => 0,
+            ];
+        }
+
+        $recentReceipts = collect();
+        $recentIssues = collect();
+
+        if (! empty($allSearchNos)) {
+            // Receipts query
+            $receiptQ = DB::table('mims_receipt_lines as l')
+                ->join('mims_receipt_documents as d', function ($join) {
+                    $join->on('d.delivery_document', '=', 'l.delivery_document')
+                        ->on('d.warehouse_id', '=', 'l.warehouse_id');
+                })
+                ->join('warehouses as w', 'w.id', '=', 'd.warehouse_id')
+                ->whereIn('l.material_no', $allSearchNos);
+
+            if (! empty($selectedWarehouseIds)) {
+                $receiptQ->whereIn('d.warehouse_id', $selectedWarehouseIds);
+            }
+
+            $receiptRecords = $receiptQ->get([
+                'l.material_no', 'l.material_name', 'l.quantity_received', 'l.quantity_sent', 'l.unit',
+                'd.delivery_document', 'd.receipt_document', 'd.delivered_on', 'd.received_on',
+                'd.warehouse_id', 'd.origin_name', 'd.status',
+                'w.code as warehouse_code', 'w.name as warehouse_name',
+            ]);
+
+            foreach ($receiptRecords as $rec) {
+                $dateStr = $rec->received_on ?? $rec->delivered_on;
+                if (! $dateStr) {
+                    continue;
+                }
+                $qty = (float) $rec->quantity_received;
+                if ($qty <= 0 && (float) $rec->quantity_sent > 0) {
+                    $qty = (float) $rec->quantity_sent;
+                }
+                $mKey = substr($dateStr, 0, 7);
+                if (isset($monthlyBuckets[$mKey])) {
+                    $monthlyBuckets[$mKey]['qty_in'] += $qty;
+                    $monthlyBuckets[$mKey]['receipt_docs_count']++;
+                }
+                try {
+                    $wKey = Carbon::parse($dateStr)->startOfWeek()->format('o-\WW');
+                    if (isset($weeklyBuckets[$wKey])) {
+                        $weeklyBuckets[$wKey]['qty_in'] += $qty;
+                        $weeklyBuckets[$wKey]['receipt_docs_count']++;
+                    }
+                } catch (\Throwable $e) {}
+            }
+
+            $recentReceipts = $receiptRecords->sortByDesc(fn ($r) => $r->received_on ?? $r->delivered_on)->take(15)->values();
+
+            // Issues query
+            $issueQ = DB::table('mims_issue_lines as l')
+                ->join('mims_issue_documents as d', function ($join) {
+                    $join->on('d.reservation_no', '=', 'l.reservation_no')
+                        ->on('d.warehouse_id', '=', 'l.warehouse_id');
+                })
+                ->join('warehouses as w', 'w.id', '=', 'd.warehouse_id')
+                ->whereIn('l.material_no', $allSearchNos);
+
+            if (! empty($selectedWarehouseIds)) {
+                $issueQ->whereIn('d.warehouse_id', $selectedWarehouseIds);
+            }
+
+            $issueRecords = $issueQ->get([
+                'l.material_no', 'l.material_name', 'l.quantity', 'l.unit',
+                'd.material_document', 'd.reservation_no', 'd.sap_document', 'd.issued_on',
+                'd.warehouse_id', 'd.text', 'd.work_type_name', 'd.wbs', 'd.origin',
+                'w.code as warehouse_code', 'w.name as warehouse_name',
+            ]);
+
+            foreach ($issueRecords as $iss) {
+                $dateStr = $iss->issued_on;
+                if (! $dateStr) {
+                    continue;
+                }
+                $qty = (float) $iss->quantity;
+                $mKey = substr($dateStr, 0, 7);
+                if (isset($monthlyBuckets[$mKey])) {
+                    $monthlyBuckets[$mKey]['qty_out'] += $qty;
+                    $monthlyBuckets[$mKey]['issue_docs_count']++;
+                }
+                try {
+                    $wKey = Carbon::parse($dateStr)->startOfWeek()->format('o-\WW');
+                    if (isset($weeklyBuckets[$wKey])) {
+                        $weeklyBuckets[$wKey]['qty_out'] += $qty;
+                        $weeklyBuckets[$wKey]['issue_docs_count']++;
+                    }
+                } catch (\Throwable $e) {}
+            }
+
+            $recentIssues = $issueRecords->sortByDesc('issued_on')->take(15)->values();
+        }
+
+        // Finalize net change for monthly buckets
+        $totalMonthlyIn = 0.0;
+        $totalMonthlyOut = 0.0;
+        foreach ($monthlyBuckets as &$mb) {
+            $mb['qty_in'] = round($mb['qty_in'], 3);
+            $mb['qty_out'] = round($mb['qty_out'], 3);
+            $mb['net_change'] = round($mb['qty_in'] - $mb['qty_out'], 3);
+            $totalMonthlyIn += $mb['qty_in'];
+            $totalMonthlyOut += $mb['qty_out'];
+        }
+        unset($mb);
+
+        // Finalize net change for weekly buckets
+        $totalWeeklyIn = 0.0;
+        $totalWeeklyOut = 0.0;
+        foreach ($weeklyBuckets as &$wb) {
+            $wb['qty_in'] = round($wb['qty_in'], 3);
+            $wb['qty_out'] = round($wb['qty_out'], 3);
+            $wb['net_change'] = round($wb['qty_in'] - $wb['qty_out'], 3);
+            $totalWeeklyIn += $wb['qty_in'];
+            $totalWeeklyOut += $wb['qty_out'];
+        }
+        unset($wb);
+
+        $summary = [
+            'total_in' => round($totalMonthlyIn, 3),
+            'total_out' => round($totalMonthlyOut, 3),
+            'net_total' => round($totalMonthlyIn - $totalMonthlyOut, 3),
+            'avg_monthly_out' => count($monthlyBuckets) > 0 ? round($totalMonthlyOut / count($monthlyBuckets), 3) : 0.0,
+            'avg_weekly_out' => count($weeklyBuckets) > 0 ? round($totalWeeklyOut / count($weeklyBuckets), 3) : 0.0,
+            'mapped_sku_count' => $mappedSkus->count(),
+            'warehouse_count' => count($warehouseBreakdown),
+        ];
+
+        return response()->json([
+            'data' => [
+                'material' => [
+                    'id' => $item?->id,
+                    'khs_code' => $khsCode,
+                    'khs_name' => $version?->name ?? $khsCode,
+                    'unit' => $version?->unit_text ?? null,
+                    'category' => $version?->category ?? null,
+                    'description' => $version?->description ?? null,
+                    'version_number' => $version?->version_number ?? 1,
+                    'status' => $version?->status ?? ($item ? 'APPROVED' : 'UNKNOWN'),
+                    'source_reference' => $version?->source_reference ?? null,
+                    'is_exempt' => $exemption !== null,
+                    'exemption_reason' => $exemption?->reason,
+                    'mapped_skus' => $mappedSkus->map(fn ($m) => [
+                        'id' => $m->id,
+                        'material_no' => $m->material_no,
+                        'note' => $m->note,
+                        'created_at' => $m->created_at,
+                    ])->all(),
+                ],
+                'position' => $itemPosition,
+                'warehouse_breakdown' => $warehouseBreakdown,
+                'movements' => [
+                    'monthly' => array_values($monthlyBuckets),
+                    'weekly' => array_values($weeklyBuckets),
+                    'summary' => $summary,
+                ],
+                'recent_transactions' => [
+                    'receipts' => $recentReceipts->map(fn ($r) => [
+                        'delivery_document' => $r->delivery_document,
+                        'receipt_document' => $r->receipt_document,
+                        'delivered_on' => $r->delivered_on,
+                        'received_on' => $r->received_on,
+                        'date' => $r->received_on ?? $r->delivered_on,
+                        'material_no' => $r->material_no,
+                        'material_name' => $r->material_name,
+                        'quantity' => (float) ($r->quantity_received > 0 ? $r->quantity_received : $r->quantity_sent),
+                        'unit' => $r->unit,
+                        'origin_name' => $r->origin_name,
+                        'status' => $r->status,
+                        'warehouse_code' => $r->warehouse_code,
+                        'warehouse_name' => $r->warehouse_name,
+                    ])->all(),
+                    'issues' => $recentIssues->map(fn ($i) => [
+                        'material_document' => $i->material_document,
+                        'reservation_no' => $i->reservation_no,
+                        'sap_document' => $i->sap_document,
+                        'issued_on' => $i->issued_on,
+                        'date' => $i->issued_on,
+                        'material_no' => $i->material_no,
+                        'material_name' => $i->material_name,
+                        'quantity' => (float) $i->quantity,
+                        'unit' => $i->unit,
+                        'text' => $i->text,
+                        'work_type_name' => $i->work_type_name,
+                        'wbs' => $i->wbs,
+                        'origin' => $i->origin,
+                        'warehouse_code' => $i->warehouse_code,
+                        'warehouse_name' => $i->warehouse_name,
+                    ])->all(),
+                ],
+            ],
+        ]);
+    }
+
     /** GET /master-data/khs-material-map?search=&per_page= */
     public function khsMap(Request $request): JsonResponse
     {

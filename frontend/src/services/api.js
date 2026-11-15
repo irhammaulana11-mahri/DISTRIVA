@@ -382,6 +382,20 @@ export const warehousesApi = {
     const qStr = query.toString()
     return request(`/master-data/stock-position${qStr ? '?' + qStr : ''}`)
   },
+  materialDetail: (khsCode, warehouseIds = [], options = {}) => {
+    const query = new URLSearchParams()
+    query.append('khs_code', khsCode)
+    if (Array.isArray(warehouseIds) && warehouseIds.length > 0) {
+      warehouseIds.forEach((id) => query.append('warehouse_ids[]', id))
+    }
+    if (options?.period_months) {
+      query.append('period_months', options.period_months)
+    }
+    if (options?.period_weeks) {
+      query.append('period_weeks', options.period_weeks)
+    }
+    return request(`/master-data/stock-material-detail?${query.toString()}`)
+  },
 }
 
 export const khsMaterialMapApi = {

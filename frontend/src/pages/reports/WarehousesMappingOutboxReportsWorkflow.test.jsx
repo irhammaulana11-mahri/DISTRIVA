@@ -39,6 +39,7 @@ vi.mock('../../services/api.js', () => ({
     mimsTokenStatus: vi.fn(),
     forgetMimsToken: vi.fn(),
     position: vi.fn(),
+    materialDetail: vi.fn(),
   },
   khsMaterialMapApi: {
     list: vi.fn(),
@@ -467,6 +468,97 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       await waitFor(() => {
         expect(screen.getAllByText(/Token ditolak atau kedaluwarsa/i).length).toBeGreaterThan(0)
         expect(screen.getByText(/Silakan ambil token baru dari aplikasi MIMS/i)).toBeInTheDocument()
+      })
+    })
+
+    it('mengklik salah satu baris material pada Posisi Stok Terkonsolidasi untuk membuka drawer detail & riwayat mutasi', async () => {
+      warehousesApi.list.mockResolvedValue({
+        data: [{ id: 'wh-1', code: '5118-2080', name: 'PLN Area Mojokerto', is_active: true, unit: { code: '5118', name: 'UP3' } }],
+      })
+      warehousesApi.position.mockResolvedValue({
+        data: [
+          {
+            khs_code: 'A129',
+            khs_name: 'Baut mata 5/8" x 12"',
+            unit: 'S',
+            on_hand: 500,
+            reserved: 50,
+            incoming: 100,
+            safety: 20,
+            allocated_after: 0,
+            kr_supply: 0,
+            available: 450,
+            available_with_kr: 450,
+          },
+        ],
+      })
+      warehousesApi.materialDetail.mockResolvedValue({
+        data: {
+          material: {
+            khs_code: 'A129',
+            khs_name: 'Baut mata 5/8" x 12"',
+            unit: 'S',
+            category: 'Aksesori Tiang',
+            version_number: 1,
+            mapped_skus: [{ id: '1', material_no: '10002345' }],
+          },
+          position: {
+            on_hand: 500,
+            reserved: 50,
+            incoming: 100,
+            safety: 20,
+            allocated_after: 0,
+            kr_supply: 0,
+            available: 450,
+            available_with_kr: 450,
+          },
+          warehouse_breakdown: [],
+          movements: {
+            monthly: [{ period_key: '2026-11', period_label: 'Nov 2026', qty_in: 100, qty_out: 40, net_change: 60 }],
+            weekly: [],
+            summary: { total_in: 100, total_out: 40, net_total: 60, avg_monthly_out: 40, avg_weekly_out: 10 },
+          },
+          recent_transactions: { receipts: [], issues: [] },
+        },
+      })
+
+      renderWithProviders(<WarehousesPage />, {
+        can: { 'master_data.view': true, 'warehouses.manage': true },
+      })
+
+      // Tunggu gudang selesai dimuat
+      await waitFor(() => {
+        expect(screen.getByText('PLN Area Mojokerto')).toBeInTheDocument()
+      })
+
+      // Pindah ke tab Posisi Stok Terkonsolidasi
+      const tab = screen.getByRole('button', { name: 'Posisi Stok Terkonsolidasi' })
+      fireEvent.click(tab)
+
+      // Tunggu panel filter posisi stok muncul
+      await screen.findByText('Filter Posisi Stok Terkonsolidasi')
+
+      // Pilih gudang jika belum tercentang
+      const checkbox = screen.getByRole('checkbox')
+      if (!checkbox.checked) {
+        fireEvent.click(checkbox)
+      }
+
+      // Hitung posisi
+      const hitungBtn = screen.getByRole('button', { name: /Segarkan dan Hitung Posisi Stok/i })
+      fireEvent.click(hitungBtn)
+
+      // Baris material A129 muncul
+      await screen.findByText('Baut mata 5/8" x 12"')
+
+      // Klik baris material A129 untuk membuka detail
+      const materialRow = screen.getByText('Baut mata 5/8" x 12"').closest('tr')
+      fireEvent.click(materialRow)
+
+      // Drawer harus terbuka dan memanggil materialDetail
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Mutasi Penerimaan & Pengeluaran/i })).toBeInTheDocument()
+        expect(warehousesApi.materialDetail).toHaveBeenCalledWith('A129', expect.any(Array), expect.any(Object))
       })
     })
   })
