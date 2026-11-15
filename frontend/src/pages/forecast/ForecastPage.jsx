@@ -474,8 +474,8 @@ function DemandView({ run, kinds, onSelectMaterial }) {
                       if (material && onSelectMaterial) {
                         onSelectMaterial({
                           khs_code: r.item_code,
-                          khs_name: r.item_label,
-                          unit: r.unit_name,
+                          khs_name: r.item_label && String(r.item_label).trim() !== String(r.item_code).trim() ? r.item_label : undefined,
+                          ulp_name: r.unit_name,
                           forecast: {
                             totals: r.totals,
                             months: r.months,
@@ -493,7 +493,13 @@ function DemandView({ run, kinds, onSelectMaterial }) {
                   >
                     <td className="px-4 py-3 max-w-72">
                       <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words flex items-center gap-1.5">
-                        {r.item_code ? `${r.item_code} · ${r.item_label || ''}` : KIND_LABEL[r.kind]}
+                        {r.item_code ? (
+                          r.item_label && String(r.item_label).trim() !== String(r.item_code).trim()
+                            ? `${r.item_code} · ${r.item_label}`
+                            : r.item_code
+                        ) : (
+                          KIND_LABEL[r.kind]
+                        )}
                       </h3>
                       <div className="text-xs text-slate-500 dark:text-slate-400">{r.unit_name} · riwayat {r.history_months} bulan</div>
                     </td>
@@ -514,8 +520,8 @@ function DemandView({ run, kinds, onSelectMaterial }) {
                             if (onSelectMaterial) {
                               onSelectMaterial({
                                 khs_code: r.item_code,
-                                khs_name: r.item_label,
-                                unit: r.unit_name,
+                                khs_name: r.item_label && String(r.item_label).trim() !== String(r.item_code).trim() ? r.item_label : undefined,
+                                ulp_name: r.unit_name,
                                 forecast: {
                                   totals: r.totals,
                                   months: r.months,
@@ -1591,8 +1597,9 @@ function DerivedNeed({ onSelectMaterial }) {
                       if (onSelectMaterial) {
                         onSelectMaterial({
                           khs_code: p.item_code,
-                          khs_name: p.item_label,
-                          unit: p.unit_name,
+                          khs_name: p.item_label && String(p.item_label).trim() !== String(p.item_code).trim() ? p.item_label : undefined,
+                          ulp_name: p.unit_name,
+                          unit: 'Btg',
                           forecast: {
                             total: p.next_12_months,
                             last_12_months: p.last_12_months,
@@ -1615,8 +1622,9 @@ function DerivedNeed({ onSelectMaterial }) {
                           if (onSelectMaterial) {
                             onSelectMaterial({
                               khs_code: p.item_code,
-                              khs_name: p.item_label,
-                              unit: p.unit_name,
+                              khs_name: p.item_label && String(p.item_label).trim() !== String(p.item_code).trim() ? p.item_label : undefined,
+                              ulp_name: p.unit_name,
+                              unit: 'Btg',
                               forecast: {
                                 total: p.next_12_months,
                                 last_12_months: p.last_12_months,

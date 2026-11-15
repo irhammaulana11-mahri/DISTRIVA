@@ -255,24 +255,39 @@ export default function MaterialStockDetailDrawer({
 
   const recentTransactions = detailData?.recent_transactions || { receipts: [], issues: [] }
 
+  const materialCode = mat.khs_code || khsCode
+  const candidateName = mat.khs_name || materialSummary?.khs_name || materialSummary?.item_label || ''
+  const hasDistinctName = candidateName && String(candidateName).trim().toLowerCase() !== String(materialCode).trim().toLowerCase()
+  const materialName = hasDistinctName ? candidateName : ''
+  const ulpName = materialSummary?.ulp_name || materialSummary?.forecast?.unit_name || null
+  const realUnit = mat.unit || (materialSummary?.unit && materialSummary?.unit !== ulpName ? materialSummary?.unit : null) || '-'
+
   return (
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
       size="max-w-4xl"
       title={
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <span className="font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded text-sm font-bold border border-blue-200 dark:border-blue-900">
-            {khsCode}
+            {materialCode}
           </span>
-          <span className="text-slate-900 dark:text-slate-100 font-bold text-base md:text-lg">
-            {mat.khs_name || materialSummary?.khs_name || khsCode}
-          </span>
+          {materialName ? (
+            <span className="text-slate-900 dark:text-slate-100 font-bold text-base md:text-lg">
+              {materialName}
+            </span>
+          ) : null}
         </div>
       }
       subtitle={
         <span className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-          <span>Satuan: <strong className="text-slate-700 dark:text-slate-200">{mat.unit || materialSummary?.unit || '-'}</strong></span>
+          <span>Satuan: <strong className="text-slate-700 dark:text-slate-200">{realUnit}</strong></span>
+          {ulpName && (
+            <>
+              <span>•</span>
+              <span>Unit Kerja: <strong className="text-slate-700 dark:text-slate-200">{ulpName}</strong></span>
+            </>
+          )}
           <span>•</span>
           <span>Kategori: <strong className="text-slate-700 dark:text-slate-200">{mat.category || 'Standar PLN'}</strong></span>
           <span>•</span>
@@ -1520,7 +1535,8 @@ export default function MaterialStockDetailDrawer({
                   </p>
                 </div>
                 <Link
-                  to="/master-data/pemetaan-sku"
+                  to={`/master-data/mapping${materialCode ? `?search=${encodeURIComponent(materialCode)}` : ''}`}
+                  onClick={onClose}
                   className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-semibold hover:underline"
                 >
                   Buka Meja Kerja Pemetaan →

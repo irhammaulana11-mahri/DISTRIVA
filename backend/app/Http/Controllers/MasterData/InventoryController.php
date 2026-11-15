@@ -126,6 +126,82 @@ class InventoryController extends Controller
             $item = DB::table('khs_items')->whereRaw('UPPER(code) = ?', [strtoupper($khsCode)])->first();
         }
 
+        // Bila tidak ditemukan langsung dari kode KHS, cek apakah ini nomor SKU ERP yang sudah dipetakan
+        if (! $item) {
+            $mapRow = DB::table('khs_material_map')->where('material_no', $khsCode)->first();
+            if ($mapRow) {
+                $item = DB::table('khs_items')->where('id', $mapRow->khs_item_id)->first();
+            }
+        }
+        if (! $item) {
+            $snapMapped = DB::table('stock_snapshot_materials')
+                ->where('material_no', $khsCode)
+                ->whereNotNull('khs_item_id')
+                ->first();
+            if ($snapMapped) {
+                $item = DB::table('khs_items')->where('id', $snapMapped->khs_item_id)->first();
+            }
+        }
+
+        // Cari nama material & satuan alternatif dari katalog ERP atau transaksi MIMS jika KHS belum terdaftar
+        $rawName = null;
+        $rawUnit = null;
+        $matRow = DB::table('materials')->where('code', $khsCode)->first();
+        if ($matRow) {
+            $rawName = $matRow->name;
+            $rawUnit = $matRow->unit;
+        }
+        if (! $rawName) {
+            $snapMat = DB::table('stock_snapshot_materials')
+                ->where('material_no', $khsCode)
+                ->whereNotNull('material_name')
+                ->where('material_name', '<>', '')
+                ->where('material_name', '<>', $khsCode)
+                ->orderByDesc('id')
+                ->first();
+            if ($snapMat) {
+                $rawName = $snapMat->material_name;
+                $rawUnit = $rawUnit ?? $snapMat->unit;
+            }
+        }
+        if (! $rawName) {
+            $issLine = DB::table('mims_issue_lines')
+                ->where('material_no', $khsCode)
+                ->whereNotNull('material_name')
+                ->where('material_name', '<>', '')
+                ->where('material_name', '<>', $khsCode)
+                ->orderByDesc('id')
+                ->first();
+            if ($issLine) {
+                $rawName = $issLine->material_name;
+                $rawUnit = $rawUnit ?? $issLine->unit;
+            }
+        }
+        if (! $rawName) {
+            $recLine = DB::table('mims_receipt_lines')
+                ->where('material_no', $khsCode)
+                ->whereNotNull('material_name')
+                ->where('material_name', '<>', '')
+                ->where('material_name', '<>', $khsCode)
+                ->orderByDesc('id')
+                ->first();
+            if ($recLine) {
+                $rawName = $recLine->material_name;
+                $rawUnit = $rawUnit ?? $recLine->unit;
+            }
+        }
+        if (! $rawName) {
+            $seriesMat = DB::table('forecast_series_results')
+                ->where('item_code', $khsCode)
+                ->whereNotNull('item_label')
+                ->where('item_label', '<>', '')
+                ->where('item_label', '<>', $khsCode)
+                ->first();
+            if ($seriesMat) {
+                $rawName = $seriesMat->item_label;
+            }
+        }
+
         // Active version of KHS item
         $version = null;
         if ($item) {
@@ -239,6 +315,9 @@ class InventoryController extends Controller
                 ->unique()
                 ->all();
             $skuList = array_unique(array_merge($skuList, $extraSkus));
+        }
+        if (empty($skuList)) {
+            $skuList = [$khsCode];
         }
 
         $allSearchNos = collect($skuList)
@@ -468,9 +547,9 @@ class InventoryController extends Controller
             'data' => [
                 'material' => [
                     'id' => $item?->id,
-                    'khs_code' => $khsCode,
-                    'khs_name' => $version?->name ?? $khsCode,
-                    'unit' => $version?->unit_text ?? null,
+                    'khs_code' => $item ? $item->code : $khsCode,
+                    'khs_name' => $version?->name ?? $rawName ?? $khsCode,
+                    'unit' => $version?->unit_text ?? $rawUnit ?? null,
                     'category' => $version?->category ?? null,
                     'description' => $version?->description ?? null,
                     'version_number' => $version?->version_number ?? 1,

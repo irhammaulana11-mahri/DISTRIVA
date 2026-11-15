@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { khsMaterialMapApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -66,15 +66,17 @@ function SupplyStatusBadge({ status }) {
 
 export default function KhsMaterialMapPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initialSearch = searchParams.get('search') || searchParams.get('q') || ''
   const { can } = useAccess()
   const { notify } = useNotifications()
   const canManage = Boolean(can?.['khs.manage'])
 
   // Workbench Left Panel State
-  const [filter, setFilter] = useState('unmapped') // 'unmapped' | 'mapped' | 'all'
-  const [usedOnly, setUsedOnly] = useState(true)
+  const [filter, setFilter] = useState(() => (initialSearch ? 'all' : 'unmapped')) // 'unmapped' | 'mapped' | 'all'
+  const [usedOnly, setUsedOnly] = useState(() => (initialSearch ? false : true))
   const [supplyPlnOnly, setSupplyPlnOnly] = useState(true)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
   const [khsList, setKhsList] = useState([])
   const [loadingList, setLoadingList] = useState(true)
   const [listError, setListError] = useState('')

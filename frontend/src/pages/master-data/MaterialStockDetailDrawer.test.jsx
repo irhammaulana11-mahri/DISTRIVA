@@ -311,7 +311,7 @@ describe('MaterialStockDetailDrawer', () => {
 
     expect(screen.getByText('10002345')).toBeInTheDocument()
     expect(screen.getByText(/Baut mata galvanis hot dip/i)).toBeInTheDocument()
-    expect(screen.getByText('Buka Meja Kerja Pemetaan →')).toHaveAttribute('href', '/master-data/pemetaan-sku')
+    expect(screen.getByText('Buka Meja Kerja Pemetaan →')).toHaveAttribute('href', expect.stringContaining('/master-data/mapping'))
   })
 
   it('dapat menampilkan tab Proyeksi Kebutuhan (Forecast) beserta grafik dan tabel forecasting', async () => {
