@@ -121,6 +121,34 @@ describe('MimsStockPullPage', () => {
       expect(screen.getByText(/SKU Belum Terpetakan →/i)).toBeInTheDocument()
     })
   })
+  it('status gudang mengikuti dokumen yang ditarik, bukan DILEWATI saat stok tidak dipilih', async () => {
+    const skippedStock = { status: 'SKIPPED', message: 'Stok tidak ditarik (tidak dipilih).', total: 0, mapped: 0, snapshot_id: null }
+    warehousesApi.syncStock.mockResolvedValueOnce({
+      data: [
+        { warehouse_id: 'wh-1', warehouse_code: '5118-2810', warehouse_name: 'Gd Ry Jombang', ...skippedStock, receipts: { status: 'OK', documents_new: 47, lines: 133 }, issues: { status: 'OK', documents_new: 78, lines: 440 } },
+        { warehouse_id: 'wh-2', warehouse_code: '5118-2820', warehouse_name: 'Gd Ry Ngoro', ...skippedStock, receipts: { status: 'OK', documents_new: 3, lines: 9 }, issues: { status: 'FAILED', message: 'waktu tunggu habis' } },
+        { warehouse_id: 'wh-3', warehouse_code: '5118-2830', warehouse_name: 'Gd Ry Ploso', ...skippedStock, receipts: { status: 'FAILED', message: 'waktu tunggu habis' } },
+        { warehouse_id: 'wh-4', warehouse_code: '5118-2080', warehouse_name: 'PLN Area Mojokerto', ...skippedStock },
+      ],
+    })
+    render(
+      <MemoryRouter>
+        <NotificationProvider>
+          <MimsStockPullPage asPage={true} />
+        </NotificationProvider>
+      </MemoryRouter>
+    )
+    fireEvent.change(await screen.findByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i), { target: { value: 'token-mims-valid-9988' } })
+    await userEvent.click(screen.getByRole('button', { name: /Tarik Stok Sekarang/i }))
+
+    await waitFor(() => expect(screen.getByText(/Hasil Penarikan Stok MIMS/i)).toBeInTheDocument())
+    expect(screen.getByText('SELESAI')).toBeInTheDocument()
+    expect(screen.getByText('SEBAGIAN')).toBeInTheDocument()
+    expect(screen.getByText('GAGAL')).toBeInTheDocument()
+    expect(screen.getAllByText('DILEWATI')).toHaveLength(1)                       // only the warehouse where nothing was pulled
+    expect(screen.queryByText(/Stok tidak ditarik/i)).not.toBeInTheDocument()
+  })
+
   it('menampilkan kemajuan penarikan yang sudah berjalan: gudang ke berapa, langkah, dan perkiraan sisa waktu', async () => {
     const run = {
       id: 'run-1', status: 'RUNNING', warehouses_total: 11, warehouses_done: 4, current_warehouse: '5118-2810 - Gd Ry Jombang', current_step: 'ISSUES',

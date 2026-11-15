@@ -1,3 +1,4 @@
+import { warehouseOutcome } from './mimsOutcome'
 import { useEffect, useState } from 'react'
 import Spinner from '../../components/Spinner.jsx'
 
@@ -59,7 +60,7 @@ export default function MimsPullProgress({ run }) {
           {rows.map((r) => (
             <li key={r.warehouse_id} className="flex justify-between gap-3">
               <span className="truncate">{r.warehouse_code} · {r.warehouse_name}</span>
-              <span className={r.status === 'OK' || r.status === 'SKIPPED' ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}>{r.status === 'OK' ? 'Selesai' : r.status === 'SKIPPED' ? 'Dilewati' : 'Gagal'}</span>
+              <span className={['OK', 'SKIPPED'].includes(warehouseOutcome(r)) ? 'text-emerald-700 dark:text-emerald-300' : warehouseOutcome(r) === 'PARTIAL' ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}>{{ OK: 'Selesai', PARTIAL: 'Sebagian', FAILED: 'Gagal', SKIPPED: 'Dilewati' }[warehouseOutcome(r)]}</span>
             </li>
           ))}
         </ul>

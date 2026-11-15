@@ -1,3 +1,4 @@
+import { OUTCOME_LABEL, warehouseOutcome } from './mimsOutcome'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { warehousesApi } from '../../services/api.js'
@@ -96,7 +97,7 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
   // Menampilkan hasil akhir penarikan (berhasil atau gagal) dan membersihkan kemajuan.
   const finishWatching = useCallback((res) => {
     setMimsResults(res?.data || [])
-    notify({ type: 'success', title: 'Penarikan Stok Berhasil', desc: `Berhasil memproses ${res?.data?.length || 0} gudang dari MIMS.`, tag: 'MIMS' })
+    notify({ type: 'success', title: 'Penarikan MIMS Selesai', desc: `Selesai memproses ${res?.data?.length || 0} gudang dari MIMS.`, tag: 'MIMS' })
     loadTokenStatus()
     onSuccess?.(res?.data)
   }, [notify, loadTokenStatus, onSuccess])
@@ -192,9 +193,9 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
   const kpiStats = mimsResults
     ? {
         totalGudang: mimsResults.length,
-        okCount: mimsResults.filter((r) => r.status === 'OK').length,
-        skippedCount: mimsResults.filter((r) => r.status === 'SKIPPED').length,
-        errorCount: mimsResults.filter((r) => r.status !== 'OK' && r.status !== 'SKIPPED').length,
+        okCount: mimsResults.filter((r) => warehouseOutcome(r) === 'OK').length,
+        skippedCount: mimsResults.filter((r) => warehouseOutcome(r) === 'SKIPPED').length,
+        errorCount: mimsResults.filter((r) => ['PARTIAL', 'FAILED'].includes(warehouseOutcome(r))).length,
         totalSku: mimsResults.reduce((acc, r) => acc + (r.total || 0), 0),
         mappedSku: mimsResults.reduce((acc, r) => acc + (r.mapped || 0), 0),
         unmappedSku: mimsResults.reduce((acc, r) => acc + Math.max(0, (r.total || 0) - (r.mapped || 0)), 0),
@@ -667,6 +668,8 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
                     const total = r.total || 0
                     const mapped = r.mapped || 0
                     const unmappedCount = total - mapped
+                    const outcome = warehouseOutcome(r)
+                    const stockPulled = r.status !== 'SKIPPED'
                     return (
                       <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                         <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">
@@ -676,27 +679,27 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
                         <td className="py-2.5 px-3">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              r.status === 'OK'
+                              outcome === 'OK'
                                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                : r.status === 'SKIPPED'
+                                : outcome === 'SKIPPED' || outcome === 'PARTIAL'
                                 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                                 : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
                             }`}
                           >
-                            {r.status}
+                            {OUTCOME_LABEL[outcome]}
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-semibold">
-                          {total.toLocaleString('id-ID')}
+                          {stockPulled ? total.toLocaleString('id-ID') : '-'}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-emerald-600 font-semibold">
-                          {mapped.toLocaleString('id-ID')}
+                          {stockPulled ? mapped.toLocaleString('id-ID') : '-'}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-amber-600 font-semibold">
-                          {unmappedCount > 0 ? unmappedCount.toLocaleString('id-ID') : 0}
+                          {stockPulled ? (unmappedCount > 0 ? unmappedCount.toLocaleString('id-ID') : 0) : '-'}
                         </td>
                         <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 text-[11px]">
-                          {r.message || '-'}
+                          {stockPulled ? (r.message || '-') : null}
                           {r.receipts && (
                             <span className="block text-slate-500 mt-0.5">
                               Penerimaan: {r.receipts.status === 'OK' ? (r.receipts.documents_new === 0 ? 'tidak ada dokumen baru' : `${r.receipts.documents_new} dokumen baru, ${r.receipts.lines} baris material`) : r.receipts.message || r.receipts.status}
