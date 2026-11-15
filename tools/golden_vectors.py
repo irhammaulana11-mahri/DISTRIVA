@@ -11,7 +11,7 @@ import gzip, json, os, re, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "analysis"))
 from wb import WB
 
-SHEETS = ["SUTM", "MVTIC", "SKTM", "KUBIKEL", "GTT KHUSUS", "GTT UMUM", "SUTR", "6,6-41,5 KVA", "53-197 KVA"]
+SHEETS = ["SUTM", "MVTIC", "SKTM", "KUBIKEL", "GTT KHUSUS", "GTT UMUM", "SUTR", "APP LANGSUNG", "APP TAK LANGSUNG"]   # = the former "6,6-41,5 KVA" and "53-197 KVA" (renamed in the 2026-11-09 revision of the workbook, see extract_bom_json.py)
 REF = re.compile(r"(?:(?P<sh>'[^']+'|[A-Za-z_][A-Za-z0-9_.]*)!)?\$?(?P<c1>[A-Z]{1,3})\$?(?P<r1>\d+)(?::\$?(?P<c2>[A-Z]{1,3})\$?(?P<r2>\d+))?")
 
 def c2n(c):

@@ -52,9 +52,10 @@ def run(cmd, cwd=None, quiet=False):
 
 
 def candidates(key, first="samples"):
-    """Salinan Excel master yang ada. Ada dua salinan dengan lembar berbeda: tools/samples (lebih baru; ada lembar APP untuk SR 1 fasa) dan akar proyek (ada lembar PBPD '6,6-41,5 KVA' dan '53-197 KVA' untuk tes golden)."""
-    order = [TOOLS / "samples", ROOT] if first == "samples" else [ROOT, TOOLS / "samples"]
-    return [b / WORKBOOKS[key] for b in order if (b / WORKBOOKS[key]).is_file()]
+    """Excel master yang dipakai. MASTER RAB & KKF.xlsx: HANYA salinan di tools/samples (keputusan pemilik 15 Nov 2026; salinan lama di akar proyek tidak dipakai).
+    MASTER TARIF & JAM NYALA.xlsx hanya ada satu salinan (akar proyek); tools/samples dicoba lebih dulu."""
+    places = [TOOLS / "samples"] if key == "rab" else [TOOLS / "samples", ROOT]
+    return [b / WORKBOOKS[key] for b in places if (b / WORKBOOKS[key]).is_file()]
 
 
 def sheet_names(path):
@@ -79,14 +80,10 @@ def cmd_check(_a):
         say("PERINGATAN", "venv forecast belum ada (forecast tidak bisa jalan): jalankan 'forecast-venv --install'")
     for key, name in WORKBOOKS.items():
         copies = candidates(key)
-        if not copies:
-            say("GAGAL", f"{name} tidak ditemukan (tools/samples atau akar proyek)")
-            continue
-        say("OK", f"{name}: " + ", ".join(str(c.relative_to(ROOT)) for c in copies))
-        if len(copies) == 2:
-            only0, only1 = sheet_names(copies[0]) - sheet_names(copies[1]), sheet_names(copies[1]) - sheet_names(copies[0])
-            if only0 or only1:
-                say("PERINGATAN", f"dua salinan {name} memuat lembar berbeda: hanya di {copies[0].parent.name}: {sorted(only0)}; hanya di {copies[1].parent.name}: {sorted(only1)}. Ekstraksi memakai tools/samples dulu, tes golden akar proyek dulu; sebaiknya digabung (docs/85 bagian C)")
+        say("OK" if copies else "GAGAL", f"{name}: {copies[0].relative_to(ROOT) if copies else 'tidak ditemukan'}")
+        stale = ROOT / name
+        if key == "rab" and stale.is_file():
+            say("PERINGATAN", f"{name} di akar proyek TIDAK dipakai (hanya tools/samples); sebaiknya dihapus agar tidak tertukar")
     for rel in ("tools/output/rebuild/peta_kode_lama_baru.csv", "tools/output/rebuild/khs_new.csv", "tools/output/rebuild/price_book_new.csv", "tools/output/rebuild/mappings_new.csv"):
         say("OK" if (ROOT / rel).is_file() else "GAGAL", f"{rel}")
     say("OK" if (BACKEND / ".env").is_file() else "GAGAL", "backend/.env (salin dari .env.example lalu isi; jangan di-commit)")
@@ -196,14 +193,15 @@ def _num(v):
 # ---------------------------------------------------------------- golden / venv / preflight / tests
 def cmd_golden(_a):
     fixture = BACKEND / "tests" / "fixtures" / "golden_bom.json.gz"
-    for rab in candidates("rab", first="root"):
-        code, text = run(["python3", "-I", TOOLS / "golden_vectors.py", rab, fixture], quiet=True)
-        if code == 0:
-            say("OK", f"vektor golden dari {rab.parent.name}/{rab.name}")
-            break
-    else:
-        say("GAGAL", "golden_vectors.py tidak dapat membaca salinan Excel mana pun (butuh lembar '6,6-41,5 KVA' dan '53-197 KVA')")
+    rabs = candidates("rab")
+    if not rabs:
+        say("GAGAL", f"{WORKBOOKS['rab']} tidak ditemukan di tools/samples")
         return 1
+    code, text = run(["python3", "-I", TOOLS / "golden_vectors.py", rabs[0], fixture], quiet=True)
+    if code != 0:
+        say("GAGAL", f"golden_vectors.py gagal: {text.strip().splitlines()[-1][:160] if text.strip() else 'tanpa pesan'}")
+        return 1
+    say("OK", f"vektor golden dari samples/{rabs[0].name}")
     say("OK", f"fixture ditulis: {fixture.relative_to(ROOT)}")
     code, _ = run(["php", "artisan", "test", "--compact", "tests/Unit/FormulaGoldenWorkbookTest.php"], cwd=BACKEND)
     return code

@@ -30,13 +30,11 @@ Contoh: `python3 tools/runbook.py check`, lalu `python3 tools/runbook.py extract
 
 **Kesimpulan:** untuk server baru, **pulihkan cadangan** (§4, jalur A). Jalur membangun dari Excel hanya untuk perubahan (§5).
 
-## 3. Temuan: dua salinan `MASTER RAB & KKF.xlsx` berbeda
-| Salinan | Lembar khas | Dipakai oleh |
-|---|---|---|
-| `tools/samples/MASTER RAB & KKF.xlsx` (12 Nov, lebih baru) | `APP 1 PHASA`, `APP LANGSUNG`, `APP TAK LANGSUNG` | `extract_*`, `build_sr1ph_bom.py` |
-| `MASTER RAB & KKF.xlsx` di akar proyek (8 Nov) | `6,6-41,5 KVA`, `53-197 KVA`, `SR 1 PHASE (2022)` | `golden_vectors.py` (butuh dua lembar PBPD) |
-
-Akibatnya `extract_bom_json.py` gagal (`StopIteration`) bila diarahkan ke salinan akar proyek, dan `golden_vectors.py` gagal bila diarahkan ke salinan samples. `runbook.py` memilih salinan yang bisa dibaca tiap skrip dan memperingatkan perbedaannya. **Tindak lanjut pemilik:** tetapkan satu berkas induk yang memuat semua lembar, lalu hapus salinan lain.
+## 3. Excel induk: hanya `tools/samples/MASTER RAB & KKF.xlsx`
+Keputusan pemilik 15 November 2026: **satu-satunya** salinan `MASTER RAB & KKF.xlsx` yang dipakai ada di `tools/samples/`. Salinan lama di akar proyek (8 Nov, belum direvisi) tidak dipakai dan sebaiknya dihapus agar tidak tertukar; `runbook.py check` memperingatkan selama berkas itu masih ada.
+- Revisi 9 November mengganti nama lembar PBPD: `6,6-41,5 KVA` menjadi `APP LANGSUNG` dan `53-197 KVA` menjadi `APP TAK LANGSUNG`, dan menambah `APP 1 PHASA` (SR 1 fasa).
+- `golden_vectors.py` disesuaikan dengan nama baru itu. Fixture `backend/tests/fixtures/golden_bom.json.gz` sudah dibangun ulang dari salinan ini dan tes golden lulus.
+- `MASTER TARIF & JAM NYALA.xlsx` hanya punya satu salinan (akar proyek); skrip mencarinya di `tools/samples` lebih dulu, lalu di akar proyek.
 
 ## 4. Dari nol (server baru)
 **Prasyarat sistem:** PHP 8.5 + ekstensi Laravel, Composer, PostgreSQL, Node 22, Python 3.10+, `mdbtools` (`sudo apt install mdbtools`, untuk DIL .mdb), Chromium atau Chrome (PDF).
@@ -63,7 +61,7 @@ Akibatnya `extract_bom_json.py` gagal (`StopIteration`) bila diarahkan ke salina
 ## 5. Bila rumus, harga, atau tarif berubah
 | Yang berubah | Langkah |
 |---|---|
-| **Rumus volume BOM di Excel** | 1) Taruh Excel baru (lihat §3). 2) `runbook.py extract`; baca `laporan.txt` (bagian BOM menunjukkan baris yang rumusnya berubah). 3) Tinjau `tools/output/regen/<waktu>/bom_*.json`, lalu salin yang disetujui ke `tools/output/`. 4) `REBUILD_DB=<nama database> BOM_DRY=1 php artisan tinker --execute="require 'tools/rebuild/import_boms.php';"`, periksa, lalu ulangi dengan `BOM_DRY=0`. 5) BOM berstatus DRAFT: setujui dengan akun lain. 6) `runbook.py golden` bila lembar Excel yang diuji golden berubah, lalu `runbook.py tests`. 7) Hitung ulang MTO/RAB/KKF yang sudah tersimpan; run lama tetap beku dengan angka lamanya. |
+| **Rumus volume BOM di Excel** | 1) Taruh Excel baru di `tools/samples/` (§3). 2) `runbook.py extract`; baca `laporan.txt` (bagian BOM menunjukkan baris yang rumusnya berubah). 3) Tinjau `tools/output/regen/<waktu>/bom_*.json`, lalu salin yang disetujui ke `tools/output/`. 4) `REBUILD_DB=<nama database> BOM_DRY=1 php artisan tinker --execute="require 'tools/rebuild/import_boms.php';"`, periksa, lalu ulangi dengan `BOM_DRY=0`. 5) BOM berstatus DRAFT: setujui dengan akun lain. 6) `runbook.py golden` bila rumus pada lembar yang diuji golden berubah, lalu `runbook.py tests`. 7) Hitung ulang MTO/RAB/KKF yang sudah tersimpan; run lama tetap beku dengan angka lamanya. |
 | **Mesin rumus PHP** (kode, bukan Excel) | Ubah kode backend, `runbook.py tests` (golden + BOM), lalu hitung ulang RAB/KKF yang terdampak. |
 | **KHS** (kode, nama, satuan) | `extract` → periksa bagian KHS pada laporan (kode tanpa kode baru perlu keputusan pemilik) → impor lewat `tools/khs_admin.py` atau layar sebagai pengguna sendiri; penyetuju akun lain. |
 | **Harga jasa/material** | `extract` → buku harga **baru** lewat alur resmi (buku yang disetujui tidak diubah; buku lama ditutup sehari sebelum buku baru berlaku, seperti docs/83 §8). |
