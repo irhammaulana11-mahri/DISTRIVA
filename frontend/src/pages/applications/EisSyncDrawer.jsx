@@ -194,6 +194,55 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
         </div>
       ) : (
         <div className="space-y-6 text-xs">
+          {/* Kartu ringkasan: akun, otomasi, total riwayat, sesi terakhir */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="text-[10px] text-slate-400 font-semibold uppercase">Akun EIS</div>
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
+                {settings?.eis_username || 'Belum diatur'}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                {settings?.has_password ? 'Password aman tersimpan' : 'Password belum ada'}
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="text-[10px] text-slate-400 font-semibold uppercase">Otomasi Harian</div>
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">
+                {settings?.auto_enabled ? `Pukul ${settings?.auto_time} WIB` : 'Nonaktif'}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                {settings?.auto_enabled ? 'Penjadwalan aktif' : 'Manual saja'}
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="text-[10px] text-slate-400 font-semibold uppercase">Total Riwayat</div>
+              <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200 mt-1">
+                {runs.length} Sesi
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                10 sesi penarikan terakhir
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="text-[10px] text-slate-400 font-semibold uppercase">Sesi Terakhir</div>
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">
+                {lastRun ? (
+                  <span className={lastRun.status === 'OK' ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-300'}>
+                    {STATUS[lastRun.status]?.[0] || lastRun.status}
+                  </span>
+                ) : (
+                  'Belum ada'
+                )}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                {lastRun ? when(lastRun.created_at) : '-'}
+              </div>
+            </div>
+          </div>
+
           {/* Banner Informasi Keamanan & Enkripsi */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 shadow-xs">
             <div className="flex items-start gap-3">
@@ -482,58 +531,6 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
               </section>
             </div>
           </Modal>
-
-          {/* BAGIAN BAWAH: KPI Ringkasan (riwayat sesi ada di tab "Riwayat Sinkronisasi EIS" halaman PB/PD) */}
-          <div className="space-y-4 pt-2">
-            {/* Kartu Ringkasan KPI */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                <div className="text-[10px] text-slate-400 font-semibold uppercase">Akun EIS</div>
-                <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
-                  {settings?.eis_username || 'Belum diatur'}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  {settings?.has_password ? 'Password aman tersimpan' : 'Password belum ada'}
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                <div className="text-[10px] text-slate-400 font-semibold uppercase">Otomasi Harian</div>
-                <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">
-                  {settings?.auto_enabled ? `Pukul ${settings?.auto_time} WIB` : 'Nonaktif'}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  {settings?.auto_enabled ? 'Penjadwalan aktif' : 'Manual saja'}
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                <div className="text-[10px] text-slate-400 font-semibold uppercase">Total Riwayat</div>
-                <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200 mt-1">
-                  {runs.length} Sesi
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  10 sesi penarikan terakhir
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                <div className="text-[10px] text-slate-400 font-semibold uppercase">Sesi Terakhir</div>
-                <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">
-                  {lastRun ? (
-                    <span className={lastRun.status === 'OK' ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-300'}>
-                      {STATUS[lastRun.status]?.[0] || lastRun.status}
-                    </span>
-                  ) : (
-                    'Belum ada'
-                  )}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5 truncate">
-                  {lastRun ? when(lastRun.created_at) : '-'}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
