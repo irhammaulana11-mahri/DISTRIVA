@@ -91,8 +91,21 @@ def _stale_check(client, args, d_from):
     start = max(permohonan.parse_date(st["oldest"]), d_from - timedelta(days=EIS_MAX_BACKFILL_DAYS))
     end = d_from - timedelta(days=1)
     print(f"Menarik rentang lama {permohonan.fmt(start)} - {permohonan.fmt(end)} untuk memperbarui permohonan itu ...")
-    for path, expected in _export(args, start, end):
-        _upload(client, path, expected, True, delete=not getattr(args, "simpan", False))
+    keep = not getattr(args, "simpan", False)
+    sent = set()
+
+    def on_file(path, expected):
+        _upload(client, path, expected, True, delete=keep)
+        sent.add(str(path))
+
+    prior = getattr(args, "on_file", None)
+    args.on_file = on_file  # files are uploaded as they are exported; never upload them a second time
+    try:
+        for path, expected in _export(args, start, end):
+            if str(path) not in sent:
+                _upload(client, path, expected, True, delete=keep)
+    finally:
+        args.on_file = prior
     left = client.stale(d_from.isoformat())
     print(f"Setelah rentang lama: {left['total']} permohonan masih berjalan dan lebih tua dari {permohonan.fmt(d_from)}"
           + (f" (terlama {left['oldest']}; ini memang belum selesai di EIS, atau lebih tua dari EIS_MAX_BACKFILL_DAYS={EIS_MAX_BACKFILL_DAYS} hari)." if left["total"] else "."))

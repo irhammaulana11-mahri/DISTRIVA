@@ -396,6 +396,24 @@ class StaleTest(unittest.TestCase):
             main._stale_check(client, self.args(lengkapi=False), date(2026, 8, 11))
         ex.assert_not_called()
 
+    def test_files_already_handed_over_by_on_file_are_not_uploaded_a_second_time(self):
+        import main
+        client = mock.Mock()
+        client.stale.return_value = {"total": 2, "oldest": "2026-03-02"}
+        args = self.args()
+        args.on_file = "per-unit-hook"
+
+        def export(a, start, end):
+            files = [(Path("a.xlsx"), 1), (Path("b.xlsx"), 2)]
+            for f in files:
+                a.on_file(*f)
+            return files
+
+        with mock.patch.object(main, "_export", side_effect=export), mock.patch.object(main, "_upload") as up:
+            main._stale_check(client, args, date(2026, 8, 11))
+        self.assertEqual(up.call_count, 2)
+        self.assertEqual(args.on_file, "per-unit-hook")
+
     def test_with_confirmation_the_old_range_is_pulled_up_to_the_oldest_stale_day_and_confirmed(self):
         import main
         client = mock.Mock()
