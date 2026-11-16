@@ -27,15 +27,15 @@ class ReportService
     public function overview(array $units, ?string $from, ?string $to): array
     {
         $apps = fn () => DB::table('applications as a')->whereIn('a.organizational_unit_id', $units)->when($from, fn ($q) => $q->whereDate('a.created_at', '>=', $from))->when($to, fn ($q) => $q->whereDate('a.created_at', '<=', $to));
-        $ids = $apps()->pluck('a.id')->all();
+        $ids = $apps()->select('a.id');            // subquery, not a plucked id list: tens of thousands of ids exceed the 65535 bind-parameter limit
         $count = fn (string $table, string $col = 'status', string $appCol = 'application_id') => DB::table($table)->whereIn($appCol, $ids)->selectRaw("{$col} as k, count(*) as c")->groupBy($col)->pluck('c', 'k')->map(fn ($c) => (int) $c)->all();
-        $latestRab = $ids === [] ? collect() : DB::table('rab_runs')->whereIn('id', DB::table('rab_runs')->whereIn('application_id', $ids)->selectRaw('distinct on (application_id) id')->orderBy('application_id')->orderByDesc('run_number'))->get(['grand_total']);
-        $latestKkf = $ids === [] ? collect() : DB::table('kkf_runs')->whereIn('id', DB::table('kkf_runs')->whereIn('application_id', $ids)->selectRaw('distinct on (application_id) id')->orderBy('application_id')->orderByDesc('run_number'))->get(['feasible', 'extended_required', 'payback_months']);
-        $drawingStatus = $ids === [] ? [] : DB::table('application_drawing_versions as v')->whereIn('v.id', DB::table('application_drawing_versions as x')->join('application_drawings as d', 'd.id', '=', 'x.drawing_id')->whereIn('d.application_id', $ids)->selectRaw('distinct on (x.drawing_id) x.id')->orderBy('x.drawing_id')->orderByDesc('x.version_number'))->selectRaw('v.status as k, count(*) as c')->groupBy('v.status')->pluck('c', 'k')->map(fn ($c) => (int) $c)->all();
+        $latestRab = DB::table('rab_runs')->whereIn('id', DB::table('rab_runs')->whereIn('application_id', $ids)->selectRaw('distinct on (application_id) id')->orderBy('application_id')->orderByDesc('run_number'))->get(['grand_total']);
+        $latestKkf = DB::table('kkf_runs')->whereIn('id', DB::table('kkf_runs')->whereIn('application_id', $ids)->selectRaw('distinct on (application_id) id')->orderBy('application_id')->orderByDesc('run_number'))->get(['feasible', 'extended_required', 'payback_months']);
+        $drawingStatus = DB::table('application_drawing_versions as v')->whereIn('v.id', DB::table('application_drawing_versions as x')->join('application_drawings as d', 'd.id', '=', 'x.drawing_id')->whereIn('d.application_id', $ids)->selectRaw('distinct on (x.drawing_id) x.id')->orderBy('x.drawing_id')->orderByDesc('x.version_number'))->selectRaw('v.status as k, count(*) as c')->groupBy('v.status')->pluck('c', 'k')->map(fn ($c) => (int) $c)->all();
 
         return [
             'filters' => ['from' => $from, 'to' => $to, 'unit_count' => count($units)],
-            'applications' => ['total' => count($ids), 'by_status' => $count('applications', 'current_status', 'id'), 'by_type' => $count('applications', 'application_type', 'id'), 'by_source' => $count('applications', 'source_type', 'id')],
+            'applications' => ['total' => $apps()->count(), 'by_status' => $count('applications', 'current_status', 'id'), 'by_type' => $count('applications', 'application_type', 'id'), 'by_source' => $count('applications', 'source_type', 'id')],
             'proposals' => ['open' => DB::table('proposals')->whereIn('ulp_unit_id', $units)->where('status', 'OPEN')->count(), 'cancelled' => DB::table('proposals')->whereIn('ulp_unit_id', $units)->where('status', 'CANCELLED')->count()],
             'surveys' => ['by_status' => $count('application_surveys')],
             'drawings' => ['latest_version_by_status' => $drawingStatus],
@@ -138,46 +138,48 @@ class ReportService
 
         $appIds = $apps->pluck('id')->all();
 
-        $surveys = $appIds === [] ? collect() : DB::table('application_surveys as s')
+        // ids are chunked: tens of thousands of applications exceed the 65535 bind-parameter limit of one IN list
+        $byChunk = fn (callable $query) => collect(array_chunk($appIds, 5000))->flatMap(fn (array $part) => $query($part))->keyBy('application_id');
+
+        $surveys = $byChunk(fn (array $ids) => DB::table('application_surveys as s')
             ->join('application_survey_versions as sv', 'sv.survey_id', '=', 's.id')
-            ->whereIn('s.application_id', $appIds)
+            ->whereIn('s.application_id', $ids)
             ->selectRaw('distinct on (s.application_id) s.application_id, sv.status, sv.created_at, sv.accepted_at, sv.survey_date')
             ->orderBy('s.application_id')
             ->orderByDesc('sv.version_number')
-            ->get()
-            ->keyBy('application_id');
+            ->get());
 
-        $drawings = $appIds === [] ? collect() : DB::table('application_drawings as d')
+        $drawings = $byChunk(fn (array $ids) => DB::table('application_drawings as d')
             ->join('application_drawing_versions as dv', 'dv.drawing_id', '=', 'd.id')
-            ->whereIn('d.application_id', $appIds)
+            ->whereIn('d.application_id', $ids)
             ->where('dv.status', 'APPROVED')
             ->selectRaw('distinct on (d.application_id) d.application_id, dv.approved_at')
             ->orderBy('d.application_id')
             ->orderByDesc('dv.version_number')
-            ->get()
-            ->keyBy('application_id');
+            ->get());
 
-        $workOrders = $appIds === [] ? collect() : DB::table('work_orders as w')
-            ->whereIn('w.application_id', $appIds)
+        $workOrders = $byChunk(fn (array $ids) => DB::table('work_orders as w')
+            ->whereIn('w.application_id', $ids)
             ->whereNotNull('w.issued_at')
             ->selectRaw('distinct on (w.application_id) w.application_id, w.wo_number, w.status, w.issued_at, w.completed_at')
             ->orderBy('w.application_id')
             ->orderByDesc('w.version_number')
-            ->get()
-            ->keyBy('application_id');
+            ->get());
 
-        $bastps = $appIds === [] ? collect() : DB::table('bastps as b')
-            ->whereIn('b.application_id', $appIds)
+        $bastps = $byChunk(fn (array $ids) => DB::table('bastps as b')
+            ->whereIn('b.application_id', $ids)
             ->whereNotNull('b.closed_at')
             ->selectRaw('distinct on (b.application_id) b.application_id, b.bastp_number, b.status, b.closed_at')
             ->orderBy('b.application_id')
             ->orderByDesc('b.created_at')
-            ->get()
-            ->keyBy('application_id');
+            ->get());
 
         // Service SLA of network extension (14/24/100 working days from payment): where it applies it replaces the general rule below.
-        $service = app(ServiceSlaService::class)->compute($appIds);
-        $lastNotes = $service === [] ? collect() : DB::table('application_sla_notes')->whereIn('application_id', array_keys($service))->selectRaw('distinct on (application_id) application_id, note')->orderBy('application_id')->orderByDesc('created_at')->get()->keyBy('application_id');
+        $service = [];
+        foreach (array_chunk($appIds, 5000) as $part) {
+            $service += app(ServiceSlaService::class)->compute($part);
+        }
+        $lastNotes = collect(array_chunk(array_keys($service), 5000))->flatMap(fn (array $part) => DB::table('application_sla_notes')->whereIn('application_id', $part)->selectRaw('distinct on (application_id) application_id, note')->orderBy('application_id')->orderByDesc('created_at')->get())->keyBy('application_id');
         $needsNote = 0;
 
         $rows = [];
