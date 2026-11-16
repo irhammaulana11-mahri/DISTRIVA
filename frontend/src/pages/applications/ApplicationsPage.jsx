@@ -156,7 +156,7 @@ export default function ApplicationsPage() {
       status: statusFilter || undefined,
       unit_id: unitFilter || undefined,
       listing: 'pbpd',
-      lifecycle: lifecycleFilter === 'all' ? undefined : lifecycleFilter,
+      lifecycle: lifecycleFilter === 'all' || statusFilter ? undefined : lifecycleFilter, // a chosen status is shown whatever the Aktif/Riwayat tab says (Peremajaan is in Riwayat)
       ready_to_install: readyToInstallFilter ? 1 : undefined,
       min_va: powerFilter === '3phase' ? 6600 : undefined,
     }
