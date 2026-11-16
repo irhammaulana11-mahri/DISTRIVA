@@ -68,7 +68,8 @@ return [
      */
     // EIS sync started from DISTRIVA (docs/82 §19.15): runs tools/eis_sync (Python) in a detached process; the EIS account and the schedule are kept in eis_sync_settings.
     'eis_sync' => [
-        'python' => env('DISTRIVA_EIS_PYTHON', 'python3'),
+        // The tool has its own venv (python-dotenv, requests, playwright, pandas…): it is used when present, otherwise the system python3. DISTRIVA_EIS_PYTHON overrides both.
+        'python' => env('DISTRIVA_EIS_PYTHON') ?: (is_file($venv = base_path('../tools/eis_sync/.venv/bin/python')) ? $venv : 'python3'),
         'dir' => env('DISTRIVA_EIS_SYNC_DIR', base_path('../tools/eis_sync')),
         'api_url' => env('DISTRIVA_EIS_API_URL', env('APP_URL', 'http://127.0.0.1:8000')),
         'timeout_seconds' => (int) env('DISTRIVA_EIS_SYNC_TIMEOUT', 10800),
