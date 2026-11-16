@@ -12,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -776,6 +777,17 @@ class EisImportTest extends PostgresTestCase
         $this->assertSame('Rahasia#123', Crypt::decryptString($stored));
         $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['eis_password' => '', 'lookback_days' => 30]))->assertOk();   // an empty password keeps the saved one
         $this->assertSame($stored, (string) DB::table('eis_sync_settings')->value('eis_password_encrypted'));
+    }
+
+    #[Test]
+    public function a_sys_admin_can_save_the_eis_settings_and_start_a_run_and_the_run_keeps_the_mfa_state_of_its_starter(): void
+    {
+        $this->fakeTool();
+        $this->assertTrue(Schema::hasColumn('eis_sync_runs', 'mfa_verified_at'));
+        $this->as($this->sysAdmin)->putJson('/api/eis-sync/settings', $this->syncBody(['power_min' => 0, 'power_max' => 99999999, 'lookback_days' => 180]))->assertOk();
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data');
+        $this->assertSame('MANUAL', $run['trigger']);
+        $this->assertNotNull(DB::table('eis_sync_runs')->where('id', $run['id'])->value('mfa_verified_at'));          // the run writes with the same MFA state as the person who pressed the button
     }
 
     #[Test]
