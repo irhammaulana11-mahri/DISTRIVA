@@ -663,6 +663,11 @@ class UnitSelectionTest(unittest.TestCase):
         self.assertEqual((data["__EVENTTARGET"], data["__EVENTARGUMENT"], data["__VIEWSTATE"], data["__EVENTVALIDATION"]), ("ScriptManager1", "-|public|finalUP", "VS123", "EV"))
         self.assertEqual((data["cboUP_Value"], data["cboUP"], data["cboUP_SelIndex"], data["cboAP_Value"]), ("51453", "51453 - JOMBANG", "2", "51MJK - MOJOKERTO"))     # the combo fields of the page are kept
         self.assertEqual(json.loads(data["submitAjaxEventConfig"]), {"config": {"extraParams": {"xxx": "51453"}}})
+        session.post.return_value = HttpResp('{script:"window.location=\\"/eis/login.aspx\\";"}')                    # EIS sends the browser to the login page: a lapsed session, which the run retries after a new login
+        session.cookies = []
+        with self.assertRaises(ph.EISSessionExpired):
+            ph.select_unit(session, "51453")
+        session.post.return_value = HttpResp('{errorMessage:"x"}')
         session.cookies = [types.SimpleNamespace(name="Info", value="UPI=51&UP=SEMUA&AP=x")]           # the cookie did not change: the choice was not saved
         with self.assertRaises(ph.EISRequestError):
             ph.select_unit(session, "51453")

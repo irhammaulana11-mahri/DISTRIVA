@@ -166,6 +166,8 @@ def _sync_units(client, args, d_from, d_to):
     finally:
         try:
             eis.select_unit(session, eis.ALL_UNITS)             # leave the EIS session on "-SEMUA UP-" so a later plain run is not filtered by the last unit
+        except eis.EISSessionExpired:
+            print("Sesi EIS sudah berakhir; pilihan unit kembali ke SEMUA UP pada login berikutnya.")
         except Exception as e:
             print(f"PERINGATAN: pilihan unit EIS tidak dapat dikembalikan ke SEMUA UP ({e}); sesi EIS berikutnya akan memulai ulang.")
         eis.set_unit(None)

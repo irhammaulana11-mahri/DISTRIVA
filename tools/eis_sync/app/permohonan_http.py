@@ -354,6 +354,10 @@ def select_unit(session: requests.Session, code: str, timeout=(20, 60)) -> None:
         headers={"Referer": main_url(), "X-Requested-With": "XMLHttpRequest", "X-Coolite": "delta=true"},
     )
     _check_response(answer, f"Pilih unit {code}")
+    if re.search(r"window\.location\s*=\s*\\?[\"']?/?eis/login\.aspx", answer.text, re.I):
+        # The page GET above still worked, but the AJAX event answers with a script that sends the browser to the login page: the login in the saved cookies has lapsed (EIS keeps an expiry in
+        # its own `Info` cookie, and only one session per account is allowed). This is a session problem, so the run logs in again and repeats, instead of failing the unit.
+        raise EISSessionExpired(f"Pilih unit {code}: EIS menjawab perintah menuju halaman login (sesi tidak berlaku lagi).")
     got = info_unit(session)
     expected_all = code == ALL_UNITS
     if not got or (("SEMUA" not in got.upper()) if expected_all else (not got.startswith(code))):
