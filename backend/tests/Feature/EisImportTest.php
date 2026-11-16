@@ -791,6 +791,29 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_sync_can_be_started_for_chosen_units_only_within_the_scope_and_the_tool_gets_exactly_those_units(): void
+    {
+        $dir = $this->fakeTool();
+        $this->as($this->sysAdmin)->putJson('/api/eis-sync/settings', $this->syncBody())->assertOk();
+        $codes = fn (User $u) => array_column($this->as($u)->getJson('/api/eis-sync')->assertOk()->json('data.units'), 'code');
+        $this->assertSame(['51453'], $codes($this->retailA1));                                              // the choice offers only the units of the account's scope
+        $this->assertSame(['51453', '51454'], $codes($this->sysAdmin));
+
+        $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['units' => ['51454']])->assertStatus(409);       // a unit outside the scope
+        $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['units' => ['abc']])->assertUnprocessable();
+        $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['units' => []])->assertUnprocessable();
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['units' => ['51454', '51453', '51454']])->assertStatus(202)->json('data');
+        $seen = json_decode((string) file_get_contents($dir.'/seen.json'), true);
+        $this->assertContains('--per-unit', $seen['args']);
+        $this->assertSame('51454,51453', $seen['args'][array_search('--unit', $seen['args'], true) + 1]);       // the order chosen, once each
+        $this->assertSame(['51454', '51453'], $run['units']);
+
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202);                         // no choice = every unit
+        $this->assertNotContains('--unit', json_decode((string) file_get_contents($dir.'/seen.json'), true)['args']);
+    }
+
+    #[Test]
     public function the_sync_button_runs_the_tool_with_the_saved_account_range_and_a_short_lived_token(): void
     {
         $dir = $this->fakeTool();

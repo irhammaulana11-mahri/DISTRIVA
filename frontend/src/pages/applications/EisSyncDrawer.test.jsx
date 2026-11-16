@@ -42,6 +42,26 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     await waitFor(() => expect(onSynced).toHaveBeenCalled())
   }, 15000)
 
+  it('menampilkan unit yang akan disinkronkan: semua secara bawaan, bisa satu dua unit, dan tanpa unit tombol nonaktif', async () => {
+    const units = [{ code: '51450', name: 'ULP Mojoagung' }, { code: '51453', name: 'ULP Jombang' }, { code: '51454', name: 'ULP Ngoro' }]
+    eisSyncApi.show.mockResolvedValue({ data: { settings, units, runs: [{ id: 'r9', trigger: 'MANUAL', status: 'OK', units: ['51453', '51454'], started_by: 'a@b.c', created_at: '2026-11-13T01:00:00Z' }] } })
+    eisSyncApi.start.mockResolvedValue({ data: { id: 'r1', status: 'QUEUED', log: null, created_at: '2026-11-16T01:00:00Z' } })
+    eisSyncApi.run.mockResolvedValue({ data: { id: 'r1', status: 'RUNNING', log: '=== Unit 1/2: 51453 ===', created_at: '2026-11-16T01:00:00Z' } })
+    render(<EisSyncDrawer open onClose={() => {}} />)
+    const group = await screen.findByRole('group', { name: 'Unit yang disinkronkan' })
+    expect(group).toHaveTextContent('(3 dari 3, diproses berurutan dari atas)')
+    expect(screen.getByLabelText('Sinkronkan 51453 ULP Jombang')).toBeChecked()               // semua unit dipilih bawaan
+    expect(screen.getByText('51453, 51454')).toBeInTheDocument()                               // riwayat: unit yang dipakai run itu
+
+    await userEvent.click(screen.getByRole('button', { name: 'Kosongkan' }))
+    expect(screen.getByRole('button', { name: 'Sinkronkan Sekarang' })).toBeDisabled()          // tanpa unit tidak ada yang disinkronkan
+    await userEvent.click(screen.getByLabelText('Sinkronkan 51454 ULP Ngoro'))
+    await userEvent.click(screen.getByLabelText('Sinkronkan 51453 ULP Jombang'))
+    expect(group).toHaveTextContent('(2 dari 3')
+    await userEvent.click(screen.getByRole('button', { name: 'Sinkronkan Sekarang' }))
+    await waitFor(() => expect(eisSyncApi.start).toHaveBeenCalledWith({ units: ['51453', '51454'] }))   // urutan EIS (dari atas), bukan urutan klik
+  })
+
   it('tanpa akun EIS tersimpan tombol sinkronkan dinonaktifkan', async () => {
     eisSyncApi.show.mockResolvedValue({ data: { settings: { ...settings, eis_username: null, has_password: false }, runs: [] } })
     render(<EisSyncDrawer open onClose={() => {}} />)

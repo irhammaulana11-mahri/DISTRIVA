@@ -48,6 +48,8 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
   const [settings, setSettings] = useState(null)
   const [form, setForm] = useState(null)
   const [runs, setRuns] = useState([])
+  const [units, setUnits] = useState([])
+  const [picked, setPicked] = useState(null)       // null = semua unit; selain itu daftar kode ULP yang dipilih
   const [current, setCurrent] = useState(null)
   const [range, setRange] = useState({ from: '', to: '' })
   const [saving, setSaving] = useState(false)
@@ -75,6 +77,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
         auto_time: s?.auto_time || '18:13',
       })
       setRuns(res?.data?.runs || [])
+      setUnits(res?.data?.units || [])
       const live = (res?.data?.runs || []).find((r) => r.status === 'QUEUED' || r.status === 'RUNNING')
       if (live) setCurrent((c) => c || live)
     } catch (err) {
@@ -86,6 +89,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
     if (open) {
       setForm(null)
       setCurrent(null)
+      setPicked(null)
       setError('')
       setNotice('')
       setShowPassword(false)
@@ -147,12 +151,17 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
     }
   }
 
+  const allCodes = units.map((u) => u.code)
+  const selected = picked ?? allCodes
+  const toggleUnit = (code) => setPicked(selected.includes(code) ? selected.filter((c) => c !== code) : allCodes.filter((c) => c === code || selected.includes(c)))
+
   const start = async () => {
     setStarting(true)
     setError('')
     setNotice('')
     try {
       const body = range.from && range.to ? { from: range.from, to: range.to } : {}
+      if (units.length > 0 && selected.length < units.length) body.units = selected      // semua unit = tanpa daftar; sebagian = hanya unit itu, berurutan
       const res = await eisSyncApi.start(body)
       setCurrent(res?.data)
     } catch (err) {
@@ -276,12 +285,38 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                   </p>
                 </div>
 
+                {/* Pilih unit yang disinkronkan */}
+                {units.length > 0 && (
+                  <fieldset className="space-y-2 pt-1" aria-label="Unit yang disinkronkan">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                        Unit yang disinkronkan <span className="font-normal text-slate-500">({selected.length} dari {units.length}, diproses berurutan dari atas)</span>
+                      </legend>
+                      <div className="flex gap-3 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {units.map((u) => (
+                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-blue-300 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
+                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Sinkronkan ${u.code} ${u.name}`} />
+                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Unit dipilih di EIS satu per satu; tiap unit diunduh dan diunggah dulu sebelum lanjut ke unit berikutnya. Satu unit yang gagal tidak menghentikan yang lain.
+                    </p>
+                  </fieldset>
+                )}
+
                 {/* Tombol Eksekusi Penarikan */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <Button
                     onClick={start}
                     loading={starting}
-                    disabled={!ready || running || Boolean(range.from) !== Boolean(range.to)}
+                    disabled={!ready || running || Boolean(range.from) !== Boolean(range.to) || (units.length > 0 && selected.length === 0)}
                     variant="primary"
                     size="md"
                     className="w-full sm:w-auto"
@@ -572,6 +607,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                         <th className="py-3 px-4">Waktu Eksekusi</th>
                         <th className="py-3 px-4">Pemicu</th>
                         <th className="py-3 px-4">Rentang Tanggal</th>
+                        <th className="py-3 px-4">Unit</th>
                         <th className="py-3 px-4">Dijalankan Oleh</th>
                         <th className="py-3 px-4">Status</th>
                         <th className="py-3 px-4 text-right">Aksi</th>
@@ -596,6 +632,9 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                             ) : (
                               <span className="text-slate-400">Bawaan ({form.lookback_days} hari)</span>
                             )}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
+                            {r.units && r.units.length > 0 ? <span className="font-mono">{r.units.join(', ')}</span> : <span className="text-slate-400">Semua unit</span>}
                           </td>
                           <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
                             {r.started_by || '-'}
