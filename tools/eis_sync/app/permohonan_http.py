@@ -10,6 +10,7 @@ A failed POST is therefore never blindly replayed: the complete transaction
 from __future__ import annotations
 
 import os
+import json
 import re
 import time
 from datetime import date, timedelta
@@ -270,6 +271,87 @@ def _debug(name: str, content: bytes | str) -> None:
     (DEBUG_DIR / name).write_bytes(data)
 
 
+# ---- unit (UP) selection ---------------------------------------------------------------------------------------------------------------------------------------------------
+# The top bar of EIS has three combos (UPI, AP, UP). Choosing a UP runs `Coolite.AjaxMethods.finalUP(<code>)`: a POST to default.aspx with
+#   submitAjaxEventConfig={"config":{"extraParams":{"xxx":"<code>"}}}, __EVENTTARGET=ScriptManager1, __EVENTARGUMENT=-|public|finalUP, __VIEWSTATE
+# which the server keeps in the ASP.NET session; the data pages then follow it. "-SEMUA UP-" is the combo's value for all units.
+ALL_UNITS = "-SEMUA UP-"
+_UNIT: dict = {"code": None, "known": []}
+
+
+def set_unit(code: str | None, known: list[str] | None = None) -> None:
+    """The unit every `load()` selects first (None = leave the session as it is). `known` = the unit codes of the combo, used to check the table afterwards."""
+    _UNIT["code"] = code
+    if known is not None:
+        _UNIT["known"] = list(known)
+
+
+def main_url() -> str:
+    return f"{LOGIN_URL.rstrip('/')}/default.aspx"
+
+
+def parse_units(html: str) -> list[tuple[str, str]]:
+    """The units of the UP combo, as (code, text), without "-SEMUA UP-" (read from the combo's own store `storeUP_Data`)."""
+    m = re.search(r"storeUP_Data\s*=\s*(\[\[.*?\]\])\s*;", html, re.S)
+    if not m:
+        return []
+    try:
+        rows = json.loads(m.group(1))
+    except ValueError:
+        return []
+    return [(str(value).strip(), str(text).strip()) for text, value in rows if str(value).strip() and str(value).strip() != ALL_UNITS]
+
+
+def list_units(session: requests.Session, timeout=(20, 60)) -> list[tuple[str, str]]:
+    response = session.get(main_url(), timeout=timeout)
+    _check_response(response, "GET halaman utama EIS")
+    units = parse_units(response.text)
+    if not units:
+        raise EISRequestError("Daftar unit (kotak UP di bilah atas EIS) tidak terbaca dari halaman utama; akun mungkin tidak punya pilihan unit.")
+    return units
+
+
+def select_unit(session: requests.Session, code: str, timeout=(20, 60)) -> None:
+    """Choose the unit in the top bar, exactly as the combo does (see above). A refusal or a login page is an error; EIS keeps the choice in the session."""
+    response = session.get(main_url(), timeout=timeout)
+    _check_response(response, "GET halaman utama EIS")
+    viewstate = BeautifulSoup(response.text, "html.parser").find("input", attrs={"name": "__VIEWSTATE"})
+    if viewstate is None or not viewstate.get("value"):
+        raise EISRequestError("Halaman utama EIS tidak memuat __VIEWSTATE; pilihan unit tidak dapat dikirim.")
+    data = {
+        "submitAjaxEventConfig": json.dumps({"config": {"extraParams": {"xxx": code}}}, separators=(",", ":")),
+        "__EVENTTARGET": "ScriptManager1",
+        "__EVENTARGUMENT": "-|public|finalUP",
+        "__VIEWSTATE": viewstate["value"],
+    }
+    answer = session.post(main_url(), data=data, headers={"Referer": main_url(), "X-Requested-With": "XMLHttpRequest"}, timeout=timeout)
+    _check_response(answer, f"Pilih unit {code}")
+
+
+def unit_check(html: str, code: str, known: list[str]) -> str:
+    """After a unit was chosen: 'ok' when the unit column of the first page only holds that unit, 'mismatch' when it holds another known unit, 'unknown' when the column cannot be located (then nothing is concluded)."""
+    if code == ALL_UNITS or not known:
+        return "unknown"
+    soup = BeautifulSoup(html, "html.parser")
+    head = soup.find("tr", id=re.compile(r"DXHeadersRow$"))
+    if head is None:
+        return "unknown"
+    cells = [c.get_text(" ", strip=True) for c in head.find_all("td", recursive=False)]
+    at = next((i for i, t in enumerate(cells) if re.sub(r"[^A-Z]", "", t.upper()) == "UNITTUJUAN"), None)
+    if at is None:
+        return "unknown"
+    seen = set()
+    for row in soup.find_all("tr", id=re.compile(r"DXDataRow\d+$")):
+        data = row.find_all("td", recursive=False)
+        if len(data) != len(cells):
+            return "unknown"                                   # a layout this check does not understand: no conclusion
+        text = data[at].get_text(" ", strip=True)
+        seen.update(k for k in known if k in text)
+    if not seen:
+        return "unknown"
+    return "ok" if seen <= {code} else "mismatch"
+
+
 def load(
     session: requests.Session,
     d_from: date,
@@ -279,6 +361,8 @@ def load(
 ):
     """GET the form and POST Load Data using that GET's ViewState values."""
     url = form_url()
+    if _UNIT["code"] is not None:
+        select_unit(session, _UNIT["code"])                    # the choice lives in the EIS session, so it is repeated whenever a session (or a retry) starts over
     response = session.get(url, timeout=timeout)
     _check_response(response, "GET form permohonan")
 
@@ -322,6 +406,8 @@ def load(
             "Transaksi akan dicoba ulang dari GET form; lihat debug/http_load_gagal.html."
         )
 
+    if _UNIT["code"] not in (None, ALL_UNITS) and unit_check(result_html, _UNIT["code"], _UNIT["known"]) == "mismatch":
+        raise EISRequestError(f"EIS tidak menerapkan pilihan unit {_UNIT['code']}: tabel memuat unit lain. Berhenti agar data unit lain tidak ikut terunggah.")
     return url, result_html, state
 
 

@@ -1,4 +1,5 @@
 """Offline tests (no EIS, no DISTRIVA): `python -m unittest discover -s tests` from tools/eis_sync. Heavy/optional modules are stubbed so only the logic is exercised."""
+import json
 import sys
 import types
 import unittest
@@ -633,6 +634,98 @@ class MainTest(unittest.TestCase):
             inst.logout.assert_called_once()
             main.main(["sync", "--berkas", "f.xls", "--konfirmasi"])
             inst.confirm.assert_called_once_with("B9")
+
+UNIT_PAGE = ('<input name="__VIEWSTATE" value="VS123"/><script>this.storeUP_Data=[["-SEMUA UP-","-SEMUA UP-"],["51450 - MOJOAGUNG","51450"],'
+             '["51453 - JOMBANG","51453"],["51460 - NGANJUK","51460"]];this.storeUP = 1;</script>')
+
+
+def grid(*units, columns=("NOAGENDA", "UNITTUJUAN")):
+    head = "<tr id=\"g_DXHeadersRow\">" + "".join(f"<td>{c}</td>" for c in columns) + "</tr>"
+    rows = "".join(f"<tr id=\"g_DXDataRow{i}\"><td>A{i}</td><td>{u}</td></tr>" for i, u in enumerate(units))
+    return f"<table>{head}{rows}</table>"
+
+
+class UnitSelectionTest(unittest.TestCase):
+    def test_the_units_come_from_the_combo_store_without_semua_up(self):
+        self.assertEqual(ph.parse_units(UNIT_PAGE), [("51450", "51450 - MOJOAGUNG"), ("51453", "51453 - JOMBANG"), ("51460", "51460 - NGANJUK")])
+        self.assertEqual(ph.parse_units("<html>tanpa kotak UP</html>"), [])
+
+    def test_choosing_a_unit_posts_what_the_combo_posts(self):
+        session = mock.Mock()
+        session.get.return_value = HttpResp(UNIT_PAGE)
+        session.post.return_value = HttpResp("{}")
+        ph.select_unit(session, "51453")
+        data = session.post.call_args.kwargs["data"]
+        self.assertEqual((data["__EVENTTARGET"], data["__EVENTARGUMENT"], data["__VIEWSTATE"]), ("ScriptManager1", "-|public|finalUP", "VS123"))
+        self.assertEqual(json.loads(data["submitAjaxEventConfig"]), {"config": {"extraParams": {"xxx": "51453"}}})
+        session.get.return_value = HttpResp("<html>tanpa viewstate</html>")
+        with self.assertRaises(ph.EISRequestError):
+            ph.select_unit(session, "51453")
+
+    def test_the_table_is_checked_against_the_chosen_unit(self):
+        known = ["51450", "51453", "51460"]
+        self.assertEqual(ph.unit_check(grid("51453", "51453"), "51453", known), "ok")
+        self.assertEqual(ph.unit_check(grid("51453", "51460"), "51453", known), "mismatch")        # another unit in the table: the filter did not apply
+        self.assertEqual(ph.unit_check(grid("51453 - JOMBANG"), "51453", known), "ok")
+        self.assertEqual(ph.unit_check(grid("JOMBANG"), "51453", known), "unknown")                  # no known code in the cell: no conclusion
+        self.assertEqual(ph.unit_check(grid("51453", columns=("A", "B")), "51453", known), "unknown")
+        self.assertEqual(ph.unit_check(grid("51453"), ph.ALL_UNITS, known), "unknown")
+
+    def test_load_chooses_the_unit_first_every_time_and_refuses_a_table_of_another_unit(self):
+        calls = []
+        session = mock.Mock()
+        form = '<input name="__VIEWSTATE" value="v"/>id:"tgl1"'
+        session.get.side_effect = lambda *a, **k: (calls.append("get"), HttpResp(form))[1]
+        with mock.patch.object(ph, "select_unit", side_effect=lambda s, c: calls.append(f"unit {c}")), \
+                mock.patch.object(ph, "applied_dates", return_value=(date(2026, 11, 10), date(2026, 11, 10))), mock.patch.object(ph, "pager", return_value=(1, 1, 3)):
+            session.post.return_value = HttpResp(grid("51453", "51453"))
+            ph.set_unit("51453", ["51453", "51460"])
+            try:
+                ph.load(session, date(2026, 11, 10), date(2026, 11, 10), "SEMUA")
+                self.assertEqual(calls[:2], ["unit 51453", "get"])
+                session.post.return_value = HttpResp(grid("51453", "51460"))
+                with self.assertRaises(ph.EISRequestError):
+                    ph.load(session, date(2026, 11, 10), date(2026, 11, 10), "SEMUA")
+            finally:
+                ph.set_unit(None, [])
+
+
+class PerUnitSyncTest(unittest.TestCase):
+    def test_units_are_processed_one_after_another_a_failure_does_not_stop_the_rest_and_the_session_returns_to_all_units(self):
+        import main as eis_main
+        order, uploaded = [], []
+        client = mock.Mock()
+        args = types.SimpleNamespace(metode="http", berkas=None, per_unit=True, unit=None, konfirmasi=True, simpan=False, lengkapi=False, jenis=None, sumber="excel")
+
+        def fake_export(a, d_from, d_to):
+            code = ph._UNIT["code"]
+            order.append(f"export {code}")
+            if code == "51453":
+                raise ph.EISRequestError("EIS tidak menjawab")
+            a.on_file(f"{code}.xls", 5)
+            return [(f"{code}.xls", 5)]
+
+        with mock.patch.object(ph, "http_session", return_value=mock.Mock()), \
+                mock.patch.object(ph, "list_units", return_value=[("51450", "MOJOAGUNG"), ("51453", "JOMBANG"), ("51460", "NGANJUK")]), \
+                mock.patch.object(ph, "select_unit", side_effect=lambda s, c: order.append(f"reset {c}")), \
+                mock.patch.object(eis_main, "_export", side_effect=fake_export), \
+                mock.patch.object(eis_main, "_limits", return_value={}), \
+                mock.patch.object(eis_main, "_upload", side_effect=lambda c, path, exp, conf, delete=False: uploaded.append(path)), \
+                mock.patch.object(eis_main, "_stale_check", side_effect=lambda *a: order.append(f"stale {ph._UNIT['code']}")):
+            code = eis_main._sync_units(client, args, date(2026, 11, 1), date(2026, 11, 10))
+        self.assertEqual(code, 1)                                                                     # a unit failed: the run is visibly incomplete
+        self.assertEqual(order, ["export 51450", "export 51453", "export 51460", f"stale {ph.ALL_UNITS}", f"reset {ph.ALL_UNITS}"])
+        self.assertEqual(uploaded, ["51450.xls", "51460.xls"])                                         # 51453 failed, the others went up
+        self.assertIsNone(ph._UNIT["code"])
+
+    def test_only_the_named_units_run_and_an_unknown_unit_is_refused_before_anything_starts(self):
+        import main as eis_main
+        args = types.SimpleNamespace(unit=["51453,51460"])
+        with mock.patch.object(ph, "list_units", return_value=[("51450", "A"), ("51453", "B"), ("51460", "C")]):
+            units, known = eis_main._unit_choices(args, mock.Mock())
+            self.assertEqual((units, known), ([("51453", "B"), ("51460", "C")], ["51450", "51453", "51460"]))
+            with self.assertRaises(SystemExit):
+                eis_main._unit_choices(types.SimpleNamespace(unit=["99999"]), mock.Mock())
 
 
 if __name__ == "__main__":

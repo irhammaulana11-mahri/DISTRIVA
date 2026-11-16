@@ -27,6 +27,14 @@ cp .env.example .env     # isi EIS_USERNAME, EIS_PASSWORD, DISTRIVA_URL, DISTRIV
 
 Format tanggal: `dd/mm/yyyy` atau `yyyy-mm-dd`. Berkas "Export Excel" EIS sama dengan format yang dibaca DISTRIVA (44 kolom: `NOAGENDA`, `TGLMOHON`, `IDPEL`, `NAMA`, … `UNITTUJUAN`, `PAKETSLO`, `PLTS_ATAP`); DISTRIVA hanya memakai PASANG BARU dan PERUBAHAN DAYA, jenis lain ditolak pada pratinjau.
 
+## Per unit (kotak UP di bilah atas EIS)
+`python main.py sync --metode http --per-unit` memilih unit di EIS **satu per satu dari yang paling atas** (51450 Mojoagung ... 51460 Nganjuk, daftarnya dibaca dari kotak UP di halaman utama EIS), lalu untuk tiap unit: unduh rentangnya, unggah ke DISTRIVA, dan **baru lanjut ke unit berikutnya** sampai selesai. Tombol Sinkronkan Sekarang di DISTRIVA selalu memakai `--per-unit`. `--unit 51453` (boleh diulang atau dipisah koma) hanya menjalankan unit itu.
+- **Cara memilih unit:** persis seperti kotak UP: `POST default.aspx` dengan `submitAjaxEventConfig={"config":{"extraParams":{"xxx":"<kode>"}}}`, `__EVENTTARGET=ScriptManager1`, `__EVENTARGUMENT=-|public|finalUP`, dan `__VIEWSTATE` halaman utama (ditangkap dari browser pada 16 Nov 2026). EIS menyimpan pilihan itu di sesinya, jadi dikirim ulang setiap kali sesi atau percobaan ulang dimulai, sebelum membuka form.
+- **Pemeriksaan:** bila tabel hasil memuat kolom `UNITTUJUAN` dengan unit lain dari yang dipilih, unit itu dihentikan (data unit lain tidak ikut terunggah). Bila kolomnya tidak ditemukan, tidak ada kesimpulan.
+- **Satu unit gagal:** dicatat ("Unit 51453 GAGAL: ..."), run lanjut ke unit berikutnya, dan kode keluar 1 agar jelas belum lengkap. Ringkasan di akhir menyebut unit yang berhasil dan gagal; ulangi unit yang gagal dengan `--unit`.
+- **Setelah semua unit:** penarikan rentang lama untuk permohonan yang masih berjalan dilakukan untuk semua unit, dan pilihan EIS dikembalikan ke "-SEMUA UP-" agar sinkron biasa berikutnya tidak terfilter unit terakhir.
+- **Belum diverifikasi terhadap data EIS sungguhan:** mengirim pilihan unit dan membaca daftar unit sudah dicocokkan dengan halaman asli; efek filternya pada data permohonan belum diuji (dijaga oleh pemeriksaan di atas).
+
 ## Rentang panjang
 EIS menolak mengekspor hasil yang sangat besar (rentang 1 Mei - 9 Nov 2026 = 44.901 baris menjawab dengan halaman tabel, bukan berkas), dan DISTRIVA hanya menerima berkas sampai 5 MB / 20.000 baris (~1,3 KB per baris, jadi ~3.800 baris). Karena itu metode **http** memecah rentang otomatis: potongan awal 14 hari, lalu dibagi dua berulang sampai tiap potongan <= `EIS_MAX_ROWS_PER_FILE` (3.000) baris dan <= `EIS_MAX_FILE_BYTES`; potongan kosong dilewati; tidak ada hari yang terlewat atau terhitung dua kali. Hasilnya satu berkas dan satu batch sementara per potongan; pakai `--konfirmasi` untuk menerapkan semuanya (tiap batch yang diterapkan mengirim pemberitahuan "permohonan baru masuk" ke ULP terkait).
 

@@ -9,6 +9,8 @@
   (berkas Excel hasil unduhan dihapus setelah berhasil disinkron; --simpan-berkas menyimpannya; berkas dari --berkas tidak pernah dihapus)
   (setelah rentangnya: DISTRIVA melaporkan permohonan yang masih berjalan tetapi lebih tua dari rentang; dengan --konfirmasi alat menarik otomatis rentang lama itu, kecuali --tanpa-lengkapi)
   python main.py sync --metode http              ambil lewat HTTP biasa seperti alur piutang (tanpa peramban untuk data; peramban hanya untuk login bila cookie habis)
+  python main.py sync --metode http --per-unit   pilih unit EIS satu per satu dari yang paling atas (kotak UP di bilah atas): unduh dan unggah tiap unit, lanjut ke unit berikutnya sampai selesai
+  python main.py sync --metode http --unit 51453 [--unit 51454]   hanya unit itu (kode ULP)
   python main.py sync --sumber grid              ... baca tabel hasil di layar (tanpa Export Excel) menjadi CSV yang diimpor DISTRIVA
   python main.py sync --berkas FILE              skip the EIS and upload a file that was exported before
   python main.py schedule [--jam 18:13]          run `sync` every day at that time (add --konfirmasi to apply)
@@ -110,12 +112,75 @@ def _limits(client):
     return {"max_rows": max_rows, "max_bytes": max_bytes}
 
 
+def _unit_choices(args, session):
+    """(units of this run as (code, name), every code of the EIS combo): the ones named with --unit (checked against the combo), or every unit of the combo, from the top."""
+    from app import permohonan_http as eis
+    available = eis.list_units(session)
+    names = dict(available)
+    wanted = [c.strip() for item in (getattr(args, "unit", None) or []) for c in str(item).split(",") if c.strip()]
+    unknown = [c for c in wanted if c not in names]
+    if unknown:
+        raise SystemExit(f"Unit tidak ada di kotak UP EIS: {', '.join(unknown)}. Yang tersedia: {', '.join(names)}.")
+    return ([(c, names[c]) for c in wanted] if wanted else available), list(names)
+
+
+def _sync_units(client, args, d_from, d_to):
+    """Unit by unit, like the MIMS pull per warehouse: choose the unit in EIS, download its range, upload it, and only then go on to the next unit. A unit that fails (after the retries inside the export)
+    is reported and the run continues with the next one; the exit code is 1 when any unit failed, so the run is visibly incomplete."""
+    from app import permohonan_http as eis
+    if getattr(args, "metode", "browser") != "http":
+        raise SystemExit("--per-unit dan --unit memerlukan --metode http (pilihan unit dikirim lewat HTTP seperti kotak UP di EIS).")
+    if args.berkas:
+        raise SystemExit("--per-unit tidak dapat dipakai bersama --berkas.")
+    session = eis.http_session()
+    units, known = _unit_choices(args, session)
+    args.limits = _limits(client)
+    ok, failed = [], []
+    try:
+        for i, (code, name) in enumerate(units, 1):
+            print(f"=== Unit {i}/{len(units)}: {code} {name} ===", flush=True)
+            sent = set()
+
+            def on_file(path, expected, _sent=sent):
+                _upload(client, path, expected, args.konfirmasi, delete=not getattr(args, "simpan", False))
+                _sent.add(str(path))
+
+            args.on_file = on_file
+            try:
+                client.login()                                # a fresh token per unit: a long run outlives the token's idle time
+                eis.set_unit(code, known)
+                files = [f for f in (_export(args, d_from, d_to) or []) if str(f[0]) not in sent]
+                for path, expected in files:
+                    _upload(client, path, expected, args.konfirmasi, delete=not getattr(args, "simpan", False))
+                print(f"Unit {code} selesai ({len(sent) + len(files)} berkas).", flush=True)
+                ok.append(code)
+            except SystemExit:
+                raise
+            except Exception as e:                            # one unit's failure does not stop the others
+                print(f"Unit {code} GAGAL: {e}", flush=True)
+                failed.append((code, str(e)))
+        if not args.konfirmasi:
+            print("Belum diterapkan: buka halaman Impor Permohonan untuk meninjau batch sementara tiap unit (atau ulangi dengan --konfirmasi).")
+        eis.set_unit(eis.ALL_UNITS, known)                    # the backfill of older applications below is meant for every unit
+        _stale_check(client, args, d_from)
+    finally:
+        try:
+            eis.select_unit(session, eis.ALL_UNITS)             # leave the EIS session on "-SEMUA UP-" so a later plain run is not filtered by the last unit
+        except Exception as e:
+            print(f"PERINGATAN: pilihan unit EIS tidak dapat dikembalikan ke SEMUA UP ({e}); sesi EIS berikutnya akan memulai ulang.")
+        eis.set_unit(None)
+    print(f"Ringkasan unit: {len(ok)} berhasil ({', '.join(ok) or '-'}); {len(failed)} gagal ({', '.join(c for c, _ in failed) or '-'}).")
+    return 1 if failed else 0
+
+
 def do_sync(args):
     from app.distriva import DistrivaClient
     d_from, d_to = _range(args)
     client = DistrivaClient()
     client.login()
     try:
+        if getattr(args, "per_unit", False) or getattr(args, "unit", None):
+            return _sync_units(client, args, d_from, d_to)
         if args.berkas:
             files = [(args.berkas, None)]
         else:
@@ -159,6 +224,9 @@ def main(argv=None):
         if name in ("sync", "schedule"):
             p.add_argument("--tanpa-lengkapi", dest="lengkapi", action="store_false", help="jangan menarik otomatis rentang lama untuk permohonan yang masih berjalan di DISTRIVA")
             p.add_argument("--simpan-berkas", dest="simpan", action="store_true", help="jangan hapus berkas unduhan setelah berhasil disinkron (bawaan: dihapus)")
+        if name in ("sync", "schedule"):
+            p.add_argument("--per-unit", dest="per_unit", action="store_true", help="pilih unit EIS satu per satu dari yang paling atas; unduh dan unggah tiap unit, lanjut ke unit berikutnya sampai selesai (butuh --metode http)")
+            p.add_argument("--unit", action="append", help="hanya unit ini (kode ULP, mis. 51453); boleh diulang atau dipisah koma; menyiratkan --per-unit")
         if name == "sync":
             p.add_argument("--berkas")
         if name == "schedule":

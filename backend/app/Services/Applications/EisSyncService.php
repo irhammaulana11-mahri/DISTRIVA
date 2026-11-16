@@ -131,7 +131,7 @@ class EisSyncService
             $token = $user->createToken('eis-sync', ['*'], now()->addMinutes((int) config('distriva.token_idle_minutes')));
             $token->accessToken->forceFill(['mfa_verified_at' => $run->mfa_verified_at])->save();
             $dir = (string) config('distriva.eis_sync.dir');
-            $args = [(string) config('distriva.eis_sync.python'), 'main.py', 'sync', '--metode', 'http', '--konfirmasi'];
+            $args = [(string) config('distriva.eis_sync.python'), 'main.py', 'sync', '--metode', 'http', '--konfirmasi', '--per-unit'];      // unit by unit: choose the unit in EIS, download, upload, then the next one
             if ($run->range_from !== null && $run->range_to !== null) {
                 array_push($args, '--dari', (string) $run->range_from, '--sampai', (string) $run->range_to);
             }

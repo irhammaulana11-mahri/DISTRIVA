@@ -800,7 +800,7 @@ class EisImportTest extends PostgresTestCase
 
         $run = $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['from' => '2026-10-01', 'to' => '2026-11-10'])->assertStatus(202)->json('data');
         $seen = json_decode((string) file_get_contents($dir.'/seen.json'), true);
-        $this->assertSame(['sync', '--metode', 'http', '--konfirmasi', '--dari', '2026-10-01', '--sampai', '2026-11-10'], $seen['args']);
+        $this->assertSame(['sync', '--metode', 'http', '--konfirmasi', '--per-unit', '--dari', '2026-10-01', '--sampai', '2026-11-10'], $seen['args']);
         $this->assertSame(['petugas.eis', 'Rahasia#123', '450', '6600', '90', true], [$seen['user'], $seen['pw'], $seen['min'], $seen['max'], $seen['lookback'], $seen['token']]);
         $done = $this->as($this->retailA1)->getJson("/api/eis-sync/runs/{$run['id']}")->assertOk()->json('data');
         $this->assertSame(['OK', 0, 'MANUAL'], [$done['status'], $done['exit_code'], $done['trigger']]);
