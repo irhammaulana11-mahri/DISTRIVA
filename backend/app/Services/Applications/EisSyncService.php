@@ -143,7 +143,7 @@ class EisSyncService
             $process = new Process($args, $dir, $env, null, (float) config('distriva.eis_sync.timeout_seconds'));
             $last = 0.0;
             $exit = $process->run(function (string $type, string $buffer) use (&$log, &$last, $runId): void {
-                $log = $this->tail($log.$buffer);
+                $log = $this->tail($this->foldFinishedUnits($log.$buffer));
                 if (microtime(true) - $last > 2) {
                     $last = microtime(true);
                     DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $log]);
@@ -155,6 +155,37 @@ class EisSyncService
             $token?->accessToken->delete();
             DB::table('eis_sync_runs')->where('id', $runId)->update(['status' => $exit === 0 ? 'OK' : 'FAILED', 'exit_code' => $exit, 'log' => $log, 'finished_at' => now()]);
         }
+    }
+
+    /**
+     * Unit yang sudah selesai/gagal diringkas menjadi header + satu baris hitungan + baris penutup, supaya
+     * pemotongan log (LOG_LIMIT) tidak menghapus penanda unit awal dan tabel hasil per unit tetap lengkap.
+     */
+    private function foldFinishedUnits(string $log): string
+    {
+        return (string) preg_replace_callback(
+            '/(=== Unit \d+\/\d+: (\S+)[^\n]* ===\n)(.*?)(Unit \2 (?:selesai|GAGAL)[^\n]*(?:\n|$))/s',
+            function (array $m): string {
+                $counts = '/baru (\d+), cocok (\d+), tak berubah (\d+), ditolak (\d+)(?:, di luar cakupan (\d+))?/';
+                $sum = [0, 0, 0, 0, 0];
+                foreach (['Diterapkan', 'Tersimpan sementara'] as $prefix) {
+                    foreach (preg_split('/\R/', $m[3]) ?: [] as $line) {
+                        if (preg_match('/^(?:\[[^\]]*\] )?'.$prefix.'/', ltrim($line)) && preg_match($counts, $line, $c)) {
+                            for ($i = 0; $i < 5; $i++) {
+                                $sum[$i] += (int) ($c[$i + 1] ?? 0);
+                            }
+                        }
+                    }
+                    if (array_sum($sum) > 0) {
+                        break;
+                    }
+                }
+                $line = sprintf("Diterapkan: ringkasan [CONFIRMED] baru %d, cocok %d, tak berubah %d, ditolak %d, di luar cakupan %d\n", ...$sum);
+
+                return $m[1].$line.$m[4];
+            },
+            $log,
+        );
     }
 
     private function tail(string $log): string

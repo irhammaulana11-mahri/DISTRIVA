@@ -875,4 +875,19 @@ class EisImportTest extends PostgresTestCase
         $this->assertFileExists($dir.'/seen.json');
         $this->assertNull($svc->runScheduledIfDue());                                                      // once per business day
     }
+
+    public function test_finished_units_are_folded_so_log_truncation_keeps_every_unit_marker(): void
+    {
+        $fold = new \ReflectionMethod(EisSyncService::class, 'foldFinishedUnits');
+        $svc = (new \ReflectionClass(EisSyncService::class))->newInstanceWithoutConstructor();
+        $log = "=== Unit 1/2: 51450 51450 - A ===\nEIS: x\nDiterapkan: batch b [CONFIRMED] 10 baris: baru 3, cocok 0, tak berubah 5, ditolak 2, di luar cakupan 0\nUnit 51450 selesai (1 berkas).\n=== Unit 2/2: 51452 B ===\nberjalan\n";
+
+        $out = $fold->invoke($svc, $log);
+
+        $this->assertStringNotContainsString('EIS: x', $out);
+        $this->assertStringContainsString('baru 3, cocok 0, tak berubah 5, ditolak 2', $out);
+        $this->assertStringContainsString('Unit 51450 selesai (1 berkas).', $out);
+        $this->assertStringContainsString('berjalan', $out);
+        $this->assertSame($out, $fold->invoke($svc, $out));
+    }
 }
