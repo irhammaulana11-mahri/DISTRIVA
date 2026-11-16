@@ -134,7 +134,10 @@ class MimsReservationSyncService
             }
             $customers = (array) ($map->json('data') ?? []);
             $matched += DB::transaction(function () use ($wh, $no, $row, $customers): int {
-                DB::table('mims_reservations')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh->id, 'reservation_no' => $no] + $row);
+                // insertOrIgnore: another pull of the same warehouse may have stored this reservation a moment ago (two runs overlapping); then just refresh it.
+                if (DB::table('mims_reservations')->insertOrIgnore(['id' => (string) Str::uuid(), 'warehouse_id' => $wh->id, 'reservation_no' => $no] + $row) === 0) {
+                    DB::table('mims_reservations')->where('warehouse_id', $wh->id)->where('reservation_no', $no)->update($row);
+                }
                 $tied = 0;
                 foreach ($customers as $c) {
                     $agenda = trim((string) (((array) $c)['no_agenda'] ?? ''));
