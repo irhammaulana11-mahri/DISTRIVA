@@ -111,6 +111,10 @@ export default function ApplicationsPage() {
   const [unitFilter, setUnitFilter] = useState('')
   const [lifecycleFilter, setLifecycleFilter] = useState('active') // 'active' | 'history' | 'all'
   const [readyToInstallFilter, setReadyToInstallFilter] = useState(false)
+  // Daya: tampilan awal hanya 3 fasa (>= 6.600 VA, keputusan pemilik 8 Nov 2026); 'all' menampilkan semua daya. Pilihan diingat per browser. Hanya mempengaruhi tampilan, bukan data yang disimpan.
+  const [powerFilter, setPowerFilter] = useState(() => {
+    try { return localStorage.getItem('distriva.pbpd.power') === 'all' ? 'all' : '3phase' } catch { return '3phase' }
+  })
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
 
   // Drawer & Modal States
@@ -154,11 +158,12 @@ export default function ApplicationsPage() {
       listing: 'pbpd',
       lifecycle: lifecycleFilter === 'all' ? undefined : lifecycleFilter,
       ready_to_install: readyToInstallFilter ? 1 : undefined,
+      min_va: powerFilter === '3phase' ? 6600 : undefined,
     }
     applicationApi.list(params)
       .then((d) => setState({ loading: false, error: '', rows: d.data ?? [], meta: d.meta }))
       .catch((e) => setState({ loading: false, error: e.message || 'Gagal memuat data permohonan.', rows: [], meta: null }))
-  }, [page, perPage, debouncedSearch, typeFilter, statusFilter, unitFilter, lifecycleFilter, readyToInstallFilter])
+  }, [page, perPage, debouncedSearch, typeFilter, statusFilter, unitFilter, lifecycleFilter, readyToInstallFilter, powerFilter])
 
   useEffect(() => {
     loadApplications()
@@ -370,6 +375,23 @@ export default function ApplicationsPage() {
               <option value="">Semua Tipe</option>
               <option value="PB">PB (Pasang Baru)</option>
               <option value="PD">PD (Ubah Daya)</option>
+            </select>
+          </div>
+
+          {/* Power Filter: 3 fasa (>= 6.600 VA) atau semua daya */}
+          <div className="min-w-[150px]">
+            <select
+              value={powerFilter}
+              onChange={(e) => {
+                setPowerFilter(e.target.value)
+                try { localStorage.setItem('distriva.pbpd.power', e.target.value) } catch { /* diabaikan */ }
+                setPage(1)
+              }}
+              aria-label="Filter Daya"
+              className="block w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus-ring"
+            >
+              <option value="3phase">Daya ≥ 6.600 VA (3 fasa)</option>
+              <option value="all">Semua daya</option>
             </select>
           </div>
 

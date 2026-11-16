@@ -175,6 +175,20 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     })
   })
 
+  it('tabel awal PB/PD hanya daya >= 6.600 VA (3 fasa) dan filter Daya bisa menampilkan semua daya, pilihan diingat', async () => {
+    localStorage.removeItem('distriva.pbpd.power')
+    renderApp()
+    await screen.findByText('APP-202611-0001')
+    expect(applicationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ listing: 'pbpd', min_va: 6600 }))      // tampilan awal: 3 fasa
+    const select = screen.getByLabelText('Filter Daya')
+    expect(select).toHaveValue('3phase')
+
+    await userEvent.selectOptions(select, 'all')
+    await waitFor(() => expect(applicationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ listing: 'pbpd', min_va: undefined })))
+    expect(localStorage.getItem('distriva.pbpd.power')).toBe('all')                                                          // diingat untuk kunjungan berikutnya
+    localStorage.removeItem('distriva.pbpd.power')
+  })
+
   it('opens create drawer, validates input and submits new draft application', async () => {
     applicationApi.create.mockResolvedValue({
       data: {

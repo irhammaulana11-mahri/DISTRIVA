@@ -717,6 +717,21 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_list_can_be_limited_to_a_minimum_power_for_display_without_changing_what_is_stored(): void
+    {
+        $this->confirm($this->stage([
+            $this->row(['NOAGENDA' => '514539912610278401', 'IDPEL' => '514530000401', 'NAMA' => 'TIGAFASA', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
+            $this->row(['NOAGENDA' => '514539912610278402', 'IDPEL' => '514530000402', 'NAMA' => 'KECIL', 'DAYA' => '1300', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
+        ])['id'])->assertOk();
+        $list = fn (string $q) => collect($this->as($this->retailA1)->getJson('/api/applications?'.$q)->assertOk()->json('data'))->pluck('customer.name')->sort()->values()->all();
+
+        $this->assertSame(['KECIL', 'TIGAFASA'], $list('listing=pbpd'));                          // no minimum: every power (the import setting is 0)
+        $this->assertSame(['TIGAFASA'], $list('listing=pbpd&min_va=6600'));                       // display filter: 3-phase only
+        $this->assertSame(['KECIL', 'TIGAFASA'], $list('listing=pbpd&min_va=1300'));
+        $this->assertSame(2, DB::table('applications')->count());                                  // both stay stored: the filter is only a view
+    }
+
+    #[Test]
     public function the_list_shows_eis_applications_and_can_separate_active_ones_from_history(): void
     {
         $this->confirm($this->stage([

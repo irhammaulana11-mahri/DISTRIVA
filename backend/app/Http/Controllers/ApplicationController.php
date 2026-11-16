@@ -68,6 +68,10 @@ class ApplicationController extends Controller
                     ->whereRaw("(a.new_power_value * CASE WHEN upper(a.new_power_unit) = 'KVA' THEN 1000 ELSE 1 END) >= ?", [(int) config('distriva.eis_min_power_va')]))
                 ->orWhereExists(fn ($s) => $s->from('proposals as px')->whereColumn('px.representative_application_id', 'a.id')->where('px.status', 'OPEN')));
         }
+        // min_va: a DISPLAY filter on the new power (VA), e.g. 6600 = 3-phase only. It never changes what the EIS import stores (that is eis_min_power_va).
+        if ($request->filled('min_va')) {
+            $q->whereRaw("(a.new_power_value * CASE WHEN upper(a.new_power_unit) = 'KVA' THEN 1000 ELSE 1 END) >= ?", [max(0, min((int) $request->query('min_va'), 100000000))]);
+        }
         // lifecycle: active = still running, history = done, cancelled or refunded (imported as history; the page shows the active ones by default).
         if ($request->filled('lifecycle')) {
             $closed = ['CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
