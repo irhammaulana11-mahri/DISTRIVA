@@ -40,6 +40,11 @@ const rows = [
     id: 's-2', survey_number: 'SRV-PBPD-2-1', status: 'ACCEPTED', outcome: 'EXTENSION', kind: 'COLLECTIVE', members_count: 3, customer_names: ['CV A', 'CV B'],
     version_status: 'ACCEPTED', version_stage: null, application: { id: 'a-2', application_number: 'PBPD-2', customer_name: 'CV A' },
     proposal: { id: 'p-1', proposal_number: '00001/USULAN-PBPD/10-11/51453/2026', issued: true }, unit: { code: '51453', name: 'ULP Jombang' }, surveyor_name: 'teknik jombang', created_at: '2026-11-10T01:00:00Z',
+    members: [
+      { application_id: 'a-2', application_number: 'PBPD-2', status: 'APPROVED', new_tariff_code: 'R3', new_power_value: 6600, new_power_unit: 'VA', customer_name: 'CV A' },
+      { application_id: 'a-5', application_number: 'PBPD-5', status: 'PAID', new_tariff_code: 'R1', new_power_value: 2200, new_power_unit: 'VA', customer_name: 'CV B' },
+      { application_id: 'a-6', application_number: 'PBPD-6', status: 'PK_PRINTED', new_tariff_code: 'R1', new_power_value: 1300, new_power_unit: 'VA', customer_name: 'CV C' },
+    ],
   },
   {
     id: 's-3', survey_number: 'SRV-PBPD-3-1', status: 'ACCEPTED', outcome: 'NO_EXTENSION', kind: 'INDIVIDUAL', members_count: 1, customer_names: ['PP HASBULLAH'],
@@ -190,8 +195,34 @@ describe('Aksi pada daftar Usulan Survei dan arahan dari drawer', () => {
     await screen.findAllByTestId('survey-request-row')
     expect(screen.getByRole('button', { name: 'Isi Hasil Survei' })).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Lihat Hasil Survei' }).length).toBe(2)
-    expect(screen.getAllByRole('button', { name: 'Lihat Permohonan' }).length).toBe(3)
+    expect(screen.getAllByRole('button', { name: 'Lihat Permohonan' }).length).toBe(2)                  // perorangan
+    expect(screen.getByRole('button', { name: 'Lihat Permohonan (3)' })).toBeInTheDocument()            // kolektif: jumlah anggota
     expect(screen.queryByRole('button', { name: 'Buka Survei' })).not.toBeInTheDocument()
+  })
+
+  it('Lihat Permohonan membuka datanya di halaman ini (tanpa pindah ke Permohonan PB/PD), perorangan langsung dan kolektif per pelanggan anggota', async () => {
+    const detail = (id, name) => ({ data: { id, application_number: `PBPD-${id}`, application_type: 'PB', transaction_type: 'PASANG BARU', status: 'APPROVED', customer: { name }, unit: { id: 'u', code: '51453', name: 'ULP Jombang' }, survey: null, proposal: null } })
+    surveyApi.listForApplication.mockResolvedValue({ data: [] })
+    drawingApi.forApplication.mockResolvedValue({ data: null })
+    documentApi.listForApplication.mockResolvedValue({ data: [] })
+    applicationApi.get.mockImplementation((id) => Promise.resolve(detail(id, id === 'a-5' ? 'CV B' : 'SUHELMI')))
+    const user = userEvent.setup()
+    renderWith(<SurveyRequestsPage />, { can: { 'surveys.view': true } })
+    await screen.findAllByTestId('survey-request-row')
+
+    await user.click(screen.getAllByRole('button', { name: 'Lihat Permohonan' })[0])                      // perorangan
+    await waitFor(() => expect(applicationApi.get).toHaveBeenCalledWith('a-1'))
+    expect((await screen.findAllByText(/PBPD-a-1/)).length).toBeGreaterThan(0)                              // data permohonan tampil
+    expect(screen.getByText('SRV-PBPD-1-1')).toBeInTheDocument()                                          // dan halaman Usulan Survei tetap di belakangnya
+
+    await user.click(screen.getAllByRole('button', { name: /Tutup/i })[0])
+    await user.click(screen.getByRole('button', { name: 'Lihat Permohonan (3)' }))                        // kolektif: pilih pelanggan anggota
+    expect(await screen.findByText('Pelanggan dalam survei kolektif SRV-PBPD-2-1')).toBeInTheDocument()
+    expect(screen.getByText('CV B')).toBeInTheDocument()
+    expect(screen.getByText('Pelanggan utama')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Lihat permohonan CV B' }))
+    await waitFor(() => expect(applicationApi.get).toHaveBeenCalledWith('a-5'))
+    expect((await screen.findAllByText(/PBPD-a-5/)).length).toBeGreaterThan(0)
   })
 
   it('?mulai=<no. permohonan> dari drawer langsung membuka dialog survei perorangan yang tersaring ke pelanggan itu', async () => {

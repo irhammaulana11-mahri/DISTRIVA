@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
-use App\Services\Surveys\SurveyService;
 use App\Services\Notifications\WorkflowNotifier;
+use App\Services\Surveys\SurveyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -78,21 +78,24 @@ class SurveyController extends Controller
             ->selectRaw("(select p.proposal_number from proposals p where p.id = {$prop}) as proposal_number")
             ->selectRaw("coalesce({$members}, 0) as members_count")
             ->selectRaw("{$outcome} as outcome")
-            ->selectRaw("(select sv.status from application_survey_versions sv where sv.survey_id = s.id order by sv.version_number desc limit 1) as version_status")
-            ->selectRaw("(select sv.stage from application_survey_versions sv where sv.survey_id = s.id order by sv.version_number desc limit 1) as version_stage")
-            ->selectRaw("(select (sv.requires_drawing is true) from application_survey_versions sv where sv.survey_id = s.id order by sv.version_number desc limit 1) as requires_drawing")
+            ->selectRaw('(select sv.status from application_survey_versions sv where sv.survey_id = s.id order by sv.version_number desc limit 1) as version_status')
+            ->selectRaw('(select sv.stage from application_survey_versions sv where sv.survey_id = s.id order by sv.version_number desc limit 1) as version_stage')
+            ->selectRaw('(select (sv.requires_drawing is true) from application_survey_versions sv where sv.survey_id = s.id order by sv.version_number desc limit 1) as requires_drawing')
             ->paginate(max(1, min((int) $request->query('per_page', 20), 100)));
         $names = [];
+        $members = [];
         foreach ($page->items() as $r) {
-            if ($r->proposal_id !== null) {
-                $names[$r->id] = DB::table('proposal_applications as pa')->join('applications as ax', 'ax.id', '=', 'pa.application_id')->join('customers as cx', 'cx.id', '=', 'ax.customer_id')->where('pa.proposal_id', $r->proposal_id)
-                    ->orderBy('pa.added_at')->limit(4)->pluck('cx.name')->all();
+            if ($r->proposal_id !== null) {                                   // a collective survey: every member application, so the page can show each customer's data without leaving it
+                $members[$r->id] = DB::table('proposal_applications as pa')->join('applications as ax', 'ax.id', '=', 'pa.application_id')->join('customers as cx', 'cx.id', '=', 'ax.customer_id')
+                    ->where('pa.proposal_id', $r->proposal_id)->whereNull('pa.released_at')->orderBy('pa.added_at')->limit(200)
+                    ->get(['ax.id as application_id', 'ax.application_number', 'ax.current_status as status', 'ax.new_tariff_code', 'ax.new_power_value', 'ax.new_power_unit', 'cx.name as customer_name'])->map(fn ($m) => (array) $m)->all();
+                $names[$r->id] = array_slice(array_column($members[$r->id], 'customer_name'), 0, 4);
             }
         }
 
         return response()->json([
             'data' => collect($page->items())->map(fn ($r) => ['id' => $r->id, 'survey_number' => $r->survey_number, 'status' => $r->status, 'outcome' => $r->outcome, 'kind' => (int) $r->members_count > 1 ? 'COLLECTIVE' : 'INDIVIDUAL',
-                'members_count' => max(1, (int) $r->members_count), 'customer_names' => $names[$r->id] ?? [$r->customer_name], 'version_status' => $r->version_status, 'version_stage' => $r->version_stage, 'requires_drawing' => (bool) $r->requires_drawing,
+                'members_count' => max(1, (int) $r->members_count), 'customer_names' => $names[$r->id] ?? [$r->customer_name], 'members' => $members[$r->id] ?? [], 'version_status' => $r->version_status, 'version_stage' => $r->version_stage, 'requires_drawing' => (bool) $r->requires_drawing,
                 'application' => ['id' => $r->application_id, 'application_number' => $r->application_number, 'status' => $r->current_status, 'customer_name' => $r->customer_name],
                 'proposal' => $r->proposal_id === null ? null : ['id' => $r->proposal_id, 'proposal_number' => $r->proposal_number, 'issued' => $r->proposal_number !== null],
                 'unit' => ['code' => $r->unit_code, 'name' => $r->unit_name], 'surveyor_name' => $r->surveyor_name, 'scheduled_at' => $r->scheduled_at, 'created_at' => $r->created_at])->all(),

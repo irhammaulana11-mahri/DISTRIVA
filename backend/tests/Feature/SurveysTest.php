@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\AssignmentRuleViolation;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Documents\DocumentService;
+use App\Services\Kkf\KkfService;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\PlanningPermissionSeeder;
 use Database\Seeders\SurveyPermissionSeeder;
@@ -452,6 +455,8 @@ class SurveysTest extends PostgresTestCase
         $list = $this->as($this->manager)->getJson('/api/surveys?kind=COLLECTIVE')->assertOk();
         $this->assertSame([$s], collect($list->json('data'))->pluck('id')->all());
         $list->assertJsonPath('data.0.outcome', 'PENDING')->assertJsonPath('data.0.members_count', 2)->assertJsonPath('data.0.proposal.issued', false);
+        $this->assertEqualsCanonicalizing([$a2, $list->json('data.0.application.id')], array_column($list->json('data.0.members'), 'application_id'));          // every member application, so the page can show each customer without leaving it
+        $this->assertSame([], $this->as($this->manager)->getJson('/api/surveys?kind=INDIVIDUAL')->json('data.0.members') ?? []);
         $this->assertSame([], $this->as($this->manager)->getJson('/api/surveys?kind=INDIVIDUAL')->json('data'));
 
         $version = DB::table('application_survey_versions')->where('survey_id', $s)->value('id');
@@ -550,7 +555,7 @@ class SurveysTest extends PostgresTestCase
         [$s, $v, $app] = $this->startedSurvey();
         DB::table('customers')->where('id', DB::table('applications')->where('id', $app)->value('customer_id'))->update(['name' => 'CV.JAYA BERKAH FOODS 2']);
         DB::table('application_external_references')->where('application_id', $app)->where('reference_type', 'AGENDA')->update(['reference_number' => '514539912610278772']);
-        $doc = app(\App\Services\Documents\DocumentService::class);
+        $doc = app(DocumentService::class);
         $dv = (string) Str::uuid();
         $this->assertSame('GBR_514539912610278772_CV.JAYA BERKAH FOODS 2', $doc->drawingTitle($app, 'MAIN', $dv));
         $this->assertSame('GBR_514539912610278772_CV.JAYA BERKAH FOODS 2 - Lampiran 1', $doc->drawingTitle($app, 'ATTACHMENT', $dv));
@@ -563,16 +568,16 @@ class SurveysTest extends PostgresTestCase
     {
         [$s, $v, $app] = $this->draftOf(['requires_network_extension' => false]);
         $this->submit($s, $v)->assertOk();
-        \App\Services\Kkf\KkfService::assertExtensionApplies($app);                                                       // not accepted yet: no gate
+        KkfService::assertExtensionApplies($app);                                                       // not accepted yet: no gate
         $this->decide($s, $v, $this->manager, 'ULP_MANAGER')->assertOk();
         $number = (string) DB::table('application_surveys')->where('id', $s)->value('survey_number');
         try {
-            \App\Services\Kkf\KkfService::assertExtensionApplies($app);
+            KkfService::assertExtensionApplies($app);
             $this->fail('KKF must be refused for a no-extension survey.');
-        } catch (\App\Exceptions\AssignmentRuleViolation $e) {
+        } catch (AssignmentRuleViolation $e) {
             $this->assertSame("Survei {$number} menyatakan tanpa perluasan jaringan: KKF tidak diterbitkan.", $e->getMessage());
         }
-        $this->assertContains("Survei {$number} menyatakan tanpa perluasan jaringan: KKF tidak diterbitkan.", app(\App\Services\Kkf\KkfService::class)->preview($app)['blockers']);
+        $this->assertContains("Survei {$number} menyatakan tanpa perluasan jaringan: KKF tidak diterbitkan.", app(KkfService::class)->preview($app)['blockers']);
 
         // an accepted survey that extends the network leaves KKF open
         [$s2, $v2, $app2] = $this->draftOf(['requires_network_extension' => true]);
@@ -580,7 +585,7 @@ class SurveysTest extends PostgresTestCase
         DB::table('application_survey_versions')->where('id', $v2)->update(['status' => 'UNDER_REVIEW', 'stage' => 'UP3_REVIEW']);
         DB::table('application_survey_versions')->where('id', $v2)->update(['status' => 'ACCEPTED', 'stage' => null, 'accepted_at' => now()]);
         DB::table('application_surveys')->where('id', $s2)->update(['status' => 'ACCEPTED']);
-        \App\Services\Kkf\KkfService::assertExtensionApplies($app2);
+        KkfService::assertExtensionApplies($app2);
         $this->assertTrue(true);
     }
 

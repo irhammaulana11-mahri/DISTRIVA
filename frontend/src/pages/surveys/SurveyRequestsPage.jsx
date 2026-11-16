@@ -9,6 +9,9 @@ import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
+import Modal from '../../components/Modal.jsx'
+import StatusBadge from '../../components/StatusBadge.jsx'
+import { ApplicationDetailDrawer, formatTariffPower } from '../applications/ApplicationsPage.jsx'
 import { useDebounce } from '../../utils/useDebounce.js'
 import {
   IconClipboard,
@@ -54,6 +57,9 @@ function progress(r) {
 
 export default function SurveyRequestsPage() {
   const navigate = useNavigate()
+  // Lihat permohonan tanpa meninggalkan halaman ini: perorangan langsung pratinjau; kolektif memilih salah satu pelanggan anggota dulu.
+  const [membersOf, setMembersOf] = useState(null)   // baris survei kolektif yang daftar anggotanya sedang dibuka
+  const [peek, setPeek] = useState(null)              // { id, back }: permohonan yang dipratinjau; back = kembali ke daftar anggota saat ditutup
   const [searchParams, setSearchParams] = useSearchParams()
   // dari drawer permohonan: ?mulai=<no. permohonan> membuka dialog Tambah Survei Perorangan untuk pelanggan itu; ?cari=<kata> mengisi pencarian daftar
   const mulaiParam = searchParams.get('mulai') || ''
@@ -393,8 +399,13 @@ export default function SurveyRequestsPage() {
                               Buat Usulan Perluasan
                             </Button>
                           )}
-                          <Button size="xs" variant="ghost" onClick={() => navigate(`/permohonan?app_id=${r.application?.id}`)} title="Lihat ringkasan permohonan (pratinjau)">
-                            Lihat Permohonan
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => (r.kind === 'COLLECTIVE' && (r.members || []).length > 0 ? setMembersOf(r) : setPeek({ id: r.application?.id, back: null }))}
+                            title={r.kind === 'COLLECTIVE' ? 'Lihat permohonan tiap pelanggan dalam survei kolektif' : 'Lihat ringkasan permohonan (pratinjau)'}
+                          >
+                            {r.kind === 'COLLECTIVE' ? `Lihat Permohonan (${r.members_count})` : 'Lihat Permohonan'}
                           </Button>
                         </div>
                       </td>
@@ -419,6 +430,37 @@ export default function SurveyRequestsPage() {
           perPageOptions={[10, 25, 50]}
         />
       </div>
+
+      {membersOf && !peek && (
+        <Modal open title={`Pelanggan dalam survei kolektif ${membersOf.survey_number}`} subtitle={`${membersOf.members.length} permohonan · pilih salah satu untuk melihat datanya`} onClose={() => setMembersOf(null)} maxWidth="max-w-2xl">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800" aria-label="Permohonan anggota survei kolektif">
+            {membersOf.members.map((m) => (
+              <li key={m.application_id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    {m.customer_name}
+                    {m.application_id === membersOf.application?.id && <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">Pelanggan utama</span>}
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-mono">{m.application_number} · {formatTariffPower(m.new_tariff_code, m.new_power_value, m.new_power_unit)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={m.status} />
+                  <Button size="xs" variant="secondary" onClick={() => setPeek({ id: m.application_id, back: membersOf })} aria-label={`Lihat permohonan ${m.customer_name}`}>Lihat</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
+
+      {peek && (
+        <ApplicationDetailDrawer
+          preview
+          applicationId={peek.id}
+          onSelectApplication={(id) => setPeek({ id, back: peek.back })}
+          onClose={() => { setMembersOf(peek.back); setPeek(null) }}
+        />
+      )}
 
       {pickMode && (
         <ProposalSelectableModal

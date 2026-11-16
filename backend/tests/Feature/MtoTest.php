@@ -1961,6 +1961,22 @@ class MtoTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_survey_selection_lists_every_power_but_not_applications_already_in_peremajaan(): void
+    {
+        $small = $this->extraApplication('Ibu Kecil', 0.9);
+        $big = $this->extraApplication('PT Besar', 33);
+        $done = $this->extraApplication('Sudah Peremajaan', 0.45);
+        $inProgress = $this->extraApplication('PDL Awal', 0.9);
+        DB::table('applications')->where('id', $small)->update(['current_status' => 'APPROVED']);
+        DB::table('applications')->where('id', $big)->update(['current_status' => 'PAID']);
+        DB::table('applications')->where('id', $done)->update(['current_status' => 'CONNECTION_DONE']);              // Peremajaan
+        DB::table('applications')->where('id', $inProgress)->update(['current_status' => 'CONNECTION_IN_PROGRESS']);   // past the survey stage
+
+        $names = array_column($this->as($this->teknik)->getJson('/api/proposals/selectable?for_survey=1')->assertOk()->json('data'), 'customer_name');
+        $this->assertEqualsCanonicalizing(['Ibu Kecil', 'PT Besar'], $names);                                            // a 900 VA customer is listed; the finished ones are not
+    }
+
+    #[Test]
     public function a_proposal_picks_3_phase_customers_from_a_searchable_table_and_the_work_runs_through_the_representative(): void
     {
         $a1 = $this->extraApplication('PT Maju Jaya', 33, null, '511111111111');

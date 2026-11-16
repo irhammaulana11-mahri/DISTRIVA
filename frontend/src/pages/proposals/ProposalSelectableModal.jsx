@@ -20,7 +20,7 @@ import {
 
 /**
  * ProposalSelectableModal (docs/62 §37 & docs/76)
- * Modal pemilihan pelanggan 3 fasa (≥ 6600 VA) untuk:
+ * Modal pemilihan pelanggan (semua daya, kecuali status Peremajaan) untuk:
  * 1. Membuat Usulan Baru (pelanggan pertama yang dipilih = pelanggan utama/perwakilan)
  * 2. Menambah Anggota ke Usulan yang sudah ada (memerlukan alasan audit)
  * 
@@ -209,7 +209,7 @@ export default function ProposalSelectableModal({
             </span>
             <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
               {surveyMode
-                ? 'Survei langsung dimulai atas nama Anda. Nomor usulan baru terbit bila hasil survei memerlukan perluasan jaringan; bila tidak, pelanggan langsung siap pasang. Tabel memuat permohonan Disetujui, Bayar, atau Cetak PK pada ULP Anda yang belum punya survei aktif.'
+                ? 'Survei langsung dimulai atas nama Anda. Nomor usulan baru terbit bila hasil survei memerlukan perluasan jaringan; bila tidak, pelanggan langsung siap pasang. Tabel memuat permohonan Disetujui, Bayar, atau Cetak PK pada ULP Anda yang belum punya survei aktif, berapa pun dayanya (permohonan berstatus Peremajaan tidak ditampilkan).'
                 : 'Satu atau beberapa pelanggan dikaji dalam satu proses: survei, gambar, MTO, RAB, alokasi, SPK, dan KKF gabungan. Tabel ini memuat semua pelanggan berstatus mohon, disetujui, bayar, atau cetak PK, berapa pun daya dan tarifnya, pada ULP Anda yang belum masuk usulan aktif lainnya.'}
             </p>
           </div>
@@ -301,7 +301,7 @@ export default function ProposalSelectableModal({
               description={
                 search
                   ? 'Coba sesuaikan kata kunci pencarian nama atau IDPEL.'
-                  : 'Tidak ada permohonan pelanggan 3 fasa yang memenuhi syarat untuk dipilih saat ini.'
+                  : 'Tidak ada permohonan yang memenuhi syarat untuk dipilih saat ini (status Disetujui, Bayar, atau Cetak PK, belum punya survei aktif).'
               }
             />
           ) : (
