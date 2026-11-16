@@ -585,7 +585,7 @@ export default function ApplicationsPage() {
                       SUMBER / USULAN
                     </th>
                     <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      TANGGAL
+                      TGL. UPDATE EIS
                     </th>
                     <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
                       AKSI
@@ -813,10 +813,16 @@ export default function ApplicationsPage() {
 
                       {/* Date */}
                       <td className="py-3.5 px-6 text-xs text-slate-500 dark:text-slate-400">
-                        <div>{app.created_at ? new Date(app.created_at).toLocaleDateString('id-ID') : '-'}</div>
-                        <div className="text-[10px] text-slate-400">
-                          {app.created_at ? new Date(app.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </div>
+                        {app.eis_updated_at ? (
+                          <div title="Tanggal pembaruan status permohonan di EIS">{`${app.eis_updated_at.slice(8, 10)}/${app.eis_updated_at.slice(5, 7)}/${app.eis_updated_at.slice(0, 4)}`}</div>
+                        ) : (
+                          <>
+                            <div title="Tanggal data masuk ke DISTRIVA (belum ada tanggal update EIS)">{app.created_at ? new Date(app.created_at).toLocaleDateString('id-ID') : '-'}</div>
+                            <div className="text-[10px] text-slate-400">
+                              {app.created_at ? new Date(app.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </div>
+                          </>
+                        )}
                       </td>
 
                       {/* Action */}

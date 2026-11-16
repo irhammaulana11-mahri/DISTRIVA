@@ -85,7 +85,7 @@ class ApplicationController extends Controller
                 ->orWhereExists(fn ($s) => $s->from('customer_external_references as r')->whereColumn('r.customer_id', 'c.id')->where('r.reference_value', 'ilike', $term))
                 ->orWhereExists(fn ($s) => $s->from('application_external_references as e')->whereColumn('e.application_id', 'a.id')->where('e.reference_number', 'ilike', $term)));
         }
-        $page = $q->select('a.id', 'a.application_number', 'a.application_type', 'a.transaction_type', 'a.current_status', 'a.service_address', 'a.delta_power_kva', 'a.old_tariff_code', 'a.new_tariff_code', 'a.new_power_value', 'a.new_power_unit', 'a.created_at', 'a.submitted_at',
+        $page = $q->select('a.id', 'a.application_number', 'a.application_type', 'a.transaction_type', 'a.current_status', 'a.service_address', 'a.delta_power_kva', 'a.old_tariff_code', 'a.new_tariff_code', 'a.new_power_value', 'a.new_power_unit', 'a.created_at', 'a.last_external_status_at', 'a.submitted_at',
             'c.id as customer_id', 'c.name as customer_name', 'u.id as unit_id', 'u.code as unit_code', 'u.name as unit_name', 'a.source_type', 'a.service_days', 'a.service_days_observed_at')
             ->selectRaw("(select e.reference_number from application_external_references e where e.application_id = a.id and e.reference_type = 'AGENDA' and e.is_active order by e.created_at desc limit 1) as agenda_number")
             ->selectRaw("(select e.reference_number from application_external_references e where e.application_id = a.id and e.reference_type = 'PAYMENT_REGISTER' and e.is_active order by e.created_at desc limit 1) as register_number")
@@ -101,7 +101,7 @@ class ApplicationController extends Controller
                 'status' => $r->current_status, 'source_type' => $r->source_type, 'proposal_number' => $r->proposal_number, 'service_address' => $r->service_address, 'delta_power_kva' => $r->delta_power_kva === null ? null : (float) $r->delta_power_kva,
                 'old_tariff_code' => $r->old_tariff_code, 'new_tariff_code' => $r->new_tariff_code, 'new_power_value' => $r->new_power_value === null ? null : (float) $r->new_power_value, 'new_power_unit' => $r->new_power_unit,
                 'service_days' => $r->service_days, 'service_days_observed_at' => $r->service_days_observed_at, 'survey_number' => $r->survey_number, 'survey_status' => $r->survey_status, 'survey_outcome' => $r->survey_outcome,
-                'ready_to_install' => self::readyToInstall($r->current_status, $r->survey_status, $r->survey_outcome), 'agenda_number' => $r->agenda_number, 'register_number' => $r->register_number, 'idpel' => $r->idpel, 'created_at' => $r->created_at, 'submitted_at' => $r->submitted_at,
+                'ready_to_install' => self::readyToInstall($r->current_status, $r->survey_status, $r->survey_outcome), 'agenda_number' => $r->agenda_number, 'register_number' => $r->register_number, 'idpel' => $r->idpel, 'created_at' => $r->created_at, 'submitted_at' => $r->submitted_at, 'eis_updated_at' => $r->last_external_status_at,
                 'customer' => ['id' => $r->customer_id, 'name' => $r->customer_name], 'unit' => ['id' => $r->unit_id, 'code' => $r->unit_code, 'name' => $r->unit_name]])->all(),
             'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()],
         ]);
