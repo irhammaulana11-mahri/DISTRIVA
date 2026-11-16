@@ -4,6 +4,7 @@ import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Modal from '../../components/Modal.jsx'
+import EisRunResults from './EisRunResults.jsx'
 import {
   IconRefresh,
   IconCheck,
@@ -59,6 +60,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
   const [selectedLogRun, setSelectedLogRun] = useState(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const timer = useRef(null)
   const logRef = useRef(null)
 
@@ -224,15 +226,15 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                 </p>
               </div>
             </div>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setSettingsOpen(true)} className="cursor-pointer">
+              Pengaturan
+            </Button>
           </div>
 
-          {error && <Alert kind="error">{error}</Alert>}
-          {notice && <Alert kind="success">{notice}</Alert>}
+          {!settingsOpen && error && <Alert kind="error">{error}</Alert>}
+          {!settingsOpen && notice && <Alert kind="success">{notice}</Alert>}
 
-          {/* Grid Utama 2 Kolom (Desktop) / 1 Kolom (Mobile) */}
-          <div className={`grid grid-cols-1 ${asPage ? 'lg:grid-cols-12' : ''} gap-6`}>
-            {/* KOLOM KIRI: Meja Kerja Penarikan Data Permohonan */}
-            <div className={`space-y-5 ${asPage ? 'lg:col-span-6' : ''}`}>
+          <div className="space-y-6">
               <section className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
@@ -332,48 +334,14 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                   )}
                 </div>
 
-                {/* Monitor Proses Berjalan / Status Terkini */}
-                {current && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${STATUS[current.status]?.[1]}`}>
-                          {STATUS[current.status]?.[0] || current.status}
-                        </span>
-                        <span className="text-slate-600 dark:text-slate-300 font-medium text-xs">
-                          dimulai {when(current.started_at || current.created_at)}
-                        </span>
-                      </div>
-                      {current.log && (
-                        <button
-                          type="button"
-                          onClick={() => handleCopyLog(current.log)}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                        >
-                          <IconClipboard size={13} />
-                          <span>{copied ? 'Tersalin!' : 'Salin Log'}</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {current.log && (
-                      <div className="relative rounded-xl overflow-hidden border border-slate-800 dark:border-slate-700 bg-slate-900">
-                        <pre
-                          ref={logRef}
-                          aria-label="Log sinkronisasi"
-                          className="max-h-64 overflow-auto p-3 text-slate-100 font-mono text-[11px] leading-relaxed whitespace-pre-wrap select-all"
-                        >
-                          {current.log}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                )}
               </section>
-            </div>
+            <EisRunResults run={current} units={units} />
+          </div>
 
-            {/* KOLOM KANAN: Konfigurasi Kredensial & Pengaturan Otomasi */}
-            <div className={`space-y-5 ${asPage ? 'lg:col-span-6' : ''}`}>
+          <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Pengaturan Sinkronisasi EIS" subtitle="Akun EIS, rentang daya, dan jadwal otomatis" size="max-w-3xl" width="max-w-3xl">
+            <div className="space-y-5 text-xs">
+              {error && <Alert kind="error">{error}</Alert>}
+              {notice && <Alert kind="success">{notice}</Alert>}
               {/* KARTU 1: Akun & Parameter Rentang EIS */}
               <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -523,7 +491,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                 </div>
               </section>
             </div>
-          </div>
+          </Modal>
 
           {/* BAGIAN BAWAH: KPI Ringkasan & Tabel Riwayat Sinkronisasi */}
           <div className="space-y-4 pt-2">

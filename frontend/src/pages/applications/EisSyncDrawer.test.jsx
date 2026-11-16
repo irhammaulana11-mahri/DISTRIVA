@@ -17,6 +17,7 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
   it('menyimpan akun EIS, rentang daya, dan jadwal otomatis; password kosong tidak dikirim sebagai isian baru', async () => {
     eisSyncApi.save.mockResolvedValue({ data: { ...settings, power_max: 6600, auto_enabled: true } })
     render(<EisSyncDrawer open onClose={() => {}} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Pengaturan' }))              // pengaturan ada di jendela terpisah, seperti MIMS
     expect(await screen.findByLabelText('User EIS')).toHaveValue('petugas.eis')
     expect(screen.getByLabelText('Password EIS')).toHaveValue('')                       // password tersimpan tidak pernah ditampilkan
     fireEvent.change(screen.getByLabelText('Daya maksimum'), { target: { value: '6600' } })

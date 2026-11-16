@@ -428,6 +428,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     renderApp()
     await screen.findByText('APP-202611-0001')
     await userEvent.click(screen.getByRole('button', { name: 'Sinkronisasi EIS' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Pengaturan' }))
     expect(await screen.findByLabelText('User EIS')).toHaveValue('u')
   })
 
