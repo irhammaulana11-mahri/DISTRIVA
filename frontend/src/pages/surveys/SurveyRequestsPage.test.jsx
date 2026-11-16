@@ -83,28 +83,42 @@ describe('Usulan Survei', () => {
 
     renderWith(<SurveyRequestsPage />, { can: { 'surveys.view': true, 'surveys.execute': true } })
     await screen.findByText('SRV-PBPD-1-1')
-    expect(screen.getByRole('button', { name: /Tambah Survei Perorangan/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Tambah Survei Kolektif/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Tambah Survei/i })).toHaveLength(1)                 // satu tombol, bukan perorangan dan kolektif terpisah
+    expect(screen.queryByRole('button', { name: /Tambah Survei (Perorangan|Kolektif)/i })).not.toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Hasil survei'), 'NO_EXTENSION')
     await waitFor(() => expect(surveyApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'NO_EXTENSION' })))
   })
 
-  it('survei kolektif memanggil POST /proposals dengan start_survey dan butuh minimal dua pelanggan', async () => {
+  it('satu tombol Tambah Survei: satu pelanggan = survei perorangan, dua atau lebih = survei kolektif', async () => {
     const user = userEvent.setup()
-    const cust = (n) => ({ id: `a-${n}`, application_number: `PBPD-${n}`, application_type: 'PB', customer_name: `Pelanggan ${n}`, idpel: null, new_tariff_code: 'B2', new_power_value: 6600, new_power_unit: 'VA', service_address: 'Jl', ulp_name: 'ULP Jombang' })
+    const cust = (n) => ({ id: `a-${n}`, application_number: `PBPD-${n}`, application_type: 'PB', customer_name: `Pelanggan ${n}`, idpel: null, new_tariff_code: 'B2', new_power_value: 6600, new_power_unit: 'VA', service_address: 'Jl X' })
     proposalsApi.selectable.mockResolvedValue({ data: [cust(1), cust(2)], meta: { total: 2, current_page: 1, last_page: 1, per_page: 10 } })
     proposalsApi.create.mockResolvedValue({ data: { id: 'p-9', survey_id: 's-9', survey_number: 'SRV-9' } })
+    surveyApi.create.mockResolvedValue({ data: { id: 's-8', survey_number: 'SRV-8' } })
     renderWith(<SurveyRequestsPage />, { can: { 'surveys.view': true, 'surveys.execute': true } })
-    await user.click(await screen.findByRole('button', { name: /Tambah Survei Kolektif/i }))
+    await user.click(await screen.findByRole('button', { name: /^Tambah Survei$/i }))
     expect(proposalsApi.selectable).toHaveBeenCalledWith(expect.objectContaining({ for_survey: 1 }))
     const boxes = await screen.findAllByRole('checkbox')
     await user.click(boxes[0])
-    await user.click(screen.getByRole('button', { name: /Mulai Survei \(1\)/i }))
-    expect(await screen.findByText(/minimal dua pelanggan/i)).toBeInTheDocument()
-    expect(proposalsApi.create).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /Mulai Survei Perorangan \(1\)/i })).toBeInTheDocument()     // satu pelanggan: perorangan
     await user.click(boxes[1])
-    await user.click(screen.getByRole('button', { name: /Mulai Survei \(2\)/i }))
+    expect(screen.getByRole('button', { name: /Mulai Survei Kolektif \(2\)/i })).toBeInTheDocument()        // dua: kolektif
+    await user.click(screen.getByRole('button', { name: /Mulai Survei Kolektif \(2\)/i }))
     await waitFor(() => expect(proposalsApi.create).toHaveBeenCalledWith({ application_ids: ['a-1', 'a-2'], title: undefined, start_survey: true }))
+    expect(surveyApi.create).not.toHaveBeenCalled()
+  })
+
+  it('memilih satu pelanggan pada tombol Tambah Survei memulai survei perorangan', async () => {
+    const user = userEvent.setup()
+    const cust = (n) => ({ id: `a-${n}`, application_number: `PBPD-${n}`, application_type: 'PB', customer_name: `Pelanggan ${n}`, idpel: null, new_tariff_code: 'B2', new_power_value: 6600, new_power_unit: 'VA', service_address: 'Jl X' })
+    proposalsApi.selectable.mockResolvedValue({ data: [cust(1), cust(2)], meta: { total: 2, current_page: 1, last_page: 1, per_page: 10 } })
+    surveyApi.create.mockResolvedValue({ data: { id: 's-8', survey_number: 'SRV-8' } })
+    renderWith(<SurveyRequestsPage />, { can: { 'surveys.view': true, 'surveys.execute': true } })
+    await user.click(await screen.findByRole('button', { name: /^Tambah Survei$/i }))
+    await user.click((await screen.findAllByRole('checkbox'))[1])
+    await user.click(screen.getByRole('button', { name: /Mulai Survei Perorangan \(1\)/i }))
+    await waitFor(() => expect(surveyApi.create).toHaveBeenCalledWith('a-2', {}))
+    expect(proposalsApi.create).not.toHaveBeenCalled()
   })
 })
 
@@ -216,13 +230,15 @@ describe('Aksi pada daftar Usulan Survei dan arahan dari drawer', () => {
     expect(screen.getByText('SRV-PBPD-1-1')).toBeInTheDocument()                                          // dan halaman Usulan Survei tetap di belakangnya
 
     await user.click(screen.getAllByRole('button', { name: /Tutup/i })[0])
-    await user.click(screen.getByRole('button', { name: 'Lihat Permohonan (3)' }))                        // kolektif: pilih pelanggan anggota
-    expect(await screen.findByText('Pelanggan dalam survei kolektif SRV-PBPD-2-1')).toBeInTheDocument()
-    expect(screen.getByText('CV B')).toBeInTheDocument()
-    expect(screen.getByText('Pelanggan utama')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Lihat permohonan CV B' }))
+    await user.click(screen.getByRole('button', { name: 'Lihat Permohonan (3)' }))                        // kolektif: langsung di drawer, tiap pelanggan anggota sebagai tab
+    const tabs = await screen.findByRole('tablist', { name: 'Pelanggan dalam survei kolektif' })
+    expect(within(tabs).getAllByRole('tab')).toHaveLength(3)
+    expect(within(tabs).getByRole('tab', { name: /CV A/ })).toHaveAttribute('aria-selected', 'true')       // pelanggan utama lebih dulu
+    await waitFor(() => expect(applicationApi.get).toHaveBeenCalledWith('a-2'))
+    await user.click(within(tabs).getByRole('tab', { name: /CV B/ }))
     await waitFor(() => expect(applicationApi.get).toHaveBeenCalledWith('a-5'))
     expect((await screen.findAllByText(/PBPD-a-5/)).length).toBeGreaterThan(0)
+    expect(within(screen.getByRole('tablist', { name: 'Pelanggan dalam survei kolektif' })).getByRole('tab', { name: /CV B/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('?mulai=<no. permohonan> dari drawer langsung membuka dialog survei perorangan yang tersaring ke pelanggan itu', async () => {

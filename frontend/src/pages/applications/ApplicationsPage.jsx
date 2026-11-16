@@ -1608,6 +1608,7 @@ export function ApplicationDetailDrawer({
   canWoComplete,
   onSubmit,
   onSelectApplication,
+  memberSwitcher,          // { members: [{ application_id, customer_name, application_number, status }], onSelect(id) }: survei kolektif, tiap pelanggan anggota dibuka di drawer ini
   onCancel,
   onClose,
   onReload,
@@ -2065,6 +2066,30 @@ export function ApplicationDetailDrawer({
                   Buat Usulan di Usulan Survei →
                 </Button>
               )}
+            </div>
+          )}
+
+          {/* Survei kolektif: pindah antar pelanggan anggota tanpa menutup drawer */}
+          {memberSwitcher?.members?.length > 1 && (
+            <div role="tablist" aria-label="Pelanggan dalam survei kolektif" className="flex gap-1.5 overflow-x-auto pb-1">
+              {memberSwitcher.members.map((m) => {
+                const active = m.application_id === applicationId
+                return (
+                  <button
+                    key={m.application_id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => !active && memberSwitcher.onSelect(m.application_id)}
+                    className={`shrink-0 rounded-xl border px-3 py-1.5 text-left text-xs transition cursor-pointer ${
+                      active ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-300'
+                    }`}
+                  >
+                    <span className="block font-semibold max-w-48 truncate">{m.customer_name}</span>
+                    <span className={`block font-mono text-[10px] ${active ? 'text-blue-100' : 'text-slate-400'}`}>{m.application_number}</span>
+                  </button>
+                )
+              })}
             </div>
           )}
 

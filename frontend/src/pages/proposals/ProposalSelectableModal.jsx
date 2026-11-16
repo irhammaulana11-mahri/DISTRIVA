@@ -38,12 +38,13 @@ export default function ProposalSelectableModal({
   initialSelectedItems = DEFAULT_INITIAL_ITEMS,
   initialSearch = '', // mis. nomor permohonan dari drawer: daftar pilihan langsung tersaring ke pelanggan itu
   notice = '', // peringatan tambahan untuk mode tambah anggota (mis. KKF tersimpan perlu dihitung ulang)
-  surveyMode = null, // 'individual' | 'collective': tambah usulan SURVEI (survei langsung dimulai; nomor usulan terbit setelah hasil survei memerlukan perluasan)
+  surveyMode = null, // 'any' | 'individual' | 'collective': tambah usulan SURVEI (survei langsung dimulai; nomor usulan terbit setelah hasil survei memerlukan perluasan)
   onSuccess,
 }) {
   const isAddingMode = Boolean(proposalId)
   const individual = surveyMode === 'individual'
   const collective = surveyMode === 'collective'
+  const either = surveyMode === 'any'               // satu tombol "Tambah Survei": satu pelanggan = survei perorangan, dua atau lebih = survei kolektif
 
   // Search & Pagination State
   const [search, setSearch] = useState(initialSearch)
@@ -158,8 +159,10 @@ export default function ProposalSelectableModal({
     setError('')
     try {
       const applicationIds = selectedItems.map((item) => item.id)
+      const asIndividual = individual || (either && applicationIds.length === 1)
+      const asCollective = collective || (either && applicationIds.length >= 2)
 
-      if (individual) {
+      if (asIndividual) {
         const res = await surveyApi.create(applicationIds[0], {})
         onSuccess?.(res?.data)
         onClose?.()
@@ -175,7 +178,7 @@ export default function ProposalSelectableModal({
         const res = await proposalsApi.create({
           application_ids: applicationIds,
           title: title.trim() || undefined,
-          start_survey: collective ? true : undefined,
+          start_survey: asCollective ? true : undefined,
         })
         onSuccess?.(res?.data)
         onClose?.()
@@ -192,11 +195,13 @@ export default function ProposalSelectableModal({
     }
   }
 
+  const startLabel = either && selectedItems.length === 1 ? ' Perorangan' : either && selectedItems.length >= 2 ? ' Kolektif' : ''
+
   return (
     <Modal
       open={open ?? true}
       onClose={onClose}
-      title={isAddingMode ? `Tambah Anggota Usulan ${proposalNumber}` : individual ? 'Tambah Survei Perorangan' : collective ? 'Tambah Survei Kolektif' : 'Buat Usulan Perluasan'}
+      title={isAddingMode ? `Tambah Anggota Usulan ${proposalNumber}` : either ? 'Tambah Survei' : individual ? 'Tambah Survei Perorangan' : collective ? 'Tambah Survei Kolektif' : 'Buat Usulan Perluasan'}
       maxWidth="max-w-5xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5 text-xs">
@@ -205,11 +210,11 @@ export default function ProposalSelectableModal({
           <IconInfo size={16} className="shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
           <div className="space-y-0.5">
             <span className="font-bold block">
-              {individual ? 'Pilih satu pelanggan untuk disurvei' : collective ? 'Pilih beberapa pelanggan untuk satu survei kolektif' : 'Pilihan Pelanggan Usulan Perluasan'}
+              {either ? 'Pilih satu atau beberapa pelanggan untuk disurvei' : individual ? 'Pilih satu pelanggan untuk disurvei' : collective ? 'Pilih beberapa pelanggan untuk satu survei kolektif' : 'Pilihan Pelanggan Usulan Perluasan'}
             </span>
             <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
               {surveyMode
-                ? 'Survei langsung dimulai atas nama Anda. Nomor usulan baru terbit bila hasil survei memerlukan perluasan jaringan; bila tidak, pelanggan langsung siap pasang. Tabel memuat permohonan Disetujui, Bayar, atau Cetak PK pada ULP Anda yang belum punya survei aktif, berapa pun dayanya (permohonan berstatus Peremajaan tidak ditampilkan).'
+                ? `${either ? 'Satu pelanggan = survei perorangan; dua atau lebih = satu survei kolektif untuk semuanya. ' : ''}Survei langsung dimulai atas nama Anda. Nomor usulan baru terbit bila hasil survei memerlukan perluasan jaringan; bila tidak, pelanggan langsung siap pasang. Tabel memuat permohonan Disetujui, Bayar, atau Cetak PK pada ULP Anda yang belum punya survei aktif, berapa pun dayanya (permohonan berstatus Peremajaan tidak ditampilkan).`
                 : 'Satu atau beberapa pelanggan dikaji dalam satu proses: survei, gambar, MTO, RAB, alokasi, SPK, dan KKF gabungan. Tabel ini memuat semua pelanggan berstatus mohon, disetujui, bayar, atau cetak PK, berapa pun daya dan tarifnya, pada ULP Anda yang belum masuk usulan aktif lainnya.'}
             </p>
           </div>
@@ -222,7 +227,7 @@ export default function ProposalSelectableModal({
         )}
 
         {/* Inputs (Title / Reason) */}
-        {individual ? null : !isAddingMode ? (
+        {individual || (either && selectedItems.length < 2) ? null : !isAddingMode ? (
           <div className="space-y-1">
             <label htmlFor="proposal-title" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
               Judul Usulan <span className="text-slate-400 font-normal">(Opsional)</span>
@@ -504,14 +509,14 @@ export default function ProposalSelectableModal({
             disabled={selectedItems.length === 0}
             aria-label={
               surveyMode
-                ? `Mulai Survei (${selectedItems.length})`
+                ? `Mulai Survei${startLabel} (${selectedItems.length})`
                 : isAddingMode
                 ? `Tambah ke Usulan (${selectedItems.length})`
                 : `Simpan Usulan (${selectedItems.length}) - Simpan Usulan Perluasan (${selectedItems.length})`
             }
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {surveyMode ? `Mulai Survei (${selectedItems.length})` : isAddingMode ? `Tambah ke Usulan (${selectedItems.length})` : `Simpan Usulan Perluasan (${selectedItems.length})`}
+            {surveyMode ? `Mulai Survei${startLabel} (${selectedItems.length})` : isAddingMode ? `Tambah ke Usulan (${selectedItems.length})` : `Simpan Usulan Perluasan (${selectedItems.length})`}
           </Button>
         </div>
       </form>
