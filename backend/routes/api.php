@@ -88,6 +88,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     // PB/PD applications (stage 1A, docs/62): scoped by ULP (ApplicationAuthorizer).
     Route::prefix('applications')->middleware('throttle:admin')->group(function () {
         Route::get('/access', [ApplicationController::class, 'access']);
+        Route::get('/units', [ApplicationController::class, 'units']);
         Route::get('/', [ApplicationController::class, 'index']);
         Route::post('/', [ApplicationController::class, 'store']);
         Route::get('/imports', [ApplicationImportController::class, 'index']);

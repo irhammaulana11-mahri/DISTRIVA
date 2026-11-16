@@ -732,6 +732,28 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_list_can_be_limited_to_an_up3_and_to_the_month_of_its_date_column_and_offers_only_the_units_of_the_role(): void
+    {
+        $this->confirm($this->stage([
+            $this->row(['NOAGENDA' => '514539912610278501', 'IDPEL' => '514530000501', 'NAMA' => 'LAMA', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
+            $this->row(['NOAGENDA' => '514539912610278502', 'IDPEL' => '514530000502', 'NAMA' => 'BARU', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
+        ])['id'])->assertOk();
+        DB::table('applications')->whereIn('id', DB::table('applications as a')->join('customers as c', 'c.id', '=', 'a.customer_id')->where('c.name', 'LAMA')->select('a.id'))->update(['last_external_status_at' => '2026-03-15 10:00:00']);
+        DB::table('applications')->whereIn('id', DB::table('applications as a')->join('customers as c', 'c.id', '=', 'a.customer_id')->where('c.name', 'BARU')->select('a.id'))->update(['last_external_status_at' => '2026-05-02 10:00:00']);
+        $list = fn (string $q) => collect($this->as($this->retailA1)->getJson('/api/applications?listing=pbpd&'.$q)->assertOk()->json('data'))->pluck('customer.name')->sort()->values()->all();
+
+        $this->assertSame(['LAMA'], $list('month=2026-03'));
+        $this->assertSame(['BARU'], $list('month=2026-05'));
+        $this->assertSame([], $list('month=2026-04'));
+        $this->assertSame(['BARU', 'LAMA'], $list('up3_id='.$this->upA->getKey()));
+        $this->assertSame([], $list('up3_id='.$this->ulpA1->getKey()));                            // not the parent of anything
+        $units = $this->as($this->retailA1)->getJson('/api/applications/units')->assertOk();
+        $this->assertSame('ULP', $units->json('scope'));
+        $this->assertSame([$this->ulpA1->getKey()], collect($units->json('ulp_units'))->pluck('id')->all());
+        $this->assertSame($this->upA->getKey(), $units->json('default_up3_id'));
+    }
+
+    #[Test]
     public function the_list_shows_eis_applications_and_can_separate_active_ones_from_history(): void
     {
         $this->confirm($this->stage([

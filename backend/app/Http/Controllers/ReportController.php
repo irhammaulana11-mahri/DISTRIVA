@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Authorization\CatalogAuthorizer;
+use App\Services\Authorization\ScopedUnitOptions;
 use App\Services\Output\DocumentDownload;
 use App\Services\Reports\ReportService;
 use App\Services\Reports\ReportSettings;
@@ -261,149 +262,9 @@ class ReportController extends Controller
     }
 
     /** GET /reports/units — Returns accessible UP3 and ULP units for report filters based on user role and scope. */
-    public function units(Request $request): JsonResponse
+    public function units(Request $request, ScopedUnitOptions $options): JsonResponse
     {
-        $actor = $request->user();
-        $scope = $this->authorizer->authorizeScope($actor, 'reports.view');
-
-        // 1. SYS_ADMIN / Global Unrestricted
-        if ($scope['unrestricted']) {
-            $up3s = DB::table('organizational_units')
-                ->where('unit_type', 'UP3')
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get(['id', 'code', 'name'])
-                ->all();
-
-            $ulps = DB::table('organizational_units as u')
-                ->leftJoin('organizational_units as p', 'p.id', '=', 'u.parent_id')
-                ->where('u.unit_type', 'ULP')
-                ->where('u.is_active', true)
-                ->orderBy('u.code')
-                ->select([
-                    'u.id',
-                    'u.code',
-                    'u.name',
-                    'u.parent_id',
-                    'p.code as parent_code',
-                    'p.name as parent_name',
-                ])
-                ->get()
-                ->all();
-
-            return response()->json([
-                'scope' => 'GLOBAL',
-                'up3_units' => $up3s,
-                'ulp_units' => $ulps,
-                'default_up3_id' => '',
-                'default_unit_id' => '',
-            ]);
-        }
-
-        // 2. Scoped users: Check whether UP3 or ULP level
-        $scopedUnitIds = $scope['units'];
-        $assignedUp3 = null;
-        $assignedUlp = null;
-
-        foreach ($this->authorizer->effectiveAssignments($actor) as $assignment) {
-            $u = $assignment->organizationalUnit;
-            if ($u === null || $assignment->role?->name === 'VENDOR') {
-                continue;
-            }
-            if ($u->unit_type === 'UP3') {
-                $assignedUp3 = $u;
-                break;
-            }
-            if ($u->unit_type === 'ULP') {
-                $assignedUlp = $u;
-            }
-        }
-
-        // Case A: User assigned at UP3 level
-        if ($assignedUp3 !== null) {
-            $up3s = [
-                [
-                    'id' => $assignedUp3->getKey(),
-                    'code' => $assignedUp3->code,
-                    'name' => $assignedUp3->name,
-                ],
-            ];
-
-            $ulps = DB::table('organizational_units as u')
-                ->where('u.parent_id', $assignedUp3->getKey())
-                ->where('u.unit_type', 'ULP')
-                ->where('u.is_active', true)
-                ->whereIn('u.id', $scopedUnitIds)
-                ->orderBy('u.code')
-                ->select([
-                    'u.id',
-                    'u.code',
-                    'u.name',
-                    'u.parent_id',
-                ])
-                ->get()
-                ->map(fn ($r) => [
-                    'id' => $r->id,
-                    'code' => $r->code,
-                    'name' => $r->name,
-                    'parent_id' => $r->parent_id,
-                    'parent_code' => $assignedUp3->code,
-                    'parent_name' => $assignedUp3->name,
-                ])
-                ->all();
-
-            return response()->json([
-                'scope' => 'UP3',
-                'up3_units' => $up3s,
-                'ulp_units' => $ulps,
-                'default_up3_id' => $assignedUp3->getKey(),
-                'default_unit_id' => '',
-            ]);
-        }
-
-        // Case B: User assigned at ULP level
-        $ulpQuery = DB::table('organizational_units as u')
-            ->leftJoin('organizational_units as p', 'p.id', '=', 'u.parent_id')
-            ->where('u.unit_type', 'ULP')
-            ->whereIn('u.id', $scopedUnitIds)
-            ->where('u.is_active', true)
-            ->select([
-                'u.id',
-                'u.code',
-                'u.name',
-                'u.parent_id',
-                'p.code as parent_code',
-                'p.name as parent_name',
-            ])
-            ->get();
-
-        $up3sMap = [];
-        $ulps = [];
-        foreach ($ulpQuery as $row) {
-            $ulps[] = [
-                'id' => $row->id,
-                'code' => $row->code,
-                'name' => $row->name,
-                'parent_id' => $row->parent_id,
-                'parent_code' => $row->parent_code,
-                'parent_name' => $row->parent_name,
-            ];
-            if ($row->parent_id && ! isset($up3sMap[$row->parent_id])) {
-                $up3sMap[$row->parent_id] = [
-                    'id' => $row->parent_id,
-                    'code' => $row->parent_code ?? '',
-                    'name' => $row->parent_name ?? 'UP3 Terkait',
-                ];
-            }
-        }
-
-        return response()->json([
-            'scope' => 'ULP',
-            'up3_units' => array_values($up3sMap),
-            'ulp_units' => $ulps,
-            'default_up3_id' => array_values($up3sMap)[0]['id'] ?? '',
-            'default_unit_id' => $ulps[0]['id'] ?? '',
-        ]);
+        return response()->json($options->for($request->user(), 'reports.view'));
     }
 
     /** @return array{0:list<string>,1:?string,2:?string} */

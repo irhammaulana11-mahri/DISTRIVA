@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Exceptions\AdministrationDenied;
 use App\Services\Applications\ApplicationService;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Authorization\ScopedUnitOptions;
 use App\Services\Notifications\WorkflowNotifier;
 use App\Services\Proposals\ProposalService;
 use App\Services\Surveys\SurveyService;
 use App\Services\WorkOrders\VendorService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,10 +48,16 @@ class ApplicationController extends Controller
         return response()->json(['can' => $can, 'create_units' => $q->limit(500)->get(['id', 'code', 'name'])->all()]);
     }
 
+    /** GET /applications/units — the UP3 and ULP choices of the PB/PD filters, by the actor's role and scope. */
+    public function units(Request $request, ScopedUnitOptions $options): JsonResponse
+    {
+        return response()->json($options->for($request->user(), 'applications.view'));
+    }
+
     public function index(Request $request): JsonResponse
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'applications.view');
-        $request->validate(['status' => ['nullable', Rule::in(self::STATUSES)], 'type' => ['nullable', Rule::in(['PB', 'PD'])], 'unit_id' => ['nullable', 'uuid'],
+        $request->validate(['status' => ['nullable', Rule::in(self::STATUSES)], 'type' => ['nullable', Rule::in(['PB', 'PD'])], 'unit_id' => ['nullable', 'uuid'], 'up3_id' => ['nullable', 'uuid'], 'month' => ['nullable', 'date_format:Y-m'],
             'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer'], 'listing' => ['nullable', Rule::in(['all', 'pbpd'])],
             'lifecycle' => ['nullable', Rule::in(['active', 'history'])]]);
 
@@ -59,6 +67,14 @@ class ApplicationController extends Controller
             if ($request->filled($param)) {
                 $q->where($col, $request->query($param));
             }
+        }
+        if ($request->filled('up3_id')) {
+            $q->where('u.parent_id', $request->query('up3_id'));
+        }
+        // month: the month shown in the table's date column (EIS update date, else the import date).
+        if ($request->filled('month')) {
+            $start = CarbonImmutable::createFromFormat('Y-m-d', $request->query('month').'-01')->startOfMonth();
+            $q->whereRaw('coalesce(a.last_external_status_at, a.created_at) >= ? and coalesce(a.last_external_status_at, a.created_at) < ?', [$start, $start->addMonth()]);
         }
         // listing=pbpd: every application. The page shows the active ones by default and narrows by status, power and unit with its own filters (owner 2026-11-16: every EIS status is stored and the table only filters;
         // before, an EIS application outside mohon/disetujui/bayar/cetak PK was hidden here whatever the filters said).
