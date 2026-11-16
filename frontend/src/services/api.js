@@ -285,7 +285,7 @@ export const connectionsApi = {
   link: (id, body) => request(`/master-data/customer-connections/${id}/link`, { method: 'PATCH', body }),
   // Sinkron DIL dari folder di server: info folder + berkas, mulai, dan pantau satu run
   syncInfo: () => request('/master-data/customer-connections/sync'),
-  syncStart: () => request('/master-data/customer-connections/sync/runs', { method: 'POST' }),
+  syncStart: (body) => request('/master-data/customer-connections/sync/runs', { method: 'POST', body }),
   syncRun: (id) => request(`/master-data/customer-connections/sync/runs/${id}`),
 }
 

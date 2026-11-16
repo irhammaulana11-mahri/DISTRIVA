@@ -102,6 +102,41 @@ class DilSyncTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_run_loops_over_the_chosen_units_one_failing_unit_does_not_stop_the_others_and_each_unit_reports_its_own_result(): void
+    {
+        $row = fn (string $idpel) => ['IDPEL' => $idpel, 'UNITUP' => $this->ulp->code, 'NAMA' => 'AB*****', 'STATUS_DIL' => 'AKTIF'];
+        $this->csv('DIL_SALDO_MASK_UP_202609_51453.csv', [$row('514530000001'), $row('514530000002')]);
+        $this->csv('DIL_SALDO_MASK_UP_202609_51454.csv', [$row('514540000001')]);
+        File::put($this->inbox.'/DIL_SALDO_MASK_UP_202609_51455.csv', 'KOLOM,LAIN
+1,2
+');                                   // a file the loader cannot read
+        $svc = app(DilSyncService::class);
+
+        $info = $this->as($this->planning)->getJson('/api/master-data/customer-connections/sync')->assertOk()->json('data');
+        $byCode = collect($info['units'])->keyBy('code');
+        $this->assertSame([1, 1, 1], [count($byCode['51453']['files']), count($byCode['51454']['files']), count($byCode['51455']['files'])]);   // one entry per unit, with the file waiting for it
+
+        $run = $this->as($this->planning)->postJson('/api/master-data/customer-connections/sync/runs', ['units' => ['51453', '51455']])->assertStatus(202)->json('data');
+        $this->assertSame(['51453', '51455'], collect($run['files'])->pluck('ulp_code')->all());                                // 51454 is not part of this run
+        $svc->execute($run['id']);
+        $done = $svc->show($run['id']);
+        $this->assertSame(['PARTIAL', 2, 2], [$done['status'], $done['units_done'], $done['units_total']]);
+        $this->assertSame(['OK', 'FAILED'], collect($done['results'])->pluck('status')->all());                                  // the failure of 51455 did not stop the loop (51453 ran first)
+        $this->assertSame(['51453', '51455'], collect($done['results'])->pluck('ulp_code')->all());
+        $this->assertSame(2, DB::table('customer_connections')->count());
+        $left = collect($svc->files())->pluck('name')->sort()->values()->all();
+        $this->assertSame(['DIL_SALDO_MASK_UP_202609_51454.csv', 'DIL_SALDO_MASK_UP_202609_51455.csv'], $left);                // the loaded unit moved away; the failed and the unchosen stay
+
+        $after = collect($svc->info()['units'])->keyBy('code');
+        $this->assertSame(['OK', 'FAILED', null], [$after['51453']['last_result']['status'], $after['51455']['last_result']['status'], $after['51454']['last_result']['status'] ?? null]);
+        $h = $svc->info()['history'][0];                                                                                         // monitoring: which units loaded and which failed, with the reason
+        $this->assertSame([$run['id'], 'PARTIAL', 1, 1, '51455'], [$h['id'], $h['status'], $h['units_ok'], $h['units_failed'], $h['failed'][0]['ulp_code']]);
+        $this->assertStringContainsString('Kolom wajib', (string) $h['failed'][0]['message']);
+        $this->as($this->planning)->postJson('/api/master-data/customer-connections/sync/runs', ['units' => ['99999']])->assertStatus(409);   // a unit without a file: nothing to run
+        $this->as($this->planning)->postJson('/api/master-data/customer-connections/sync/runs', ['units' => ['abc']])->assertStatus(422);
+    }
+
+    #[Test]
     public function only_users_who_may_import_can_see_or_start_it_and_a_second_run_waits(): void
     {
         $this->csv('DIL_202603_'.$this->ulp->code.'.csv', [['IDPEL' => '514530000009', 'UNITUP' => $this->ulp->code, 'STATUS_DIL' => 'AKTIF']]);

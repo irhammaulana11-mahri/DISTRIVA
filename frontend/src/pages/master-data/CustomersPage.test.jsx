@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
@@ -356,11 +356,17 @@ describe('Master Pelanggan Page (docs/81)', () => {
     expect(screen.queryByText(/halaman ini/i)).not.toBeInTheDocument()
   })
 
-  it('tombol Sinkron DIL hanya untuk yang boleh impor, menampilkan cara peletakan berkas dan memulai sinkron', async () => {
-    connectionsApi.syncInfo.mockResolvedValue({ data: { inbox: 'backend/storage/app/dil-inbox', naming: 'DIL_SALDO_MASK_UP_<YYYYMM>_<kode ULP>.mdb', mdbtools: true, needs_mdbtools: true, active: null, recent: [],
-      files: [{ name: 'DIL_SALDO_MASK_UP_202603_51453.mdb', size: 397185024, modified: '2026-11-15T10:00:00+07:00', kind: 'mdb', ulp_code: '51453', month: '202603' }] } })
-    connectionsApi.syncStart.mockResolvedValue({ data: { id: 'run-1', status: 'QUEUED', files: [{ name: 'DIL_SALDO_MASK_UP_202603_51453.mdb', size: 397185024 }], results: [], rows_done: 0, started_by_name: 'Admin' } })
-    connectionsApi.syncRun.mockResolvedValue({ data: { id: 'run-1', status: 'RUNNING', files: [{ name: 'x', size: 1 }], results: [], rows_done: 1000 } })
+  it('tombol Sinkron DIL hanya untuk yang boleh impor, menampilkan cara peletakan berkas, memilih ULP, dan memulai sinkron per ULP', async () => {
+    const file = (code) => ({ name: `DIL_SALDO_MASK_UP_202609_${code}.mdb`, size: 397185024, modified: '2026-11-15T10:00:00+07:00', kind: 'mdb', ulp_code: code, month: '202609' })
+    connectionsApi.syncInfo.mockResolvedValue({ data: { inbox: 'backend/storage/app/dil-inbox', naming: 'DIL_SALDO_MASK_UP_<YYYYMM>_<kode ULP>.mdb', mdbtools: true, needs_mdbtools: true, active: null, recent: [], history: [], unrecognised_files: [],
+      monitor: { units_total: 3, units_ok: 1, units_failed: 1, units_never: 1 },
+      units: [
+        { code: '51453', name: 'ULP Jombang', files: [file('51453')], customers: 195991, snapshot_month: '202609', last_result: { status: 'OK', at: '2026-11-15T12:00:00Z', rows: 195987 } },
+        { code: '51454', name: 'ULP Ngoro', files: [file('51454')], customers: 153305, snapshot_month: '202609', last_result: { status: 'FAILED', at: '2026-11-15T12:10:00Z', message: 'Kolom wajib tidak ada: IDPEL.' } },
+        { code: '51455', name: 'ULP Ploso', files: [], customers: 106550, snapshot_month: '202210', last_result: null },
+      ] } })
+    connectionsApi.syncStart.mockResolvedValue({ data: { id: 'run-1', status: 'QUEUED', files: [], results: [], rows_done: 0, units_total: 1, units_done: 0, bytes_total: 1, bytes_done: 0, started_by_name: 'Admin' } })
+    connectionsApi.syncRun.mockResolvedValue({ data: { id: 'run-1', status: 'RUNNING', files: [], results: [], rows_done: 1000, units_total: 1, units_done: 0, bytes_total: 1, bytes_done: 0 } })
 
     const { unmount } = renderPage()
     await screen.findByText('514530761001')
@@ -371,11 +377,20 @@ describe('Master Pelanggan Page (docs/81)', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Sinkron DIL' }))
     expect(await screen.findByText('Cara meletakkan berkas')).toBeInTheDocument()
     expect(screen.getAllByText(/backend\/storage\/app\/dil-inbox/).length).toBeGreaterThan(0)
-    expect(await screen.findByText('DIL_SALDO_MASK_UP_202603_51453.mdb')).toBeInTheDocument()
-    expect(screen.getByText('379 MB')).toBeInTheDocument()
+    expect(await screen.findByText('51453 · ULP Jombang')).toBeInTheDocument()
+    const monitor = screen.getByRole('region', { name: 'Ringkasan hasil sinkron' })
+    expect(within(monitor).getByText('Berhasil').nextSibling).toHaveTextContent('1')            // monitoring: loaded / failed / never
+    expect(screen.getByText('Kolom wajib tidak ada: IDPEL.')).toBeInTheDocument()               // the reason a unit failed is visible
+    expect(screen.getByLabelText('Sinkronkan 51455 · ULP Ploso')).toBeDisabled()                  // no file waiting for this unit
 
-    await userEvent.click(screen.getByRole('button', { name: /Mulai sinkron/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Kosongkan' }))
+    expect(screen.getByRole('button', { name: /Mulai sinkron \(0 ULP\)/ })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: /Pilih yang gagal/ }))              // retry only the failed unit
+    expect(screen.getByLabelText('Sinkronkan 51454 · ULP Ngoro')).toBeChecked()
+    expect(screen.getByLabelText('Sinkronkan 51453 · ULP Jombang')).not.toBeChecked()
+    await userEvent.click(screen.getByRole('button', { name: /Mulai sinkron \(1 ULP\)/ }))
     await waitFor(() => expect(connectionsApi.syncStart).toHaveBeenCalledTimes(1))
-    expect(await screen.findByText('Sedang berjalan')).toBeInTheDocument()
+    expect(connectionsApi.syncStart).toHaveBeenCalledWith({ units: ['51454'] })
+    expect(await screen.findByText(/Sinkron menunggu giliran/)).toBeInTheDocument()                 // the progress panel replaces the picker while the run goes
   })
 })

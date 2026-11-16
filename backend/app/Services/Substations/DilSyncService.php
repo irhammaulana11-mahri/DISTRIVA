@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Authorization\ApplicationAuthorizer;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process as SymfonyProcess;
@@ -86,18 +87,90 @@ class DilSyncService
     public function info(): array
     {
         $this->expireStale();
-        $recent = DB::table('dil_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->orderByDesc('r.created_at')->limit(5)->get(['r.*', 'u.name as started_by_name'])->map(fn ($r) => $this->present($r))->all();
+        $recent = DB::table('dil_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->orderByDesc('r.created_at')->limit(15)->get(['r.*', 'u.name as started_by_name'])->map(fn ($r) => $this->present($r))->all();
         $files = $this->files();
 
-        return ['inbox' => $this->inboxLabel(), 'files' => $files, 'mdbtools' => $this->mdbtoolsAvailable(), 'needs_mdbtools' => (bool) array_filter($files, fn ($f) => $f['kind'] === 'mdb'),
-            'accepted' => ['.mdb', '.csv'], 'naming' => 'DIL_SALDO_MASK_UP_<YYYYMM>_<kode ULP 5 digit>.mdb', 'active' => collect($recent)->first(fn ($r) => in_array($r['status'], ['QUEUED', 'RUNNING'], true)), 'recent' => $recent];
+        return ['inbox' => $this->inboxLabel(), 'files' => $files, 'mdbtools' => $this->mdbtoolsAvailable(), 'needs_mdbtools' => (bool) array_filter($files, fn ($f) => $f['kind'] === 'mdb'), 'units' => $this->units($files, $recent), 'unrecognised_files' => array_values(array_filter($files, fn ($f) => $f['ulp_code'] === null)),
+            'accepted' => ['.mdb', '.csv'], 'naming' => 'DIL_SALDO_MASK_UP_<YYYYMM>_<kode ULP 5 digit>.mdb', 'active' => collect($recent)->first(fn ($r) => in_array($r['status'], ['QUEUED', 'RUNNING'], true)), 'recent' => array_slice($recent, 0, 5), 'history' => array_map(fn ($r) => $this->summary($r), array_slice($recent, 0, 10)), 'monitor' => $this->monitor($recent)];
+    }
+
+    /**
+     * One line per run for the monitoring list.
+     *
+     * @param  array<string,mixed>  $run
+     * @return array<string,mixed>
+     */
+    private function summary(array $run): array
+    {
+        $ok = array_unique(array_map(fn ($x) => $x['ulp_code'] ?? '', array_filter($run['results'], fn ($x) => $x['status'] === 'OK')));
+        $bad = array_unique(array_map(fn ($x) => $x['ulp_code'] ?? '', array_filter($run['results'], fn ($x) => $x['status'] !== 'OK')));
+        $secs = $run['started_at'] !== null && $run['finished_at'] !== null ? (int) abs(Carbon::parse($run['finished_at'])->diffInSeconds(Carbon::parse($run['started_at']))) : null;
+
+        return ['id' => $run['id'], 'status' => $run['status'], 'started_at' => $run['started_at'] ?? $run['created_at'], 'finished_at' => $run['finished_at'], 'started_by_name' => $run['started_by_name'], 'rows' => $run['rows_done'],
+            'units_total' => $run['units_total'], 'units_ok' => count($ok), 'units_failed' => count($bad), 'seconds' => $secs, 'message' => $run['message'],
+            'failed' => array_values(array_map(fn ($x) => ['ulp_code' => $x['ulp_code'] ?? null, 'unit_name' => $x['unit_name'] ?? null, 'file' => $x['file'], 'message' => $x['message'] ?? null], array_filter($run['results'], fn ($x) => $x['status'] !== 'OK')))];
+    }
+
+    /**
+     * Monitoring numbers over the latest result of every unit: how many loaded, how many failed, how many never ran.
+     *
+     * @param  list<array<string,mixed>>  $recent
+     * @return array<string,int>
+     */
+    private function monitor(array $recent): array
+    {
+        $latest = [];
+        foreach (array_reverse($recent) as $run) {
+            foreach ($run['results'] as $r) {
+                isset($r['ulp_code']) && $latest[$r['ulp_code']] = $r['status'];
+            }
+        }
+        $units = DB::table('organizational_units')->where('unit_type', 'ULP')->where('is_active', true)->pluck('code')->all();
+        $ok = count(array_filter($units, fn ($c) => ($latest[$c] ?? null) === 'OK'));
+        $failed = count(array_filter($units, fn ($c) => isset($latest[$c]) && $latest[$c] !== 'OK'));
+
+        return ['units_total' => count($units), 'units_ok' => $ok, 'units_failed' => $failed, 'units_never' => count($units) - $ok - $failed];
+    }
+
+    /**
+     * One entry per ULP, like the warehouses of the MIMS pull: the file waiting in the inbox, how many customers the unit has, the month of its data, and what the latest run did to it.
+     *
+     * @param  list<array<string,mixed>>  $files
+     * @param  list<array<string,mixed>>  $recent  runs as presented (newest first)
+     * @return list<array<string,mixed>>
+     */
+    public function units(array $files, array $recent): array
+    {
+        $names = DB::table('organizational_units')->where('unit_type', 'ULP')->where('is_active', true)->orderBy('code')->pluck('name', 'code')->all();
+        foreach ($files as $f) {
+            $f['ulp_code'] !== null && ! isset($names[$f['ulp_code']]) && $names[$f['ulp_code']] = null;
+        }
+        foreach ($recent as $run) {
+            foreach ($run['results'] as $r) {
+                ($r['ulp_code'] ?? null) !== null && ! array_key_exists($r['ulp_code'], $names) && $names[$r['ulp_code']] = null;
+            }
+        }
+        $stats = DB::table('customer_connections as c')->join('organizational_units as u', 'u.id', '=', 'c.organizational_unit_id')->selectRaw('u.code, count(*) as n, max(c.snapshot_month) as month')->groupBy('u.code')->get()->keyBy('code');
+        $last = [];
+        foreach (array_reverse($recent) as $run) {                                  // oldest first, so the newest result per unit wins
+            foreach ($run['results'] as $r) {
+                isset($r['ulp_code']) && $last[$r['ulp_code']] = ['status' => $r['status'], 'at' => $run['finished_at'] ?? $run['started_at'], 'rows' => $r['rows'] ?? 0, 'message' => $r['message'] ?? null];
+            }
+        }
+        ksort($names);
+
+        return array_map(fn ($code, $name) => ['code' => (string) $code, 'name' => $name, 'files' => array_values(array_filter($files, fn ($f) => $f['ulp_code'] === (string) $code)),
+            'customers' => (int) ($stats[$code]->n ?? 0), 'snapshot_month' => $stats[$code]->month ?? null, 'last_result' => $last[(string) $code] ?? null], array_keys($names), array_values($names));
     }
 
     /** Registers a run for the files now in the inbox and starts the detached process. */
-    public function start(User $actor): string
+    public function start(User $actor, ?array $units = null): string
     {
         $this->expireStale();
         $files = $this->files();
+        if ($units !== null) {                                                      // a loop over the chosen units only; the other files stay in the inbox
+            $files = array_values(array_filter($files, fn ($f) => $f['ulp_code'] !== null && in_array($f['ulp_code'], $units, true)));
+        }
         if ($files === []) {
             throw new AssignmentRuleViolation('Belum ada berkas DIL (.mdb atau .csv) di folder '.$this->inboxLabel().'.');
         }
@@ -109,7 +182,7 @@ class DilSyncService
             if (DB::table('dil_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->lockForUpdate()->exists()) {
                 throw new AssignmentRuleViolation('Masih ada sinkron DIL yang berjalan; tunggu sampai selesai.');
             }
-            DB::table('dil_sync_runs')->insert(['id' => $id, 'status' => 'QUEUED', 'files' => json_encode(array_map(fn ($f) => ['name' => $f['name'], 'size' => $f['size']], $files)), 'started_by' => $actor->getKey(), 'created_at' => now()]);
+            DB::table('dil_sync_runs')->insert(['id' => $id, 'status' => 'QUEUED', 'files' => json_encode(array_map(fn ($f) => ['name' => $f['name'], 'size' => $f['size'], 'ulp_code' => $f['ulp_code']], $files)), 'started_by' => $actor->getKey(), 'created_at' => now()]);
         });
         if (config('distriva.dil.detach')) {
             $cmd = sprintf('nohup %s artisan distriva:dil-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($id));
@@ -133,20 +206,25 @@ class DilSyncService
             $actor = User::query()->findOrFail($run->started_by);
             $scope = $this->authorizer->authorizeScope($actor, 'customers.import');
             $present = collect($this->files())->keyBy('name');
-            foreach (json_decode((string) $run->files, true) as $f) {
+            $names = DB::table('organizational_units')->where('unit_type', 'ULP')->pluck('name', 'code')->all();
+            $queue = json_decode((string) $run->files, true);
+            usort($queue, fn ($a, $b) => [$a['ulp_code'] ?? 'zzzzz', $a['name']] <=> [$b['ulp_code'] ?? 'zzzzz', $b['name']]);
+            foreach ($queue as $f) {
                 $file = $present[$f['name']] ?? null;
+                $meta = ['ulp_code' => $f['ulp_code'] ?? null, 'unit_name' => $names[$f['ulp_code'] ?? ''] ?? null, 'size' => $f['size'] ?? 0];
+                $began = microtime(true);
                 DB::table('dil_sync_runs')->where('id', $runId)->update(['current_file' => $f['name']]);
                 if ($file === null) {
-                    $results[] = ['file' => $f['name'], 'status' => 'FAILED', 'rows' => 0, 'message' => 'Berkas sudah tidak ada di folder.'];
+                    $results[] = ['file' => $f['name'], 'status' => 'FAILED', 'rows' => 0, 'message' => 'Berkas sudah tidak ada di folder.'] + $meta;
 
                     continue;
                 }
                 try {
                     $r = $this->loadFile($file, $actor, $scope, $runId, $rows);
-                    $results[] = ['file' => $f['name'], 'status' => 'OK', 'rows' => $r['rows'], 'counts' => $r['counts'], 'message' => null];
+                    $results[] = ['file' => $f['name'], 'status' => 'OK', 'rows' => $r['rows'], 'counts' => $r['counts'], 'message' => null, 'seconds' => (int) round(microtime(true) - $began)] + $meta;
                     $this->archive($f['name']);
                 } catch (Throwable $e) {
-                    $results[] = ['file' => $f['name'], 'status' => 'FAILED', 'rows' => 0, 'message' => Str::limit($e instanceof AssignmentRuleViolation || $e instanceof AdministrationDenied ? $e->getMessage() : 'Gagal membaca berkas: '.class_basename($e), 200, '…')];
+                    $results[] = ['file' => $f['name'], 'status' => 'FAILED', 'rows' => 0, 'message' => Str::limit($e instanceof AssignmentRuleViolation || $e instanceof AdministrationDenied ? $e->getMessage() : 'Gagal membaca berkas: '.class_basename($e), 200, '…'), 'seconds' => (int) round(microtime(true) - $began)] + $meta;
                 }
                 DB::table('dil_sync_runs')->where('id', $runId)->update(['results' => json_encode($results), 'rows_done' => $rows]);
             }
@@ -293,8 +371,17 @@ class DilSyncService
     private function present(object $r): array
     {
         $files = json_decode((string) $r->files, true) ?? [];
+        $results = json_decode((string) $r->results, true) ?? [];
+        $units = array_values(array_unique(array_map(fn ($f) => $f['ulp_code'] ?? '', $files)));
+        $doneUnits = array_values(array_unique(array_map(fn ($x) => $x['ulp_code'] ?? '', $results)));
+        $bytesTotal = array_sum(array_column($files, 'size'));
+        $bytesDone = array_sum(array_column($results, 'size'));
+        $elapsed = $r->started_at !== null ? max(0, now()->diffInSeconds(Carbon::parse($r->started_at), true)) : 0;
+        $running = in_array($r->status, ['QUEUED', 'RUNNING'], true);
 
-        return ['id' => $r->id, 'status' => $r->status, 'files' => $files, 'results' => json_decode((string) $r->results, true) ?? [], 'current_file' => $r->current_file, 'rows_done' => (int) $r->rows_done,
-            'bytes_total' => array_sum(array_column($files, 'size')), 'message' => $r->message, 'started_by_name' => $r->started_by_name ?? null, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at];
+        return ['id' => $r->id, 'status' => $r->status, 'files' => $files, 'results' => $results, 'current_file' => $r->current_file, 'rows_done' => (int) $r->rows_done,
+            'bytes_total' => $bytesTotal, 'bytes_done' => $bytesDone, 'units_total' => count($units), 'units_done' => count($doneUnits),
+            'eta_seconds' => $running && $bytesDone > 0 && $bytesTotal > $bytesDone ? (int) round($elapsed * ($bytesTotal - $bytesDone) / $bytesDone) : null,
+            'message' => $r->message, 'started_by_name' => $r->started_by_name ?? null, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at];
     }
 }

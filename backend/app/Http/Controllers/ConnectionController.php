@@ -90,7 +90,8 @@ class ConnectionController extends Controller
     public function syncStart(Request $request): JsonResponse
     {
         $this->write($request, 'customers.import');
-        $id = $this->dilSync->start($request->user());
+        $d = Validator::make($request->all(), ['units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']])->validate();
+        $id = $this->dilSync->start($request->user(), $d['units'] ?? null);
 
         return response()->json(['data' => $this->dilSync->show($id), 'message' => 'Sinkron DIL dimulai di latar belakang.'], 202);
     }
