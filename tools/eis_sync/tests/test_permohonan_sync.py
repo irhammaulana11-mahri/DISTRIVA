@@ -690,6 +690,20 @@ class UnitSelectionTest(unittest.TestCase):
                 ph.set_unit(None, [])
 
 
+class RealUnitPageTest(unittest.TestCase):
+    """The answer EIS gave for unit 51450 (tools/samples/mohondetil.aspx, saved by hand from the browser, 16 Nov 2026). It holds customer data, so it is NOT part of the repository: the test only runs where the file exists."""
+    PATH = Path(__file__).resolve().parents[2] / "samples" / "mohondetil.aspx"
+    KNOWN = ["51450", "51452", "51453", "51454", "51455", "51456", "51457", "51458", "51459", "51460"]
+
+    @unittest.skipUnless(PATH.is_file(), "tools/samples/mohondetil.aspx tidak ada")
+    def test_a_table_filtered_by_the_unit_is_recognised_and_another_unit_is_refused(self):
+        html = self.PATH.read_text(encoding="utf-8", errors="replace")
+        self.assertEqual(ph.pager(html), (1, 23, 230))                                            # 230 items for this unit and range
+        self.assertIn("UNITTUJUAN", ph.titles(html))
+        self.assertEqual(ph.unit_check(html, "51450", self.KNOWN), "ok")                         # every row of the first page belongs to 51450
+        self.assertEqual(ph.unit_check(html, "51453", self.KNOWN), "mismatch")
+
+
 class PerUnitSyncTest(unittest.TestCase):
     def test_units_are_processed_one_after_another_a_failure_does_not_stop_the_rest_and_the_session_returns_to_all_units(self):
         import main as eis_main
