@@ -676,14 +676,17 @@ class UnitSelectionTest(unittest.TestCase):
         ph.select_unit(session, ph.ALL_UNITS)                                                          # back to every unit: the cookie says SEMUA
         self.assertEqual(session.post.call_args.kwargs["data"]["cboUP_SelIndex"], "0")
 
-    def test_the_table_is_checked_against_the_chosen_unit(self):
+    def test_the_table_is_checked_against_the_chosen_unit_and_a_few_rows_of_another_unit_are_normal(self):
         known = ["51450", "51453", "51460"]
-        self.assertEqual(ph.unit_check(grid("51453", "51453"), "51453", known), "ok")
-        self.assertEqual(ph.unit_check(grid("51453", "51460"), "51453", known), "mismatch")        # another unit in the table: the filter did not apply
-        self.assertEqual(ph.unit_check(grid("51453 - JOMBANG"), "51453", known), "ok")
-        self.assertEqual(ph.unit_check(grid("JOMBANG"), "51453", known), "unknown")                  # no known code in the cell: no conclusion
-        self.assertEqual(ph.unit_check(grid("51453", columns=("A", "B")), "51453", known), "unknown")
-        self.assertEqual(ph.unit_check(grid("51453"), ph.ALL_UNITS, known), "unknown")
+        self.assertEqual(ph.unit_check(grid(*["51453"] * 6), "51453", known), "ok")
+        self.assertEqual(ph.unit_check(grid(*["51453"] * 7, "51460", "51450", "51460"), "51453", known), "ok")          # filtered by entry unit: some applications go to another unit
+        self.assertEqual(ph.unit_check(grid("51453", "51460", "51450", "51450", "51460", "51460", "51450", "51453"), "51453", known), "mismatch")   # not filtered: every unit appears
+        self.assertEqual(ph.unit_check(grid(*["51460"] * 6), "51453", known), "mismatch")
+        self.assertEqual(ph.unit_check(grid("51453 - JOMBANG", *["51453"] * 5), "51453", known), "ok")
+        self.assertEqual(ph.unit_check(grid("51453", "51460"), "51453", known), "unknown")                                # too few rows to say
+        self.assertEqual(ph.unit_check(grid(*["JOMBANG"] * 6), "51453", known), "unknown")                                # no known code in the cells
+        self.assertEqual(ph.unit_check(grid(*["51453"] * 6, columns=("A", "B")), "51453", known), "unknown")
+        self.assertEqual(ph.unit_check(grid(*["51453"] * 6), ph.ALL_UNITS, known), "unknown")
 
     def test_load_chooses_the_unit_first_every_time_and_refuses_a_table_of_another_unit(self):
         calls = []
@@ -692,12 +695,12 @@ class UnitSelectionTest(unittest.TestCase):
         session.get.side_effect = lambda *a, **k: (calls.append("get"), HttpResp(form))[1]
         with mock.patch.object(ph, "select_unit", side_effect=lambda s, c: calls.append(f"unit {c}")), \
                 mock.patch.object(ph, "applied_dates", return_value=(date(2026, 11, 10), date(2026, 11, 10))), mock.patch.object(ph, "pager", return_value=(1, 1, 3)):
-            session.post.return_value = HttpResp(grid("51453", "51453"))
+            session.post.return_value = HttpResp(grid(*["51453"] * 6))
             ph.set_unit("51453", ["51453", "51460"])
             try:
                 ph.load(session, date(2026, 11, 10), date(2026, 11, 10), "SEMUA")
                 self.assertEqual(calls[:2], ["unit 51453", "get"])
-                session.post.return_value = HttpResp(grid("51453", "51460"))
+                session.post.return_value = HttpResp(grid("51460", "51460", "51450", "51460", "51450", "51460"))
                 with self.assertRaises(ph.EISRequestError):
                     ph.load(session, date(2026, 11, 10), date(2026, 11, 10), "SEMUA")
             finally:

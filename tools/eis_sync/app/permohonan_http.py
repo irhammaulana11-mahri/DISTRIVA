@@ -361,7 +361,10 @@ def select_unit(session: requests.Session, code: str, timeout=(20, 60)) -> None:
 
 
 def unit_check(html: str, code: str, known: list[str]) -> str:
-    """After a unit was chosen: 'ok' when the unit column of the first page only holds that unit, 'mismatch' when it holds another known unit, 'unknown' when the column cannot be located (then nothing is concluded)."""
+    """After a unit was chosen, judge the unit column (UNITTUJUAN) of the first page of the table:
+    'ok' when at least half of the rows that name a known unit name the chosen one, 'mismatch' when fewer do, 'unknown' when there is too little to say (the column is missing, the layout is not
+    understood, or fewer than 4 rows name a known unit). A few rows of another unit are NORMAL: EIS filters by the unit of entry, and an application can be addressed to another unit
+    (seen in a real run: window 1 of unit 51450 was all 51450, window 2 had some others). A table that was not filtered shows every unit, so the chosen one is a small minority."""
     if code == ALL_UNITS or not known:
         return "unknown"
     soup = BeautifulSoup(html, "html.parser")
@@ -372,16 +375,19 @@ def unit_check(html: str, code: str, known: list[str]) -> str:
     at = next((i for i, t in enumerate(cells) if re.sub(r"[^A-Z]", "", t.upper()) == "UNITTUJUAN"), None)
     if at is None:
         return "unknown"
-    seen = set()
+    own = other = 0
     for row in soup.find_all("tr", id=re.compile(r"DXDataRow\d+$")):
         data = row.find_all("td", recursive=False)
         if len(data) != len(cells):
             return "unknown"                                   # a layout this check does not understand: no conclusion
         text = data[at].get_text(" ", strip=True)
-        seen.update(k for k in known if k in text)
-    if not seen:
+        if code in text:
+            own += 1
+        elif any(k in text for k in known):
+            other += 1
+    if own + other < 4:
         return "unknown"
-    return "ok" if seen <= {code} else "mismatch"
+    return "ok" if own * 2 >= own + other else "mismatch"
 
 
 def load(
@@ -439,7 +445,7 @@ def load(
         )
 
     if _UNIT["code"] not in (None, ALL_UNITS) and unit_check(result_html, _UNIT["code"], _UNIT["known"]) == "mismatch":
-        raise EISRequestError(f"EIS tidak menerapkan pilihan unit {_UNIT['code']}: tabel memuat unit lain. Berhenti agar data unit lain tidak ikut terunggah.")
+        raise EISRequestError(f"EIS tampaknya tidak menerapkan pilihan unit {_UNIT['code']}: sebagian besar baris halaman 1 bertujuan ke unit lain. Berhenti agar data unit lain tidak ikut terunggah.")
     return url, result_html, state
 
 
