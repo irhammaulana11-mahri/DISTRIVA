@@ -26,7 +26,7 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Simpan Pengaturan' }))
     await waitFor(() => expect(eisSyncApi.save).toHaveBeenCalledWith({ eis_username: 'petugas.eis', eis_password: '', power_min: 0, power_max: 6600, lookback_days: 180, auto_enabled: true, auto_time: '19:30' }))
     expect(await screen.findByText('Pengaturan disimpan.')).toBeInTheDocument()
-    expect(screen.getByText('Otomatis')).toBeInTheDocument()                             // riwayat
+    expect(screen.queryByText('Riwayat Sinkronisasi')).not.toBeInTheDocument()            // riwayat sesi pindah ke tab di halaman PB/PD
   })
 
   it('tombol Sinkronkan Sekarang memulai proses, mengikuti log sampai selesai, lalu menyegarkan daftar', async () => {
@@ -52,7 +52,6 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     const group = await screen.findByRole('group', { name: 'Unit yang disinkronkan' })
     expect(group).toHaveTextContent('(3 dari 3, diproses berurutan dari atas)')
     expect(screen.getByLabelText('Sinkronkan 51453 ULP Jombang')).toBeChecked()               // semua unit dipilih bawaan
-    expect(screen.getByText('51453, 51454')).toBeInTheDocument()                               // riwayat: unit yang dipakai run itu
 
     await userEvent.click(screen.getByRole('button', { name: 'Kosongkan' }))
     expect(screen.getByRole('button', { name: 'Sinkronkan Sekarang' })).toBeDisabled()          // tanpa unit tidak ada yang disinkronkan

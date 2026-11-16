@@ -39,6 +39,7 @@ vi.mock('../services/api.js', () => ({
   },
   applicationApi: {
     access: vi.fn(),
+    units: vi.fn().mockResolvedValue({ scope: 'GLOBAL', up3_units: [], ulp_units: [] }),
     list: vi.fn(),
     get: vi.fn(),
     create: vi.fn(),

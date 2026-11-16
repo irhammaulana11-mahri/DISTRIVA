@@ -19,7 +19,8 @@ import ApplicationKkoPanel from './ApplicationKkoPanel.jsx'
 import ApplicationAllocationPanel from './ApplicationAllocationPanel.jsx'
 import ApplicationWorkOrdersPanel from './ApplicationWorkOrdersPanel.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
-import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import SearchSelect from '../../components/SearchSelect.jsx'
+import EisRunHistory from './EisRunHistory.jsx'
 import { AuthenticatedDocumentItem } from '../../components/DocumentGallery.jsx'
 import {
   IconSearch,
@@ -94,7 +95,7 @@ export function formatTariffPower(tariffCode, powerVal, powerUnit) {
 }
 
 export default function ApplicationsPage() {
-  const { can, canWrite, createUnits, isSysAdmin } = useAccess()
+  const { can, canWrite, isSysAdmin } = useAccess()
   const { notify } = useNotifications()
   const searchInputRef = useRef(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -109,8 +110,9 @@ export default function ApplicationsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [up3Filter, setUp3Filter] = useState('')
   const [unitFilter, setUnitFilter] = useState('')
-  const [lifecycleFilter, setLifecycleFilter] = useState('active') // 'active' | 'history' | 'all'
-  const [readyToInstallFilter, setReadyToInstallFilter] = useState(false)
+  const [monthFilter, setMonthFilter] = useState('')   // 'YYYY-MM'
+  const [tab, setTab] = useState('permohonan')           // 'permohonan' | 'eis'
+  const [unitInfo, setUnitInfo] = useState({ scope: '', up3_units: [], ulp_units: [] })
   // Daya: tampilan awal hanya 3 fasa (>= 6.600 VA, keputusan pemilik 8 Nov 2026); 'all' menampilkan semua daya. Pilihan diingat per browser. Hanya mempengaruhi tampilan, bukan data yang disimpan.
   const [powerFilter, setPowerFilter] = useState(() => {
     try { return localStorage.getItem('distriva.pbpd.power') === 'all' ? 'all' : '3phase' } catch { return '3phase' }
@@ -145,6 +147,22 @@ export default function ApplicationsPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // UP3/ULP choices by role: global (sys admin) picks freely; others see their own unit(s) only.
+  useEffect(() => {
+    let live = true
+    Promise.resolve(applicationApi.units()).then((d) => { if (live && d) setUnitInfo({ scope: d.scope || '', up3_units: d.up3_units || [], ulp_units: d.ulp_units || [] }) }).catch(() => {})
+    return () => { live = false }
+  }, [])
+  const isGlobal = unitInfo.scope === 'GLOBAL'
+  const up3Locked = !isGlobal && unitInfo.up3_units.length === 1
+  const up3Value = up3Locked ? unitInfo.up3_units[0].id : up3Filter
+  const unitLabel = (u) => (u.code ? `${u.code} - ${u.name}` : u.name)
+  const up3Options = useMemo(() => [...(up3Locked ? [] : [{ value: '', label: 'Semua UP3' }]), ...unitInfo.up3_units.map((u) => ({ value: u.id, label: unitLabel(u) }))], [unitInfo, up3Locked])
+  const ulpChoices = useMemo(() => unitInfo.ulp_units.filter((u) => !up3Value || String(u.parent_id) === String(up3Value)), [unitInfo, up3Value])
+  const ulpLocked = !isGlobal && unitInfo.scope === 'ULP' && ulpChoices.length === 1
+  const ulpValue = ulpLocked ? ulpChoices[0].id : unitFilter
+  const ulpOptions = useMemo(() => [...(ulpLocked ? [] : [{ value: '', label: 'Semua ULP' }]), ...ulpChoices.map((u) => ({ value: u.id, label: unitLabel(u) }))], [ulpChoices, ulpLocked])
+
   // Load applications list
   const loadApplications = useCallback(() => {
     setState((s) => ({ ...s, loading: true, error: '' }))
@@ -154,16 +172,16 @@ export default function ApplicationsPage() {
       search: debouncedSearch || undefined,
       type: typeFilter || undefined,
       status: statusFilter || undefined,
-      unit_id: unitFilter || undefined,
+      unit_id: ulpValue || undefined,
+      up3_id: up3Value || undefined,
+      month: monthFilter || undefined,
       listing: 'pbpd',
-      lifecycle: lifecycleFilter === 'all' || statusFilter ? undefined : lifecycleFilter, // a chosen status is shown whatever the Aktif/Riwayat tab says (Peremajaan is in Riwayat)
-      ready_to_install: readyToInstallFilter ? 1 : undefined,
       min_va: powerFilter === '3phase' ? 6600 : undefined,
     }
     applicationApi.list(params)
       .then((d) => setState({ loading: false, error: '', rows: d.data ?? [], meta: d.meta }))
       .catch((e) => setState({ loading: false, error: e.message || 'Gagal memuat data permohonan.', rows: [], meta: null }))
-  }, [page, perPage, debouncedSearch, typeFilter, statusFilter, unitFilter, lifecycleFilter, readyToInstallFilter, powerFilter])
+  }, [page, perPage, debouncedSearch, typeFilter, statusFilter, ulpValue, up3Value, monthFilter, powerFilter])
 
   useEffect(() => {
     loadApplications()
@@ -302,6 +320,23 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
+      <div role="tablist" aria-label="Tampilan PB/PD" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
+        {[['permohonan', 'Permohonan'], ...(can['eis_sync.manage'] ? [['eis', 'Riwayat Sinkronisasi EIS']] : [])].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${tab === id ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'eis' && can['eis_sync.manage'] && <EisRunHistory />}
+      {tab === 'permohonan' && (
       <>
         {/* Main Standardized Table Card */}
           <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
@@ -325,43 +360,6 @@ export default function ApplicationsPage() {
                 /
               </span>
             </span>
-          </div>
-
-          {/* Lifecycle Segment Filter */}
-          <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 shrink-0">
-            <button
-              type="button"
-              onClick={() => { setLifecycleFilter('active'); setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                lifecycleFilter === 'active'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Aktif
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLifecycleFilter('history'); setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                lifecycleFilter === 'history'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Riwayat
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLifecycleFilter('all'); setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                lifecycleFilter === 'all'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Semua
-            </button>
           </div>
 
           {/* Type Filter */}
@@ -417,51 +415,48 @@ export default function ApplicationsPage() {
             </select>
           </div>
 
-          {/* Unit Filter (Hierarchical UP3 -> ULP) */}
-          <div className="flex flex-wrap items-center gap-2">
-            <HierarchicalUnitFilter
-              units={createUnits}
-              up3Id={up3Filter}
-              onUp3Change={(newUp3) => {
-                setUp3Filter(newUp3)
-                setPage(1)
-              }}
-              unitId={unitFilter}
-              onUnitChange={(newUnit) => {
-                setUnitFilter(newUnit)
-                setPage(1)
-              }}
-              allUp3Label="Semua UP3"
-              allUnitLabel="Semua Unit ULP"
-              up3AriaLabel="Filter Unit UP3"
-              unitAriaLabel="Filter Unit ULP"
-              selectClassName="px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer"
+          {/* UP3 -> ULP: sys admin memilih bebas; role lain hanya unitnya sendiri (UP3: semua ULP di bawahnya) */}
+          <div className="min-w-[170px]">
+            <SearchSelect
+              ariaLabel="Filter Unit UP3"
+              options={up3Options}
+              value={up3Value}
+              disabled={up3Locked}
+              onChange={(v) => { setUp3Filter(v); setUnitFilter(''); setPage(1) }}
+              placeholder="Cari UP3…"
+            />
+          </div>
+          <div className="min-w-[170px]">
+            <SearchSelect
+              ariaLabel="Filter Unit ULP"
+              options={ulpOptions}
+              value={ulpValue}
+              disabled={ulpLocked}
+              onChange={(v) => { setUnitFilter(v); setPage(1) }}
+              placeholder="Cari ULP…"
             />
           </div>
 
-          {/* Filter Siap Pasang */}
-          <div>
-            <button
-              type="button"
-              onClick={() => {
-                setReadyToInstallFilter((prev) => !prev)
-                setPage(1)
-              }}
-              aria-pressed={readyToInstallFilter}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl border transition-all cursor-pointer ${
-                readyToInstallFilter
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
-                  : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${readyToInstallFilter ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-              <span>Siap Pasang</span>
-            </button>
+          {/* Bulan & tahun (tanggal pada kolom Tgl. Update EIS) */}
+          <div className="flex items-center gap-1">
+            <input
+              type="month"
+              value={monthFilter}
+              onChange={(e) => { setMonthFilter(e.target.value); setPage(1) }}
+              aria-label="Filter Bulan dan Tahun"
+              title="Bulan dan tahun pada kolom Tgl. Update EIS"
+              className="px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 outline-none"
+            />
+            {monthFilter && (
+              <button type="button" onClick={() => { setMonthFilter(''); setPage(1) }} aria-label="Hapus filter bulan" className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
+                <IconX size={14} />
+              </button>
+            )}
           </div>
 
           {/* Reset & Refresh */}
           <div className="flex items-center gap-2 self-end lg:self-auto">
-            {(search || typeFilter || statusFilter || up3Filter || unitFilter || readyToInstallFilter) && (
+            {(search || typeFilter || statusFilter || monthFilter || (!up3Locked && up3Filter) || (!ulpLocked && unitFilter)) && (
               <button
                 type="button"
                 onClick={() => {
@@ -470,7 +465,7 @@ export default function ApplicationsPage() {
                   setStatusFilter('')
                   setUp3Filter('')
                   setUnitFilter('')
-                  setReadyToInstallFilter(false)
+                  setMonthFilter('')
                   setPage(1)
                 }}
                 className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline px-1 cursor-pointer"
@@ -498,14 +493,11 @@ export default function ApplicationsPage() {
           {!state.loading && !state.error && state.rows.length === 0 && (
             <EmptyState
               icon={IconFileText}
-              title={lifecycleFilter === 'active' ? 'Tidak ada permohonan aktif' : 'Belum ada permohonan di ULP Anda'}
-              description={
-                lifecycleFilter === 'active'
-                  ? 'Lihat tab Riwayat untuk permohonan yang sudah selesai atau dibatalkan.'
-                  : 'Belum ada agenda permohonan penyambungan (PB/PD) terdaftar di ULP Anda. Sinkronisasi EIS memuat pelanggan semua daya dan semua status.'
-              }
+              title="Tidak ada permohonan"
+              description="Tidak ada permohonan penyambungan (PB/PD) untuk filter yang dipilih. Sinkronisasi EIS memuat pelanggan semua daya dan semua status."
+
               action={
-                lifecycleFilter !== 'active' && (can['applications.create'] || can['applications.import']) ? (
+                (can['applications.create'] || can['applications.import']) ? (
                   <div className="flex items-center justify-center gap-3">
                     {can['applications.create'] && (
                       <button
@@ -895,6 +887,7 @@ export default function ApplicationsPage() {
         </div>
       </div>
       </>
+      )}
 
       {/* Drawer: Formulir Permohonan Baru */}
       {/* Laci: pratinjau Permohonan (baca-saja); pekerjaan yang mengubah data ada di halaman /permohonan/:id */}

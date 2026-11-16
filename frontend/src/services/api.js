@@ -719,6 +719,7 @@ export const proposalsApi = {
 
 export const applicationApi = {
   access: () => request('/applications/access'),
+  units: () => request('/applications/units'),
   list: (params) => request(`/applications${qs(params)}`),
   get: (id) => request(`/applications/${id}`),
   create: (body) => request('/applications', { method: 'POST', body }),

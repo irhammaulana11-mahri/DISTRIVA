@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { applicationApi, drawingApi } from '../../services/api.js'
+import { applicationApi, drawingApi, eisSyncApi } from '../../services/api.js'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import ApplicationsPage from './ApplicationsPage.jsx'
 import { ApplicationCreatePage, ApplicationDetailPage, ApplicationImportPage, EisSyncPage } from './ApplicationPages.jsx'
@@ -37,6 +37,7 @@ vi.mock('../../features/admin/AccessContext.jsx', () => ({
 vi.mock('../../services/api.js', () => ({
   eisSyncApi: { show: vi.fn().mockResolvedValue({ data: { settings: { eis_username: 'u', has_password: true, power_min: 0, power_max: 99999999, lookback_days: 180, auto_enabled: false, auto_time: '18:13' }, runs: [] } }), save: vi.fn(), start: vi.fn(), run: vi.fn() },
   applicationApi: {
+    units: vi.fn().mockResolvedValue({ scope: 'GLOBAL', up3_units: [{ id: 'up1', code: '51400', name: 'UP3 Nganjuk' }, { id: 'up2', code: '51500', name: 'UP3 Lain' }], ulp_units: [{ id: 'u1', code: '51453', name: 'ULP Jombang', parent_id: 'up1' }, { id: 'u2', code: '51454', name: 'ULP Mojoagung', parent_id: 'up1' }, { id: 'u3', code: '51501', name: 'ULP Lain', parent_id: 'up2' }] }),
     list: vi.fn(),
     get: vi.fn(),
     create: vi.fn(),
@@ -442,13 +443,6 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     // 2. Empty state displays both buttons and EIS scope explanation
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
     const { unmount: unmountEmpty } = renderApp()
-    expect(await screen.findByText(/Tidak ada permohonan aktif/i)).toBeInTheDocument()
-
-    // Switch to "Riwayat" to see the full empty state with buttons
-    const historyBtn = screen.getByRole('button', { name: 'Riwayat' })
-    applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
-    await userEvent.click(historyBtn)
-
     expect(await screen.findByText(/Sinkronisasi EIS memuat pelanggan semua daya dan semua status/i)).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /^Permohonan Baru$/i }).length).toBeGreaterThan(0)
     unmountEmpty()
@@ -465,10 +459,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     mockCan = { ...mockCan, 'applications.create': false, 'applications.import': false }
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
     renderApp()
-    const allBtn = screen.getByRole('button', { name: 'Semua' })
-    applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
-    await userEvent.click(allBtn)
-    expect(await screen.findByText(/Belum ada permohonan di ULP Anda/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Tidak ada permohonan penyambungan/i)).toBeInTheDocument()
   })
 
   it('3. Chip "Belum ada IDPEL/No. Agenda/No. Register" muncul bila kosong, "Lengkapi" mengirim endpoint yang benar dan chip hilang; 409 server tampil verbatim', async () => {
@@ -756,23 +747,50 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     expect(badge).toHaveAttribute('title', 'Survei tanpa perluasan telah diterima; status selanjutnya mengikuti data EIS')
   })
 
-  it('9. Filter Siap Pasang mengirim ready_to_install=1 ke server (docs/82 §3)', async () => {
-    applicationApi.list.mockResolvedValue({
-      data: sampleApps,
-      meta: { current_page: 1, per_page: 20, total: 2 },
-    })
-
+  it('9. Filter disederhanakan: tanpa tab Aktif/Riwayat dan tanpa Siap Pasang; UP3 menyaring ULP; bulan-tahun dikirim ke server', async () => {
+    applicationApi.list.mockResolvedValue({ data: sampleApps, meta: { current_page: 1, per_page: 20, total: 2 } })
     renderApp()
-
     await screen.findByText('APP-202611-0001')
-    const filterBtn = screen.getByRole('button', { name: /Siap Pasang/i })
-    await userEvent.click(filterBtn)
 
-    await waitFor(() => {
-      const calls = applicationApi.list.mock.calls
-      const lastCall = calls[calls.length - 1][0]
-      expect(lastCall.ready_to_install).toBe(1)
-    })
+    expect(screen.queryByRole('button', { name: 'Aktif' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Riwayat' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Siap Pasang/i })).not.toBeInTheDocument()
+    expect(applicationApi.list).toHaveBeenLastCalledWith(expect.not.objectContaining({ lifecycle: expect.anything() }))
+
+    await userEvent.click(screen.getByLabelText('Filter Unit UP3'))
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Nganjuk/ }))
+    await waitFor(() => expect(applicationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up1' })))
+
+    await userEvent.click(screen.getByLabelText('Filter Unit ULP'))
+    expect(screen.queryByRole('option', { name: /ULP Lain/ })).not.toBeInTheDocument()          // ULP milik UP3 lain tidak ditawarkan
+    await userEvent.click(await screen.findByRole('option', { name: /ULP Jombang/ }))
+    await waitFor(() => expect(applicationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up1', unit_id: 'u1' })))
+
+    fireEvent.change(screen.getByLabelText('Filter Bulan dan Tahun'), { target: { value: '2026-03' } })
+    await waitFor(() => expect(applicationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ month: '2026-03' })))
+  })
+
+  it('role non-global melihat UP3 dan ULP unitnya saja dan tidak bisa mengubahnya', async () => {
+    applicationApi.units.mockResolvedValueOnce({ scope: 'ULP', up3_units: [{ id: 'up1', code: '51400', name: 'UP3 Nganjuk' }], ulp_units: [{ id: 'u1', code: '51453', name: 'ULP Jombang', parent_id: 'up1' }] })
+    applicationApi.list.mockResolvedValue({ data: sampleApps, meta: { current_page: 1, per_page: 20, total: 2 } })
+    renderApp()
+    await screen.findByText('APP-202611-0001')
+    await waitFor(() => expect(screen.getByLabelText('Filter Unit UP3')).toBeDisabled())
+    expect(screen.getByLabelText('Filter Unit UP3')).toHaveValue('51400 - UP3 Nganjuk')
+    expect(screen.getByLabelText('Filter Unit ULP')).toBeDisabled()
+    expect(screen.getByLabelText('Filter Unit ULP')).toHaveValue('51453 - ULP Jombang')
+  })
+
+  it('riwayat sinkronisasi EIS punya tab sendiri di halaman PB/PD', async () => {
+    mockCan = { ...mockCan, 'eis_sync.manage': true }
+    applicationApi.list.mockResolvedValue({ data: sampleApps, meta: { current_page: 1, per_page: 20, total: 2 } })
+    eisSyncApi.show.mockResolvedValueOnce({ data: { settings: { lookback_days: 180 }, runs: [{ id: 'r1', status: 'OK', trigger: 'MANUAL', created_at: '2026-11-16T14:00:00Z', range_from: '2026-01-01', range_to: '2026-03-31', units: ['51453'], started_by: 'admin@distriva.com' }] } })
+    renderApp()
+    await screen.findByText('APP-202611-0001')
+    await userEvent.click(screen.getByRole('tab', { name: 'Riwayat Sinkronisasi EIS' }))
+    expect(await screen.findByText('2026-01-01 s/d 2026-03-31')).toBeInTheDocument()
+    expect(screen.getByText('Selesai')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Filter Tipe Permohonan')).not.toBeInTheDocument()
   })
 
   it('10. Detail permohonan menampilkan rincian lama hari layanan per tanggal dan ringkasan survei (docs/82 §3)', async () => {

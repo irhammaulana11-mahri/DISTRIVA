@@ -13,7 +13,6 @@ import {
   IconEyeOff,
   IconClock,
   IconCalendar,
-  IconClipboard,
   IconX,
 } from '../../components/icons.jsx'
 
@@ -58,8 +57,6 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [selectedLogRun, setSelectedLogRun] = useState(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const timer = useRef(null)
   const logRef = useRef(null)
@@ -171,13 +168,6 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
     } finally {
       setStarting(false)
     }
-  }
-
-  const handleCopyLog = (text) => {
-    if (!text) return
-    navigator.clipboard?.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
   }
 
   const running = current && ['QUEUED', 'RUNNING'].includes(current.status)
@@ -493,7 +483,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
             </div>
           </Modal>
 
-          {/* BAGIAN BAWAH: KPI Ringkasan & Tabel Riwayat Sinkronisasi */}
+          {/* BAGIAN BAWAH: KPI Ringkasan (riwayat sesi ada di tab "Riwayat Sinkronisasi EIS" halaman PB/PD) */}
           <div className="space-y-4 pt-2">
             {/* Kartu Ringkasan KPI */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -543,147 +533,10 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                 </div>
               </div>
             </div>
-
-            {/* Tabel Riwayat Sinkronisasi */}
-            <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-              <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                    Riwayat Sinkronisasi
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Catatan riwayat penarikan berkala data permohonan dari server EIS PLN.
-                  </p>
-                </div>
-                <span className="text-xs font-semibold text-slate-500">
-                  {runs.length} sesi tercatat
-                </span>
-              </div>
-
-              {runs.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-500">
-                  <p className="font-semibold">Belum ada sinkronisasi.</p>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Klik tombol &quot;Sinkronkan Sekarang&quot; untuk menarik data permohonan pertama kali.
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/60 text-[11px] font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                        <th className="py-3 px-4">Waktu Eksekusi</th>
-                        <th className="py-3 px-4">Pemicu</th>
-                        <th className="py-3 px-4">Rentang Tanggal</th>
-                        <th className="py-3 px-4">Unit</th>
-                        <th className="py-3 px-4">Dijalankan Oleh</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-sans">
-                      {runs.map((r) => (
-                        <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">
-                            {when(r.created_at)}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              {r.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
-                            {r.range_from && r.range_to ? (
-                              <span className="font-mono font-medium">
-                                {r.range_from} s/d {r.range_to}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">Bawaan ({form.lookback_days} hari)</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
-                            {r.units && r.units.length > 0 ? <span className="font-mono">{r.units.join(', ')}</span> : <span className="text-slate-400">Semua unit</span>}
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
-                            {r.started_by || '-'}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                STATUS[r.status]?.[1] || 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
-                              {STATUS[r.status]?.[0] || r.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              type="button"
-                              className="text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer text-xs"
-                              onClick={async () => {
-                                const res = await eisSyncApi.run(r.id)
-                                setCurrent(res?.data)
-                                setSelectedLogRun(res?.data)
-                              }}
-                            >
-                              Lihat log
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
           </div>
         </div>
       )}
 
-      {/* Modal Detail Log Riwayat */}
-      {selectedLogRun && (
-        <Modal
-          open={Boolean(selectedLogRun)}
-          title={`Detail Log Sinkronisasi EIS (${selectedLogRun.id})`}
-          onClose={() => setSelectedLogRun(null)}
-          size="max-w-3xl"
-        >
-          <div className="space-y-4 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-              <div className="flex items-center gap-2">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${STATUS[selectedLogRun.status]?.[1]}`}>
-                  {STATUS[selectedLogRun.status]?.[0] || selectedLogRun.status}
-                </span>
-                <span className="text-slate-600 dark:text-slate-300 text-[11px]">
-                  Pemicu: <b>{selectedLogRun.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}</b> · {when(selectedLogRun.created_at)}
-                </span>
-              </div>
-              {selectedLogRun.log && (
-                <button
-                  type="button"
-                  onClick={() => handleCopyLog(selectedLogRun.log)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
-                >
-                  <IconClipboard size={13} />
-                  <span>{copied ? 'Tersalin!' : 'Salin Semua Log'}</span>
-                </button>
-              )}
-            </div>
-
-            <div className="rounded-xl overflow-hidden border border-slate-800 dark:border-slate-700 bg-slate-900">
-              <pre className="max-h-80 overflow-auto p-4 text-slate-100 font-mono text-[11px] leading-relaxed whitespace-pre-wrap select-all">
-                {selectedLogRun.log || '(Tidak ada catatan log pada sesi sinkronisasi ini)'}
-              </pre>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
-              <Button type="button" variant="secondary" onClick={() => setSelectedLogRun(null)}>
-                Tutup
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </PanelShell>
   )
 }
