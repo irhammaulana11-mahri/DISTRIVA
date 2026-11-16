@@ -56,7 +56,7 @@ Dependensi runtime (`backend/vendor` dan `frontend/node_modules`) tidak disertak
 ### 3.3 Frontend authentication
 
 - `AuthContext` untuk memulihkan session, login, logout, dan status autentikasi.
-- Token disimpan di `sessionStorage`, bukan `localStorage`.
+- Token disimpan di `sessionStorage`, bukan `localStorage`. **Login bersama antar tab (16 Nov 2026):** token tetap di `sessionStorage` per tab; tab baru yang belum punya token memintanya lewat BroadcastChannel (`frontend/src/features/auth/tabSession.js`) dari tab DISTRIVA lain yang sudah login, hanya selama minimal satu tab masih terbuka (setelah semua tab ditutup, login hilang). Jawaban hanya diberikan kepada permintaan yang sedang menunggu (nonce), BroadcastChannel hanya menjangkau origin yang sama, dan logout di satu tab mengeluarkan tab lain. Tidak ada token di `localStorage`.
 - API client menambahkan Bearer token dan menghapus sesi lokal ketika request bertoken menerima 401.
 - Halaman Login, Profil, Ubah Password, Home, dan layout terlindungi tersedia.
 - Pengujian frontend menggunakan mocked fetch; bukan browser E2E terhadap server Laravel.

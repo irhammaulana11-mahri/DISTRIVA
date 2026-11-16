@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { authApi, mfaApi, setUnauthorizedHandler, tokenStore } from '../../services/api.js'
+import { createTabSession } from './tabSession.js'
+
+const tabSession = createTabSession({ store: { get: () => tokenStore.get(), set: (t) => tokenStore.set(t), clear: () => tokenStore.clear() } })      // lazy: tokenStore is read when used
 
 export const AuthContext = createContext(null)
 
@@ -7,8 +10,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [mustChangePassword, setMustChangePassword] = useState(false)
   const [mfaState, setMfaState] = useState(null)
-  // 'loading' only while restoring a stored token.
-  const [status, setStatus] = useState(tokenStore.get() ? 'loading' : 'guest')
+  // 'loading' only while restoring a stored token, or while a new tab asks the other tabs for theirs (a fraction of a second).
+  const [status, setStatus] = useState(() => (tokenStore.get() || tabSession.supported() ? 'loading' : 'guest'))
 
   const reset = useCallback(() => {
     tokenStore.clear()
@@ -20,9 +23,11 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     setUnauthorizedHandler(reset)
-    if (!tokenStore.get()) return
-    authApi.me()
+    let cancelled = false
+    const stop = tabSession.startResponder(reset)         // another tab asks for the login, or logs out
+    const restore = () => authApi.me()
       .then(async ({ user }) => {
+        if (cancelled) return
         setUser(user)
         setMustChangePassword(Boolean(user.must_change_password))
         try {
@@ -38,6 +43,12 @@ export function AuthProvider({ children }) {
         setStatus('authenticated')
       })
       .catch(reset)
+    if (tokenStore.get()) {
+      restore()
+    } else {
+      tabSession.adopt().then((got) => { if (cancelled) return; if (got) restore(); else setStatus((st) => (st === 'loading' ? 'guest' : st)) })      // a login made meanwhile is not undone
+    }
+    return () => { cancelled = true; stop() }
   }, [reset])
 
   const login = useCallback(async (email, password) => {
@@ -53,6 +64,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try { await authApi.logout() } catch { /* token is dropped locally either way */ }
     reset()
+    tabSession.announceLogout()                          // the other tabs hold the same (now revoked) token: sign them out too
   }, [reset])
 
   const passwordChanged = useCallback(() => setMustChangePassword(false), [])
