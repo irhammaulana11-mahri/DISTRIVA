@@ -650,17 +650,31 @@ class UnitSelectionTest(unittest.TestCase):
         self.assertEqual(ph.parse_units(UNIT_PAGE), [("51450", "51450 - MOJOAGUNG"), ("51453", "51453 - JOMBANG"), ("51460", "51460 - NGANJUK")])
         self.assertEqual(ph.parse_units("<html>tanpa kotak UP</html>"), [])
 
-    def test_choosing_a_unit_posts_what_the_combo_posts(self):
+    def test_choosing_a_unit_posts_the_whole_form_as_a_coolite_event_and_is_judged_by_the_cookie(self):
+        page = UNIT_PAGE + '<input type="hidden" name="__EVENTVALIDATION" value="EV"/><input type="hidden" name="cboUP_Value" value=""/><input type="text" name="cboUP" value=""/><input type="hidden" name="cboAP_Value" value="51MJK - MOJOKERTO"/>'
         session = mock.Mock()
-        session.get.return_value = HttpResp(UNIT_PAGE)
-        session.post.return_value = HttpResp("{}")
+        session.get.return_value = HttpResp(page)
+        session.post.return_value = HttpResp('{errorMessage:"System.Exception: ..."}')                 # EIS answers an error JSON even when the choice was saved
+        session.cookies = [types.SimpleNamespace(name="Info", value="UPI=51&UP=51453%20-%20JOMBANG&AP=x")]
         ph.select_unit(session, "51453")
-        data = session.post.call_args.kwargs["data"]
-        self.assertEqual((data["__EVENTTARGET"], data["__EVENTARGUMENT"], data["__VIEWSTATE"]), ("ScriptManager1", "-|public|finalUP", "VS123"))
+        call = session.post.call_args
+        data, headers = call.kwargs["data"], call.kwargs["headers"]
+        self.assertEqual(headers["X-Coolite"], "delta=true")
+        self.assertEqual((data["__EVENTTARGET"], data["__EVENTARGUMENT"], data["__VIEWSTATE"], data["__EVENTVALIDATION"]), ("ScriptManager1", "-|public|finalUP", "VS123", "EV"))
+        self.assertEqual((data["cboUP_Value"], data["cboUP"], data["cboUP_SelIndex"], data["cboAP_Value"]), ("51453", "51453 - JOMBANG", "2", "51MJK - MOJOKERTO"))     # the combo fields of the page are kept
         self.assertEqual(json.loads(data["submitAjaxEventConfig"]), {"config": {"extraParams": {"xxx": "51453"}}})
+        session.cookies = [types.SimpleNamespace(name="Info", value="UPI=51&UP=SEMUA&AP=x")]           # the cookie did not change: the choice was not saved
+        with self.assertRaises(ph.EISRequestError):
+            ph.select_unit(session, "51453")
         session.get.return_value = HttpResp("<html>tanpa viewstate</html>")
         with self.assertRaises(ph.EISRequestError):
             ph.select_unit(session, "51453")
+        session.get.return_value = HttpResp(page)
+        with self.assertRaises(ph.EISRequestError):                                                    # a unit that is not in the combo
+            ph.select_unit(session, "99999")
+        session.cookies = [types.SimpleNamespace(name="Info", value="UPI=51&UP=SEMUA&AP=x")]
+        ph.select_unit(session, ph.ALL_UNITS)                                                          # back to every unit: the cookie says SEMUA
+        self.assertEqual(session.post.call_args.kwargs["data"]["cboUP_SelIndex"], "0")
 
     def test_the_table_is_checked_against_the_chosen_unit(self):
         known = ["51450", "51453", "51460"]

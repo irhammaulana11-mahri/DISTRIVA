@@ -290,8 +290,8 @@ def main_url() -> str:
     return f"{LOGIN_URL.rstrip('/')}/default.aspx"
 
 
-def parse_units(html: str) -> list[tuple[str, str]]:
-    """The units of the UP combo, as (code, text), without "-SEMUA UP-" (read from the combo's own store `storeUP_Data`)."""
+def _unit_rows(html: str) -> list[tuple[str, str]]:
+    """Every entry of the UP combo's store as (text, value), "-SEMUA UP-" first (index 0), exactly as the page lists them."""
     m = re.search(r"storeUP_Data\s*=\s*(\[\[.*?\]\])\s*;", html, re.S)
     if not m:
         return []
@@ -299,7 +299,12 @@ def parse_units(html: str) -> list[tuple[str, str]]:
         rows = json.loads(m.group(1))
     except ValueError:
         return []
-    return [(str(value).strip(), str(text).strip()) for text, value in rows if str(value).strip() and str(value).strip() != ALL_UNITS]
+    return [(str(text).strip(), str(value).strip()) for text, value in rows]
+
+
+def parse_units(html: str) -> list[tuple[str, str]]:
+    """The units of the UP combo, as (code, text), without "-SEMUA UP-"."""
+    return [(value, text) for text, value in _unit_rows(html) if value and value != ALL_UNITS]
 
 
 def list_units(session: requests.Session, timeout=(20, 60)) -> list[tuple[str, str]]:
@@ -311,21 +316,48 @@ def list_units(session: requests.Session, timeout=(20, 60)) -> list[tuple[str, s
     return units
 
 
+def info_unit(session: requests.Session) -> str | None:
+    """The unit EIS keeps in the `Info` cookie (field UP): "SEMUA" for all units, otherwise "<code> - <name>"; None when there is no such cookie."""
+    from urllib.parse import parse_qs
+    for cookie in session.cookies:
+        if cookie.name == "Info":
+            values = parse_qs(cookie.value or "", keep_blank_values=True).get("UP")
+            return values[0] if values else None
+    return None
+
+
 def select_unit(session: requests.Session, code: str, timeout=(20, 60)) -> None:
-    """Choose the unit in the top bar, exactly as the combo does (see above). A refusal or a login page is an error; EIS keeps the choice in the session."""
+    """Choose the unit in the top bar exactly as the combo does. The browser posts the WHOLE form of default.aspx (with the combo fields cboUP_Value / cboUP / cboUP_SelIndex set to the chosen
+    unit) as a Coolite AJAX event (header X-Coolite: delta=true, __EVENTARGUMENT=-|public|finalUP). EIS then writes the choice into its `Info` cookie (field UP), and the data pages follow that cookie.
+    The AJAX answer itself is an error JSON on the server's side (a return-value conversion) even when it worked, so success is judged by the cookie, never by the answer."""
     response = session.get(main_url(), timeout=timeout)
     _check_response(response, "GET halaman utama EIS")
-    viewstate = BeautifulSoup(response.text, "html.parser").find("input", attrs={"name": "__VIEWSTATE"})
-    if viewstate is None or not viewstate.get("value"):
+    html = response.text
+    rows = _unit_rows(html)
+    entry = next(((i, text) for i, (text, value) in enumerate(rows) if value == code), None)
+    if entry is None:
+        raise EISRequestError(f"Unit {code} tidak ada di kotak UP halaman utama EIS.")
+    index, text = entry
+    payload = form_payload(html)
+    if not payload.get("__VIEWSTATE"):
         raise EISRequestError("Halaman utama EIS tidak memuat __VIEWSTATE; pilihan unit tidak dapat dikirim.")
-    data = {
+    payload.update({
         "submitAjaxEventConfig": json.dumps({"config": {"extraParams": {"xxx": code}}}, separators=(",", ":")),
         "__EVENTTARGET": "ScriptManager1",
         "__EVENTARGUMENT": "-|public|finalUP",
-        "__VIEWSTATE": viewstate["value"],
-    }
-    answer = session.post(main_url(), data=data, headers={"Referer": main_url(), "X-Requested-With": "XMLHttpRequest"}, timeout=timeout)
+        "cboUP_Value": code,
+        "cboUP": text,
+        "cboUP_SelIndex": str(index),
+    })
+    answer = session.post(
+        main_url(), data=payload, timeout=timeout,
+        headers={"Referer": main_url(), "X-Requested-With": "XMLHttpRequest", "X-Coolite": "delta=true"},
+    )
     _check_response(answer, f"Pilih unit {code}")
+    got = info_unit(session)
+    expected_all = code == ALL_UNITS
+    if not got or (("SEMUA" not in got.upper()) if expected_all else (not got.startswith(code))):
+        raise EISRequestError(f"EIS tidak menyimpan pilihan unit {code} (cookie Info.UP = {got!r}); jawaban: {re.sub(chr(10), ' ', answer.text[:120])!r}.")
 
 
 def unit_check(html: str, code: str, known: list[str]) -> str:
