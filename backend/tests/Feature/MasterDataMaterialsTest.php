@@ -42,11 +42,11 @@ class MasterDataMaterialsTest extends PostgresTestCase
 
             return $u;
         };
-        $this->engineer = $mk('ENGINEERING');
+        $this->engineer = $mk('ASMAN_JARINGAN');
         $this->planner = $mk('PERENCANAAN');
         $this->viewer = $mk('TEKNIK');
         $this->vendor = $mk('VENDOR');
-        $this->unitAdmin = $mk('UP3_ADMIN');
+        $this->unitAdmin = $mk('ADMIN');
         $this->sysAdmin = $mk('SYS_ADMIN', true);
     }
 
@@ -89,10 +89,10 @@ class MasterDataMaterialsTest extends PostgresTestCase
         $this->assertSame(21, DB::table('permissions')->count());
         $this->assertSame(62, DB::table('role_has_permissions')->count()); // 12 view (11 + SYS_ADMIN) + 10 manage keys x 3 + 4 stock/pole/vendor keys x 2 + 6 approve keys x 2
         $this->assertSame(9, MaterialCategory::query()->count());
-        foreach (['UP3_ADMIN', 'VENDOR'] as $name) {
+        foreach (['ADMIN', 'VENDOR'] as $name) {
             $this->assertSame(0, Role::query()->where('name', $name)->firstOrFail()->permissions()->count(), $name);
         }
-        $this->assertSame(['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'], DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', 'materials.import')->orderBy('r.name')->pluck('r.name')->all());
+        $this->assertSame(['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'], DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', 'materials.import')->orderBy('r.name')->pluck('r.name')->all());
     }
 
     #[Test]

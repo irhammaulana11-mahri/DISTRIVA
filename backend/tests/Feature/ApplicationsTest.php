@@ -65,7 +65,7 @@ class ApplicationsTest extends PostgresTestCase
         $this->retailA2 = $mk('NIAGA_RETAIL', $this->ulpA2);
         $this->retailB1 = $mk('NIAGA_RETAIL', $this->ulpB1);
         $this->managerUlpA1 = $mk('MANAGER_ULP', $this->ulpA1);
-        $this->up3ManagerA = $mk('UP3_MANAGER', $this->upA);
+        $this->up3ManagerA = $mk('MANAGER_UP3', $this->upA);
         $this->teknikA2 = $mk('TEKNIK', $this->ulpA2);
         $this->vendor = $mk('VENDOR', $this->ulpA1);
         $this->viewer = $mk('VIEWER', $this->ulpA1);
@@ -111,7 +111,7 @@ class ApplicationsTest extends PostgresTestCase
         $this->assertSame(['NIAGA_RETAIL', 'SYS_ADMIN'], $holders('applications.submit'));
         $this->assertNotContains('VENDOR', $holders('applications.view'));
         $this->assertNotContains('VIEWER', $holders('applications.view'));
-        $this->assertNotContains('UP3_ADMIN', $holders('applications.view'));
+        $this->assertNotContains('ADMIN', $holders('applications.view'));
     }
 
     #[Test]

@@ -82,11 +82,11 @@ class SurveysTest extends PostgresTestCase
         $this->teknik2 = $mk('TEKNIK', $this->ulpA);
         $this->teknikB = $mk('TEKNIK', $this->ulpB);
         $this->perencanaan = $mk('PERENCANAAN', $this->upA);
-        $this->konstruksi = $mk('KONSTRUKSI_UP3', $this->upA);
+        $this->konstruksi = $mk('KONSTRUKSI', $this->upA);
         $this->asmanPer = $mk('ASMAN_PERENCANAAN', $this->upA);
         $this->asmanKon = $mk('ASMAN_KONSTRUKSI', $this->upA);
-        $this->up3Manager = $mk('UP3_MANAGER', $this->upA);
-        $this->up3ManagerB = $mk('UP3_MANAGER', $this->upB);
+        $this->up3Manager = $mk('MANAGER_UP3', $this->upA);
+        $this->up3ManagerB = $mk('MANAGER_UP3', $this->upB);
         $this->vendor = $mk('VENDOR', $this->ulpA);
         $this->sysAdmin = $mk('SYS_ADMIN', null);
     }
@@ -186,10 +186,10 @@ class SurveysTest extends PostgresTestCase
         $this->assertSame(['SYS_ADMIN', 'TEKNIK'], $holders('surveys.execute'));
         $this->assertSame(['MANAGER_ULP', 'SYS_ADMIN'], $holders('surveys.approve_ulp'));
         $this->assertSame(['PERENCANAAN', 'SYS_ADMIN'], $holders('surveys.review_perencanaan'));
-        $this->assertSame(['KONSTRUKSI_UP3', 'SYS_ADMIN'], $holders('surveys.review_konstruksi'));
+        $this->assertSame(['KONSTRUKSI', 'SYS_ADMIN'], $holders('surveys.review_konstruksi'));
         $this->assertSame(['ASMAN_PERENCANAAN', 'SYS_ADMIN'], $holders('surveys.approve_asman_perencanaan'));
         $this->assertSame(['ASMAN_KONSTRUKSI', 'SYS_ADMIN'], $holders('surveys.approve_asman_konstruksi'));
-        $this->assertSame(['SYS_ADMIN', 'UP3_MANAGER'], $holders('surveys.approve_up3_manager'));
+        $this->assertSame(['MANAGER_UP3', 'SYS_ADMIN'], $holders('surveys.approve_up3_manager'));
         $this->assertNotContains('VENDOR', $holders('surveys.view'));
         $this->assertSame(9, DB::table('permissions')->where('name', 'like', 'surveys.%')->count());
         $this->seed(SurveyPermissionSeeder::class);                                                       // idempotent

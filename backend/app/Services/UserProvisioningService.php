@@ -31,7 +31,7 @@ class UserProvisioningService
     ) {}
 
     /**
-     * @param  array{name: string, email: string, phone?: ?string, nip?: ?string}  $profile
+     * @param  array{name: string, email: string, phone?: ?string, nip?: ?string, position?: ?string}  $profile
      * @return array{user: User, assignment: UserRoleAssignment, delivery: DeliveryReport}
      */
     public function createWithAssignment(
@@ -47,7 +47,7 @@ class UserProvisioningService
         [$user, $assignment] = DB::transaction(function () use ($profile, $role, $unit, $validFrom, $validUntil, $document, $reason, $actor): array {
             $user = new User([
                 'name' => trim($profile['name']), 'email' => $profile['email'], 'phone' => $profile['phone'] ?? null,
-                'nip' => $profile['nip'] ?? null,
+                'nip' => $profile['nip'] ?? null, 'position' => isset($profile['position']) ? trim((string) $profile['position']) ?: null : null,
                 'password' => Str::random(64), // unusable: nobody knows it; the user sets their own during activation
                 'account_status' => 'PENDING_ACTIVATION',
             ]);

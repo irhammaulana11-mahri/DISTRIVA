@@ -78,6 +78,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/users', [AdminController::class, 'users']);
         Route::get('/users/{user}/assignments', [AdminController::class, 'userAssignments'])->whereUuid('user');
         Route::post('/users', [AdminController::class, 'createUser']);
+        Route::patch('/users/{user}', [AdminController::class, 'updateUser'])->whereUuid('user');
         Route::post('/users/{user}/resend-invitation', [AdminController::class, 'resendInvitation'])->whereUuid('user');
         Route::post('/users/{user}/status', [AdminController::class, 'changeStatus'])->whereUuid('user');
         Route::post('/role-assignments', [AdminController::class, 'assign']);

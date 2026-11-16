@@ -13,6 +13,7 @@ const empty = {
   email: '',
   phone: '',
   nip: '',
+  position: '',
   role_id: '',
   organizational_unit_id: '',
   valid_from: '',
@@ -167,6 +168,14 @@ export default function NewUserPage() {
             value={form.phone}
             onChange={set('phone')}
             error={errors.phone}
+          />
+
+          <Field
+            id="position"
+            label="Jabatan (opsional)"
+            value={form.position}
+            onChange={set('position')}
+            error={errors.position}
           />
 
           <Field

@@ -137,6 +137,7 @@ export const adminApi = {
   resendInvitation: (id, reason) => request(`/admin/users/${id}/resend-invitation`, { method: 'POST', body: { reason } }),
   assign: (body) => request('/admin/role-assignments', { method: 'POST', body }),
   endAssignment: (id, reason) => request(`/admin/role-assignments/${id}/end`, { method: 'POST', body: { reason } }),
+  updateUser: (id, body) => request(`/admin/users/${id}`, { method: 'PATCH', body }),
   changeStatus: (id, status, reason) => request(`/admin/users/${id}/status`, { method: 'POST', body: { status, reason } }),
 }
 

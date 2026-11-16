@@ -41,8 +41,8 @@ class TariffBookTest extends PostgresTestCase
 
             return $u;
         };
-        $this->engineer = $mk('ENGINEERING');
-        $this->manager = $mk('UP3_MANAGER');
+        $this->engineer = $mk('ASMAN_JARINGAN');
+        $this->manager = $mk('MANAGER_UP3');
         $this->viewer = $mk('TEKNIK');
         $this->vendor = $mk('VENDOR');
     }

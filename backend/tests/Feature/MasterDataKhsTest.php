@@ -41,10 +41,10 @@ class MasterDataKhsTest extends PostgresTestCase
 
             return $u;
         };
-        $this->engineer = $mk('ENGINEERING');
+        $this->engineer = $mk('ASMAN_JARINGAN');
         $this->planner = $mk('PERENCANAAN');
-        $this->manager = $mk('UP3_MANAGER');
-        $this->dual = $mk('ENGINEERING', 'UP3_MANAGER'); // may create AND approve — but never the same version
+        $this->manager = $mk('MANAGER_UP3');
+        $this->dual = $mk('ASMAN_JARINGAN', 'MANAGER_UP3'); // may create AND approve — but never the same version
         $this->viewer = $mk('TEKNIK');
         $this->vendor = $mk('VENDOR');
     }
@@ -96,8 +96,8 @@ class MasterDataKhsTest extends PostgresTestCase
     public function khs_keys_are_granted_to_the_managers_and_approval_only_to_up3_manager(): void
     {
         $holders = fn (string $key) => DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', $key)->orderBy('r.name')->pluck('r.name')->all();
-        $this->assertSame(['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'], $holders('khs.manage'));
-        $this->assertSame(['SYS_ADMIN', 'UP3_MANAGER'], $holders('khs.approve'));
+        $this->assertSame(['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'], $holders('khs.manage'));
+        $this->assertSame(['MANAGER_UP3', 'SYS_ADMIN'], $holders('khs.approve'));
     }
 
     #[Test]

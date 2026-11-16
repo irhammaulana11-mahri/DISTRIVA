@@ -32,7 +32,7 @@ class MfaTest extends PostgresTestCase
 
         $unit = OrganizationalUnit::query()->create(['code' => 'U1', 'name' => 'UP3 Satu', 'unit_type' => 'UP3', 'is_active' => true]);
         $this->sys = $this->account('sys@example.com', 'SYS_ADMIN', null, $unit);
-        $this->eng = $this->account('eng@example.com', 'ENGINEERING', $unit, $unit);
+        $this->eng = $this->account('eng@example.com', 'ASMAN_JARINGAN', $unit, $unit);
     }
 
     private function account(string $email, string $role, ?OrganizationalUnit $unit, OrganizationalUnit $actorUnit): User

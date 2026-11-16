@@ -22,7 +22,7 @@ class BootstrapAdminCommandTest extends PostgresTestCase
 
     private function up3Args(array $over = []): array
     {
-        return $over + ['--role' => 'UP3_ADMIN', '--email' => 'First.Admin@Example.com', '--name' => 'Admin Pertama', '--unit-code' => 'UP3-TEST', '--unit-name' => 'UP3 Uji'];
+        return $over + ['--role' => 'ADMIN', '--email' => 'First.Admin@Example.com', '--name' => 'Admin Pertama', '--unit-code' => 'UP3-TEST', '--unit-name' => 'UP3 Uji'];
     }
 
     #[Test]

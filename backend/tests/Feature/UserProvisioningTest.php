@@ -47,7 +47,7 @@ class UserProvisioningTest extends PostgresTestCase
         $this->adminA = $this->makeUser();
         $this->sysAdmin = $this->makeUser();
         $this->plain = $this->makeUser();
-        $this->assign($this->adminA, Role::query()->where('name', 'UP3_ADMIN')->firstOrFail(), $this->upA);
+        $this->assign($this->adminA, Role::query()->where('name', 'ADMIN')->firstOrFail(), $this->upA);
         $this->assign($this->sysAdmin, Role::query()->where('name', 'SYS_ADMIN')->firstOrFail(), null);
         $this->assign($this->plain, Role::query()->where('name', 'TEKNIK')->firstOrFail(), $this->ulpA);
 
@@ -171,7 +171,7 @@ class UserProvisioningTest extends PostgresTestCase
         $this->as($this->adminA)->postJson('/api/admin/users', $this->body(['organizational_unit_id' => $this->upB->getKey()]))->assertNotFound();
         $this->as($this->adminA)->postJson('/api/admin/users', $this->body(['role_id' => Role::query()->where('name', 'SYS_ADMIN')->value('id')]))->assertForbidden();
         $this->as($this->adminA)->postJson('/api/admin/users', $this->body(['role_id' => Role::query()->where('name', 'VENDOR')->value('id')]))->assertForbidden();
-        $this->as($this->adminA)->postJson('/api/admin/users', $this->body(['role_id' => Role::query()->where('name', 'UP3_ADMIN')->value('id')]))->assertForbidden();
+        $this->as($this->adminA)->postJson('/api/admin/users', $this->body(['role_id' => Role::query()->where('name', 'ADMIN')->value('id')]))->assertForbidden();
         $this->as($this->sysAdmin, false)->postJson('/api/admin/users', $this->body())->assertForbidden()->assertJsonPath('message', 'Verifikasi MFA diperlukan.');
 
         $this->assertDatabaseMissing('users', ['email' => 'siti.aminah@example.com']);

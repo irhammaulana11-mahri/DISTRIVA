@@ -1129,7 +1129,7 @@ class MtoTest extends PostgresTestCase
         $wh = (string) Str::uuid();
         DB::table('warehouses')->insert(['id' => $wh, 'code' => 'GD-UP3', 'name' => 'Gudang UP3', 'organizational_unit_id' => $this->ulpA->parent_id, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $konstruksi = $this->makeUser();
-        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
 
         $mk = ['kr_number' => 'KR-LINES', 'lines' => [['khs_item_id' => $tm, 'pole_type' => 'TM', 'quantity' => 6], ['khs_item_id' => $tr, 'pole_type' => 'TR', 'quantity' => 3]]];
         $this->as($konstruksi)->postJson('/api/master-data/pole-contracts', $mk)->assertForbidden();
@@ -1207,7 +1207,7 @@ class MtoTest extends PostgresTestCase
         $this->priceBook([(string) $a->khs_code => ['PLN', null, 10, 1, 1], (string) $b->khs_code => ['PLN', null, 10, 1, 1], (string) $c->khs_code => ['PLN', null, 10, 1, 1], (string) $d->khs_code => ['PRICED', 5, null, 1, 1]]);
 
         $konstruksi = $this->makeUser();
-        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
         $id = $this->as($konstruksi)->postJson($url, [])->assertCreated()->json('data.id');
 
         $rows = collect($this->as($konstruksi)->getJson("/api/allocations/{$id}/material-suggestions")->assertOk()->json('data.rows'))->keyBy('khs_code');
@@ -1271,7 +1271,7 @@ class MtoTest extends PostgresTestCase
         $kr = (string) Str::uuid();
         DB::table('pole_contracts')->insert(['id' => $kr, 'kr_number' => 'KR-001', 'qty_tm' => 10, 'qty_tr' => 5, 'status' => 'ACTIVE', 'created_by' => $this->perencanaan->getKey(), 'created_at' => now(), 'updated_at' => now()]);
         $konstruksi = $this->makeUser();
-        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
 
         $this->as($this->vendor)->postJson($url, [])->assertForbidden();
         $this->as($this->retail)->postJson($url, [])->assertForbidden();
@@ -1352,7 +1352,7 @@ class MtoTest extends PostgresTestCase
         $kr = (string) Str::uuid();
         DB::table('pole_contracts')->insert(['id' => $kr, 'kr_number' => 'KR-TOP', 'qty_tm' => 10, 'qty_tr' => 5, 'status' => 'ACTIVE', 'created_by' => $this->perencanaan->getKey(), 'created_at' => now(), 'updated_at' => now()]);
         $konstruksi = $this->makeUser();
-        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
 
         $base = $this->as($konstruksi)->postJson($url, [])->assertCreated()->json('data.id');
         $this->as($konstruksi)->putJson("/api/allocations/{$base}/materials", ['materials' => [['khs_code' => (string) $line->khs_code, 'warehouse_id' => $wh, 'quantity' => $half]]])->assertOk();
@@ -1389,7 +1389,7 @@ class MtoTest extends PostgresTestCase
     public function a_vendor_company_carries_a_full_profile_that_can_be_created_and_edited_by_the_managers_only(): void
     {
         $konstruksi = $this->makeUser();
-        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
         $profile = ['npwp' => '01.234.567.8-901.000', 'address' => 'Jl. Merdeka 1', 'city' => 'Malang', 'phone' => '0341-123456', 'email' => 'info@abc.co.id', 'pic_name' => 'Budi', 'pic_phone' => '0812345678',
             'sbu_number' => 'SBU-77', 'sbu_valid_until' => '2027-12-31', 'contract_number' => 'SPK-1', 'contract_valid_from' => '2026-01-01', 'contract_valid_until' => '2026-12-31', 'bank_name' => 'BNI', 'bank_account_number' => '123', 'notes' => ' ', 'website' => ''];
         $this->as($this->vendor)->postJson('/api/master-data/vendors', ['code' => 'PT-ABC', 'name' => 'PT ABC'] + $profile)->assertForbidden();
@@ -1447,7 +1447,7 @@ class MtoTest extends PostgresTestCase
         $this->assertSame([], $before['poles']);
 
         $konstruksi = $this->makeUser();
-        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($konstruksi, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
         $asman = $this->makeUser();
         $this->assign($asman, Role::query()->where('name', 'ASMAN_PERENCANAAN')->firstOrFail(), $this->ulpA->parent);
         $mk = fn (string $code, string $scope) => (string) tap(Str::uuid(), fn ($id) => DB::table('vendor_companies')->insert(['id' => $id, 'code' => $code, 'name' => 'PT '.$code, 'status' => 'ACTIVE', 'work_scope' => $scope, 'created_by' => $this->admin->getKey(), 'created_at' => now(), 'updated_at' => now()]));
@@ -1632,7 +1632,7 @@ class MtoTest extends PostgresTestCase
 
             return $u;
         };
-        $konstruksi = $mk('KONSTRUKSI_UP3');
+        $konstruksi = $mk('KONSTRUKSI');
         $asman = $mk('ASMAN_KONSTRUKSI');
         $company = $this->as($konstruksi)->postJson('/api/master-data/vendors', ['code' => 'pt-abc', 'name' => 'PT ABC'])->assertCreated()->json('data.id');
         $this->as($konstruksi)->postJson("/api/master-data/vendors/{$company}/accounts", ['user_id' => $this->vendor->getKey()])->assertCreated();
@@ -1738,7 +1738,7 @@ class MtoTest extends PostgresTestCase
         }
         $this->as($this->teknik)->postJson("/api/work-progress/{$own}/decision", ['decision' => 'VERIFIED'])->assertForbidden();         // TEKNIK has no verify key
         $verifier2 = $this->makeUser();
-        $this->assign($verifier2, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($verifier2, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
         $this->as($verifier2)->postJson("/api/work-progress/{$own}/decision", ['decision' => 'VERIFIED'])->assertOk();
 
         $this->as($asman)->postJson("/api/work-orders/{$wo}/complete")->assertStatus(409);                       // tasks not at 100 %
@@ -1818,7 +1818,7 @@ class MtoTest extends PostgresTestCase
         $this->as($konstruksi)->postJson("/api/work-orders/{$wo}/submit")->assertOk();
         $this->as($asman)->postJson("/api/work-orders/{$wo}/decision", ['decision' => 'ISSUE'])->assertOk();
         $verifier = $this->makeUser();
-        $this->assign($verifier, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($verifier, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
         foreach ($this->as($konstruksi)->getJson("/api/work-orders/{$wo}")->json('data.tasks') as $i => $t) {
             $id = $this->as($this->vendor)->postJson("/api/work-orders/{$wo}/progress", ['task_id' => $t['id'], 'submission_key' => "p{$i}", 'cumulative_percent' => 100])->assertCreated()->json('data.id');
             $this->as($verifier)->postJson("/api/work-progress/{$id}/decision", ['decision' => 'VERIFIED'])->assertOk();
@@ -1861,7 +1861,7 @@ class MtoTest extends PostgresTestCase
         $tasks = $this->as($konstruksi)->getJson("/api/work-orders/{$wo}")->json('data.tasks');
         $first = $this->as($this->vendor)->postJson("/api/work-orders/{$wo}/progress", ['task_id' => $tasks[0]['id'], 'submission_key' => 'a', 'cumulative_percent' => 50])->assertCreated()->json('data.id');
         $verifier = $this->makeUser();
-        $this->assign($verifier, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($verifier, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
         $this->as($verifier)->postJson("/api/work-progress/{$first}/decision", ['decision' => 'VERIFIED'])->assertOk();
         $this->as($this->vendor)->postJson("/api/work-orders/{$wo}/bastp")->assertStatus(409);                    // tasks are not at 100 % yet
         foreach ($tasks as $i => $t) {
@@ -2586,7 +2586,7 @@ class MtoTest extends PostgresTestCase
         $this->assertCount(0, $inbox($this->managerB));
 
         $verifier = $this->makeUser();
-        $this->assign($verifier, Role::query()->where('name', 'KONSTRUKSI_UP3')->firstOrFail(), $this->ulpA->parent);
+        $this->assign($verifier, Role::query()->where('name', 'KONSTRUKSI')->firstOrFail(), $this->ulpA->parent);
         $task = $this->as($konstruksi)->getJson("/api/work-orders/{$wo}")->json('data.tasks.0.id');
         $id = $this->as($this->vendor)->postJson("/api/work-orders/{$wo}/progress", ['task_id' => $task, 'submission_key' => 'n1', 'cumulative_percent' => 40])->assertCreated()->json('data.id');
         $this->assertNotNull($titled($konstruksi, 'menunggu verifikasi'));

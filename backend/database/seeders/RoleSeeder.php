@@ -13,13 +13,13 @@ class RoleSeeder extends Seeder
         DB::transaction(function (): void {
             foreach ([
                 'SYS_ADMIN',
-                'UP3_ADMIN',
-                'UP3_MANAGER',
+                'ADMIN',
+                'MANAGER_UP3',
                 'NIAGA_RETAIL',
                 'TEKNIK',
-                'ENGINEERING',
+                'ASMAN_JARINGAN',
                 'PERENCANAAN',
-                'KONSTRUKSI_UP3',
+                'KONSTRUKSI',
                 'VENDOR',
                 'VIEWER',
                 'MANAGER_ULP',

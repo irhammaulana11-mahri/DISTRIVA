@@ -10,6 +10,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\Test;
@@ -34,7 +35,7 @@ class MaterialCategoryHierarchyTest extends PostgresTestCase
 
             return $u;
         };
-        $this->engineer = $mk('ENGINEERING');
+        $this->engineer = $mk('ASMAN_JARINGAN');
         $this->planner = $mk('PERENCANAAN');
     }
 
@@ -131,7 +132,7 @@ class MaterialCategoryHierarchyTest extends PostgresTestCase
         }
         foreach ($rows as $r => $row) {
             foreach ([$row[0], 'x', 'BH', 'P', $row[1], $row[2], $row[3], 'x', 'Tervalidasi'] as $i => $v) {
-                $sheet->setCellValueExplicit([$i + 1, $r + 4], (string) $v, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit([$i + 1, $r + 4], (string) $v, DataType::TYPE_STRING);
             }
         }
         $path = tempnam(sys_get_temp_dir(), 'cat').'.xlsx';
@@ -218,4 +219,3 @@ class MaterialCategoryHierarchyTest extends PostgresTestCase
         $this->as($this->makeUser())->getJson('/api/master-data/khs-material-map/suggestions?khs_code=9001')->assertForbidden();   // no role, no catalogue
     }
 }
-

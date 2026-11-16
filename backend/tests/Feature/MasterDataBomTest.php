@@ -35,8 +35,8 @@ class MasterDataBomTest extends PostgresTestCase
 
             return $u;
         };
-        $this->engineer = $mk('ENGINEERING');
-        $this->manager = $mk('UP3_MANAGER');
+        $this->engineer = $mk('ASMAN_JARINGAN');
+        $this->manager = $mk('MANAGER_UP3');
         $this->viewer = $mk('TEKNIK');
         $this->vendor = $mk('VENDOR');
     }
@@ -121,8 +121,8 @@ class MasterDataBomTest extends PostgresTestCase
     public function the_bom_keys_follow_the_same_split_as_khs_and_sys_admin_holds_both(): void
     {
         $holders = fn (string $key) => DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', $key)->orderBy('r.name')->pluck('r.name')->all();
-        $this->assertSame(['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'], $holders('bom.manage'));
-        $this->assertSame(['SYS_ADMIN', 'UP3_MANAGER'], $holders('bom.approve'));
+        $this->assertSame(['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'], $holders('bom.manage'));
+        $this->assertSame(['MANAGER_UP3', 'SYS_ADMIN'], $holders('bom.approve'));
     }
 
     #[Test]
@@ -235,8 +235,8 @@ class MasterDataBomTest extends PostgresTestCase
         $doc = $this->tiny();
         $this->catalogue([$doc]);
         $dual = $this->makeUser();
-        $this->assign($dual, Role::query()->where('name', 'ENGINEERING')->firstOrFail(), $this->makeUnit('UP3'));
-        $this->assign($dual, Role::query()->where('name', 'UP3_MANAGER')->firstOrFail(), $this->makeUnit('UP3'));
+        $this->assign($dual, Role::query()->where('name', 'ASMAN_JARINGAN')->firstOrFail(), $this->makeUnit('UP3'));
+        $this->assign($dual, Role::query()->where('name', 'MANAGER_UP3')->firstOrFail(), $this->makeUnit('UP3'));
         $this->upload($doc, [], $dual)->assertCreated();
         $id = (string) DB::table('bom_headers')->value('id');
 

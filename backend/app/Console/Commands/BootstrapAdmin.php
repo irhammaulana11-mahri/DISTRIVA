@@ -23,20 +23,20 @@ use Illuminate\Support\Facades\Validator;
 class BootstrapAdmin extends Command
 {
     protected $signature = 'distriva:bootstrap-admin
-        {--role=UP3_ADMIN : UP3_ADMIN (creates the first UP3 too) or SYS_ADMIN}
+        {--role=ADMIN : ADMIN (creates the first UP3 too) or SYS_ADMIN}
         {--email= : E-mail of the new administrator}
         {--name= : Full name}
-        {--unit-code= : Code of the first UP3 (UP3_ADMIN only)}
-        {--unit-name= : Name of the first UP3 (UP3_ADMIN only)}
+        {--unit-code= : Code of the first UP3 (ADMIN only)}
+        {--unit-name= : Name of the first UP3 (ADMIN only)}
         {--force : Do not ask for confirmation}';
 
-    protected $description = 'Create the first UP3_ADMIN (with its UP3) or SYS_ADMIN from the console, once per role.';
+    protected $description = 'Create the first ADMIN (with its UP3) or SYS_ADMIN from the console, once per role.';
 
     public function handle(AssignmentWriteService $assignments, OrganizationalUnitWriteService $units, PasswordPolicy $policy): int
     {
         $roleName = (string) $this->option('role');
-        if (! in_array($roleName, ['UP3_ADMIN', 'SYS_ADMIN'], true)) {
-            $this->error('--role harus UP3_ADMIN atau SYS_ADMIN.');
+        if (! in_array($roleName, ['ADMIN', 'SYS_ADMIN'], true)) {
+            $this->error('--role harus ADMIN atau SYS_ADMIN.');
 
             return self::INVALID;
         }
@@ -51,7 +51,7 @@ class BootstrapAdmin extends Command
             'email' => ['required', 'email', 'max:150'],
             'name' => ['required', 'string', 'max:150'],
         ];
-        if ($roleName === 'UP3_ADMIN') {
+        if ($roleName === 'ADMIN') {
             $rules += ['unit_code' => ['required', 'string', 'max:30'], 'unit_name' => ['required', 'string', 'max:150']];
         }
         $validator = Validator::make($input, $rules);
@@ -79,7 +79,7 @@ class BootstrapAdmin extends Command
 
             return self::FAILURE;
         }
-        if ($roleName === 'UP3_ADMIN' && OrganizationalUnit::query()->where('code', trim($input['unit_code']))->exists()) {
+        if ($roleName === 'ADMIN' && OrganizationalUnit::query()->where('code', trim($input['unit_code']))->exists()) {
             $this->error('Ditolak: kode unit sudah ada (kode tidak boleh dipakai ulang).');
 
             return self::FAILURE;
@@ -103,7 +103,7 @@ class BootstrapAdmin extends Command
 
                 $reason = 'Bootstrap administrator pertama melalui konsol (docs/55).';
                 $unit = null;
-                if ($roleName === 'UP3_ADMIN') {
+                if ($roleName === 'ADMIN') {
                     // The new account is the audit actor: no other ACTIVE actor exists yet.
                     $unit = $units->create(trim($input['unit_code']), trim($input['unit_name']), 'UP3', null, null, $reason, $user);
                 }

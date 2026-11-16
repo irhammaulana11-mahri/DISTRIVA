@@ -7,13 +7,14 @@
  */
 return [
     'foundation' => [
-        'users.view' => ['UP3_ADMIN', 'SYS_ADMIN'],
-        'users.create' => ['UP3_ADMIN', 'SYS_ADMIN'],
-        'users.change_status' => ['UP3_ADMIN', 'SYS_ADMIN'],
-        'role_assignments.view' => ['UP3_ADMIN', 'SYS_ADMIN'],
-        'role_assignments.assign' => ['UP3_ADMIN', 'SYS_ADMIN'],
-        'role_assignments.end' => ['UP3_ADMIN', 'SYS_ADMIN'],
-        'organizational_units.view' => ['UP3_ADMIN', 'SYS_ADMIN'],
+        'users.view' => ['ADMIN', 'SYS_ADMIN'],
+        'users.create' => ['ADMIN', 'SYS_ADMIN'],
+        'users.change_status' => ['ADMIN', 'SYS_ADMIN'],
+        'users.update' => ['ADMIN', 'SYS_ADMIN'],
+        'role_assignments.view' => ['ADMIN', 'SYS_ADMIN'],
+        'role_assignments.assign' => ['ADMIN', 'SYS_ADMIN'],
+        'role_assignments.end' => ['ADMIN', 'SYS_ADMIN'],
+        'organizational_units.view' => ['ADMIN', 'SYS_ADMIN'],
         // D-4 option A (owner, 2026-11-06): only SYS_ADMIN writes organizational units (UP3 and ULP).
         'organizational_units.create' => ['SYS_ADMIN'],
         'organizational_units.update' => ['SYS_ADMIN'],
@@ -32,7 +33,15 @@ return [
         'organizational_units.update',
     ],
 
-    // Roles an UP3_ADMIN may never grant (docs/54 §4.3): system role and vendor (deny-all until O-029).
+    // Placement level per role (owner 2026-11-16): UP3 = branch office, ULP = unit, ANY = either. SYS_ADMIN is not placed on a unit.
+    'role_unit_levels' => [
+        'ADMIN' => 'UP3', 'MANAGER_UP3' => 'UP3', 'ASMAN_KONSTRUKSI' => 'UP3', 'ASMAN_PERENCANAAN' => 'UP3', 'ASMAN_NIAGA' => 'UP3', 'ASMAN_JARINGAN' => 'UP3',
+        'KONSTRUKSI' => 'UP3', 'PERENCANAAN' => 'UP3',
+        'MANAGER_ULP' => 'ULP', 'TEKNIK' => 'ULP',
+        'NIAGA_RETAIL' => 'ANY', 'VIEWER' => 'ANY', 'VENDOR' => 'ANY',
+    ],
+
+    // Roles an ADMIN may never grant (docs/54 §4.3): system role and vendor (deny-all until O-029).
     'up3_admin_forbidden_roles' => ['SYS_ADMIN', 'VENDOR'],
 
     /*
@@ -42,36 +51,36 @@ return [
      * versions (KHS/BOM, iterations 2B/2C) belongs to UP3_MANAGER. SYS_ADMIN holds every master-data key (owner decision 2026-11-06: full role, protected by MFA); VENDOR holds none.
      */
     'master_data' => [
-        'master_data.view' => ['ENGINEERING', 'PERENCANAAN', 'TEKNIK', 'KONSTRUKSI_UP3', 'UP3_MANAGER', 'MANAGER_ULP', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ASMAN_KONSTRUKSI', 'NIAGA_RETAIL', 'VIEWER', 'SYS_ADMIN', 'SYS_ADMIN'],
-        'materials.import' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'materials.update' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'material_categories.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'units_of_measure.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
+        'master_data.view' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'TEKNIK', 'KONSTRUKSI', 'MANAGER_UP3', 'MANAGER_ULP', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ASMAN_KONSTRUKSI', 'NIAGA_RETAIL', 'VIEWER', 'SYS_ADMIN', 'SYS_ADMIN'],
+        'materials.import' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'materials.update' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'material_categories.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'units_of_measure.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
         // KHS catalogue (iteration 2B-1): draft/import by the managers, approval by UP3_MANAGER (never by the creator).
-        'khs.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'khs.approve' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'khs.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'khs.approve' => ['MANAGER_UP3', 'SYS_ADMIN'],
         // Construction types and their KHS mappings (iteration 2B-2): same split as KHS.
-        'construction_types.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'construction_types.approve' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'construction_types.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'construction_types.approve' => ['MANAGER_UP3', 'SYS_ADMIN'],
         // BOM per construction group (iteration 2C-2, docs/60): same split — manage vs approve (never the creator).
-        'bom.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'bom.approve' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'bom.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'bom.approve' => ['MANAGER_UP3', 'SYS_ADMIN'],
         // Price books per contract (stage 5A, docs/62 §19): import/zone by the managers, approval by UP3_MANAGER (never the creator).
-        'prices.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'prices.approve' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'prices.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'prices.approve' => ['MANAGER_UP3', 'SYS_ADMIN'],
         // KKF parameter sets (stage 5C, docs/62 §25): discount rate, BPP, O&M, etc. Same split; approval never by the creator.
-        'kkf_params.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'kkf_params.approve' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'kkf_params.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'kkf_params.approve' => ['MANAGER_UP3', 'SYS_ADMIN'],
         // Tariff books (stage 5C, docs/62 §26): average price, jam nyala, UJL per tariff x power; same split.
-        'tariffs.manage' => ['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'],
-        'tariffs.approve' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'tariffs.manage' => ['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'],
+        'tariffs.approve' => ['MANAGER_UP3', 'SYS_ADMIN'],
         // Stock and pole contracts (stage 6A, docs/62 §30; owner 7 Nov 2026): PERENCANAAN imports the Kontrak Rinci and plots the concrete poles; the Konstruksi/Gudang side
         // (one role, KONSTRUKSI_UP3) imports stock and plots every other material.
-        'stock.import' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
-        'warehouses.manage' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'stock.import' => ['KONSTRUKSI', 'SYS_ADMIN'],
+        'warehouses.manage' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'poles.manage' => ['PERENCANAAN', 'SYS_ADMIN'],
         // Vendor master (stage 7, docs/62 §32): companies and linked vendor accounts, by KONSTRUKSI_UP3 (owner 7 Nov 2026).
-        'vendors.manage' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'vendors.manage' => ['KONSTRUKSI', 'SYS_ADMIN'],
     ],
 
     /*
@@ -80,7 +89,7 @@ return [
      * Keys listed in 'applications_descendant_keys' act down the UP3 -> ULP hierarchy (read, and the UP3-level survey decisions); all others are SAME_UNIT only.
      */
     'applications' => [
-        'applications.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'applications.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'applications.create' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
         'applications.update' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
         'applications.submit' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
@@ -103,15 +112,15 @@ return [
      * Any rejection returns the version to the surveyor. SYS_ADMIN holds every key (MFA); the one-decision-per-user rule still applies.
      */
     'surveys' => [
-        'surveys.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'surveys.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'surveys.assign' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'surveys.execute' => ['TEKNIK', 'SYS_ADMIN'],
         'surveys.approve_ulp' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'surveys.review_perencanaan' => ['PERENCANAAN', 'SYS_ADMIN'],
-        'surveys.review_konstruksi' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'surveys.review_konstruksi' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'surveys.approve_asman_perencanaan' => ['ASMAN_PERENCANAAN', 'SYS_ADMIN'],
         'surveys.approve_asman_konstruksi' => ['ASMAN_KONSTRUKSI', 'SYS_ADMIN'],
-        'surveys.approve_up3_manager' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'surveys.approve_up3_manager' => ['MANAGER_UP3', 'SYS_ADMIN'],
     ],
     /*
      * Technical drawing (stage 3, owner decisions 2026-11-06): one package per application, many versions (one MAIN file + attachments).
@@ -121,17 +130,17 @@ return [
      * stage 5 will set it from the KKF result. Any rejection returns the version to the author and the chain restarts on a new version.
      */
     'drawings' => [
-        'drawings.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'drawings.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'drawings.assign' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'drawings.execute' => ['TEKNIK', 'SYS_ADMIN'],
         'drawings.approve_ulp' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'drawings.review_perencanaan' => ['PERENCANAAN', 'SYS_ADMIN'],
-        'drawings.review_konstruksi' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'drawings.review_konstruksi' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'drawings.approve_asman_perencanaan' => ['ASMAN_PERENCANAAN', 'SYS_ADMIN'],
         'drawings.approve_asman_niaga' => ['ASMAN_NIAGA', 'SYS_ADMIN'],
         'drawings.approve_asman_konstruksi' => ['ASMAN_KONSTRUKSI', 'SYS_ADMIN'],
-        'drawings.approve_up3_manager' => ['UP3_MANAGER', 'SYS_ADMIN'],
-        'drawings.escalate' => ['MANAGER_ULP', 'PERENCANAAN', 'KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'drawings.approve_up3_manager' => ['MANAGER_UP3', 'SYS_ADMIN'],
+        'drawings.escalate' => ['MANAGER_ULP', 'PERENCANAAN', 'KONSTRUKSI', 'SYS_ADMIN'],
     ],
     /*
      * MTO / Auto MTO stage 4A (owner decisions 2026-11-06): the construction quantities of a drawing version are entered by the ULP technical officer
@@ -139,7 +148,7 @@ return [
      * (verifier != approver). The approved MTO is a PREREQUISITE of the drawing's ULP_MANAGER approval (docs/26 section 4); only then can UP3 review start.
      */
     'mto' => [
-        'mto.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'mto.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'mto.execute' => ['TEKNIK', 'SYS_ADMIN'],
         'mto.approve' => ['MANAGER_ULP', 'SYS_ADMIN'],
     ],
@@ -154,62 +163,62 @@ return [
      */
     'planning' => [
         // Usulan with several customers (docs/62 §37): 3-phase customers are picked from a searchable table; ULP-level staff create and edit proposals.
-        'proposals.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'proposals.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'proposals.manage' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'TEKNIK', 'SYS_ADMIN'],
-        'allocations.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'allocations.manage' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],        // the materials part (everything except concrete poles)
+        'allocations.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'allocations.manage' => ['KONSTRUKSI', 'SYS_ADMIN'],        // the materials part (everything except concrete poles)
         'allocations.poles' => ['PERENCANAAN', 'SYS_ADMIN'],            // the poles part (TM/TR with the Kontrak Rinci number)
-        'rkm.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'rkm.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'rkm.plan' => ['PERENCANAAN', 'SYS_ADMIN'],
         'rkm.prepare' => ['TEKNIK', 'SYS_ADMIN'],
         'rkm.submit' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'rkm.validate_perencanaan' => ['PERENCANAAN', 'SYS_ADMIN'],
-        'rkm.validate_konstruksi' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
-        'rkm.approve' => ['UP3_MANAGER', 'SYS_ADMIN'],
+        'rkm.validate_konstruksi' => ['KONSTRUKSI', 'SYS_ADMIN'],
+        'rkm.approve' => ['MANAGER_UP3', 'SYS_ADMIN'],
         // Work orders (stage 7, docs/62 §32; owner 7 Nov 2026): KONSTRUKSI_UP3 creates and selects the vendor, ASMAN_KONSTRUKSI approves/issues (WO + vendor in one decision) and completes;
         // progress is submitted by the assigned vendor (through the persisted relation, not a key) or internally, and verified by KONSTRUKSI_UP3 as a different user.
-        'wo.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI_UP3', 'ASMAN_KONSTRUKSI', 'UP3_MANAGER', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ENGINEERING', 'SYS_ADMIN'],
-        'wo.create' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'wo.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI', 'ASMAN_KONSTRUKSI', 'MANAGER_UP3', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'wo.create' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'wo.issue' => ['ASMAN_KONSTRUKSI', 'SYS_ADMIN'],
-        'wo.progress_submit' => ['TEKNIK', 'KONSTRUKSI_UP3', 'SYS_ADMIN'],
-        'wo.progress_verify' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'wo.progress_submit' => ['TEKNIK', 'KONSTRUKSI', 'SYS_ADMIN'],
+        'wo.progress_verify' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'wo.complete' => ['ASMAN_KONSTRUKSI', 'SYS_ADMIN'],
         // BASTP (stage 8, docs/62 §36; owner 7 Nov 2026): the assigned vendor (relation) or TEKNIK prepares and submits, MANAGER_ULP accepts, KONSTRUKSI_UP3 signs, ASMAN_KONSTRUKSI signs and closes
         // (closing completes the WO). Electronic signatures; one signature per user per round.
-        'bastp.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI_UP3', 'ASMAN_KONSTRUKSI', 'UP3_MANAGER', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ENGINEERING', 'SYS_ADMIN'],
+        'bastp.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI', 'ASMAN_KONSTRUKSI', 'MANAGER_UP3', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'bastp.prepare' => ['TEKNIK', 'SYS_ADMIN'],
         'bastp.accept' => ['MANAGER_ULP', 'SYS_ADMIN'],
-        'bastp.sign_konstruksi' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'bastp.sign_konstruksi' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'bastp.close' => ['ASMAN_KONSTRUKSI', 'SYS_ADMIN'],
         // WO Tiang (owner 12 Nov 2026): the pole vendor (a company of its own) works from a letter (AMS number) that may list several locations; PERENCANAAN creates/issues it and verifies the vendor's
         // progress, ASMAN_PERENCANAAN closes the pole BASTP (closing completes the pole WO). The vendor acts through the persisted relation, not a key.
-        'pole_wo.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI_UP3', 'ASMAN_KONSTRUKSI', 'UP3_MANAGER', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ENGINEERING', 'SYS_ADMIN'],
+        'pole_wo.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI', 'ASMAN_KONSTRUKSI', 'MANAGER_UP3', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'pole_wo.manage' => ['PERENCANAAN', 'SYS_ADMIN'],
         'pole_wo.close' => ['ASMAN_PERENCANAAN', 'SYS_ADMIN'],
         // Material need handed to the existing material application (outbox, docs/62 §40) and reports (docs/62 §41).
-        'material_requests.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI_UP3', 'ASMAN_KONSTRUKSI', 'UP3_MANAGER', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'material_requests.manage' => ['KONSTRUKSI_UP3', 'SYS_ADMIN'],
+        'material_requests.view' => ['MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI', 'ASMAN_KONSTRUKSI', 'MANAGER_UP3', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'material_requests.manage' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'reports.settings' => ['SYS_ADMIN'],
         // Application tasks and internal SLA (docs/24 §8): everyone who sees applications sees the tasks of their scope; the ULP manager assigns and reviews; only SYS_ADMIN edits the SLA and the holidays.
-        'tasks.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'tasks.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'tasks.assign' => ['MANAGER_ULP', 'SYS_ADMIN'],
         'sla.manage' => ['SYS_ADMIN'],
         // Forecast (docs/11; deep learning, owner Nov 2026): the planning side runs it, the UP3 side reviews it, everyone who plans or builds reads it within their scope.
-        'forecast.view' => ['MANAGER_ULP', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'forecast.run' => ['PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'forecast.review' => ['ASMAN_PERENCANAAN', 'UP3_MANAGER', 'SYS_ADMIN'],
+        'forecast.view' => ['MANAGER_ULP', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'forecast.run' => ['PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'forecast.review' => ['ASMAN_PERENCANAAN', 'MANAGER_UP3', 'SYS_ADMIN'],
         'sla.note' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'TEKNIK', 'SYS_ADMIN'],              // writes the explanation of a delay beyond the service SLA (ULP staff)
-        'reports.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'reports.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
     ],
 
     'kkf' => [
-        'kkf.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'kkf.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'kkf.run' => ['PERENCANAAN', 'SYS_ADMIN'],
     ],
 
     // KKO (owner 2026-11-09): technical study of the transformer loading and the voltage at the customer's location. TEKNIK (the surveyor) records the survey result and decides LAYAK / TIDAK LAYAK; the study never blocks the flow.
     'kko' => [
-        'kko.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'kko.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'kko.record' => ['TEKNIK', 'PERENCANAAN', 'SYS_ADMIN'],
         'kko.decide' => ['TEKNIK', 'SYS_ADMIN'],
     ],
@@ -217,29 +226,29 @@ return [
     // Master gardu for KKO (owner 2026-11-10, docs/80): everyone who works on a KKO may read it; the UP3 planning / engineering sections manage and import it; the survey adds a reading;
     // the daily bot (an ENGINEERING / PERENCANAAN account at the UP3) only sends readings. All act down UP3 -> ULP (applications_descendant_keys); SYS_ADMIN every unit (MFA for writes).
     'substations' => [
-        'substations.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'substations.import' => ['PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'substations.manage' => ['PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'substations.reading' => ['TEKNIK', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'substations.sync' => ['PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'substations.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'substations.import' => ['PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'substations.manage' => ['PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'substations.reading' => ['TEKNIK', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'substations.sync' => ['PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
     ],
 
     // Master penyulang (owner 2026-11-12, docs/81): read like the gardu; the UP3 planning / engineering sections manage it. Scope: the owner unit (UP3 or ULP) and every unit with a gardu on the feeder.
     'feeders' => [
-        'feeders.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'feeders.manage' => ['PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'feeders.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'feeders.manage' => ['PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
     ],
 
     // Master pelanggan (owner 2026-11-12, docs/81): the customer connections (IDPEL) linked to gardu and feeder. Read by everyone who works with the network or the applications; the DIL is loaded by the Niaga account of the
     // UP3 (like the EIS sync) or the planning / engineering sections; fixing a customer's gardu by hand is for planning / engineering / the ULP technician. Same UP3 -> ULP scoping as the gardu.
     'customers' => [
-        'customers.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'customers.import' => ['NIAGA_RETAIL', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
-        'customers.manage' => ['TEKNIK', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'customers.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'customers.import' => ['NIAGA_RETAIL', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'customers.manage' => ['TEKNIK', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
     ],
 
     'rab' => [
-        'rab.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'UP3_MANAGER', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI_UP3', 'PERENCANAAN', 'ENGINEERING', 'SYS_ADMIN'],
+        'rab.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'rab.run' => ['PERENCANAAN', 'SYS_ADMIN'],
     ],
 
@@ -257,7 +266,7 @@ return [
     ],
 
     // who may raise the extended-approval requirement at which moment (SYS_ADMIN at both)
-    'drawing_escalation' => ['SUBMITTED' => ['MANAGER_ULP', 'SYS_ADMIN'], 'UP3_REVIEW' => ['PERENCANAAN', 'KONSTRUKSI_UP3', 'SYS_ADMIN']],
+    'drawing_escalation' => ['SUBMITTED' => ['MANAGER_ULP', 'SYS_ADMIN'], 'UP3_REVIEW' => ['PERENCANAAN', 'KONSTRUKSI', 'SYS_ADMIN']],
     // step -> [key, stage the version must be in, steps that must all be APPROVED to advance (normal / extended), next [status, stage] (normal / extended)]
     // Normal chain: ULP_MANAGER -> UP3_REVIEW (both) -> ASMAN (ASMAN_PERENCANAAN + ASMAN_KONSTRUKSI, both) -> APPROVED.
     // Extended chain (extended_approval): ... -> ASMAN (+ ASMAN_NIAGA, all three) -> UP3_MANAGER -> APPROVED. ASMAN_NIAGA exists only in the extended chain.

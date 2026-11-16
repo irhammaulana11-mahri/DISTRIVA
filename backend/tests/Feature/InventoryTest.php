@@ -49,7 +49,7 @@ class InventoryTest extends PostgresTestCase
             return $u;
         };
         $this->perencanaan = $mk('PERENCANAAN');
-        $this->konstruksi = $mk('KONSTRUKSI_UP3');
+        $this->konstruksi = $mk('KONSTRUKSI');
         $this->viewer = $mk('TEKNIK');
         $this->vendor = $mk('VENDOR');
         foreach ([1, 2, 3] as $code) {

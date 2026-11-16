@@ -387,6 +387,7 @@ class AdminController extends Controller
             'email' => ['required', 'email:rfc', 'max:150', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\-\s()]{8,30}$/'],
             'nip' => ['nullable', 'string', 'max:30', 'unique:users,nip'],
+            'position' => ['nullable', 'string', 'max:100'],
             'role_id' => ['required', 'integer', 'exists:roles,id'],
             'organizational_unit_id' => ['required', 'uuid', 'exists:organizational_units,id'],
             'valid_from' => ['required', 'date_format:Y-m-d'],
@@ -400,7 +401,7 @@ class AdminController extends Controller
         $this->authorizer->authorizeCreateUser($actor, $role, $unit);
 
         $result = $provisioning->createWithAssignment(
-            Arr::only($data, ['name', 'email', 'phone', 'nip']), $role, $unit, $data['valid_from'], $data['valid_until'] ?? null,
+            Arr::only($data, ['name', 'email', 'phone', 'nip', 'position']), $role, $unit, $data['valid_from'], $data['valid_until'] ?? null,
             $data['assignment_document'], $data['reason'], $actor,
         );
 
@@ -409,6 +410,37 @@ class AdminController extends Controller
             'assignment' => $this->assignmentView($result['assignment']->load(['role', 'organizationalUnit'])),
             'delivery' => $this->deliveryView($result['delivery']),
         ], 201);
+    }
+
+    /** PATCH /users/{user}: name, position (jabatan), phone and NIP of an account inside the actor's scope. */
+    public function updateUser(Request $request, string $user): JsonResponse
+    {
+        $actor = $request->user();
+        $scope = $this->run(fn () => $this->authorizer->authorizeView($actor, 'users.update'));
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:150'],
+            'position' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[0-9+\-\s()]{8,30}$/'],
+            'nip' => ['sometimes', 'nullable', 'string', 'max:30', Rule::unique('users', 'nip')->ignore($user)],
+        ]);
+        $target = User::query()->find($user);
+
+        return $this->run(function () use ($target, $scope, $data) {
+            if ($target === null) {
+                throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            }
+            if (! $scope['unrestricted']) {
+                $this->requireTargetFullyInScope($target, $scope['units']);
+            }
+            foreach (['name', 'position', 'phone', 'nip'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $target->{$field} = is_string($data[$field]) ? (trim($data[$field]) ?: ($field === 'name' ? $target->name : null)) : $data[$field];
+                }
+            }
+            $target->save();
+
+            return response()->json(['data' => $this->userView($target)]);
+        });
     }
 
     public function resendInvitation(Request $request, string $user, UserProvisioningService $provisioning): JsonResponse
@@ -492,7 +524,7 @@ class AdminController extends Controller
     /** @return array<string, mixed> */
     private function userView(User $u): array
     {
-        $view = $u->only(['id', 'nip', 'name', 'email', 'phone', 'account_status', 'must_change_password']);
+        $view = $u->only(['id', 'nip', 'name', 'position', 'email', 'phone', 'account_status', 'must_change_password']);
 
         if ($u->relationLoaded('roleAssignments')) {
             $activeAssignments = $u->roleAssignments->filter(fn ($a) => (bool) $a->is_active);

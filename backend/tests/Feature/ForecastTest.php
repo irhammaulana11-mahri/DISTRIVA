@@ -58,7 +58,7 @@ class ForecastTest extends PostgresTestCase
         };
         $this->planner = $mk('PERENCANAAN', $this->up3);
         $this->asman = $mk('ASMAN_PERENCANAAN', $this->up3);
-        $this->up3Manager = $mk('UP3_MANAGER', $this->up3);
+        $this->up3Manager = $mk('MANAGER_UP3', $this->up3);
         $this->teknikA = $mk('TEKNIK', $this->ulpA);
         $this->teknikB = $mk('TEKNIK', $this->ulpB);
         $this->vendor = $mk('VENDOR', $this->ulpA);
@@ -131,8 +131,8 @@ SH);
     public function the_forecast_keys_are_granted_to_the_intended_roles_only(): void
     {
         $holders = fn (string $key) => DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', $key)->orderBy('r.name')->pluck('r.name')->all();
-        $this->assertSame(['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'], $holders('forecast.run'));
-        $this->assertSame(['ASMAN_PERENCANAAN', 'SYS_ADMIN', 'UP3_MANAGER'], $holders('forecast.review'));
+        $this->assertSame(['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'], $holders('forecast.run'));
+        $this->assertSame(['ASMAN_PERENCANAAN', 'MANAGER_UP3', 'SYS_ADMIN'], $holders('forecast.review'));
         $this->assertContains('TEKNIK', $holders('forecast.view'));
         $this->assertNotContains('VENDOR', $holders('forecast.view'));
     }

@@ -49,7 +49,7 @@ class AdminEndpointsTest extends PostgresTestCase
         $this->upB = $this->makeUnit('UP3');
         $this->ulpB = $this->makeUnit('ULP', $this->upB);
 
-        $admin = Role::query()->where('name', 'UP3_ADMIN')->firstOrFail();
+        $admin = Role::query()->where('name', 'ADMIN')->firstOrFail();
         $teknik = Role::query()->where('name', 'TEKNIK')->firstOrFail();
         $sys = Role::query()->where('name', 'SYS_ADMIN')->firstOrFail();
 
@@ -107,10 +107,10 @@ class AdminEndpointsTest extends PostgresTestCase
     {
         $this->seed(FoundationPermissionSeeder::class);
 
-        $this->assertSame(9, DB::table('permissions')->count());
-        $this->assertSame(16, DB::table('role_has_permissions')->count()); // 7 keys x {UP3_ADMIN, SYS_ADMIN} + 2 unit-write keys x SYS_ADMIN only (D-4 A)
+        $this->assertSame(10, DB::table('permissions')->count());
+        $this->assertSame(18, DB::table('role_has_permissions')->count()); // 8 keys x {UP3_ADMIN, SYS_ADMIN} + 2 unit-write keys x SYS_ADMIN only (D-4 A)
         $this->assertSame(0, Role::query()->where('name', 'TEKNIK')->firstOrFail()->permissions()->count());
-        $this->assertSame(25, DB::table('authorization_change_histories')->whereIn('event_type', ['PERMISSION_CATALOG_CHANGED', 'ROLE_PERMISSION_GRANTED'])->count());
+        $this->assertSame(28, DB::table('authorization_change_histories')->whereIn('event_type', ['PERMISSION_CATALOG_CHANGED', 'ROLE_PERMISSION_GRANTED'])->count());
     }
 
     // ---- access without a grant ---------------------------------------------------------
@@ -248,11 +248,11 @@ class AdminEndpointsTest extends PostgresTestCase
         $new = $this->makeUser();
         $this->as($this->adminA)->postJson('/api/admin/role-assignments', $this->body($new, 'SYS_ADMIN', $this->upA))->assertForbidden();
         $this->as($this->adminA)->postJson('/api/admin/role-assignments', $this->body($new, 'VENDOR', $this->ulpA))->assertForbidden();
-        $this->as($this->adminA)->postJson('/api/admin/role-assignments', $this->body($new, 'UP3_ADMIN', $this->ulpA))->assertForbidden(); // UP3_ADMIN only on UP3 units
+        $this->as($this->adminA)->postJson('/api/admin/role-assignments', $this->body($new, 'ADMIN', $this->ulpA))->assertForbidden(); // UP3_ADMIN only on UP3 units
         $this->as($this->adminA)->postJson('/api/admin/role-assignments', $this->body($this->adminA, 'TEKNIK', $this->ulpA))->assertForbidden(); // self
         $this->assertDatabaseMissing('user_role_assignments', ['user_id' => $new->getKey()]);
 
-        $this->as($this->adminA)->postJson('/api/admin/role-assignments', $this->body($new, 'UP3_ADMIN', $this->upA))->assertCreated(); // allowed on own UP3
+        $this->as($this->adminA)->postJson('/api/admin/role-assignments', $this->body($new, 'ADMIN', $this->upA))->assertCreated(); // allowed on own UP3
     }
 
     #[Test]
@@ -343,7 +343,7 @@ class AdminEndpointsTest extends PostgresTestCase
     public function an_mfa_unverified_sys_admin_token_can_do_nothing_but_the_mfa_flow(): void
     {
         $new = $this->makeUser();
-        $this->as($this->sysAdmin, false)->postJson('/api/admin/role-assignments', $this->body($new, 'UP3_ADMIN', $this->upA))->assertForbidden()->assertJsonPath('message', 'Verifikasi MFA diperlukan.');
+        $this->as($this->sysAdmin, false)->postJson('/api/admin/role-assignments', $this->body($new, 'ADMIN', $this->upA))->assertForbidden()->assertJsonPath('message', 'Verifikasi MFA diperlukan.');
         $this->as($this->sysAdmin, false)->postJson("/api/admin/users/{$this->tekA->getKey()}/status", ['status' => 'SUSPENDED', 'reason' => 'x'])->assertForbidden();
         $this->as($this->sysAdmin, false)->getJson('/api/admin/users')->assertForbidden()->assertJsonPath('mfa.required', true);
         $this->as($this->sysAdmin, false)->getJson('/api/me')->assertOk();
@@ -363,9 +363,9 @@ class AdminEndpointsTest extends PostgresTestCase
         $this->assertFalse($svc->allows($this->adminA, 'applications.view', $ctx($this->ulpA))); // not an admin key
         // a role other than UP3_ADMIN holding the key does not get delegation
         $perm = Permission::query()->where('name', 'users.view')->firstOrFail();
-        $this->role('UP3_MANAGER')->permissions()->attach($perm->getKey());
+        $this->role('MANAGER_UP3')->permissions()->attach($perm->getKey());
         $mgr = $this->makeUser();
-        $this->assign($mgr, $this->role('UP3_MANAGER'), $this->upA);
+        $this->assign($mgr, $this->role('MANAGER_UP3'), $this->upA);
         $this->assertFalse($svc->allows($mgr, 'users.view', $ctx($this->ulpA)));
     }
 
@@ -393,7 +393,7 @@ class AdminEndpointsTest extends PostgresTestCase
     {
         $names = array_column($this->as($this->adminA)->getJson('/api/admin/roles')->assertOk()->json('data'), 'name');
         $this->assertContains('TEKNIK', $names);
-        $this->assertContains('UP3_ADMIN', $names);
+        $this->assertContains('ADMIN', $names);
         $this->assertNotContains('SYS_ADMIN', $names);
         $this->assertNotContains('VENDOR', $names);
 
@@ -416,7 +416,7 @@ class AdminEndpointsTest extends PostgresTestCase
     public function the_seeder_revokes_a_stale_foundation_grant_with_an_audit_row_and_is_idempotent(): void
     {
         $perm = Permission::query()->where('name', 'organizational_units.create')->firstOrFail();
-        $role = Role::query()->where('name', 'UP3_ADMIN')->firstOrFail();
+        $role = Role::query()->where('name', 'ADMIN')->firstOrFail();
         $role->permissions()->attach($perm->getKey()); // stale grant left by an old seeding
 
         $this->seed(FoundationPermissionSeeder::class);
@@ -433,7 +433,7 @@ class AdminEndpointsTest extends PostgresTestCase
         $holders = fn (string $key) => DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', $key)->orderBy('r.name')->pluck('r.name')->all();
         $this->assertSame(['SYS_ADMIN'], $holders('organizational_units.create'));
         $this->assertSame(['SYS_ADMIN'], $holders('organizational_units.update'));
-        $this->assertSame(['SYS_ADMIN', 'UP3_ADMIN'], $holders('organizational_units.view'));
+        $this->assertSame(['ADMIN', 'SYS_ADMIN'], $holders('organizational_units.view'));
 
         $can = $this->as($this->adminA)->getJson('/api/admin/access')->assertOk()->json('can');
         $this->assertTrue($can['organizational_units.view']);

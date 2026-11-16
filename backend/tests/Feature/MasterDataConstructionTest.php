@@ -41,10 +41,10 @@ class MasterDataConstructionTest extends PostgresTestCase
 
             return $u;
         };
-        $this->engineer = $mk('ENGINEERING');
+        $this->engineer = $mk('ASMAN_JARINGAN');
         $this->planner = $mk('PERENCANAAN');
-        $this->manager = $mk('UP3_MANAGER');
-        $this->dual = $mk('ENGINEERING', 'UP3_MANAGER');
+        $this->manager = $mk('MANAGER_UP3');
+        $this->dual = $mk('ASMAN_JARINGAN', 'MANAGER_UP3');
         $this->viewer = $mk('TEKNIK');
         $this->vendor = $mk('VENDOR');
     }
@@ -114,8 +114,8 @@ class MasterDataConstructionTest extends PostgresTestCase
     public function the_construction_keys_follow_the_same_split_as_khs(): void
     {
         $holders = fn (string $key) => DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', $key)->orderBy('r.name')->pluck('r.name')->all();
-        $this->assertSame(['ENGINEERING', 'PERENCANAAN', 'SYS_ADMIN'], $holders('construction_types.manage'));
-        $this->assertSame(['SYS_ADMIN', 'UP3_MANAGER'], $holders('construction_types.approve'));
+        $this->assertSame(['ASMAN_JARINGAN', 'PERENCANAAN', 'SYS_ADMIN'], $holders('construction_types.manage'));
+        $this->assertSame(['MANAGER_UP3', 'SYS_ADMIN'], $holders('construction_types.approve'));
     }
 
     #[Test]

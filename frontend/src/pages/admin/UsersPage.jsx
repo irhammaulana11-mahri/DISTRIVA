@@ -388,6 +388,9 @@ export default function UsersPage() {
                               >
                                 {u.name}
                               </Link>
+                              {u.position && (
+                                <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{u.position}</span>
+                              )}
                               {u.nip && (
                                 <span className="block text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
                                   NIP: {u.nip}

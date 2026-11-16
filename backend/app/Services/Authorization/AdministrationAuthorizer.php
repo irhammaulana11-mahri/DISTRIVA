@@ -36,7 +36,7 @@ class AdministrationAuthorizer
         $units = [];
         foreach ($this->scoped->effectiveAssignments($actor, $asOf) as $assignment) {
             $unit = $assignment->organizationalUnit;
-            if ($assignment->role?->name !== 'UP3_ADMIN' || $unit === null) {
+            if ($assignment->role?->name !== 'ADMIN' || $unit === null) {
                 continue;
             }
             if (! $this->scoped->allows($actor, $permission, new AuthorizationContext(AuthorizationScopeMode::UP3_ADMIN_DELEGATION, $unit), $asOf)) {
@@ -90,13 +90,14 @@ class AdministrationAuthorizer
         $this->denySelf($actor, $target, 'Tidak boleh mengubah penugasan diri sendiri.');
 
         if (in_array($role->name, (array) config('distriva_permissions.up3_admin_forbidden_roles'), true)) {
-            throw new AdministrationDenied("Role {$role->name} tidak dapat diberikan oleh UP3_ADMIN.", 403);
+            throw new AdministrationDenied("Role {$role->name} tidak dapat diberikan oleh ADMIN.", 403);
         }
         if ($role->guard_name !== config('distriva.authorization_guard')) {
             throw new AdministrationDenied('Role tidak valid.', 403);
         }
-        if ($role->name === 'UP3_ADMIN' && $unit->unit_type !== 'UP3') {
-            throw new AdministrationDenied('UP3_ADMIN hanya dapat ditugaskan pada unit UP3.', 403);
+        $level = (string) config('distriva_permissions.role_unit_levels.'.$role->name, 'ANY');
+        if ($level !== 'ANY' && $unit->unit_type !== $level) {
+            throw new AdministrationDenied("Role {$role->name} hanya dapat ditugaskan pada unit {$level}.", 403);
         }
     }
 
@@ -132,7 +133,7 @@ class AdministrationAuthorizer
         $this->denySelf($actor, $assignment->user, 'Tidak boleh mengakhiri penugasan diri sendiri.');
 
         if (in_array($assignment->role?->name, (array) config('distriva_permissions.up3_admin_forbidden_roles'), true)) {
-            throw new AdministrationDenied('Penugasan role ini tidak dapat diakhiri oleh UP3_ADMIN.', 403);
+            throw new AdministrationDenied('Penugasan role ini tidak dapat diakhiri oleh ADMIN.', 403);
         }
         $this->protectLastAdmin($assignment);
     }
@@ -167,7 +168,7 @@ class AdministrationAuthorizer
             throw new AdministrationDenied('Data tidak ditemukan.', 404);
         }
         if ($assignments->contains(fn ($a) => in_array($a->role?->name, (array) config('distriva_permissions.up3_admin_forbidden_roles'), true))) {
-            throw new AdministrationDenied('Akun ini tidak dapat diubah oleh UP3_ADMIN.', 403);
+            throw new AdministrationDenied('Akun ini tidak dapat diubah oleh ADMIN.', 403);
         }
     }
 
@@ -188,13 +189,13 @@ class AdministrationAuthorizer
             ->whereDate('valid_from', '<=', $today)
             ->where(fn ($q) => $q->whereNull('valid_until')->orWhereDate('valid_until', '>=', $today))
             ->get()
-            ->filter(fn ($a) => in_array($a->role?->name, ['UP3_ADMIN'], true));
+            ->filter(fn ($a) => in_array($a->role?->name, ['ADMIN'], true));
     }
 
     /** At least one other ACTIVE user must keep an effective UP3_ADMIN assignment on the same unit (D-8). */
     private function protectLastAdmin(UserRoleAssignment $assignment, ?string $ignoreUser = null): void
     {
-        if ($assignment->role?->name !== 'UP3_ADMIN' || $assignment->organizational_unit_id === null) {
+        if ($assignment->role?->name !== 'ADMIN' || $assignment->organizational_unit_id === null) {
             return;
         }
 
@@ -212,7 +213,7 @@ class AdministrationAuthorizer
             ->exists();
 
         if (! $others) {
-            throw new AdministrationDenied('Tidak dapat menghapus/menonaktifkan UP3_ADMIN terakhir pada unit ini.', 409);
+            throw new AdministrationDenied('Tidak dapat menghapus/menonaktifkan ADMIN terakhir pada unit ini.', 409);
         }
     }
 }

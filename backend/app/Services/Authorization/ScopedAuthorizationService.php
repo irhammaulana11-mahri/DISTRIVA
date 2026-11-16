@@ -154,7 +154,7 @@ class ScopedAuthorizationService
             return true;
         }
 
-        if ($context->scopeMode === AuthorizationScopeMode::UP3_ADMIN_DELEGATION && $role?->name !== 'UP3_ADMIN') {
+        if ($context->scopeMode === AuthorizationScopeMode::UP3_ADMIN_DELEGATION && $role?->name !== 'ADMIN') {
             return false;
         }
 

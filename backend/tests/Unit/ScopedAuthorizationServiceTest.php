@@ -153,7 +153,7 @@ class ScopedAuthorizationServiceTest extends TestCase
     {
         $up3 = $this->unit('UP3');
         $ulp = $this->unit('ULP', parentId: $up3->getKey());
-        $assignment = $this->assignment($this->role('UP3_MANAGER', ['applications.view']), $up3);
+        $assignment = $this->assignment($this->role('MANAGER_UP3', ['applications.view']), $up3);
         $service = $this->service([$assignment]);
 
         $this->assertFalse($service->allows(

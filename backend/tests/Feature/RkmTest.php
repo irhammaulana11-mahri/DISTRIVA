@@ -51,8 +51,8 @@ class RkmTest extends PostgresTestCase
             return $u;
         };
         $this->perencanaan = $mk('PERENCANAAN', $this->up3);
-        $this->konstruksi = $mk('KONSTRUKSI_UP3', $this->up3);
-        $this->manager = $mk('UP3_MANAGER', $this->up3);
+        $this->konstruksi = $mk('KONSTRUKSI', $this->up3);
+        $this->manager = $mk('MANAGER_UP3', $this->up3);
         $this->teknik1 = $mk('TEKNIK', $this->ulp1);
         $this->teknik2 = $mk('TEKNIK', $this->ulp2);
         $this->mgr1 = $mk('MANAGER_ULP', $this->ulp1);

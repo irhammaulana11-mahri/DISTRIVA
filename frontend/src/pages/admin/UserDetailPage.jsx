@@ -37,6 +37,8 @@ export default function UserDetailPage() {
   const [state, setState] = useState({ loading: true, error: '', user: null, assignments: [] })
   const [dialog, setDialog] = useState(null) // { type: 'end', assignment } | { type: 'status', status }
   const [newStatus, setNewStatus] = useState('SUSPENDED')
+  const [profile, setProfile] = useState(null) // { name, position } while the data card is being edited
+  const [profileError, setProfileError] = useState('')
 
   const load = useCallback(() => {
     setState((s) => ({ ...s, loading: true, error: '' }))
@@ -51,6 +53,19 @@ export default function UserDetailPage() {
   if (state.error) return <Alert>{state.error}</Alert>
   const { user, assignments } = state
   const isSelf = currentUser && String(currentUser.id) === String(user?.id)
+
+  async function saveProfile(e) {
+    e.preventDefault()
+    setProfileError('')
+    try {
+      await adminApi.updateUser(id, { name: profile.name, position: profile.position })
+      notify({ type: 'info', title: 'Data pengguna disimpan.', desc: 'Nama dan jabatan diperbarui.', tag: 'Pengguna' })
+      setProfile(null)
+      load()
+    } catch (err) {
+      setProfileError(err.message)
+    }
+  }
 
   async function confirm(reason) {
     if (dialog.type === 'end') {
@@ -118,6 +133,7 @@ export default function UserDetailPage() {
               </div>
               <p className="text-xs sm:text-sm text-blue-200/90 font-mono">{user.email}</p>
               <div className="flex flex-wrap items-center gap-4 text-xs text-blue-300/80 pt-1">
+                {user.position && <span>Jabatan: <strong className="text-white">{user.position}</strong></span>}
                 {user.nip && <span>NIP: <strong className="text-white font-mono">{user.nip}</strong></span>}
                 {user.phone && <span>Telp: <strong className="text-white font-mono">{user.phone}</strong></span>}
                 <span>Terdaftar: <strong className="text-white">{user.created_at ? new Date(user.created_at).toLocaleDateString('id-ID') : '—'}</strong></span>
@@ -139,6 +155,37 @@ export default function UserDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Profile (name, position) */}
+      {canWrite['users.update'] && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">Data Pengguna</h3>
+          {profile ? (
+            <form onSubmit={saveProfile} className="flex flex-wrap items-end gap-3 mt-3">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                Nama
+                <input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} required maxLength={150}
+                  className="mt-1 block w-64 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+              </label>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                Jabatan
+                <input value={profile.position} onChange={(e) => setProfile({ ...profile, position: e.target.value })} maxLength={100}
+                  className="mt-1 block w-64 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+              </label>
+              <button type="submit" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 text-sm cursor-pointer">Simpan</button>
+              <button type="button" onClick={() => setProfile(null)} className="rounded-xl border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm cursor-pointer">Batal</button>
+              {profileError && <p className="w-full text-xs text-red-600">{profileError}</p>}
+            </form>
+          ) : (
+            <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-slate-700 dark:text-slate-300">
+              <span>Nama: <strong>{user.name}</strong></span>
+              <span>Jabatan: <strong>{user.position || '—'}</strong></span>
+              <button type="button" onClick={() => setProfile({ name: user.name, position: user.position || '' })}
+                className="rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">Ubah</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Account Status Control Card */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
