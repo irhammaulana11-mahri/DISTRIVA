@@ -14,9 +14,10 @@ return [
     'substation_nominal_voltage_v' => (float) env('DISTRIVA_SUBSTATION_NOMINAL_VOLTAGE_V', 220),
     'substation_feeder_imbalance_max_pct' => (float) env('DISTRIVA_SUBSTATION_FEEDER_IMBALANCE_MAX_PCT', 30),
     'substation_drop_max_pct' => (float) env('DISTRIVA_SUBSTATION_DROP_MAX_PCT', 10),
-    // EIS sync scope by status (owner 2026-11-14): a NEW application (No. Agenda not yet in DISTRIVA) is taken only while its internal status is one of these (BAYAR / CETAK PK); any other status is counted as out of scope
-    // (OUT_OF_SCOPE_STATUS). An application already registered keeps syncing in every status. Empty = no filter.
-    'eis_new_statuses' => array_values(array_filter(array_map('trim', explode(',', (string) env('DISTRIVA_EIS_NEW_STATUSES', 'PAID,PK_PRINTED,CONNECTION_IN_PROGRESS,CONNECTION_DONE'))))),
+    // EIS sync scope by status. Owner 2026-11-14 limited a NEW application (No. Agenda not yet in DISTRIVA) to BAYAR / CETAK PK / PDL AWAL / PEREMAJAAN; owner 2026-11-16 reversed it: EVERY status is stored
+    // and the PB/PD table filters by status (the Tambah Survei table still leaves out Peremajaan). Set DISTRIVA_EIS_NEW_STATUSES to a comma list of internal statuses (e.g. PAID,PK_PRINTED) to limit it again; any other status
+    // is then counted as OUT_OF_SCOPE_STATUS. An application already registered keeps syncing in every status.
+    'eis_new_statuses' => array_values(array_filter(array_map('trim', explode(',', (string) env('DISTRIVA_EIS_NEW_STATUSES', ''))))),
     // A survey cannot be submitted before its KKO is recorded (owner 2026-11-14, docs/82). Switch off only for a ULP without gardu data yet.
     'survey_requires_kko' => (bool) env('DISTRIVA_SURVEY_REQUIRES_KKO', true),
     'eis_min_power_va' => (int) env('DISTRIVA_EIS_MIN_POWER_VA', 0),

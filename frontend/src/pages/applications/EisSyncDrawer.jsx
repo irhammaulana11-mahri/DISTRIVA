@@ -251,7 +251,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Data yang Ditarik:</div>
                   <p>
-                    Pelanggan baru diambil untuk <b>semua daya</b> dengan status <b>Bayar, Cetak PK, PDL Awal, dan Peremajaan</b>. Permohonan yang sudah ada di DISTRIVA hanya diperbarui <b>Hari Kerja</b> dan <b>Status Permohonan</b>.
+                    Pelanggan baru diambil untuk <b>semua daya</b> dan <b>semua status</b> (Mohon, Disetujui, Bayar, Cetak PK, PDL Awal, Peremajaan, dan lainnya); tabel Permohonan tinggal disaring menurut status. Permohonan yang sudah ada di DISTRIVA hanya diperbarui <b>Hari Kerja</b> dan <b>Status Permohonan</b>.
                   </p>
                 </div>
 

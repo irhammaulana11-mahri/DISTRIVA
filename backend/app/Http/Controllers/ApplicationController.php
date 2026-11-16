@@ -60,13 +60,10 @@ class ApplicationController extends Controller
                 $q->where($col, $request->query($param));
             }
         }
-        // listing=pbpd (owner 8 Nov 2026): manual applications always, EIS applications only when 3-phase (>= eis_min_power_va, 6600 VA) AND still in mohon/disetujui/bayar/cetak PK, and the proposals' representatives. An EIS application
-        // of a smaller power stays stored (it keeps syncing) but is not listed on the PB/PD page.
+        // listing=pbpd: every application. The page shows the active ones by default and narrows by status, power and unit with its own filters (owner 2026-11-16: every EIS status is stored and the table only filters;
+        // before, an EIS application outside mohon/disetujui/bayar/cetak PK was hidden here whatever the filters said).
         if ($request->query('listing') === 'pbpd') {
-            $q->where(fn ($w) => $w->where('a.source_type', 'MANUAL')
-                ->orWhere(fn ($e) => $e->whereIn('a.current_status', ['SUBMITTED', 'APPROVED', 'PAID', 'PK_PRINTED'])
-                    ->whereRaw("(a.new_power_value * CASE WHEN upper(a.new_power_unit) = 'KVA' THEN 1000 ELSE 1 END) >= ?", [(int) config('distriva.eis_min_power_va')]))
-                ->orWhereExists(fn ($s) => $s->from('proposals as px')->whereColumn('px.representative_application_id', 'a.id')->where('px.status', 'OPEN')));
+            $q->whereNotNull('a.id');
         }
         // min_va: a DISPLAY filter on the new power (VA), e.g. 6600 = 3-phase only. It never changes what the EIS import stores (that is eis_min_power_va).
         if ($request->filled('min_va')) {

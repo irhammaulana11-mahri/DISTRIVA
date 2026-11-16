@@ -502,7 +502,7 @@ export default function ApplicationsPage() {
               description={
                 lifecycleFilter === 'active'
                   ? 'Lihat tab Riwayat untuk permohonan yang sudah selesai atau dibatalkan.'
-                  : 'Belum ada agenda permohonan penyambungan (PB/PD) terdaftar di ULP Anda. Sinkronisasi EIS memuat pelanggan semua daya berstatus Bayar, Cetak PK, PDL Awal, dan Peremajaan.'
+                  : 'Belum ada agenda permohonan penyambungan (PB/PD) terdaftar di ULP Anda. Sinkronisasi EIS memuat pelanggan semua daya dan semua status.'
               }
               action={
                 lifecycleFilter !== 'active' && (can['applications.create'] || can['applications.import']) ? (

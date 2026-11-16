@@ -741,9 +741,10 @@ class EisImportTest extends PostgresTestCase
         ])['id'])->assertOk();
         $list = fn (string $q) => collect($this->as($this->retailA1)->getJson('/api/applications?'.$q)->assertOk()->json('data'))->pluck('customer.name')->sort()->values()->all();
 
-        $this->assertSame(['AKTIF'], $list('listing=pbpd'));                                      // EIS: only mohon/disetujui/bayar/cetak PK are on the PB/PD page
+        $this->assertSame(['AKTIF', 'BATAL', 'SELESAI'], $list('listing=pbpd'));                  // every status is stored and listed; the page narrows with its own filters
         $this->assertSame(['AKTIF'], $list('listing=pbpd&lifecycle=active'));
-        $this->assertSame([], $list('listing=pbpd&lifecycle=history'));                           // finished/cancelled EIS rows stay stored, not listed
+        $this->assertSame(['BATAL', 'SELESAI'], $list('listing=pbpd&lifecycle=history'));         // finished/cancelled EIS rows are the history tab, not hidden
+        $this->assertSame(['SELESAI'], $list('listing=pbpd&status=CONNECTION_DONE'));             // and a status filter finds Peremajaan
         $this->assertSame(['AKTIF', 'BATAL', 'SELESAI'], collect(array_merge($list('lifecycle=active'), $list('lifecycle=history')))->sort()->values()->all());   // still reachable without the PB/PD listing
         $this->as($this->retailA1)->getJson('/api/applications?lifecycle=semua')->assertUnprocessable();
         $row = collect($this->as($this->retailA1)->getJson('/api/applications?listing=pbpd')->json('data'))->first();                // the list carries what its chips and columns need

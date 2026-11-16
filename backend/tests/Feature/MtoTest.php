@@ -2010,20 +2010,20 @@ class MtoTest extends PostgresTestCase
         $this->assertTrue($shown['members'][0]['is_representative']);
         $this->as($this->managerB)->getJson("/api/proposals/{$id}")->assertNotFound();
 
-        // the PB/PD page lists manual applications, the proposals' representatives and the EIS applications that are 3-phase (>= 6600 VA); a smaller imported one stays stored but is not listed there
-        config(['distriva.eis_min_power_va' => 6600]);                                                                       // the listing filter follows the configured minimum (default 0 = every power since 2026-11-13)
+        // the PB/PD page lists every application (owner 2026-11-16: every EIS status and power is stored, the page only filters); its Daya filter sends min_va=6600 for 3-phase only
         $imported = $this->extraApplication('PT Dari EIS', 33);
         $imported1p = $this->extraApplication('Pak Budi', 0.9);
         DB::table('applications')->whereIn('id', [$imported, $imported1p])->update(['source_type' => 'BOT_DAFTUNG']);
         $listed = fn (string $query) => collect($this->as($this->retail)->getJson('/api/applications?per_page=100'.$query)->assertOk()->json('data'))->pluck('id')->all();
         $page = $listed('&listing=pbpd');
-        $this->assertContains($a1, $page);
-        $this->assertContains($a3, $page);                                                                                 // a manual 1-phase application stays listed
-        $this->assertContains($imported, $page);                                                                           // 33 kVA from EIS: 3-phase, listed
-        $this->assertNotContains($imported1p, $page);                                                                      // 0.9 kVA from EIS: stored, not listed
-        $all = $listed('');
-        $this->assertContains($imported, $all);                                                                            // nothing is deleted or hidden elsewhere
-        $this->assertContains($imported1p, $all);
+        foreach ([$a1, $a3, $imported, $imported1p] as $appId) {
+            $this->assertContains($appId, $page);                                                                             // no filter: all of them, whatever the power
+        }
+        $threePhase = $listed('&listing=pbpd&min_va=6600');
+        $this->assertContains($a1, $threePhase);
+        $this->assertContains($imported, $threePhase);                                                                     // 33 kVA from EIS: 3-phase
+        $this->assertNotContains($imported1p, $threePhase);                                                                // 0.9 kVA: stored, only hidden by the display filter
+        $this->assertNotContains($a3, $threePhase);
         $row = collect($this->as($this->retail)->getJson('/api/applications?listing=pbpd&per_page=100')->json('data'))->firstWhere('id', $a1);
         $this->assertSame($shown['proposal_number'], $row['proposal_number']);
         $this->assertSame('MANUAL', $row['source_type']);

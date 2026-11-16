@@ -448,7 +448,7 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     applicationApi.list.mockResolvedValueOnce({ data: [], meta: { total: 0 } })
     await userEvent.click(historyBtn)
 
-    expect(await screen.findByText(/Sinkronisasi EIS memuat pelanggan semua daya berstatus Bayar, Cetak PK, PDL Awal, dan Peremajaan/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Sinkronisasi EIS memuat pelanggan semua daya dan semua status/i)).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /^Permohonan Baru$/i }).length).toBeGreaterThan(0)
     unmountEmpty()
 
