@@ -13,6 +13,9 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\PostgresTestCase;
 
@@ -175,17 +178,38 @@ class DocumentsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_file_changed_on_the_disk_a_missing_file_and_a_quarantined_version_are_never_served(): void
+    {
+        $id = $this->upload($this->png())->json('data.id');
+        $v = DB::table('application_document_versions')->where('document_id', $id)->first();
+        $this->as($this->teknik)->get("/api/documents/{$id}/download")->assertOk();
+
+        Storage::disk('documents')->put($v->stored_key, 'bukan isi yang diunggah');                                                // altered behind the database's back
+        $this->as($this->teknik)->getJson("/api/documents/{$id}/download")->assertStatus(409);
+        $this->assertSame(1, DB::table('document_access_logs')->where('action', 'DOWNLOAD')->count());                          // a refused download is not logged as served
+        Storage::disk('documents')->put($v->stored_key, (string) base64_decode(self::PNG));
+
+        $this->as($this->teknik)->get("/api/documents/{$id}/download")->assertOk();
+        DB::table('application_document_versions')->where('id', $v->id)->update(['lifecycle_status' => 'QUARANTINED']);
+        $this->as($this->teknik)->getJson("/api/documents/{$id}/download?version={$v->version_number}")->assertNotFound();
+        DB::table('application_document_versions')->where('id', $v->id)->update(['lifecycle_status' => 'UPLOADED']);
+
+        Storage::disk('documents')->delete($v->stored_key);
+        $this->as($this->teknik)->getJson("/api/documents/{$id}/download")->assertNotFound();
+    }
+
+    #[Test]
     public function a_spreadsheet_can_be_previewed_as_a_bounded_table_under_the_same_scope_as_download(): void
     {
-        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $book = new Spreadsheet;
         $book->getActiveSheet()->setTitle('RAB')->fromArray([['Uraian', 'Volume'], ['Tiang beton 11m', 3]]);
-        $pic = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+        $pic = new Drawing;
         $img = tempnam(sys_get_temp_dir(), 'pn');
         file_put_contents($img, (string) base64_decode(self::PNG));
         $pic->setName('Denah')->setPath($img)->setCoordinates('D2');
         $pic->setWorksheet($book->getActiveSheet());
         $path = tempnam(sys_get_temp_dir(), 'xl').'.xlsx';
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($path);
+        (new Xlsx($book))->save($path);
         $file = UploadedFile::fake()->createWithContent('rab.xlsx', (string) file_get_contents($path));
         @unlink($path);
         DB::table('document_categories')->where('code', 'SURVEY')->update(['allowed_extensions' => json_encode(['png', 'xlsx'])]);  // drawings allow xlsx; reuse the survey fixture
@@ -207,10 +231,10 @@ class DocumentsTest extends PostgresTestCase
     #[Test]
     public function a_spreadsheet_is_rendered_to_pdf_through_the_converter_cached_and_degrades_when_it_is_missing(): void
     {
-        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $book = new Spreadsheet;
         $book->getActiveSheet()->fromArray([['A', 'B']]);
         $path = tempnam(sys_get_temp_dir(), 'xl').'.xlsx';
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($path);
+        (new Xlsx($book))->save($path);
         DB::table('document_categories')->where('code', 'SURVEY')->update(['allowed_extensions' => json_encode(['png', 'xlsx'])]);
         $id = $this->upload(UploadedFile::fake()->createWithContent('g.xlsx', (string) file_get_contents($path)))->assertCreated()->json('data.id');
         @unlink($path);
@@ -239,15 +263,15 @@ class DocumentsTest extends PostgresTestCase
     #[Test]
     public function the_render_copy_gets_a_print_area_and_fits_one_page_while_the_original_is_untouched(): void
     {
-        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $book = new Spreadsheet;
         $book->getActiveSheet()->setTitle('GAMBAR')->fromArray([['a', 'b'], ['c', 'd'], ['e', 'f']]);
         $book->getActiveSheet()->getStyle('Z90')->getFont()->setBold(true);   // styled but empty: must not stretch the print area
         $path = tempnam(sys_get_temp_dir(), 'xl').'.xlsx';
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($path);
+        (new Xlsx($book))->save($path);
         $copy = tempnam(sys_get_temp_dir(), 'xc').'.xlsx';
         copy($path, $copy);
 
-        $svc = app(\App\Services\Documents\DocumentService::class);
+        $svc = app(DocumentService::class);
         $m = new \ReflectionMethod($svc, 'fitSheetsForRender');
         $m->setAccessible(true);
         $m->invoke($svc, $copy);

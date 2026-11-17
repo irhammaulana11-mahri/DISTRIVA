@@ -1519,6 +1519,10 @@ class MtoTest extends PostgresTestCase
         }
         $b = $this->as($this->perencanaan)->postJson("/api/pole-work-orders/{$wo}/bastp", ['bastp_number' => 'BASTP-1', 'bastp_date' => now()->toDateString()])->assertCreated()->json('data.id');
         $this->as($this->perencanaan)->postJson("/api/pole-wo-bastp/{$b}/decision", ['decision' => 'CLOSE'])->assertForbidden();   // only Asman Perencanaan closes
+        DB::table('pole_wo_bastp')->where('id', $b)->update(['prepared_by' => $asman->getKey()]);                                                    // whoever prepared the BASTP cannot decide it, whatever role they hold
+        $this->as($asman)->postJson("/api/pole-wo-bastp/{$b}/decision", ['decision' => 'CLOSE'])->assertForbidden();
+        $this->assertSame('SUBMITTED', DB::table('pole_wo_bastp')->where('id', $b)->value('status'));
+        DB::table('pole_wo_bastp')->where('id', $b)->update(['prepared_by' => $this->perencanaan->getKey()]);
         $this->as($asman)->postJson("/api/pole-wo-bastp/{$b}/decision", ['decision' => 'RETURN'])->assertStatus(409);                 // a return needs a reason
         $this->as($asman)->postJson("/api/pole-wo-bastp/{$b}/decision", ['decision' => 'CLOSE'])->assertOk();
         $this->assertSame('COMPLETED', DB::table('pole_work_orders')->where('id', $wo)->value('status'));

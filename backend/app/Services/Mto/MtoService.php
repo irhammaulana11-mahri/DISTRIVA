@@ -161,7 +161,7 @@ class MtoService
         $file = DB::table('application_documents as d')->join('application_document_versions as v', 'v.id', '=', 'd.current_version_id')
             ->where('d.drawing_version_id', $pkg->drawing_version_id)->where('d.status', 'ACTIVE')
             ->when($documentId !== null, fn ($q) => $q->where('d.id', $documentId), fn ($q) => $q->where('d.file_role', 'MAIN'))
-            ->first(['v.stored_key', 'v.extension', 'v.original_name', 'v.sha256', 'v.version_number', 'd.id as document_id']);
+            ->first(['v.id', 'v.stored_key', 'v.extension', 'v.original_name', 'v.sha256', 'v.lifecycle_status', 'v.version_number', 'd.id as document_id']);
         if ($file === null) {
             throw new AssignmentRuleViolation($documentId === null ? 'Versi gambar belum memiliki berkas utama.' : 'Berkas tidak ditemukan pada versi gambar ini.');
         }
@@ -169,9 +169,7 @@ class MtoService
             throw new AssignmentRuleViolation('Berkas ini bukan Excel (xlsx/xls) atau PDF hasil ekspor Excel; jumlah tidak dapat dibaca otomatis (gambar/foto/DWG tidak dibaca). Isi jumlah secara manual.');
         }
         $disk = Storage::disk($documents->disk());
-        if (! $disk->exists($file->stored_key)) {
-            throw new AdministrationDenied('Data tidak ditemukan.', 404);
-        }
+        $documents->assertReadable($file, $disk);
         $tmp = tempnam(sys_get_temp_dir(), 'gmb');
         try {
             file_put_contents($tmp, $disk->get($file->stored_key));

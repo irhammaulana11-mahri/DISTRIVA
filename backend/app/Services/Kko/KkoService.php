@@ -196,6 +196,9 @@ class KkoService
         return DB::transaction(function () use ($applicationId, $decision, $notes, $improvement, $actor): array {
             $row = DB::table('application_kko')->where('application_id', $applicationId)->lockForUpdate()->first()
                 ?? throw new AssignmentRuleViolation('Hasil survei KKO belum dicatat; catat dulu sebelum memutuskan.');
+            if ($row->decision !== null) {            // final: a new decision needs a new record of the survey result (which resets this one and keeps it in the history)
+                throw new AssignmentRuleViolation('Keputusan KKO sudah ada ('.$row->decision.'); catat ulang hasil survei bila datanya berubah untuk membuka keputusan baru.');
+            }
             $values = ['decision' => $decision, 'decision_notes' => $notes, 'improvement_proposal' => $this->text($improvement), 'decided_by' => $actor->getKey(), 'decided_at' => now(), 'updated_at' => now()];
             DB::table('application_kko')->where('id', $row->id)->update($values);
             $this->event($row->id, 'DECIDED', $actor, ['decision' => $decision, 'decision_notes' => $notes, 'improvement_proposal' => $values['improvement_proposal']]);

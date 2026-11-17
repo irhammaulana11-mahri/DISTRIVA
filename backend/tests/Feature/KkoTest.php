@@ -219,6 +219,9 @@ class KkoTest extends PostgresTestCase
         $this->assertSame('TIDAK_LAYAK', DB::table('application_kko')->where('application_id', $app)->value('decision'));
         $this->assertSame($before, DB::table('applications')->where('id', $app)->value('current_status'));          // the flow is untouched
 
+        $this->as($this->teknik)->postJson("{$url}/decision", ['decision' => 'LAYAK'])->assertStatus(409);                      // final: it cannot be overwritten without a new record
+        $this->assertSame('TIDAK_LAYAK', DB::table('application_kko')->where('application_id', $app)->value('decision'));
+
         // the data the decision judged changed: the decision is reset, the history keeps it
         $r = $this->as($this->teknik)->putJson($url, ['transformer_capacity_kva' => 250, 'measured_load_kva' => 170, 'voltage_location_v' => 210])->assertOk()->assertJsonPath('data.status', 'RECORDED');
         $this->assertNull($r->json('data.record.decision'));

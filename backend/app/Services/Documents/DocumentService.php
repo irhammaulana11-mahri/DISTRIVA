@@ -5,8 +5,10 @@ namespace App\Services\Documents;
 use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -126,6 +128,29 @@ class DocumentService
         });
     }
 
+    /**
+     * A stored version is served or read only when it may be (not quarantined / rejected), exists, and still has the SHA-256 recorded at upload: the database row is immutable, so a file
+     * changed on the disk afterwards is detected here instead of being handed out or read into the MTO.
+     */
+    public function assertReadable(object $version, Filesystem $disk): void
+    {
+        if (in_array($version->lifecycle_status ?? 'UPLOADED', ['QUARANTINED', 'REJECTED'], true) || ! $disk->exists($version->stored_key)) {
+            throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        }
+        $stream = $disk->readStream($version->stored_key);
+        if (! is_resource($stream)) {
+            throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        }
+        $ctx = hash_init('sha256');
+        hash_update_stream($ctx, $stream);
+        fclose($stream);
+        if (! hash_equals((string) $version->sha256, hash_final($ctx))) {
+            Log::critical('Document version failed its SHA-256 check.', ['version_id' => $version->id ?? null, 'stored_key' => $version->stored_key]);
+
+            throw new AdministrationDenied('Integritas berkas tidak dapat diverifikasi (isi berbeda dari saat diunggah); hubungi administrator.', 409);
+        }
+    }
+
     public function download(object $doc, ?int $version, bool $inline, User $actor, ?string $ip): StreamedResponse
     {
         $v = DB::table('application_document_versions')->where('document_id', $doc->id)
@@ -134,9 +159,7 @@ class DocumentService
             throw new AdministrationDenied('Data tidak ditemukan.', 404);
         }
         $disk = Storage::disk($this->disk());
-        if (! $disk->exists($v->stored_key)) {
-            throw new AdministrationDenied('Data tidak ditemukan.', 404);
-        }
+        $this->assertReadable($v, $disk);
         $this->log($v->id, $actor, $inline ? 'VIEW' : 'DOWNLOAD', $ip);
         $name = preg_replace('/[^A-Za-z0-9._ -]/', '_', $v->original_name) ?: 'dokumen';
 
@@ -159,9 +182,7 @@ class DocumentService
             throw new AssignmentRuleViolation('Pratinjau tabel hanya untuk berkas Excel/CSV.');
         }
         $disk = Storage::disk($this->disk());
-        if (! $disk->exists($v->stored_key)) {
-            throw new AdministrationDenied('Data tidak ditemukan.', 404);
-        }
+        $this->assertReadable($v, $disk);
         $this->log($v->id, $actor, 'VIEW', $ip);
         $tmp = tempnam(sys_get_temp_dir(), 'prv');
         try {
@@ -229,9 +250,7 @@ class DocumentService
         }
         $bin = $this->sofficeBinary() ?? throw new AssignmentRuleViolation('Mesin render (LibreOffice) belum tersedia di server.');
         $disk = Storage::disk($this->disk());
-        if (! $disk->exists($v->stored_key)) {
-            throw new AdministrationDenied('Data tidak ditemukan.', 404);
-        }
+        $this->assertReadable($v, $disk);
         $this->log($v->id, $actor, 'VIEW', $ip);
         $cacheKey = 'preview-cache/'.$v->id.'.pdf';
         if ($disk->exists($cacheKey)) {

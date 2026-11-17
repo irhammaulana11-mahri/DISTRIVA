@@ -314,6 +314,9 @@ class PoleWorkOrderService
             if ($b->status !== 'SUBMITTED') {
                 throw new AssignmentRuleViolation("BASTP berstatus {$b->status}; tidak menunggu keputusan.");
             }
+            if ($b->prepared_by === $actor->getKey() && ! $actor->isSysAdmin()) {
+                throw new AdministrationDenied('Penyusun BASTP tiang tidak dapat memutuskannya sendiri.', 403);
+            }
             if ($decision === 'RETURN') {
                 if (trim((string) $reason) === '') {
                     throw new AssignmentRuleViolation('Pengembalian wajib disertai alasan.');
