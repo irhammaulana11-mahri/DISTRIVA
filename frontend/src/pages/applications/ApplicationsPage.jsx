@@ -548,9 +548,6 @@ export default function ApplicationsPage() {
                       <span className="sr-only">Pilih</span>
                     </th>
                     <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      NO. PERMOHONAN / TIPE
-                    </th>
-                    <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                       PELANGGAN
                     </th>
                     <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -615,11 +612,12 @@ export default function ApplicationsPage() {
                         />
                       </td>
 
-                      {/* Number & Type */}
+                      {/* Pelanggan: nama, tipe, dan penanda data yang belum lengkap (nomor permohonan ada di pratinjau; di sini hanya untuk pembaca layar) */}
                       <td className="py-3.5 px-6">
-                        <div className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
-                          {app.application_number}
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">
+                          {app.customer?.name || '-'}
                         </div>
+                        <span className="sr-only">{app.application_number}</span>
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className={`inline-block rounded px-1.5 py-0.2 text-[10px] font-bold ${
                             app.application_type === 'PB'
@@ -677,13 +675,6 @@ export default function ApplicationsPage() {
                               )}
                             </span>
                           )}
-                        </div>
-                      </td>
-
-                      {/* Customer */}
-                      <td className="py-3.5 px-6">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200">
-                          {app.customer?.name || '-'}
                         </div>
                       </td>
 
