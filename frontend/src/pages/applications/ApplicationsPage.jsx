@@ -349,7 +349,7 @@ export default function ApplicationsPage() {
       </div>
 
       {tab === 'eis' && can['eis_sync.manage'] && <EisRunHistory />}
-      {tab === 'attention' && <AttentionCustomers formatPower={formatTariffPower} onOpen={(id) => setDetailTarget({ id })} />}
+      {tab === 'attention' && <AttentionCustomers formatPower={formatTariffPower} onOpen={(id) => setDetailTarget({ id })} unitInfo={unitInfo} FilterField={FilterField} filterSelectCls={filterSelectCls} />}
       {tab === 'permohonan' && (
       <>
         {/* Main Standardized Table Card */}

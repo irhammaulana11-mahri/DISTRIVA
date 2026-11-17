@@ -754,29 +754,29 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
-    public function the_attention_list_ranks_open_applications_by_service_days_and_a_ulp_sees_only_those_waiting_more_than_four_days(): void
+    public function the_attention_list_shows_only_paid_and_pk_printed_applications_oldest_first_with_pagination_and_filters(): void
     {
         $this->confirm($this->stage([
-            $this->row(['NOAGENDA' => '514539912610278601', 'IDPEL' => '514530000601', 'NAMA' => 'LAMA 3FASA', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
-            $this->row(['NOAGENDA' => '514539912610278602', 'IDPEL' => '514530000602', 'NAMA' => 'BARU 3FASA', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
-            $this->row(['NOAGENDA' => '514539912610278603', 'IDPEL' => '514530000603', 'NAMA' => 'LAMA 1FASA', 'DAYA' => '1300', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
-            $this->row(['NOAGENDA' => '514539912610278604', 'IDPEL' => '514530000604', 'NAMA' => 'SELESAI', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'PEREMAJAAN']),
+            $this->row(['NOAGENDA' => '514539912610278601', 'IDPEL' => '514530000601', 'NAMA' => 'BAYAR LAMA', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'BAYAR']),
+            $this->row(['NOAGENDA' => '514539912610278602', 'IDPEL' => '514530000602', 'NAMA' => 'CETAK BARU', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'CETAK PK']),
+            $this->row(['NOAGENDA' => '514539912610278603', 'IDPEL' => '514530000603', 'NAMA' => 'BAYAR 1FASA', 'DAYA' => '1300', 'STATUS_PERMOHONAN' => 'BAYAR']),
+            $this->row(['NOAGENDA' => '514539912610278604', 'IDPEL' => '514530000604', 'NAMA' => 'DISETUJUI', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'DISETUJUI']),
+            $this->row(['NOAGENDA' => '514539912610278605', 'IDPEL' => '514530000605', 'NAMA' => 'SELESAI', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'PEREMAJAAN']),
         ])['id'])->assertOk();
-        foreach (['LAMA 3FASA' => 30, 'BARU 3FASA' => 2, 'LAMA 1FASA' => 50, 'SELESAI' => 90] as $name => $days) {
+        foreach (['BAYAR LAMA' => 30, 'CETAK BARU' => 2, 'BAYAR 1FASA' => 50, 'DISETUJUI' => 70, 'SELESAI' => 90] as $name => $days) {
             DB::table('applications')->whereIn('id', DB::table('applications as a')->join('customers as c', 'c.id', '=', 'a.customer_id')->where('c.name', $name)->select('a.id'))->update(['service_days' => $days]);
         }
-        $names = fn (User $u, string $q = '') => collect($this->as($u)->getJson('/api/applications/attention'.$q)->assertOk()->json('data'))->pluck('customer.name')->all();
+        $get = fn (string $q = '') => $this->as($this->retailA1)->getJson('/api/applications/attention'.$q)->assertOk();
+        $names = fn (string $q = '') => collect($get($q)->json('data'))->pluck('customer.name')->all();
 
-        $up3 = $this->makeUser();
-        $this->assign($up3, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->upA);
-
-        $this->assertSame(['LAMA 3FASA'], $names($this->retailA1));                                  // ULP: only those waiting more than 4 days; 3-phase by default; the finished one is not listed
-        $this->assertSame(['LAMA 1FASA', 'LAMA 3FASA'], $names($this->retailA1, '?three_phase=0'));
-        $this->assertSame(['LAMA 3FASA', 'BARU 3FASA'], $names($up3));                              // UP3: the oldest first, no minimum
-        $this->assertSame([], $names($up3, '?extension=1'));                                         // none is in an extension proposal
-        $json = $this->as($this->retailA1)->getJson('/api/applications/attention')->json();
-        $this->assertSame(['ULP', 50, 5], [$json['meta']['level'], $json['meta']['limit'], $json['meta']['min_days']]);
-        $this->assertSame(['UP3', 100], [$this->as($up3)->getJson('/api/applications/attention')->json('meta.level'), $this->as($up3)->getJson('/api/applications/attention')->json('meta.limit')]);
+        $this->assertSame(['BAYAR 1FASA', 'BAYAR LAMA', 'CETAK BARU'], $names());                  // only Bayar / Cetak PK, no limit, oldest first
+        $this->assertSame(['BAYAR LAMA', 'CETAK BARU'], $names('?min_va=6600'));
+        $this->assertSame(['CETAK BARU'], $names('?status=PK_PRINTED'));
+        $this->assertSame(['BAYAR LAMA'], $names('?search=lama'));
+        $this->assertSame([], $names('?extension=1'));                                               // none is in an extension proposal
+        $this->assertSame(['BAYAR LAMA'], $names('?per_page=1&page=2'));
+        $this->assertSame(3, $get('?per_page=1')->json('meta.total'));
+        $this->as($this->retailA1)->getJson('/api/applications/attention?status=APPROVED')->assertUnprocessable();
     }
 
     #[Test]

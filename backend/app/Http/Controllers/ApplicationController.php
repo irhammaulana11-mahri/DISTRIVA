@@ -58,31 +58,49 @@ class ApplicationController extends Controller
      * GET /applications/attention — customers that need attention: not yet through to Peremajaan, longest service days first.
      * UP3 and global: the 100 oldest. ULP: those waiting more than 4 days, at most 50. `three_phase` (default on) keeps 3-phase power only; `extension=1` keeps only those in a network-extension proposal.
      */
-    public function attention(Request $request, ScopedUnitOptions $options): JsonResponse
+    /** Tab "Pelanggan Perlu Perhatian": semua permohonan berstatus Bayar / Cetak PK, lama layanan (HPL) terlama di atas, berpaginasi dengan filter seperti tab Permohonan. */
+    public function attention(Request $request): JsonResponse
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'applications.view');
-        $request->validate(['three_phase' => ['nullable', 'boolean'], 'extension' => ['nullable', 'boolean']]);
-        $isUlp = $options->for($request->user(), 'applications.view')['scope'] === 'ULP';
-        [$limit, $minDays] = $isUlp ? [50, 5] : [100, 0];
+        $request->validate(['status' => ['nullable', Rule::in(['PAID', 'PK_PRINTED'])], 'type' => ['nullable', Rule::in(['PB', 'PD'])], 'unit_id' => ['nullable', 'uuid'], 'up3_id' => ['nullable', 'uuid'], 'month' => ['nullable', 'date_format:Y-m'],
+            'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer'], 'min_va' => ['nullable', 'integer'], 'extension' => ['nullable', 'boolean']]);
         $days = 'coalesce(a.service_days, greatest(0, current_date - coalesce(a.source_created_at, a.created_at)::date))';
         $proposal = "(select p.proposal_number from proposal_applications pa join proposals p on p.id = pa.proposal_id where pa.application_id = a.id and pa.released_at is null and p.status = 'OPEN' limit 1)";
 
         $q = $this->scoped($scope)->join('customers as c', 'c.id', '=', 'a.customer_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
-            ->whereNotIn('a.current_status', ['CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'])
-            ->whereRaw("{$days} >= ?", [$minDays]);
-        if ($request->boolean('three_phase', true)) {
-            $q->whereRaw("(a.new_power_value * CASE WHEN upper(a.new_power_unit) = 'KVA' THEN 1000 ELSE 1 END) >= 6600");
+            ->whereIn('a.current_status', $request->filled('status') ? [$request->query('status')] : ['PAID', 'PK_PRINTED']);
+        foreach ([['type', 'a.application_type'], ['unit_id', 'a.organizational_unit_id']] as [$param, $col]) {
+            if ($request->filled($param)) {
+                $q->where($col, $request->query($param));
+            }
+        }
+        if ($request->filled('up3_id')) {
+            $q->where('u.parent_id', $request->query('up3_id'));
+        }
+        if ($request->filled('month')) {
+            $start = CarbonImmutable::createFromFormat('Y-m-d', $request->query('month').'-01')->startOfMonth();
+            $q->whereRaw('coalesce(a.last_external_status_at, a.created_at) >= ? and coalesce(a.last_external_status_at, a.created_at) < ?', [$start, $start->addMonth()]);
+        }
+        if ($request->filled('min_va')) {
+            $q->whereRaw("(a.new_power_value * CASE WHEN upper(a.new_power_unit) = 'KVA' THEN 1000 ELSE 1 END) >= ?", [max(0, min((int) $request->query('min_va'), 100000000))]);
         }
         if ($request->boolean('extension')) {
             $q->whereRaw("{$proposal} is not null");
         }
-        $rows = $q->selectRaw("a.id, a.application_number, a.application_type, a.current_status, a.new_tariff_code, a.new_power_value, a.new_power_unit, a.service_address, c.name as customer_name, u.code as unit_code, u.name as unit_name, {$days} as attention_days, {$proposal} as proposal_number")
-            ->orderByRaw("{$days} desc")->orderBy('a.application_number')->limit($limit)->get();
+        if ($request->filled('search')) {
+            $term = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $request->query('search')).'%';
+            $q->where(fn ($w) => $w->where('a.application_number', 'ilike', $term)->orWhere('c.name', 'ilike', $term)
+                ->orWhereExists(fn ($s) => $s->from('customer_external_references as r')->whereColumn('r.customer_id', 'c.id')->where('r.reference_value', 'ilike', $term))
+                ->orWhereExists(fn ($s) => $s->from('application_external_references as e')->whereColumn('e.application_id', 'a.id')->where('e.reference_number', 'ilike', $term)));
+        }
+        $page = $q->selectRaw("a.id, a.application_number, a.application_type, a.current_status, a.new_tariff_code, a.new_power_value, a.new_power_unit, a.service_address, c.name as customer_name, u.code as unit_code, u.name as unit_name, {$days} as attention_days, {$proposal} as proposal_number")
+            ->orderByRaw("{$days} desc")->orderBy('a.application_number')
+            ->paginate(max(1, min((int) $request->query('per_page', 25), 100)));
 
-        return response()->json(['data' => $rows->map(fn ($r) => ['id' => $r->id, 'application_number' => $r->application_number, 'application_type' => $r->application_type, 'status' => $r->current_status,
+        return response()->json(['data' => collect($page->items())->map(fn ($r) => ['id' => $r->id, 'application_number' => $r->application_number, 'application_type' => $r->application_type, 'status' => $r->current_status,
             'new_tariff_code' => $r->new_tariff_code, 'new_power_value' => $r->new_power_value === null ? null : (float) $r->new_power_value, 'new_power_unit' => $r->new_power_unit, 'service_address' => $r->service_address,
             'days' => (int) $r->attention_days, 'proposal_number' => $r->proposal_number, 'customer' => ['name' => $r->customer_name], 'unit' => ['code' => $r->unit_code, 'name' => $r->unit_name]])->all(),
-            'meta' => ['level' => $isUlp ? 'ULP' : 'UP3', 'limit' => $limit, 'min_days' => $minDays]]);
+            'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()]]);
     }
 
     public function index(Request $request): JsonResponse
