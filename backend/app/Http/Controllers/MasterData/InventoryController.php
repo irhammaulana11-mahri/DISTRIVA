@@ -12,6 +12,7 @@ use App\Services\Inventory\MimsPullRunService;
 use App\Services\Inventory\MimsStockSyncService;
 use App\Services\Inventory\PoleContractService;
 use App\Services\Inventory\StockService;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 /** Warehouses, stock snapshots and pole contracts / Kontrak Rinci (docs/62 §30). Violations -> 409, authorization -> 403/404. */
 class InventoryController extends Controller
@@ -765,21 +767,59 @@ class InventoryController extends Controller
         return response()->json(['data' => $this->map->coverage()]);
     }
 
-    /** GET /master-data/stock-sync-runs?warehouse_id= — the automatic pulls of the ERP stock (status, message, snapshot). */
+    /**
+     * GET /master-data/stock-sync-runs — the history of every stock pull: the schedule (AUTO), a user pulling on demand (MANUAL), the artisan command (CLI) and the stock files uploaded by hand (FILE),
+     * with the date each one was for. Filters: warehouse_id, trigger (AUTO|MANUAL|CLI|FILE), status (OK|FAILED|SKIPPED), month (YYYY-MM of the snapshot date), page, per_page.
+     */
     public function syncRuns(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $d = $request->validate(['warehouse_id' => ['nullable', 'uuid'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
-        $q = DB::table('stock_sync_runs as r')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->orderByDesc('r.started_at')->select('r.*', 'w.code as warehouse_code', 'w.name as warehouse_name');
-        if (isset($d['warehouse_id'])) {
-            $q->where('r.warehouse_id', $d['warehouse_id']);
+        $d = $request->validate(['warehouse_id' => ['nullable', 'uuid'], 'trigger' => ['nullable', Rule::in(['AUTO', 'MANUAL', 'CLI', 'FILE'])], 'status' => ['nullable', Rule::in(['OK', 'FAILED', 'SKIPPED'])],
+            'month' => ['nullable', 'date_format:Y-m'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $runs = DB::table('stock_sync_runs as r')->selectRaw('r.id, r.warehouse_id, r.trigger_kind, r.status, r.message, r.snapshot_id, r.materials_total, r.materials_mapped, r.triggered_by, r.started_at, r.finished_at, r.as_of');
+        $files = DB::table('stock_snapshots as s')->whereRaw("coalesce(s.source_reference, '') not like 'MIMS API%'")->whereNotExists(fn ($q) => $q->from('stock_sync_runs as x')->whereColumn('x.snapshot_id', 's.id'))
+            ->selectRaw("s.id, s.warehouse_id, 'FILE' as trigger_kind, 'OK' as status, s.source_reference as message, s.id as snapshot_id, s.materials_total, s.materials_mapped, s.created_by as triggered_by, s.created_at as started_at, s.created_at as finished_at, s.as_of");
+        $q = DB::query()->fromSub($runs->unionAll($files), 'u')->join('warehouses as w', 'w.id', '=', 'u.warehouse_id')->leftJoin('users as us', 'us.id', '=', 'u.triggered_by')
+            ->orderByDesc('u.started_at')->select('u.*', 'w.code as warehouse_code', 'w.name as warehouse_name', 'us.name as triggered_by_name');
+        isset($d['warehouse_id']) && $q->where('u.warehouse_id', $d['warehouse_id']);
+        isset($d['trigger']) && $q->where('u.trigger_kind', $d['trigger']);
+        isset($d['status']) && $q->where('u.status', $d['status']);
+        if (isset($d['month'])) {
+            $q->whereRaw("to_char(u.as_of, 'YYYY-MM') = ?", [$d['month']]);
         }
         $page = $q->paginate((int) ($d['per_page'] ?? 30));
 
-        return response()->json(['data' => collect($page->items())->map(fn ($r) => ['id' => $r->id, 'warehouse_code' => $r->warehouse_code, 'warehouse_name' => $r->warehouse_name, 'status' => $r->status, 'message' => $r->message, 'snapshot_id' => $r->snapshot_id,
+        return response()->json(['data' => collect($page->items())->map(fn ($r) => ['id' => $r->id, 'warehouse_code' => $r->warehouse_code, 'warehouse_name' => $r->warehouse_name, 'trigger' => $r->trigger_kind, 'triggered_by_name' => $r->triggered_by_name,
+            'as_of' => $r->as_of === null ? null : substr((string) $r->as_of, 0, 10), 'status' => $r->status, 'message' => $r->message, 'snapshot_id' => $r->snapshot_id,
             'materials_total' => (int) $r->materials_total, 'materials_mapped' => (int) $r->materials_mapped, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all(),
             'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()],
             'sync_configured' => filled(config('distriva.mims.base_url')) && filled(config('distriva.mims.auth_token'))]);
+    }
+
+    /**
+     * GET /master-data/stock-coverage?month=YYYY-MM — which days of the month each warehouse has a stock snapshot for and which days (up to today) are still missing.
+     * A warehouse without plant and storage location cannot be pulled from the ERP: it is listed as not configured, its days are not counted as missing.
+     */
+    public function stockCoverage(Request $request): JsonResponse
+    {
+        $this->authorizer->authorize($request->user(), 'master_data.view');
+        $d = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $tz = (string) config('distriva.business_timezone');
+        $today = CarbonImmutable::now($tz)->startOfDay();
+        $start = CarbonImmutable::createFromFormat('Y-m-d', ($d['month'] ?? $today->format('Y-m')).'-01', $tz)->startOfMonth();
+        $days = $start->daysInMonth;
+        $last = $start->endOfMonth()->isBefore($today) ? $days : ($start->isAfter($today) ? 0 : $today->day);          // the last day that is already due
+        $have = DB::table('stock_snapshots')->where('as_of', '>=', $start->toDateString())->where('as_of', '<=', $start->endOfMonth()->toDateString())->get(['warehouse_id', 'as_of'])
+            ->groupBy('warehouse_id')->map(fn ($rows) => $rows->map(fn ($r) => (int) substr((string) $r->as_of, 8, 2))->unique()->sort()->values()->all());
+        $warehouses = DB::table('warehouses')->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'plant', 'stor_loc'])->map(function ($w) use ($have, $last) {
+            $taken = $have->get($w->id, []);
+            $configured = $w->plant !== null && $w->stor_loc !== null;
+
+            return ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'configured' => $configured, 'days_taken' => $taken,
+                'days_missing' => $configured && $last > 0 ? array_values(array_diff(range(1, $last), $taken)) : []];
+        })->all();
+
+        return response()->json(['month' => $start->format('Y-m'), 'days_in_month' => $days, 'last_due_day' => $last, 'data' => $warehouses]);
     }
 
     /**

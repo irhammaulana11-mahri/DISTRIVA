@@ -36,6 +36,7 @@ vi.mock('../../services/api.js', () => ({
     snapshotDetail: vi.fn(),
     unmapped: vi.fn(),
     syncRuns: vi.fn(),
+    stockCoverage: vi.fn(),
     syncStock: vi.fn(),
     mimsTokenStatus: vi.fn(),
     forgetMimsToken: vi.fn(),
@@ -295,11 +296,14 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       })
     })
 
-    it('menampilkan riwayat sinkronisasi otomatis, spanduk bila sync_configured=false, dan tidak menampilkan token', async () => {
+    it('menampilkan riwayat sinkronisasi (otomatis, manual, berkas) dengan tanggal cuplikan, cakupan hari yang belum diambil, spanduk bila sync_configured=false, dan tidak menampilkan token', async () => {
+      warehousesApi.stockCoverage.mockResolvedValue({ month: '2026-11', days_in_month: 30, last_due_day: 7, data: [{ id: 'w-1', code: 'GDG-UP3', name: 'Gudang Area Mojokerto', configured: true, days_taken: [5, 6], days_missing: [1, 2, 3, 4, 7] }, { id: 'w-2', code: 'GDG-X', name: 'Tanpa ERP', configured: false, days_taken: [], days_missing: [] }] })
       warehousesApi.syncRuns.mockResolvedValue({
         data: [
           {
             id: 'run-1',
+            trigger: 'AUTO',
+            as_of: '2026-11-07',
             warehouse_code: 'GDG-UP3',
             warehouse_name: 'Gudang Area Mojokerto',
             status: 'OK',
@@ -312,6 +316,9 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
           },
           {
             id: 'run-2',
+            trigger: 'MANUAL',
+            triggered_by_name: 'Budi Konstruksi',
+            as_of: '2026-11-06',
             warehouse_code: 'GDG-UP3',
             warehouse_name: 'Gudang Area Mojokerto',
             status: 'FAILED',
@@ -323,6 +330,7 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
             finished_at: '2026-11-06T06:01:00Z',
           },
         ],
+        meta: { current_page: 1, per_page: 10, total: 2, last_page: 1 },
         sync_configured: false,
       })
 
@@ -335,10 +343,23 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       await userEvent.click(syncTab)
 
       await waitFor(() => {
-        expect(screen.getByText(/Sinkronisasi otomatis belum dikonfigurasi di server/i)).toBeInTheDocument()
+        expect(screen.getByText(/Penarikan MIMS otomatis belum dikonfigurasi di server/i)).toBeInTheDocument()
         expect(screen.getByText('Sinkronisasi stok 120 SKU selesai.')).toBeInTheDocument()
         expect(screen.getByText('Koneksi timeout ke server logistik MIMS.')).toBeInTheDocument()
       })
+
+      // pemicu dan tanggal cuplikan tiap baris; yang manual menyebut siapa yang menarik
+      expect(screen.getAllByTestId('run-trigger').map((e) => e.textContent)).toEqual(['Otomatis', 'Manual'])
+      expect(screen.getByText('Budi Konstruksi')).toBeInTheDocument()
+      expect(screen.getAllByTestId('run-as-of')[0]).toHaveTextContent('2026')
+      // cakupan: hari yang sudah lewat tetapi belum diambil
+      expect(screen.getByTestId('coverage-missing-total')).toHaveTextContent('5')
+      const [wh1] = screen.getAllByTestId('coverage-row')
+      expect(wh1.querySelectorAll('[data-day-state="missing"]')).toHaveLength(5)
+      expect(wh1.querySelectorAll('[data-day-state="taken"]')).toHaveLength(2)
+      expect(warehousesApi.syncRuns).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, per_page: 10 }))
+      await userEvent.selectOptions(screen.getByLabelText('Filter pemicu'), 'MANUAL')
+      await waitFor(() => expect(warehousesApi.syncRuns).toHaveBeenLastCalledWith(expect.objectContaining({ trigger: 'MANUAL' })))
 
       // Security check: ensure no token or secret credential input exists in DOM
       expect(screen.queryByPlaceholderText(/token/i)).not.toBeInTheDocument()

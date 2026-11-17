@@ -840,6 +840,47 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_history_lists_scheduled_manual_and_file_pulls_with_their_dates_and_the_coverage_shows_which_days_are_missing(): void
+    {
+        $wh = $this->warehouse();
+        DB::table('warehouses')->where('id', $wh)->update(['plant' => '5118', 'stor_loc' => '2810']);
+        $other = (string) Str::uuid();
+        DB::table('warehouses')->insert(['id' => $other, 'code' => 'GD-2', 'name' => 'Tanpa ERP', 'organizational_unit_id' => $this->up3->getKey(), 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $this->upload($wh, "kode_khs,stok\n1,5\n", ['as_of' => now()->subDays(3)->toDateString()])->assertCreated();                                  // a stock file uploaded by hand
+        $snap = (string) Str::uuid();
+        DB::table('stock_snapshots')->insert(['id' => $snap, 'warehouse_id' => $wh, 'as_of' => now()->subDay()->toDateString(), 'source_reference' => 'MIMS API 5118/2810', 'created_by' => $this->konstruksi->getKey(), 'created_at' => now()]);
+        $run = fn (string $trigger, string $status, ?string $at, ?string $snapshot = null) => DB::table('stock_sync_runs')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'status' => $status, 'snapshot_id' => $snapshot,
+            'triggered_by' => $trigger === 'CLI' ? null : $this->konstruksi->getKey(), 'trigger_kind' => $trigger, 'as_of' => $at, 'started_at' => now(), 'finished_at' => now()]);
+        $run('AUTO', 'OK', now()->subDay()->toDateString(), $snap);
+        $run('MANUAL', 'SKIPPED', now()->subDay()->toDateString());
+        $run('CLI', 'FAILED', now()->toDateString());
+
+        $all = $this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs')->assertOk();
+        $this->assertEqualsCanonicalizing(['AUTO', 'MANUAL', 'CLI', 'FILE'], collect($all->json('data'))->pluck('trigger')->all());
+        $file = collect($all->json('data'))->firstWhere('trigger', 'FILE');
+        $this->assertSame([now()->subDays(3)->toDateString(), 'OK'], [$file['as_of'], $file['status']]);                                              // the upload has its snapshot date and who uploaded it
+        $this->assertNotNull($file['triggered_by_name']);
+        $this->assertSame(4, count($all->json('data')));                                                                                              // the scheduled run's snapshot is not listed twice
+        $this->assertSame(['MANUAL'], collect($this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?trigger=MANUAL')->json('data'))->pluck('trigger')->all());
+        $this->assertSame(['FAILED'], collect($this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?status=FAILED')->json('data'))->pluck('status')->all());
+        $this->assertSame(1, count($this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?trigger=FILE&warehouse_id='.$wh)->json('data')));
+        $this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?trigger=BOT')->assertUnprocessable();
+        $this->as($this->vendor)->getJson('/api/master-data/stock-coverage')->assertForbidden();
+
+        $cov = $this->as($this->viewer)->getJson('/api/master-data/stock-coverage?month='.now()->format('Y-m'))->assertOk();
+        $row = collect($cov->json('data'))->firstWhere('code', 'GD-1');
+        $this->assertSame(now()->day, $cov->json('last_due_day'));
+        $taken = collect([now()->subDays(3), now()->subDay()])->filter(fn ($d) => $d->format('Y-m') === now()->format('Y-m'))->map(fn ($d) => $d->day)->sort()->values()->all();
+        $this->assertSame($taken, $row['days_taken']);
+        $this->assertSame(array_values(array_diff(range(1, now()->day), $taken)), $row['days_missing']);                                               // every due day without a snapshot
+        $none = collect($cov->json('data'))->firstWhere('code', 'GD-2');
+        $this->assertSame([false, []], [$none['configured'], $none['days_missing']]);                                                                 // no plant / storage location: not counted as missing
+        $future = $this->as($this->viewer)->getJson('/api/master-data/stock-coverage?month='.now()->addMonth()->format('Y-m'))->assertOk();
+        $this->assertSame(0, $future->json('last_due_day'));
+        $this->assertSame([], collect($future->json('data'))->firstWhere('code', 'GD-1')['days_missing']);
+    }
+
+    #[Test]
     public function a_snapshot_below_the_safety_stock_alerts_the_stock_importers_of_the_unit_once_and_refreshes_the_unread_alert(): void
     {
         $wh = $this->warehouse();

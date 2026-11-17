@@ -131,7 +131,7 @@ class MimsStockSyncService
         foreach (DB::table('warehouses')->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code')->get() as $wh) {
             $count++;
             if ($s->auto_stock) {
-                $r = $this->syncWarehouse($wh, $user, null, false, $token, $user);
+                $r = $this->syncWarehouse($wh, $user, null, false, $token, $user, 'AUTO');
                 if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
                     $rejected = true;
                     break;
@@ -156,15 +156,16 @@ class MimsStockSyncService
     }
 
     /** @return array{status:string,message:?string,snapshot_id:?string,total:int,mapped:int} */
-    public function syncWarehouse(object $wh, User $actor, ?string $asOf = null, bool $dryRun = false, ?string $token = null, ?User $triggeredBy = null): array
+    /** @param 'AUTO'|'MANUAL'|'CLI' $trigger what started the pull (shown in the history) */
+    public function syncWarehouse(object $wh, User $actor, ?string $asOf = null, bool $dryRun = false, ?string $token = null, ?User $triggeredBy = null, string $trigger = 'MANUAL'): array
     {
         $asOf ??= CarbonImmutable::now((string) config('distriva.business_timezone'))->toDateString();
         $run = (string) Str::uuid();
         $started = now();
-        $finish = function (string $status, ?string $message, ?string $snapshot = null, int $total = 0, int $mapped = 0) use ($run, $wh, $started, $dryRun, $triggeredBy): array {
+        $finish = function (string $status, ?string $message, ?string $snapshot = null, int $total = 0, int $mapped = 0) use ($run, $wh, $started, $dryRun, $triggeredBy, $trigger, $asOf): array {
             if (! $dryRun) {
                 DB::table('stock_sync_runs')->insert(['id' => $run, 'warehouse_id' => $wh->id, 'status' => $status, 'message' => $message === null ? null : mb_substr($message, 0, 1000), 'snapshot_id' => $snapshot,
-                    'materials_total' => $total, 'materials_mapped' => $mapped, 'triggered_by' => $triggeredBy?->getKey(), 'started_at' => $started, 'finished_at' => now()]);
+                    'materials_total' => $total, 'materials_mapped' => $mapped, 'triggered_by' => $triggeredBy?->getKey(), 'trigger_kind' => $trigger, 'as_of' => $asOf, 'started_at' => $started, 'finished_at' => now()]);
             }
 
             return ['status' => $status, 'message' => $message, 'snapshot_id' => $snapshot, 'total' => $total, 'mapped' => $mapped];

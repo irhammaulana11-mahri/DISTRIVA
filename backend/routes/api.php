@@ -378,6 +378,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/stock-position', [InventoryController::class, 'position']);
         Route::get('/stock-material-detail', [InventoryController::class, 'materialStockDetail']);
         Route::get('/stock-sync-runs', [InventoryController::class, 'syncRuns']);
+        Route::get('/stock-coverage', [InventoryController::class, 'stockCoverage']);
         Route::get('/mims-issues', [InventoryController::class, 'mimsIssues']);
         Route::get('/mims-receipts', [InventoryController::class, 'mimsReceipts']);
         Route::get('/mims-reservations', [InventoryController::class, 'mimsReservations']);

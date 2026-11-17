@@ -12,6 +12,7 @@ import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import MimsMirrorTab from './MimsMirrorTab.jsx'
+import StockSyncHistory from './StockSyncHistory.jsx'
 import MimsSettingsDrawer from './MimsSettingsDrawer.jsx'
 import MimsStockPullPage from './MimsStockPullPage.jsx'
 import MaterialStockDetailDrawer from './MaterialStockDetailDrawer.jsx'
@@ -40,6 +41,8 @@ export default function WarehousesPage() {
 
   const [activeTab, setActiveTab] = useState('warehouses') // 'warehouses' | 'position' | 'sync-runs'
   const [warehouses, setWarehouses] = useState([])
+  const [syncRefresh, setSyncRefresh] = useState(0)                 // dinaikkan setelah penarikan selesai agar riwayat dan cakupan dimuat ulang
+  const [syncTotal, setSyncTotal] = useState(0)                       // jumlah riwayat penarikan (diisi saat tab riwayat dibuka)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -48,8 +51,6 @@ export default function WarehousesPage() {
   const [whPerPage, setWhPerPage] = useState(10)
   const [posPage, setPosPage] = useState(1)
   const [posPerPage, setPosPerPage] = useState(10)
-  const [syncPage, setSyncPage] = useState(1)
-  const [syncPerPage, setSyncPerPage] = useState(10)
 
   // Warehouse Snapshots Drawer
   const [selectedWarehouse, setSelectedWarehouse] = useState(null)
@@ -86,11 +87,6 @@ export default function WarehousesPage() {
   const [selectedMaterialForDetail, setSelectedMaterialForDetail] = useState(null)
 
   // Sync Runs State
-  const [syncRuns, setSyncRuns] = useState([])
-  const [syncLoading, setSyncLoading] = useState(false)
-  const [syncConfigured, setSyncConfigured] = useState(true)
-  const [syncWarehouseFilter, setSyncWarehouseFilter] = useState('')
-  const [syncError, setSyncError] = useState('')
 
   // Dialog Tarik Stok MIMS & Pengaturan
   const [mimsModalOpen, setMimsModalOpen] = useState(false)
@@ -115,28 +111,6 @@ export default function WarehousesPage() {
     loadWarehouses()
   }, [loadWarehouses])
 
-  // Load Sync Runs
-  const loadSyncRuns = useCallback(async () => {
-    setSyncLoading(true)
-    setSyncError('')
-    try {
-      const res = await warehousesApi.syncRuns({
-        warehouse_id: syncWarehouseFilter || undefined,
-      })
-      setSyncRuns(res?.data || [])
-      setSyncConfigured(res?.sync_configured ?? true)
-    } catch (err) {
-      setSyncError(err?.message || 'Gagal memuat riwayat sinkronisasi stok.')
-    } finally {
-      setSyncLoading(false)
-    }
-  }, [syncWarehouseFilter])
-
-  useEffect(() => {
-    if (activeTab === 'sync-runs') {
-      loadSyncRuns()
-    }
-  }, [activeTab, loadSyncRuns])
 
   // Load snapshots for selected warehouse
   const loadSnapshots = async (warehouse) => {
@@ -280,9 +254,9 @@ export default function WarehousesPage() {
       total: warehouses.length,
       active: warehouses.filter((w) => w.is_active).length,
       snapshotsCount: warehouses.filter((w) => w.latest_snapshot).length,
-      syncRunsCount: syncRuns.length,
+      syncRunsCount: syncTotal,
     }
-  }, [warehouses, syncRuns])
+  }, [warehouses, syncTotal])
 
   return (
     <div className="space-y-6">
@@ -862,161 +836,8 @@ export default function WarehousesPage() {
       {activeTab === 'mims-receipts' && <MimsMirrorTab kind="receipts" warehouses={warehouses} />}
       {activeTab === 'mims-reservations' && <MimsMirrorTab kind="reservations" warehouses={warehouses} />}
 
-      {/* TAB 3: Auto-Sync Runs */}
-      {activeTab === 'sync-runs' && (
-        <div className="space-y-4">
-          {!syncConfigured && (
-            <Alert kind="warning">
-              Sinkronisasi otomatis belum dikonfigurasi di server (konfigurasi URL basis dan token MIMS belum disetel pada environment server).
-            </Alert>
-          )}
-
-          {syncError && <Alert kind="error">{syncError}</Alert>}
-
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Riwayat Sinkronisasi Otomatis Stok ERP
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                Log penarikan berkala cuplikan data stok dari sistem ERP/MIMS.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <select
-                value={syncWarehouseFilter}
-                onChange={(e) => setSyncWarehouseFilter(e.target.value)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-              >
-                <option value="">Semua Gudang</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.code} - {w.name}
-                  </option>
-                ))}
-              </select>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={IconRefresh}
-                loading={syncLoading}
-                onClick={loadSyncRuns}
-                aria-label="Segarkan riwayat sinkronisasi"
-              >
-                Segarkan
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
-            {syncLoading ? (
-              <div className="py-20 text-center text-slate-500">
-                <Spinner size="lg" label="Memuat riwayat sinkronisasi..." />
-              </div>
-            ) : syncRuns.length === 0 ? (
-              <EmptyState
-                icon={IconRefresh}
-                title="Belum ada riwayat sinkronisasi"
-                description="Belum ada catatan riwayat sinkronisasi stok otomatis dari sistem inventaris ERP."
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold text-[11px]">
-                      <th className="py-3 px-4">Waktu Mulai</th>
-                      <th className="py-3 px-4">Gudang</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Total SKU</th>
-                      <th className="py-3 px-4 text-right">SKU Terpetakan</th>
-                      <th className="py-3 px-4">Pesan / Hasil</th>
-                      <th className="py-3 px-4 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-sans text-xs">
-                    {syncRuns
-                      .slice((syncPage - 1) * syncPerPage, syncPage * syncPerPage)
-                      .map((r) => (
-                        <tr
-                          key={r.id}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                        >
-                          <td className="py-3 px-4 font-mono text-[11px] text-slate-700 dark:text-slate-300">
-                            {r.started_at ? new Date(r.started_at).toLocaleString('id-ID') : '-'}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 mr-1.5">
-                              {r.warehouse_code}
-                            </span>
-                            <span className="text-slate-500 text-[11px]">({r.warehouse_name})</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                r.status === 'OK'
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                  : r.status === 'SKIPPED'
-                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                              }`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono text-slate-800 dark:text-slate-200">
-                            {r.materials_total?.toLocaleString('id-ID') || 0}
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono text-emerald-600 font-semibold">
-                            {r.materials_mapped?.toLocaleString('id-ID') || 0}
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px] max-w-xs truncate" title={r.message}>
-                            {r.message || '-'}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            {r.snapshot_id ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleViewSnapshotDetail({
-                                    id: r.snapshot_id,
-                                    as_of: r.started_at?.slice(0, 10),
-                                    source_reference: `Sync ${r.warehouse_code}`,
-                                  })
-                                }
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-blue-600 hover:bg-blue-50 border border-blue-200 transition cursor-pointer"
-                              >
-                                <IconEye size={12} />
-                                <span>Lihat Cuplikan</span>
-                              </button>
-                            ) : (
-                              <span className="text-slate-400 text-[10px]">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <TableFooter
-              itemCount={syncRuns.slice((syncPage - 1) * syncPerPage, syncPage * syncPerPage).length}
-              total={syncRuns.length}
-              entityLabel="riwayat sinkronisasi"
-              page={syncPage}
-              perPage={syncPerPage}
-              onPage={setSyncPage}
-              onPerPage={(n) => {
-                setSyncPerPage(n)
-                setSyncPage(1)
-              }}
-              perPageOptions={[10, 25, 50, 100]}
-            />
-          </div>
-        </div>
-      )}
-
+      {/* TAB 3: Riwayat penarikan stok ERP (otomatis, manual, berkas) + cakupan harian */}
+      {activeTab === 'sync-runs' && <StockSyncHistory warehouses={warehouses} onViewSnapshot={handleViewSnapshotDetail} onTotal={setSyncTotal} refreshKey={syncRefresh} />}
 
       {/* DRAWER 1: Warehouse Snapshots List */}
       {selectedWarehouse && (
@@ -1313,7 +1134,7 @@ export default function WarehousesPage() {
         <MimsStockPullPage
           asPage={false}
           onClose={() => setMimsModalOpen(false)}
-          onSuccess={() => loadSyncRuns()}
+          onSuccess={() => setSyncRefresh((n) => n + 1)}
           onOpenUnmapped={(snapshotId, warehouseName) => {
             setMimsModalOpen(false)
             handleOpenUnmapped(snapshotId, warehouseName)
@@ -1325,7 +1146,7 @@ export default function WarehousesPage() {
       <MimsSettingsDrawer
         isOpen={mimsSettingsOpen}
         onClose={() => setMimsSettingsOpen(false)}
-        onChanged={() => loadSyncRuns()}
+        onChanged={() => setSyncRefresh((n) => n + 1)}
       />
 
       {/* DRAWER: Detail Material & Riwayat Mutasi (Penerimaan / Pengeluaran) */}

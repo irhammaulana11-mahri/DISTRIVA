@@ -35,7 +35,7 @@ class MimsSyncStockCommand extends Command
         }
         $failed = 0;
         foreach ($q->get() as $wh) {
-            $r = $sync->syncWarehouse($wh, $actor, $this->option('date') ?: null, (bool) $this->option('dry-run'));
+            $r = $sync->syncWarehouse($wh, $actor, $this->option('date') ?: null, (bool) $this->option('dry-run'), null, null, 'CLI');
             $failed += $r['status'] === 'FAILED' ? 1 : 0;
             $this->line("{$wh->code} {$wh->name}: {$r['status']}".($r['message'] ? " — {$r['message']}" : " ({$r['mapped']}/{$r['total']} SKU terpetakan)"));
             if ($r['status'] === 'FAILED' && str_contains((string) $r['message'], 'token ditolak')) {
