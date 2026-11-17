@@ -47,6 +47,20 @@ class OmtTest(unittest.TestCase):
             self.assertEqual(rows[0]["ier"], "")                                                                  # old layout: jurusan e..p are simply empty
             self.assertEqual(hd2["Waktu Pengukuran"], "2022-01-01 11:30:15")
 
+    def test_old_layout_padded_to_108_columns_is_read_as_the_old_layout(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "omt-pengukuran 2023-2.csv")
+            common = {"Nama Unit": "MOJOKERTO", "Nama ULP": "JOMBANG", "Kapasitas Aset": "100", "Tanggal Pengukuran": "2023-08-01"}
+            old = row(omt.OLD, **common, **{"Nama Aset": "HD1", "Waktu Pengukuran": "2023-08-01 17:00:00", "iar": "40", "iur": "46", "vrn": "230", "vrs": "400", "vsn": "231", "vst": "400", "vtn": "230", "vtr": "400", "nhf_iar": "160"})
+            padded = old + [""] * 48                                                                          # the same old row in 108 cells: Excel padded it, nothing moved
+            new = row(omt.NEW, **common, **{"Nama Aset": "HD2", "Waktu Pengukuran": "2023-08-01 18:00:00", "ier": "20", "iur": "60", "vrn": "228"})
+            write(p, omt.NEW, [padded, new])
+            rows, per, _ = omt.clean([p], "MOJOKERTO")
+            hd1, hd2 = rows
+            self.assertEqual((hd1["vrn"], hd1["vtr"], hd1["ifr"], hd1["igr"], hd1["iar"], hd1["nhf_iar"]), ("230", "400", "", "", "40", "160"))   # voltages are voltages again, not jurusan f/g
+            self.assertEqual((hd2["ier"], hd2["vrn"]), ("20", "228"))                                          # a genuine new row is untouched
+            self.assertEqual((per[p]["padded_old"], per[p]["layout_lama"], per[p]["layout_baru"]), (1, 1, 1))
+
     def test_us_dates_dedupe_between_files_and_coverage(self):
         with tempfile.TemporaryDirectory() as d:
             mk = lambda name, rows: (write(os.path.join(d, name), omt.NEW, rows), os.path.join(d, name))[1]

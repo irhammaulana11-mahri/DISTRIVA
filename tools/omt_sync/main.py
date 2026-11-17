@@ -19,7 +19,7 @@ def report(rows, per_file, dups, unit):
     for p, st in per_file.items():
         lines.append(f"\n{os.path.basename(p)}: judul {st['header_columns']} kolom, {st['rows']} baris dibaca")
         lines.append(f"  kosong dibuang {st['blank']} | unit lain dilewati {st['other_unit']} | dipertahankan {st['kept']} (tata letak lama {st['layout_lama']}, baru {st['layout_baru']})")
-        lines.append(f"  baris bergeser/tanpa judul diperbaiki {st['shifted']} (unit ini) | lebar tak dikenal {st['bad_width']} | tanggal rusak {st['bad_date']} | waktu hilang {st['time_missing']} | tanggal≠waktu {st['date_vs_time_differ']}")
+        lines.append(f"  baris bergeser/tanpa judul diperbaiki {st['shifted']} (unit ini) | tata letak lama dalam 108 kolom diperbaiki {st['padded_old']} | lebar tak dikenal {st['bad_width']} | tanggal rusak {st['bad_date']} | waktu hilang {st['time_missing']} | tanggal≠waktu {st['date_vs_time_differ']}")
         lines.append(f"  format tanggal: ISO {st['fmt_iso']}, bulan/hari/tahun {st['fmt_us']} | duplikat {st['duplicate']}")
     by, low = omt.coverage(rows)
     months = omt.month_range(rows[0]["Waktu Pengukuran"][:7], rows[-1]["Waktu Pengukuran"][:7]) if rows else []

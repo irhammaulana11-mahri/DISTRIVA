@@ -6,7 +6,9 @@ Masalah yang ditemukan pada unduhan 2022-2026 dan diperbaiki di sini (tanpa meng
 2. **Format tanggal campuran.** Sebagian berkas memakai `2024-06-30 05:54:38`, sebagian `6/29/2024 22:56` (bulan/hari/tahun hasil simpan Excel). Semuanya dijadikan `YYYY-MM-DD` dan `YYYY-MM-DD HH:MM:SS`.
 3. **Baris kosong** (2023-2 berisi ~965 ribu baris kosong sisa Excel) dibuang.
 4. **Duplikat** antar berkas (mis. 30 Juni muncul di dua berkas) dibuang: kunci = nama aset + waktu pengukuran.
-5. **Cakupan**: laporan per ULP per bulan menandai bulan yang jauh di bawah biasanya (data belum lengkap).
+5. **Tata letak lama di dalam 108 kolom.** Sebagian baris 2023-2 (Juli-Desember 2023) berlebar 108 tetapi isinya tata letak lama 60 kolom yang tidak digeser: tegangan (vrn..vtr) jatuh ke kolom jurusan f/g,
+   nilai NH fuse ke jurusan g/h/i, dan 48 kolom terakhir kosong. Dikenali dari isinya (lihat `_padded_old_layout`) dan dibaca sebagai tata letak lama, sehingga arus per jurusan dan tegangan pangkal benar.
+6. **Cakupan**: laporan per ULP per bulan menandai bulan yang jauh di bawah biasanya (data belum lengkap).
 """
 import csv
 import re
@@ -58,6 +60,20 @@ def _num(v):
         return False
 
 
+def _padded_old_layout(row):
+    """A 108-wide row that really holds the old 60-column layout (Excel padded it without shifting): the last 48 cells are empty while the cells that the new layout calls jurusan f/g (positions 42-47)
+    hold the base voltages (phase-neutral ~180-260 V at 42/44/46, phase-phase ~310-450 V at 43/45/47)."""
+    if len(row) != len(NEW) or any(c.strip() for c in row[len(OLD):]):
+        return False
+    def v(i):
+        try:
+            return float(row[i])
+        except (TypeError, ValueError):
+            return None
+    pn, pp = [v(i) for i in (42, 44, 46)], [v(i) for i in (43, 45, 47)]
+    return sum(1 for x in pn if x is not None and 150 <= x <= 300) >= 2 and sum(1 for x in pp if x is not None and 250 <= x <= 480) >= 2
+
+
 def read_file(path, unit=None, stats=None):
     """Yields canonical dict rows (CANONICAL keys + `_source`, `_layout`, `_time_missing`) of one file; counts what it repaired into `stats` (Counter-like dict)."""
     st = stats if stats is not None else Counter()
@@ -71,10 +87,16 @@ def read_file(path, unit=None, stats=None):
                 st["blank"] += 1
                 continue
             width = len(row)
+            padded = False
             if width == len(OLD):
                 names, layout = OLD, "lama"
             elif width == len(NEW):
-                names, layout = NEW, "baru"
+                if _padded_old_layout(row):
+                    names, layout = OLD, "lama"
+                    row = row[:len(OLD)]
+                    padded = True
+                else:
+                    names, layout = NEW, "baru"
             else:
                 st["bad_width"] += 1
                 continue
@@ -83,6 +105,8 @@ def read_file(path, unit=None, stats=None):
             if unit and d["Nama Unit"].upper() != unit.upper():
                 st["other_unit"] += 1
                 continue
+            if padded:
+                st["padded_old"] += 1                                  # (unit yang dipilih)
             if width != len(header):
                 st["shifted"] += 1                                    # baris lebih lebar/sempit daripada judulnya: data bergeser / tanpa judul (dihitung untuk unit yang dipilih)
             at, kind_t = parse_dt(d["Waktu Pengukuran"])
