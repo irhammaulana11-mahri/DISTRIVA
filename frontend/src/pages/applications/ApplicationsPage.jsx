@@ -21,6 +21,7 @@ import ApplicationWorkOrdersPanel from './ApplicationWorkOrdersPanel.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
 import SearchSelect from '../../components/SearchSelect.jsx'
 import EisRunHistory from './EisRunHistory.jsx'
+import AttentionCustomers from './AttentionCustomers.jsx'
 import { AuthenticatedDocumentItem } from '../../components/DocumentGallery.jsx'
 import {
   IconSearch,
@@ -333,7 +334,7 @@ export default function ApplicationsPage() {
       </div>
 
       <div role="tablist" aria-label="Tampilan PB/PD" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
-        {[['permohonan', 'Permohonan'], ...(can['eis_sync.manage'] ? [['eis', 'Riwayat Sinkronisasi EIS']] : [])].map(([id, label]) => (
+        {[['permohonan', 'Permohonan'], ...(can['eis_sync.manage'] ? [['eis', 'Riwayat Sinkronisasi EIS']] : []), ['attention', 'Pelanggan Perlu Perhatian']].map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -348,6 +349,7 @@ export default function ApplicationsPage() {
       </div>
 
       {tab === 'eis' && can['eis_sync.manage'] && <EisRunHistory />}
+      {tab === 'attention' && <AttentionCustomers formatPower={formatTariffPower} onOpen={(id) => setDetailTarget({ id })} />}
       {tab === 'permohonan' && (
       <>
         {/* Main Standardized Table Card */}

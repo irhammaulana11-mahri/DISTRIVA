@@ -37,6 +37,7 @@ vi.mock('../../features/admin/AccessContext.jsx', () => ({
 vi.mock('../../services/api.js', () => ({
   eisSyncApi: { show: vi.fn().mockResolvedValue({ data: { settings: { eis_username: 'u', has_password: true, power_min: 0, power_max: 99999999, lookback_days: 180, auto_enabled: false, auto_time: '18:13' }, runs: [] } }), save: vi.fn(), start: vi.fn(), run: vi.fn() },
   applicationApi: {
+    attention: vi.fn().mockResolvedValue({ data: [], meta: { level: 'UP3', limit: 100, min_days: 0 } }),
     units: vi.fn().mockResolvedValue({ scope: 'GLOBAL', up3_units: [{ id: 'up1', code: '51400', name: 'UP3 Nganjuk' }, { id: 'up2', code: '51500', name: 'UP3 Lain' }], ulp_units: [{ id: 'u1', code: '51453', name: 'ULP Jombang', parent_id: 'up1' }, { id: 'u2', code: '51454', name: 'ULP Mojoagung', parent_id: 'up1' }, { id: 'u3', code: '51501', name: 'ULP Lain', parent_id: 'up2' }] }),
     list: vi.fn(),
     get: vi.fn(),
@@ -779,6 +780,27 @@ describe('ApplicationsPage (PB/PD Stage 1A)', () => {
     expect(screen.getByLabelText('Filter Unit UP3')).toHaveValue('51400 - UP3 Nganjuk')
     expect(screen.getByLabelText('Filter Unit ULP')).toBeDisabled()
     expect(screen.getByLabelText('Filter Unit ULP')).toHaveValue('51453 - ULP Jombang')
+  })
+
+  it('tab Pelanggan Perlu Perhatian menampilkan yang terlama, memakai filter 3 fasa bawaan, dan bisa dipersempit ke usulan perluasan', async () => {
+    applicationApi.list.mockResolvedValue({ data: sampleApps, meta: { current_page: 1, per_page: 20, total: 2 } })
+    applicationApi.attention.mockResolvedValue({
+      data: [{ id: 'a1', application_number: 'PBPD-1', status: 'PAID', days: 41, new_tariff_code: 'B2', new_power_value: 6600, new_power_unit: 'VA', proposal_number: 'USL-0001', service_address: 'JL A', customer: { name: 'PELANGGAN LAMA' }, unit: { code: '51453', name: 'ULP Jombang' } }],
+      meta: { level: 'ULP', limit: 50, min_days: 5 },
+    })
+    renderApp()
+    await screen.findByText('APP-202611-0001')
+    await userEvent.click(screen.getByRole('tab', { name: 'Pelanggan Perlu Perhatian' }))
+    expect(await screen.findByText('PELANGGAN LAMA')).toBeInTheDocument()
+    expect(screen.getByText('41 hari')).toBeInTheDocument()
+    expect(screen.getByText('USL-0001')).toBeInTheDocument()
+    expect(screen.getByText(/lebih dari 4 hari, paling lama 50 data/)).toBeInTheDocument()
+    expect(applicationApi.attention).toHaveBeenLastCalledWith({ three_phase: 1, extension: undefined })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Usulan perluasan saja' }))
+    await waitFor(() => expect(applicationApi.attention).toHaveBeenLastCalledWith({ three_phase: 1, extension: 1 }))
+    await userEvent.click(screen.getByRole('button', { name: 'Hanya 3 fasa' }))
+    await waitFor(() => expect(applicationApi.attention).toHaveBeenLastCalledWith({ three_phase: 0, extension: 1 }))
   })
 
   it('riwayat sinkronisasi EIS punya tab sendiri di halaman PB/PD', async () => {
