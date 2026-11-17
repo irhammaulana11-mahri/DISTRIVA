@@ -319,14 +319,6 @@ export default function KhsPage() {
                 Reset
               </button>
             )}
-            <button
-              type="button"
-              onClick={loadKhs}
-              title="Muat Ulang"
-              className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
-            >
-              <IconRefresh size={16} />
-            </button>
           </div>
         </div>
 

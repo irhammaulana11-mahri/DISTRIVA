@@ -302,14 +302,6 @@ export default function PriceBooksPage() {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={loadBooks}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 py-1"
-        >
-          <IconRefresh size={14} />
-          <span>Segarkan Data</span>
-        </button>
       </div>
 
       {/* Main Table Card */}

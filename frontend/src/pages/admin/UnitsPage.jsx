@@ -499,15 +499,6 @@ export default function UnitsPage() {
                 Reset
               </button>
             )}
-            <button
-              type="button"
-              onClick={reloadAll}
-              title="Muat Ulang Data"
-              aria-label="Muat Ulang"
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <IconRefresh size={16} />
-            </button>
           </div>
         </div>
 

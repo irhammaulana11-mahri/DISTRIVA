@@ -248,14 +248,6 @@ export default function KkfParametersPage() {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={loadSets}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 py-1 cursor-pointer"
-        >
-          <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Segarkan Data</span>
-        </button>
       </div>
 
       {/* Main Table Card */}

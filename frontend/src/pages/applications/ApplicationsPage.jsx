@@ -383,15 +383,6 @@ export default function ApplicationsPage() {
                 Reset
               </button>
             )}
-            <button
-              type="button"
-              onClick={loadApplications}
-              title="Muat Ulang Data"
-              aria-label="Muat Ulang"
-              className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <IconRefresh size={16} />
-            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">

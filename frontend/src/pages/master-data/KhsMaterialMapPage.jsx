@@ -579,18 +579,6 @@ export default function KhsMaterialMapPage() {
                     Total {meta.total ?? khsList.length} item
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    loadWorkbench()
-                    loadCoverage()
-                  }}
-                  title="Segarkan Data"
-                  aria-label="Segarkan"
-                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <IconRefresh size={14} />
-                </button>
               </div>
             </div>
 

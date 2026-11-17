@@ -264,15 +264,6 @@ export default function TariffBooksPage() {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={loadBooks}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium cursor-pointer self-end sm:self-auto"
-        >
-          <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Segarkan Data</span>
-        </button>
       </div>
 
       {/* Main Table */}

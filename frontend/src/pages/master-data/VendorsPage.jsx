@@ -349,15 +349,6 @@ export default function VendorsPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-500 font-mono">{filtered.length} Perusahaan Vendor</span>
-            <button
-              type="button"
-              onClick={loadVendors}
-              title="Segarkan Data Vendor"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition cursor-pointer"
-            >
-              <IconRefresh size={13} className={loading ? 'animate-spin' : ''} />
-              <span>Segarkan</span>
-            </button>
           </div>
         </div>
 

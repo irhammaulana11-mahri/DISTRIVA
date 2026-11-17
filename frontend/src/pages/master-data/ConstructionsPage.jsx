@@ -346,14 +346,6 @@ export default function ConstructionsPage() {
             <span>Hanya Draf</span>
           </button>
 
-          <button
-            type="button"
-            onClick={loadConstructions}
-            title="Muat Ulang"
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer self-end sm:self-auto"
-          >
-            <IconRefresh size={16} />
-          </button>
         </div>
 
         {/* Bulk approval bar */}
