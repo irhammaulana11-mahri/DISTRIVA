@@ -307,7 +307,7 @@ export default function PriceBookDetailPage() {
                 <button
                   type="button"
                   onClick={() => setActionDialog({ type: 'retire' })}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
                 >
                   <IconTrash size={13} />
                   <span>Nonaktifkan Buku</span>

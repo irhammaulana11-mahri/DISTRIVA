@@ -315,7 +315,7 @@ export default function WarehousesPage() {
                 type="button"
                 aria-label="Tambah Gudang / Impor Gudang ERP"
                 onClick={() => navigate('/master-data/warehouses/baru')}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-4 py-2 text-sm shadow-xs transition focus-ring cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
                 <IconPlus size={16} />
                 <span>Tambah Gudang</span>

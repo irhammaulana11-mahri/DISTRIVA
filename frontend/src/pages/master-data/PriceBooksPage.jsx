@@ -148,7 +148,7 @@ export default function PriceBooksPage() {
               <button
                 type="button"
                 onClick={() => navigate('/master-data/harga/impor')}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
                 <IconUpload className="h-4 w-4" />
                 <span>Impor Buku Harga</span>

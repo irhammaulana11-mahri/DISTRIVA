@@ -167,7 +167,7 @@ export default function KkfParameterDetailPage() {
             <button
               type="button"
               onClick={() => navigate(`/master-data/kkf-parameters/${id}/ubah`)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200 text-xs shadow-xs transition-colors cursor-pointer"
             >
               <IconPencil size={14} />
               <span>Ubah Nilai Draf</span>
@@ -178,7 +178,7 @@ export default function KkfParameterDetailPage() {
             <button
               type="button"
               onClick={() => setDialog({ type: 'approve' })}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
             >
               <IconCheck size={14} />
               <span>Setujui Parameter</span>
@@ -189,7 +189,7 @@ export default function KkfParameterDetailPage() {
             <button
               type="button"
               onClick={() => setDialog({ type: 'retire' })}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
             >
               <IconTrash size={13} />
               <span>Nonaktifkan Set</span>

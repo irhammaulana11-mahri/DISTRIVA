@@ -60,7 +60,7 @@ export default function BackupPage() {
               type="button"
               onClick={reloadSummary}
               title="Segarkan Ringkasan"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3.5 py-2 text-xs sm:text-sm font-semibold transition border border-white/15 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3 py-1.5 text-xs font-semibold transition border border-white/15 cursor-pointer"
             >
               <IconRefresh size={15} />
               <span className="hidden sm:inline">Segarkan</span>

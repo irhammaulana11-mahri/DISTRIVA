@@ -148,7 +148,7 @@ export default function TariffBooksPage() {
               <button
                 type="button"
                 onClick={() => navigate('/master-data/tariff-books/impor')}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-2 text-xs shadow-xs transition focus-ring cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
                 <IconUpload className="h-4 w-4" />
                 <span>Impor Buku Tarif</span>
@@ -229,7 +229,7 @@ export default function TariffBooksPage() {
           </div>
           {canApprove && (
             <Button
-              size="xs"
+              size="sm"
               variant="primary"
               onClick={() => setStatusFilter('DRAFT')}
               className="shrink-0 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white"

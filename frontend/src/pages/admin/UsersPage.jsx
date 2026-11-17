@@ -184,7 +184,7 @@ export default function UsersPage() {
               onClick={load}
               disabled={state.loading}
               title="Segarkan daftar pengguna"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3.5 py-2 text-xs sm:text-sm font-semibold transition border border-white/15 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3 py-1.5 text-xs font-semibold transition border border-white/15 cursor-pointer disabled:opacity-50"
             >
               <IconRefresh size={15} className={state.loading ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">Segarkan</span>
@@ -193,7 +193,7 @@ export default function UsersPage() {
             {canWrite['users.create'] && (
               <Link
                 to="/admin/users/new"
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold px-4 py-2 text-xs sm:text-sm shadow-md transition cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold px-3 py-1.5 text-xs shadow-md transition cursor-pointer"
               >
                 <IconPlus size={16} />
                 <span>Tambah pengguna</span>

@@ -206,7 +206,7 @@ export default function TariffBookDetailPage() {
             <button
               type="button"
               onClick={() => setDialog({ type: 'retire' })}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
             >
               <IconTrash size={13} />
               <span>Nonaktifkan</span>
@@ -280,7 +280,7 @@ export default function TariffBookDetailPage() {
             </div>
             <Button
               type="submit"
-              size="xs"
+              size="sm"
               variant="primary"
               className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white"
             >
@@ -289,7 +289,7 @@ export default function TariffBookDetailPage() {
             {tariffFilter && (
               <Button
                 type="button"
-                size="xs"
+                size="sm"
                 variant="ghost"
                 onClick={() => {
                   setTariffFilter('')

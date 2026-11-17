@@ -305,7 +305,7 @@ export default function ApplicationsPage() {
                 type="button"
                 aria-label="Impor Berkas EIS"
                 onClick={() => navigate('/permohonan/impor')}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
                 <IconUpload size={14} />
                 <span>Impor Berkas</span>
@@ -316,7 +316,7 @@ export default function ApplicationsPage() {
                 type="button"
                 aria-label="Permohonan Baru"
                 onClick={() => navigate('/permohonan/baru')}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3.5 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
                 <IconPlus size={14} />
                 <span>Permohonan Baru</span>

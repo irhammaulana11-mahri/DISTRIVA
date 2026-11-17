@@ -297,7 +297,7 @@ export default function BomDetailPage() {
           {/* Action buttons */}
           <div className="flex items-center gap-2 shrink-0">
             {isDraft && canManage && (
-              <Button
+              <Button size="sm"
                 type="button"
                 variant="secondary"
                 onClick={() => setEditOpen(true)}
@@ -309,7 +309,7 @@ export default function BomDetailPage() {
             )}
 
             {isDraft && canApprove && (
-              <Button
+              <Button size="sm"
                 type="button"
                 variant="primary"
                 onClick={() => {
@@ -332,7 +332,7 @@ export default function BomDetailPage() {
                   setRetireError('')
                   setRetireOpen(true)
                 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
               >
                 <IconTrash size={13} />
                 <span>Nonaktifkan</span>

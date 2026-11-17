@@ -575,12 +575,12 @@ export default function SubstationMeasurementsPage() {
               Segarkan
             </Button>
             {canMaximoSync && (
-              <Button variant="secondary" icon={IconActivity} onClick={() => setMaximoOpen(true)}>
+              <Button size="sm" variant="secondary" icon={IconActivity} onClick={() => setMaximoOpen(true)}>
                 Sinkronisasi Maximo
               </Button>
             )}
             {canSync && (
-              <Button icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
+              <Button size="sm" icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
                 Impor Pengukuran
               </Button>
             )}
