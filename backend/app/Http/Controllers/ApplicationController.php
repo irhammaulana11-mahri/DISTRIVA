@@ -54,6 +54,37 @@ class ApplicationController extends Controller
         return response()->json($options->for($request->user(), 'applications.view'));
     }
 
+    /**
+     * GET /applications/attention — customers that need attention: not yet through to Peremajaan, longest service days first.
+     * UP3 and global: the 100 oldest. ULP: those waiting more than 4 days, at most 50. `three_phase` (default on) keeps 3-phase power only; `extension=1` keeps only those in a network-extension proposal.
+     */
+    public function attention(Request $request, ScopedUnitOptions $options): JsonResponse
+    {
+        $scope = $this->authorizer->authorizeScope($request->user(), 'applications.view');
+        $request->validate(['three_phase' => ['nullable', 'boolean'], 'extension' => ['nullable', 'boolean']]);
+        $isUlp = $options->for($request->user(), 'applications.view')['scope'] === 'ULP';
+        [$limit, $minDays] = $isUlp ? [50, 5] : [100, 0];
+        $days = 'coalesce(a.service_days, greatest(0, current_date - coalesce(a.source_created_at, a.created_at)::date))';
+        $proposal = "(select p.proposal_number from proposal_applications pa join proposals p on p.id = pa.proposal_id where pa.application_id = a.id and pa.released_at is null and p.status = 'OPEN' limit 1)";
+
+        $q = $this->scoped($scope)->join('customers as c', 'c.id', '=', 'a.customer_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
+            ->whereNotIn('a.current_status', ['CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'])
+            ->whereRaw("{$days} >= ?", [$minDays]);
+        if ($request->boolean('three_phase', true)) {
+            $q->whereRaw("(a.new_power_value * CASE WHEN upper(a.new_power_unit) = 'KVA' THEN 1000 ELSE 1 END) >= 6600");
+        }
+        if ($request->boolean('extension')) {
+            $q->whereRaw("{$proposal} is not null");
+        }
+        $rows = $q->selectRaw("a.id, a.application_number, a.application_type, a.current_status, a.new_tariff_code, a.new_power_value, a.new_power_unit, a.service_address, c.name as customer_name, u.code as unit_code, u.name as unit_name, {$days} as attention_days, {$proposal} as proposal_number")
+            ->orderByRaw("{$days} desc")->orderBy('a.application_number')->limit($limit)->get();
+
+        return response()->json(['data' => $rows->map(fn ($r) => ['id' => $r->id, 'application_number' => $r->application_number, 'application_type' => $r->application_type, 'status' => $r->current_status,
+            'new_tariff_code' => $r->new_tariff_code, 'new_power_value' => $r->new_power_value === null ? null : (float) $r->new_power_value, 'new_power_unit' => $r->new_power_unit, 'service_address' => $r->service_address,
+            'days' => (int) $r->attention_days, 'proposal_number' => $r->proposal_number, 'customer' => ['name' => $r->customer_name], 'unit' => ['code' => $r->unit_code, 'name' => $r->unit_name]])->all(),
+            'meta' => ['level' => $isUlp ? 'ULP' : 'UP3', 'limit' => $limit, 'min_days' => $minDays]]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'applications.view');

@@ -89,6 +89,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::prefix('applications')->middleware('throttle:admin')->group(function () {
         Route::get('/access', [ApplicationController::class, 'access']);
         Route::get('/units', [ApplicationController::class, 'units']);
+        Route::get('/attention', [ApplicationController::class, 'attention']);
         Route::get('/', [ApplicationController::class, 'index']);
         Route::post('/', [ApplicationController::class, 'store']);
         Route::get('/imports', [ApplicationImportController::class, 'index']);
