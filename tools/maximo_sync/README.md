@@ -22,16 +22,21 @@ php artisan substations:load-maximo-wo tools/maximo_sync/out/maximo-wo-pengukura
 
 Arus gardu = jumlah arus semua jurusan (aturan pembacaan DISTRIVA bila arus gardu tidak ada). Pembacaan masuk dengan sumber `IMPORT`, idempoten per gardu dan waktu; **gardu yang belum ada di master hanya dilaporkan** (tidak dibentuk, beda dengan muat OMT).
 
-## Pengambilan dari Maximo (`cek`) — bagian UI belum diuji
-Dari tangkapan jaringan 17 Nov 2026 alurnya sudah diketahui sampai laporan keluar:
-1. **UI** (`POST /maximo/ui/maximo.jsp`, kejadian JSON `click`): klik nomor WO pada baris daftar → tekan tombol Run report (`RUNAREPORT_1281__QL-tbb`). Jawabannya membuka `openreport.jsp`.
-2. **Laporan** (`report.py`, **sudah diuji** terhadap halaman asli dari tangkapan): `GET openreport.jsp` → form yang mengirim dirinya sendiri (memuat `__where__ibm__key` = WO terpilih) → penampil BIRT → SOAP `GetPage` → HTML laporan → `wo.parse`.
-Nomor WO tidak dikirim di alamat laporan (`where=dummyWhere`); WO ditentukan oleh baris yang diklik pada sesi UI. Jadi satu sesi bekerja berurutan.
+## Pengambilan dari Maximo (teruji 17 Nov 2026)
+Alurnya (dari tangkapan jaringan, lalu diuji langsung ke server):
+1. **UI** (`POST /maximo/ui/maximo.jsp`, kejadian JSON): login form → buka `plusdwotrk` → isi kolom filter daftar (`setvalue` + `filterrows`; kolom: 1 Work Order, 2 Description, 8 Status, 11 Reported Date, 15 Status Date) → klik nomor WO (`<tabel>_tdrow_[C:1]_ttxt-lb[R:n]`) → tombol Run report (`RUNAREPORT_1281__QL-tbb`). Halaman berikutnya: `<tabel>-ti7`.
+2. **Laporan** (`report.py`): `GET openreport.jsp` → form kirim-sendiri (memuat `__where__ibm__key` = WO terpilih) → penampil BIRT → SOAP `GetPage` → HTML laporan → `wo.parse`. Nomor WO tidak ada di alamat laporan (`where=dummyWhere`); WO ditentukan oleh baris yang diklik pada sesi UI.
 
-`client.py` (login, `uisessionid`/`csrftoken`, kejadian UI) disusun dari tangkapan tetapi **login dan halaman awal aplikasi tidak ikut tertangkap**, jadi belum teruji. Pakai:
 ```
 pip install -r requirements.txt
-cp .env.example .env        # isi MAXIMO_USERNAME dan MAXIMO_PASSWORD (berkas .env tidak di-commit)
-python3 main.py cek --baris 0
+cp .env.example .env          # isi MAXIMO_USERNAME dan MAXIMO_PASSWORD (berkas .env tidak di-commit)
+python3 main.py cek --baris 0                      # satu WO dari awal sampai terbaca
+python3 main.py ambil --maks 20                    # uji kecil (daftar dibaca penuh dulu)
+python3 main.py ambil --sejak 17/11/2025           # tahun penuh: terbaru per gardu, mentah ke raw/, lalu CSV ke out/
+python3 main.py ambil --sejak 16/11/2026           # harian: hanya WO selesai sejak tanggal itu
+python3 main.py ambil --pekerja 3                  # sesi login paralel (lihat catatan)
 ```
-`cek` menjalankan tiap langkah (login, buka aplikasi, klik baris, laporan) dan berhenti dengan pesan di langkah yang gagal. Belum ada: pindah halaman daftar, filter, dan penarikan massal (`ambil`) — id tombol halaman berikutnya belum tertangkap; dibuat setelah `cek` berhasil.
+`ambil`: membaca seluruh daftar terfilter (Description "INSPEKSI GARDU", Status COMP, tanggal status ≥ `--sejak`; bawaan 365 hari), memilih **WO terbaru per gardu** (`--semua` = semuanya), melewati yang sudah ada di `raw/` (dapat dilanjutkan bila terputus), mengambil laporan tiap WO (mencoba ulang dengan login baru, maksimal 3 kali; yang tetap gagal ke `out/gagal.txt`), lalu `parse` ke `out/maximo-wo-pengukuran.csv` yang dimuat dengan `php artisan substations:load-maximo-wo`.
+
+Ukuran nyata (17 Nov 2026): 7.873 WO selesai sejak 17/11/2025 pada 5.844 gardu → **5.844 WO** bila terbaru per gardu. Daftar dibaca per halaman 20 baris (± 394 halaman). Uji 3 WO: 27 detik termasuk login dan membaca daftar; per WO ± 4–9 detik (saring, klik, laporan) berurutan.
+**Catatan sesi paralel:** satu sesi bekerja berurutan; `--pekerja N` membuka N login dengan akun yang sama. Belum diuji apakah Maximo ini mengizinkan beberapa sesi per akun atau mengakhiri sesi lama; coba `--pekerja 2` dengan `--maks 20` dulu.
