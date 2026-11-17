@@ -22,5 +22,16 @@ php artisan substations:load-maximo-wo tools/maximo_sync/out/maximo-wo-pengukura
 
 Arus gardu = jumlah arus semua jurusan (aturan pembacaan DISTRIVA bila arus gardu tidak ada). Pembacaan masuk dengan sumber `IMPORT`, idempoten per gardu dan waktu; **gardu yang belum ada di master hanya dilaporkan** (tidak dibentuk, beda dengan muat OMT).
 
-## Yang belum ada: pengambilan otomatis dari Maximo
-Laporan dicetak dari **sesi** Maximo (`uisessionid`, `csrftoken`): alamat laporan tidak memuat nomor WO, jadi WO yang dicetak ditentukan oleh keadaan layar pada sesi itu (pilih WO → aksi cetak). Meniru alur itu tanpa tangkapan permintaan aslinya tidak bisa diuji, jadi belum dibuat. Yang dibutuhkan: tangkapan jaringan (HAR atau Payload dari DevTools) untuk (1) login, (2) pindah ke aplikasi `plusdwotrk` dan memfilter daftar, (3) klik satu WO sampai laporan terbentuk. Sementara itu simpan tiap respons laporan sebagai berkas `.json` di `tools/samples/wo/` lalu jalankan `parse`.
+## Pengambilan dari Maximo (`cek`) — bagian UI belum diuji
+Dari tangkapan jaringan 17 Nov 2026 alurnya sudah diketahui sampai laporan keluar:
+1. **UI** (`POST /maximo/ui/maximo.jsp`, kejadian JSON `click`): klik nomor WO pada baris daftar → tekan tombol Run report (`RUNAREPORT_1281__QL-tbb`). Jawabannya membuka `openreport.jsp`.
+2. **Laporan** (`report.py`, **sudah diuji** terhadap halaman asli dari tangkapan): `GET openreport.jsp` → form yang mengirim dirinya sendiri (memuat `__where__ibm__key` = WO terpilih) → penampil BIRT → SOAP `GetPage` → HTML laporan → `wo.parse`.
+Nomor WO tidak dikirim di alamat laporan (`where=dummyWhere`); WO ditentukan oleh baris yang diklik pada sesi UI. Jadi satu sesi bekerja berurutan.
+
+`client.py` (login, `uisessionid`/`csrftoken`, kejadian UI) disusun dari tangkapan tetapi **login dan halaman awal aplikasi tidak ikut tertangkap**, jadi belum teruji. Pakai:
+```
+pip install -r requirements.txt
+cp .env.example .env        # isi MAXIMO_USERNAME dan MAXIMO_PASSWORD (berkas .env tidak di-commit)
+python3 main.py cek --baris 0
+```
+`cek` menjalankan tiap langkah (login, buka aplikasi, klik baris, laporan) dan berhenti dengan pesan di langkah yang gagal. Belum ada: pindah halaman daftar, filter, dan penarikan massal (`ambil`) — id tombol halaman berikutnya belum tertangkap; dibuat setelah `cek` berhasil.
