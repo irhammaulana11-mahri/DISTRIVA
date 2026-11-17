@@ -896,6 +896,7 @@ class InventoryTest extends PostgresTestCase
         $run('mims_reservation_sync_runs', ['documents_new' => 2, 'matched' => 1]);
         DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => 'DOC1', 'reservation_no' => 'R1', 'issued_on' => $day(3), 'fetched_at' => now()]);
         DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => 'DOC2', 'reservation_no' => 'R2', 'issued_on' => $day(3), 'fetched_at' => now()]);
+        DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => 'DOC3', 'reservation_no' => 'R3', 'issued_on' => $day(9), 'fetched_at' => now()]);   // a document on a day no recorded range covers
 
         $issues = $this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=issues')->assertOk();
         $this->assertSame(3, count($issues->json('data')));
@@ -909,10 +910,10 @@ class InventoryTest extends PostgresTestCase
 
         $cov = $this->as($this->viewer)->getJson('/api/master-data/stock-coverage?kind=issues&month='.$month)->assertOk();
         $row = collect($cov->json('data'))->firstWhere('code', 'GD-1');
-        $this->assertSame([[2, 3, 4], [6, 7]], [$row['days_taken'], $row['days_estimated']]);                                          // the failed pull (10-12) counts for nothing
-        $this->assertSame(['3' => 2], $row['docs_per_day']);                                                                           // documents per day, for the tooltip
+        $this->assertSame([[2, 3, 4], [6, 7, 9]], [$row['days_taken'], $row['days_estimated']]);                                       // the failed pull (10-12) counts for nothing; day 9 has a document, so it was pulled
+        $this->assertSame(['3' => 2, '9' => 1], $row['docs_per_day']);                                                                           // documents per day, for the tooltip
         $due = range(1, $cov->json('last_due_day'));
-        $this->assertSame(array_values(array_diff($due, [2, 3, 4, 6, 7])), $row['days_missing']);
+        $this->assertSame(array_values(array_diff($due, [2, 3, 4, 6, 7, 9])), $row['days_missing']);
         $this->assertSame([2, 3, 4], collect($this->as($this->viewer)->getJson('/api/master-data/stock-coverage?kind=receipts&month='.$month)->json('data'))->firstWhere('code', 'GD-1')['days_taken']);
         $this->as($this->viewer)->getJson('/api/master-data/stock-coverage?kind=lainnya')->assertUnprocessable();
     }

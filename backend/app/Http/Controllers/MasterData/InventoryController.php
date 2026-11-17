@@ -867,6 +867,11 @@ class InventoryController extends Controller
                 $docs[$r->warehouse_id][$dayOf($r->d)] = (int) $r->n;
             }
         }
+        foreach ($docs as $warehouseId => $perDay) {                    // a day that has documents was obviously pulled, whatever the recorded ranges say (old pulls kept no range)
+            foreach (array_keys($perDay) as $day) {
+                isset($exact[$warehouseId][$day]) || ($estimated[$warehouseId][$day] = true);
+            }
+        }
         $warehouses = DB::table('warehouses')->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'plant', 'stor_loc'])->map(function ($w) use ($exact, $estimated, $docs, $last) {
             $taken = array_keys($exact[$w->id] ?? []);
             sort($taken);
