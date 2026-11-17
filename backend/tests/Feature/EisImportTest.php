@@ -798,7 +798,7 @@ class EisImportTest extends PostgresTestCase
         $this->assertSame(['SELESAI'], $list('listing=pbpd&status=CONNECTION_DONE'));             // and a status filter finds Peremajaan
         $this->assertSame(['AKTIF', 'BATAL', 'SELESAI'], collect(array_merge($list('lifecycle=active'), $list('lifecycle=history')))->sort()->values()->all());   // still reachable without the PB/PD listing
         $this->as($this->retailA1)->getJson('/api/applications?lifecycle=semua')->assertUnprocessable();
-        $row = collect($this->as($this->retailA1)->getJson('/api/applications?listing=pbpd')->json('data'))->first();                // the list carries what its chips and columns need
+        $row = collect($this->as($this->retailA1)->getJson('/api/applications?listing=pbpd')->json('data'))->firstWhere('agenda_number', '514539912610278301');   // the list carries what its chips and columns need (rows with the same timestamp have no fixed order)
         foreach (['agenda_number', 'register_number', 'idpel', 'new_tariff_code', 'new_power_value', 'new_power_unit', 'old_tariff_code'] as $k) {
             $this->assertArrayHasKey($k, $row);
         }
@@ -881,6 +881,23 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_older_range_for_running_applications_is_pulled_only_when_the_user_asks_for_it(): void
+    {
+        $dir = $this->fakeTool();
+        $this->as($this->sysAdmin)->putJson('/api/eis-sync/settings', $this->syncBody())->assertOk();
+        $args = fn () => json_decode((string) file_get_contents($dir.'/seen.json'), true)['args'];
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data');                                       // a plain manual run: no "lengkapi"
+        $this->assertContains('--tanpa-lengkapi', $args());
+        $this->assertFalse($run['complete_old']);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['complete_old' => true])->assertStatus(202)->json('data');            // the user chose it
+        $this->assertNotContains('--tanpa-lengkapi', $args());
+        $this->assertTrue($run['complete_old']);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['complete_old' => 'ya'])->assertUnprocessable();
+    }
+
+    #[Test]
     public function the_sync_button_runs_the_tool_with_the_saved_account_range_and_a_short_lived_token(): void
     {
         $dir = $this->fakeTool();
@@ -890,7 +907,7 @@ class EisImportTest extends PostgresTestCase
 
         $run = $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['from' => '2026-10-01', 'to' => '2026-11-10'])->assertStatus(202)->json('data');
         $seen = json_decode((string) file_get_contents($dir.'/seen.json'), true);
-        $this->assertSame(['sync', '--metode', 'http', '--konfirmasi', '--per-unit', '--dari', '2026-10-01', '--sampai', '2026-11-10'], $seen['args']);
+        $this->assertSame(['sync', '--metode', 'http', '--konfirmasi', '--per-unit', '--dari', '2026-10-01', '--sampai', '2026-11-10', '--tanpa-lengkapi'], $seen['args']);
         $this->assertSame(['petugas.eis', 'Rahasia#123', '450', '6600', '90', true], [$seen['user'], $seen['pw'], $seen['min'], $seen['max'], $seen['lookback'], $seen['token']]);
         $done = $this->as($this->retailA1)->getJson("/api/eis-sync/runs/{$run['id']}")->assertOk()->json('data');
         $this->assertSame(['OK', 0, 'MANUAL'], [$done['status'], $done['exit_code'], $done['trigger']]);
@@ -924,6 +941,8 @@ class EisImportTest extends PostgresTestCase
         $this->assertNotNull($id);
         $this->assertSame(['AUTO', 'OK', $this->retailA1->getKey()], [DB::table('eis_sync_runs')->where('id', $id)->value('trigger'), DB::table('eis_sync_runs')->where('id', $id)->value('status'), DB::table('eis_sync_runs')->where('id', $id)->value('started_by')]);
         $this->assertFileExists($dir.'/seen.json');
+        $this->assertContains('--tanpa-lengkapi', json_decode((string) file_get_contents($dir.'/seen.json'), true)['args']);                  // the schedule pulls the configured range and nothing else
+        $this->assertFalse((bool) DB::table('eis_sync_runs')->where('id', $id)->value('complete_old'));
         $this->assertNull($svc->runScheduledIfDue());                                                      // once per business day
     }
 

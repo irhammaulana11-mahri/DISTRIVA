@@ -90,7 +90,10 @@ export default function EisRunHistory() {
               {runs.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">{when(r.created_at)}</td>
-                  <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{r.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}</td>
+                  <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                    {r.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}
+                    {r.complete_old && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px] font-bold" title="Dengan pelengkapan permohonan lama (maks. 180 hari sebelum rentang)">+ pelengkapan</span>}
+                  </td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
                     {r.range_from && r.range_to
                       ? <span className="font-mono font-medium">{r.range_from} s/d {r.range_to}</span>

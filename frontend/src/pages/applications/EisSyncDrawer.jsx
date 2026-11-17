@@ -52,6 +52,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
   const [picked, setPicked] = useState(null)       // null = semua unit; selain itu daftar kode ULP yang dipilih
   const [current, setCurrent] = useState(null)
   const [range, setRange] = useState({ from: '', to: '' })
+  const [completeOld, setCompleteOld] = useState(false)       // melengkapi permohonan lama (maks. 180 hari sebelum rentang): hanya bila pengguna memilihnya
   const [saving, setSaving] = useState(false)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
@@ -161,6 +162,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
     try {
       const body = range.from && range.to ? { from: range.from, to: range.to } : {}
       if (units.length > 0 && selected.length < units.length) body.units = selected      // semua unit = tanpa daftar; sebagian = hanya unit itu, berurutan
+      if (completeOld) body.complete_old = true
       const res = await eisSyncApi.start(body)
       setCurrent(res?.data)
     } catch (err) {
@@ -324,6 +326,21 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Kosongkan tanggal untuk memakai rentang bawaan ({form.lookback_days} hari terakhir).
                   </p>
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={completeOld}
+                      onChange={(e) => setCompleteOld(e.target.checked)}
+                      aria-label="Lengkapi permohonan lama"
+                      className="mt-0.5 rounded text-blue-600"
+                    />
+                    <span className="text-xs">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Lengkapi permohonan lama</span>
+                      <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Setelah rentang di atas selesai, tarik juga rentang sebelumnya (paling jauh 180 hari) agar permohonan yang masih berjalan di DISTRIVA tetapi sudah selesai di EIS ikut diperbarui. Berlaku untuk semua unit dan menambah waktu proses. Sinkron otomatis tidak melakukannya.
+                      </span>
+                    </span>
+                  </label>
                 </div>
 
                 {/* Pilih unit yang disinkronkan */}

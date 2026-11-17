@@ -43,6 +43,20 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     await waitFor(() => expect(onSynced).toHaveBeenCalled())
   }, 15000)
 
+  it('pelengkapan permohonan lama tidak ikut secara bawaan; dikirim hanya bila pengguna mencentangnya', async () => {
+    eisSyncApi.start.mockResolvedValue({ data: { id: 'r1', status: 'QUEUED', log: null, created_at: '2026-11-17T01:00:00Z' } })
+    eisSyncApi.run.mockResolvedValue({ data: { id: 'r1', status: 'OK', log: 'ok', created_at: '2026-11-17T01:00:00Z' } })
+    render(<EisSyncDrawer open onClose={() => {}} onSynced={() => {}} />)
+    const box = await screen.findByRole('checkbox', { name: 'Lengkapi permohonan lama' })
+    expect(box).not.toBeChecked()
+    await userEvent.click(screen.getByRole('button', { name: 'Sinkronkan Sekarang' }))
+    await waitFor(() => expect(eisSyncApi.start).toHaveBeenLastCalledWith({}))
+    await screen.findByLabelText('Log sinkronisasi', {}, { timeout: 6000 })
+    await userEvent.click(box)
+    await userEvent.click(screen.getByRole('button', { name: 'Sinkronkan Sekarang' }))
+    await waitFor(() => expect(eisSyncApi.start).toHaveBeenLastCalledWith({ complete_old: true }))
+  }, 20000)
+
   it('menampilkan unit yang akan disinkronkan: semua secara bawaan, bisa satu dua unit, dan tanpa unit tombol nonaktif', async () => {
     const units = [{ code: '51450', name: 'ULP Mojoagung' }, { code: '51453', name: 'ULP Jombang' }, { code: '51454', name: 'ULP Ngoro' }]
     eisSyncApi.show.mockResolvedValue({ data: { settings, units, runs: [{ id: 'r9', trigger: 'MANUAL', status: 'OK', units: ['51453', '51454'], started_by: 'a@b.c', created_at: '2026-11-13T01:00:00Z' }] } })

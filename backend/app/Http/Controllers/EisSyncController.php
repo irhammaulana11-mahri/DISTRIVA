@@ -43,12 +43,12 @@ class EisSyncController extends Controller
         $this->authorizer->authorizeScope($request->user(), 'applications.import');
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
         $d = Validator::make($request->all(), ['from' => ['nullable', 'date_format:Y-m-d', 'required_with:to'], 'to' => ['nullable', 'date_format:Y-m-d', 'required_with:from', 'after_or_equal:from'],
-            'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']])->validate();
+            'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/'], 'complete_old' => ['sometimes', 'boolean']])->validate();
         $units = isset($d['units']) ? array_values(array_unique($d['units'])) : null;
         if ($units !== null && array_diff($units, array_column($this->units($scope), 'code')) !== []) {
             throw new AssignmentRuleViolation('Ada unit yang tidak dikenal atau di luar cakupan Anda.');
         }
-        $id = $this->sync->start('MANUAL', $request->user(), $d['from'] ?? null, $d['to'] ?? null, $units);
+        $id = $this->sync->start('MANUAL', $request->user(), $d['from'] ?? null, $d['to'] ?? null, $units, (bool) ($d['complete_old'] ?? false));
         $this->sync->launch($id);
 
         return response()->json(['data' => $this->run(DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.id', $id)->first(['r.*', 'u.email as started_by_email']), true)], 202);
@@ -79,7 +79,7 @@ class EisSyncController extends Controller
     /** @return array<string,mixed> */
     private function run(object $r, bool $withLog): array
     {
-        return ['id' => $r->id, 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by_email, 'range_from' => $r->range_from, 'range_to' => $r->range_to, 'units' => $r->units === null ? null : json_decode((string) $r->units, true), 'exit_code' => $r->exit_code,
+        return ['id' => $r->id, 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by_email, 'range_from' => $r->range_from, 'range_to' => $r->range_to, 'units' => $r->units === null ? null : json_decode((string) $r->units, true), 'complete_old' => (bool) ($r->complete_old ?? false), 'exit_code' => $r->exit_code,
             'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at] + ($withLog ? ['log' => $r->log] : []);
     }
 }

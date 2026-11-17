@@ -56,7 +56,7 @@ class EisSyncService
     }
 
     /** Registers a run (QUEUED); one run at a time. @throws AssignmentRuleViolation */
-    public function start(string $trigger, User $actor, ?string $from = null, ?string $to = null, ?array $units = null): string
+    public function start(string $trigger, User $actor, ?string $from = null, ?string $to = null, ?array $units = null, bool $completeOld = false): string
     {
         $s = DB::table('eis_sync_settings')->where('id', 1)->first();
         if ($s->eis_username === null || $s->eis_password_encrypted === null) {
@@ -69,7 +69,7 @@ class EisSyncService
             throw new AssignmentRuleViolation('Sinkronisasi EIS sedang berjalan; tunggu sampai selesai.');
         }
         $id = (string) Str::uuid();
-        DB::table('eis_sync_runs')->insert(['id' => $id, 'trigger' => $trigger, 'status' => 'QUEUED', 'started_by' => $actor->getKey(), 'range_from' => $from, 'range_to' => $to, 'units' => $units === null || $units === [] ? null : json_encode(array_values($units)), 'mfa_verified_at' => $actor->currentAccessToken()?->mfa_verified_at, 'created_at' => now()]);
+        DB::table('eis_sync_runs')->insert(['id' => $id, 'trigger' => $trigger, 'status' => 'QUEUED', 'started_by' => $actor->getKey(), 'range_from' => $from, 'range_to' => $to, 'units' => $units === null || $units === [] ? null : json_encode(array_values($units)), 'mfa_verified_at' => $actor->currentAccessToken()?->mfa_verified_at, 'complete_old' => $trigger === 'MANUAL' && $completeOld, 'created_at' => now()]);
 
         return $id;
     }
@@ -135,6 +135,7 @@ class EisSyncService
             if ($run->range_from !== null && $run->range_to !== null) {
                 array_push($args, '--dari', (string) $run->range_from, '--sampai', (string) $run->range_to);
             }
+            $run->complete_old || $args[] = '--tanpa-lengkapi';                       // the older range for running applications is only pulled when the user asked for it; the scheduled run pulls the configured range and nothing else
             $units = $run->units === null ? [] : (array) json_decode((string) $run->units, true);
             $units !== [] && array_push($args, '--unit', implode(',', $units));          // only these units (ULP codes); without it every unit of the EIS combo runs
             $env = ['EIS_USERNAME' => $s->eis_username, 'EIS_PASSWORD' => Crypt::decryptString($s->eis_password_encrypted), 'EIS_DAYA_MIN' => (string) $s->power_min, 'EIS_DAYA_MAX' => (string) $s->power_max,
