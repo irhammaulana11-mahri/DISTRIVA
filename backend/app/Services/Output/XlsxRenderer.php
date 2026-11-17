@@ -2,6 +2,7 @@
 
 namespace App\Services\Output;
 
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -9,7 +10,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-/** Renders an `OutputDocumentService` document as an .xlsx file (values only, no formulas). Returns the file content. */
+/** Renders an `OutputDocumentService` document as an .xlsx file (values only: text is stored as text, so a value such as `=HYPERLINK(...)` from the data never becomes a live formula). Returns the file content. */
 final class XlsxRenderer
 {
     /** @param array<string,mixed> $doc */
@@ -20,16 +21,16 @@ final class XlsxRenderer
         $ws->setTitle(mb_substr(preg_replace('/[\\\\\/?*\[\]:]/', ' ', (string) $doc['title']) ?? 'Dokumen', 0, 31));
         $r = 1;
         foreach ((array) $doc['header'] as $line) {
-            $ws->setCellValue("A{$r}", (string) $line);
+            $ws->setCellValueExplicit("A{$r}", (string) $line, DataType::TYPE_STRING);
             $ws->getStyle("A{$r}")->getFont()->setBold(true);
             $r++;
         }
         $r++;
-        $ws->setCellValue("A{$r}", (string) $doc['title']);
+        $ws->setCellValueExplicit("A{$r}", (string) $doc['title'], DataType::TYPE_STRING);
         $ws->getStyle("A{$r}")->getFont()->setBold(true)->setSize(13);
         $r += 2;
         foreach ((array) $doc['meta'] as [$label, $value]) {
-            $ws->setCellValue("A{$r}", (string) $label);
+            $ws->setCellValueExplicit("A{$r}", (string) $label, DataType::TYPE_STRING);
             $ws->setCellValue("C{$r}", ': '.$value);
             $r++;
         }
@@ -37,12 +38,12 @@ final class XlsxRenderer
         $width = 1;
         foreach ((array) $doc['sections'] as $s) {
             if (isset($s['heading'])) {
-                $ws->setCellValue("A{$r}", (string) $s['heading']);
+                $ws->setCellValueExplicit("A{$r}", (string) $s['heading'], DataType::TYPE_STRING);
                 $ws->getStyle("A{$r}")->getFont()->setBold(true);
                 $r++;
             }
             foreach ((array) ($s['pairs'] ?? []) as [$label, $value]) {
-                $ws->setCellValue("A{$r}", (string) $label);
+                $ws->setCellValueExplicit("A{$r}", (string) $label, DataType::TYPE_STRING);
                 $this->put($ws, 4, $r, $value);
                 $r++;
             }
@@ -50,7 +51,7 @@ final class XlsxRenderer
                 $cols = count($s['columns']);
                 $width = max($width, $cols);
                 foreach ($s['columns'] as $i => $c) {
-                    $ws->setCellValue([$i + 1, $r], (string) $c);
+                    $ws->setCellValueExplicit([$i + 1, $r], (string) $c, DataType::TYPE_STRING);
                 }
                 $ws->getStyle([1, $r, $cols, $r])->applyFromArray(['font' => ['bold' => true], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9E1F2']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'wrapText' => true], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
@@ -74,14 +75,14 @@ final class XlsxRenderer
         }
         if (isset($doc['terbilang'])) {
             $ws->setCellValue("A{$r}", 'TERBILANG JUMLAH TOTAL');
-            $ws->setCellValue("C{$r}", ucfirst((string) $doc['terbilang']));
+            $ws->setCellValueExplicit("C{$r}", ucfirst((string) $doc['terbilang']), DataType::TYPE_STRING);
             $r += 2;
         }
-        $ws->setCellValue([max(3, $width - 1), $r], (string) $doc['place_date']);
+        $ws->setCellValueExplicit([max(3, $width - 1), $r], (string) $doc['place_date'], DataType::TYPE_STRING);
         $r += 1;
         foreach ((array) $doc['signatures'] as $i => $sig) {
-            $ws->setCellValue([$i === 0 ? 2 : max(3, $width - 1), $r], (string) $sig['title']);
-            $ws->setCellValue([$i === 0 ? 2 : max(3, $width - 1), $r + 4], (string) ($sig['name'] ?? ''));
+            $ws->setCellValueExplicit([$i === 0 ? 2 : max(3, $width - 1), $r], (string) $sig['title'], DataType::TYPE_STRING);
+            $ws->setCellValueExplicit([$i === 0 ? 2 : max(3, $width - 1), $r + 4], (string) ($sig['name'] ?? ''), DataType::TYPE_STRING);
         }
         foreach (range(1, max($width, 6)) as $c) {
             $ws->getColumnDimensionByColumn($c)->setAutoSize(true);
@@ -99,7 +100,7 @@ final class XlsxRenderer
             $ws->setCellValue([$col, $row], $v);
             $ws->getStyle([$col, $row])->getNumberFormat()->setFormatCode(is_float($v) && floor($v) != $v ? '#,##0.00##' : '#,##0');
         } elseif ($v !== null) {
-            $ws->setCellValue([$col, $row], (string) $v);
+            $ws->setCellValueExplicit([$col, $row], (string) $v, DataType::TYPE_STRING);
         }
     }
 }

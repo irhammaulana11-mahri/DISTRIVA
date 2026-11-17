@@ -88,7 +88,7 @@ class MaterialRequestController extends Controller
         $out = fopen('php://temp', 'w+b');
         fputcsv($out, $headers, ',', '"', '');
         foreach ($rows as $row) {
-            fputcsv($out, array_values($row), ',', '"', '');
+            fputcsv($out, array_map(self::csvSafe(...), array_values($row)), ',', '"', '');
         }
         rewind($out);
 
@@ -132,5 +132,11 @@ class MaterialRequestController extends Controller
     private function find(string $id): object
     {
         return DB::table('material_requests')->where('id', $id)->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+    }
+
+    /** A text cell that a spreadsheet would run as a formula (starts with = + - @, tab or CR) gets a leading apostrophe; numbers stay numbers. */
+    public static function csvSafe(mixed $v): mixed
+    {
+        return is_string($v) && $v !== '' && ! is_numeric($v) && preg_match('/^[=+\-@\t\r]/', $v) === 1 ? "'".$v : $v;
     }
 }

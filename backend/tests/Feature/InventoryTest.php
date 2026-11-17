@@ -839,9 +839,16 @@ class InventoryTest extends PostgresTestCase
         $this->assertEquals($first['minimum_STOCK'], (float) $line->safety_stock);                                         // minimum_STOCK (the key that was not recognised before)
     }
 
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     #[Test]
     public function the_history_lists_scheduled_manual_and_file_pulls_with_their_dates_and_the_coverage_shows_which_days_are_missing(): void
     {
+        Carbon::setTestNow(Carbon::now((string) config('distriva.business_timezone'))->setTime(12, 0));       // the coverage counts business days in the business timezone; between 00:00 and 07:00 WIB the UTC date is yesterday
         $wh = $this->warehouse();
         DB::table('warehouses')->where('id', $wh)->update(['plant' => '5118', 'stor_loc' => '2810']);
         $other = (string) Str::uuid();
