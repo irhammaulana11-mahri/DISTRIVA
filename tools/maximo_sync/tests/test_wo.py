@@ -57,6 +57,11 @@ class WoTest(unittest.TestCase):
         self.assertEqual((row["vrn"], row["vsn"], row["vtn"]), (226.0, 228.0, 230.0))                                        # jurusan A 229, jurusan C 226 -> 226
         self.assertEqual(row["nhf_iar"], "L : 125")
 
+    def test_the_gardu_code_comes_from_the_location_when_the_description_runs_words_together(self):
+        self.assertEqual(wo.gardu_code("INSPEKSI GARDU HC0086GD PENYULANG EMPUNALA", "GD01.05028596 GD HC0086 PENYULANG TANJUNGAN"), "HC0086")
+        self.assertEqual(wo.gardu_code("INSPEKSI GARDU HD0744", ""), "HD0744")
+        self.assertEqual(wo.gardu_code("INSPEKSI", "GD01.1 tanpa kode"), "")
+
     def test_a_page_that_is_not_a_work_order_is_ignored_and_plain_html_works(self):
         self.assertEqual(wo.parse("<html><body>login</body></html>"), [])
         plain = html.unescape(report()[report().index("<Content>") + 9:report().index("</Content>")])

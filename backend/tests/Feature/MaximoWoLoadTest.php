@@ -13,7 +13,7 @@ use Tests\PostgresTestCase;
 /** Loading of the cleaned Maximo WO inspection file (tools/maximo_sync/README.md): readings of existing gardu only, idempotent. */
 class MaximoWoLoadTest extends PostgresTestCase
 {
-    private const HEADER = ['wonum', 'gardu', 'measured_at', 'pembebanan_trafo_pct', 'vrn', 'vsn', 'vtn', 'iar', 'ias', 'iat', 'ian', 'icr', 'ics', 'ict'];
+    private const HEADER = ['wonum', 'gardu', 'measured_at', 'pembebanan_trafo_pct', 'vrn', 'vsn', 'vtn', 'iar', 'ias', 'iat', 'ian', 'icr', 'ics', 'ict', 'location', 'owner'];
 
     private User $actor;
 
@@ -74,6 +74,34 @@ class MaximoWoLoadTest extends PostgresTestCase
         $again = $svc->load($file, $this->actor)['counts'];                                                                         // idempotent
         $this->assertSame([0, 1], [$again['readings_stored'], $again['readings_unchanged']]);
         $this->assertSame(1, DB::table('substation_readings')->count());
+    }
+
+    #[Test]
+    public function missing_gardu_are_exported_and_only_formed_on_request_flagged_for_review_with_their_feeder_and_ulp(): void
+    {
+        $file = $this->csv([
+            ['wonum' => '1', 'gardu' => 'HL0766', 'measured_at' => '2026-08-12 13:00:00', 'pembebanan_trafo_pct' => '40', 'iar' => '10', 'location' => 'GD01.62555109 GD HL0766 PENYULANG BAGOR', 'owner' => '51453.INSPEKTOR.10'],
+            ['wonum' => '2', 'gardu' => 'HL0766', 'measured_at' => '2026-08-13 13:00:00', 'pembebanan_trafo_pct' => '41', 'iar' => '11', 'location' => 'GD01.62555109 GD HL0766 PENYULANG BAGOR', 'owner' => '51453.INSPEKTOR.10'],
+            ['wonum' => '3', 'gardu' => 'HL0777', 'measured_at' => '2026-08-12 13:00:00', 'pembebanan_trafo_pct' => '40', 'location' => 'GD01.1 GD HL0777 PENYULANG X', 'owner' => 'TIMHAR.1'],   // unknown ULP: never formed
+        ]);
+        $svc = app(MaximoWoLoadService::class);
+        $export = tempnam(sys_get_temp_dir(), 'ex');
+
+        $svc->load($file, $this->actor, false, false, $export);
+        $this->assertSame(1, DB::table('substations')->count());                                                                   // not formed without the option
+        $lines = array_map('str_getcsv', file($export, FILE_IGNORE_NEW_LINES), array_fill(0, 3, ','), array_fill(0, 3, '"'), array_fill(0, 3, ''));
+        $this->assertSame(['HL0766', 'GD01.62555109', 'BAGOR', '51453', 'ya', '2', '2026-08-12 13:00:00', '2026-08-13 13:00:00'], $lines[1]);
+        $this->assertSame(['HL0777', 'GD01.1', 'X', 'TIMHAR', 'tidak', '1', '2026-08-12 13:00:00', '2026-08-12 13:00:00'], $lines[2]);
+
+        $r = $svc->load($file, $this->actor, false, true);
+        $this->assertSame([1, 1, 2, 1], [$r['counts']['gardu_created'], $r['counts']['feeders_created'], $r['counts']['readings_stored'], $r['counts']['unknown_gardu']]);
+        $new = DB::table('substations')->where('code', 'HL0766')->first();
+        $this->assertTrue((bool) $new->needs_review);
+        $this->assertSame('GD01.62555109', $new->location_code);
+        $this->assertSame('BAGOR', DB::table('distribution_feeders')->where('id', $new->feeder_id)->value('name'));
+        $this->assertSame(0, DB::table('substations')->where('code', 'HL0777')->count());
+        $this->assertSame(2, DB::table('substation_readings')->where('substation_id', $new->id)->count());
+        $this->assertSame(0, $svc->load($file, $this->actor, false, true)['counts']['gardu_created']);                               // idempotent
     }
 
     #[Test]

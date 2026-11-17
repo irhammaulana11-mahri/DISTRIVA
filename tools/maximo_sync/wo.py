@@ -61,6 +61,18 @@ def header(text):
     return out
 
 
+def gardu_code(description, location):
+    """The gardu code of a work order. The location (`GD01.05028596 GD HC0086 PENYULANG ...`) is reliable; the description may run words together (`HC0086GD`) and the asset prefix `GD01` itself looks like a code."""
+    m = re.search(r"\bGD\s+([A-Z]{2}\d{1,4})\b", location)
+    if m:
+        return m.group(1)
+    for text in (description, location):
+        for m in re.finditer(r"(?<![A-Z0-9])([A-Z]{2}\d{1,4})(?![0-9])", text):
+            if not re.fullmatch(r"GD\d{2}", m.group(1)):
+                return m.group(1)
+    return ""
+
+
 def parse(raw):
     """One record (dict) per WO found in `raw`; [] when there is no work order in it."""
     soup = BeautifulSoup(contents(raw), "html.parser")
@@ -72,8 +84,7 @@ def parse(raw):
     rec = {"wonum": h["wonum"], "description": h["description"], "gardu": "", "location": h.get("Location", ""), "status": h.get("Status", ""), "work_type": h.get("Work Type", ""), "owner": h.get("Owner", ""),
            "hi_value": h.get("HI Value", ""), "hi_numeric": h.get("HI Numeric Value", ""), "hi_total": h.get("HI Total Value", ""),
            "actual_start": date_id(h.get("Actual Start", "")), "actual_finish": date_id(h.get("Actual Finish", "")), "report_date": date_id(h.get("Report Date", ""))}
-    m = re.search(r"\b([A-Z]{2}\d{1,4})\b", h["description"]) or re.search(r"\b([A-Z]{2}\d{1,4})\b", rec["location"])
-    rec["gardu"] = m.group(1) if m else ""
+    rec["gardu"] = gardu_code(h["description"], rec["location"])
     rec["jurusan"] = {}
     rec["gardu_level"] = {}
     times = []
