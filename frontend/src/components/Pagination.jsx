@@ -7,6 +7,7 @@ export default function Pagination({
   onChange,
   onPerPage,
   perPageOptions = [10, 25, 50, 100],
+  showSummary = true,                                   // false di dalam TableFooter: ringkasan "Menampilkan X dari Y" sudah ada di kirinya
 }) {
   const pageHandler = onPage || onChange
   const total = Number(totalProp ?? meta?.total ?? 0)
@@ -25,14 +26,17 @@ export default function Pagination({
   return (
     <nav
       aria-label="Halaman"
-      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 py-1"
+      className={`flex flex-col sm:flex-row sm:items-center gap-3 text-xs text-slate-500 dark:text-slate-400 py-1 ${showSummary ? 'sm:justify-between' : 'sm:justify-end'}`}
     >
-      {/* Left side: Showing count summary matching image */}
-      <div className="flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-400">
-        <span>Menampilkan {from}–{to} dari {total}</span>
-        {/* Invisible accessibility span maintaining test compatibility */}
+      {/* Ringkasan di kiri (dilewati di TableFooter, yang sudah menampilkannya); teks halaman untuk pembaca layar tetap ada */}
+      {showSummary ? (
+        <div className="flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-400">
+          <span>Menampilkan {from}–{to} dari {total}</span>
+          <span className="sr-only">Halaman {currentPage} dari {lastPage} · {total} data</span>
+        </div>
+      ) : (
         <span className="sr-only">Halaman {currentPage} dari {lastPage} · {total} data</span>
-      </div>
+      )}
 
       {/* Right side: Per page, Prev, Hal X/Y, Next */}
       <div className="flex items-center gap-2 sm:gap-4 flex-wrap">

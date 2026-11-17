@@ -133,7 +133,7 @@ describe('Shared UI Components', () => {
       )
 
       expect(screen.getByText('Menampilkan 9 dari 9 kategori')).toBeInTheDocument()
-      expect(screen.getByText('Menampilkan 1–9 dari 9')).toBeInTheDocument()
+      expect(screen.queryByText('Menampilkan 1–9 dari 9')).not.toBeInTheDocument()                    // ringkasan hanya sekali, di kiri
       expect(screen.getByText('Per halaman')).toBeInTheDocument()
       expect(screen.getByText('Hal. 1/1')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Sebelumnya' })).toBeDisabled()
@@ -160,7 +160,7 @@ describe('Shared UI Components', () => {
       )
 
       expect(screen.getByText('Menampilkan 0 dari 0 material')).toBeInTheDocument()
-      expect(screen.getByText('Menampilkan 0–0 dari 0')).toBeInTheDocument()
+      expect(screen.queryByText('Menampilkan 0–0 dari 0')).not.toBeInTheDocument()
       expect(screen.getByText('Per halaman')).toBeInTheDocument()
       expect(screen.getByText('Hal. 1/1')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Sebelumnya' })).toBeDisabled()

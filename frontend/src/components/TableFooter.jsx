@@ -45,7 +45,7 @@ export function useTablePagination(items = [], initialPerPage = 25) {
  * Standardized Table Footer matching DISTRIVA Design System
  *
  * Left side: "Menampilkan X dari Y [label]"
- * Right side: Pagination (Showing range, per page dropdown 10-25-50-100, Prev, Hal X/Y, Next)
+ * Right side: Pagination (per page dropdown 10-25-50-100, Prev, Hal X/Y, Next); the summary is shown once, on the left
  */
 export default function TableFooter({
   itemCount,
@@ -90,6 +90,7 @@ export default function TableFooter({
           onPage={onPage}
           onPerPage={onPerPage}
           perPageOptions={perPageOptions}
+          showSummary={false}
         />
       )}
     </div>
