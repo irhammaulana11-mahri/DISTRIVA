@@ -6,6 +6,8 @@ import { resolveProfiles, visibleForProfiles } from '../../features/dashboard/pr
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
+import SearchSelect from '../../components/SearchSelect.jsx'
+import { resolveUnitScope } from '../../utils/unitScope.js'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -188,8 +190,12 @@ export default function ReportsPage() {
   // Filters
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [up3Id, setUp3Id] = useState('')
-  const [unitId, setUnitId] = useState('')
+  const [up3Pick, setUp3Id] = useState('')
+  const [unitPick, setUnitId] = useState('')
+  // Nilai efektif: unit yang terkunci oleh peran (satu UP3 / satu ULP) dipakai walau belum dipilih.
+  const unitScope = resolveUnitScope(scopeInfo, up3Pick, unitPick)
+  const up3Id = unitScope.up3Value
+  const unitId = unitScope.ulpValue
 
   // 1. Overview Data
   const [overviewData, setOverviewData] = useState(null)
@@ -272,9 +278,6 @@ export default function ReportsPage() {
         if (d.default_up3_id) {
           setUp3Id(d.default_up3_id)
         }
-        if (d.default_unit_id) {
-          setUnitId(d.default_unit_id)
-        }
       })
       .catch(() => {
         adminApi
@@ -286,22 +289,6 @@ export default function ReportsPage() {
           .catch(() => {})
       })
   }, [])
-
-  // Filtered ULPs based on selected UP3
-  const filteredUlps = useMemo(() => {
-    if (scopeInfo.scope === 'ULP') {
-      return scopeInfo.ulp_units
-    }
-    if (up3Id) {
-      return scopeInfo.ulp_units.filter((u) => String(u.parent_id) === String(up3Id))
-    }
-    return scopeInfo.ulp_units
-  }, [scopeInfo.scope, scopeInfo.ulp_units, up3Id])
-
-  // Selected UP3 details for labels
-  const selectedUp3 = useMemo(() => {
-    return scopeInfo.up3_units.find((u) => String(u.id) === String(up3Id)) || null
-  }, [scopeInfo.up3_units, up3Id])
 
   const handleUp3Change = (newUp3Id) => {
     setUp3Id(newUp3Id)
@@ -320,26 +307,11 @@ export default function ReportsPage() {
   const handleResetFilters = () => {
     setFrom('')
     setTo('')
-    if (scopeInfo.scope === 'GLOBAL') {
-      setUp3Id('')
-      setUnitId('')
-    } else if (scopeInfo.scope === 'UP3') {
-      setUp3Id(scopeInfo.default_up3_id)
-      setUnitId('')
-    } else {
-      setUp3Id(scopeInfo.default_up3_id)
-      setUnitId(scopeInfo.default_unit_id)
-    }
+    setUp3Id(scopeInfo.default_up3_id)
+    setUnitId('')
   }
 
-  const canReset = Boolean(
-    from ||
-      to ||
-      (scopeInfo.scope === 'GLOBAL' && (up3Id || unitId)) ||
-      (scopeInfo.scope === 'UP3' && (up3Id !== scopeInfo.default_up3_id || unitId)) ||
-      (scopeInfo.scope === 'ULP' &&
-        (up3Id !== scopeInfo.default_up3_id || unitId !== scopeInfo.default_unit_id))
-  )
+  const canReset = Boolean(from || to || unitId || up3Id !== scopeInfo.default_up3_id)
 
   // Load Overview Data
   const loadOverview = useCallback(async () => {
@@ -721,80 +693,31 @@ export default function ReportsPage() {
             />
           </div>
 
-          {/* Filter UP3 */}
+          {/* Filter UP3 -> ULP: aturan seragam (utils/unitScope.js) */}
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-slate-600 dark:text-slate-400">Unit UP3:</span>
-            <select
-              aria-label="Filter Unit UP3"
-              value={up3Id}
-              disabled={scopeInfo.scope === 'UP3' || scopeInfo.scope === 'ULP'}
-              onChange={(e) => handleUp3Change(e.target.value)}
-              className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
-                scopeInfo.scope !== 'GLOBAL'
-                  ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
-                  : ''
-              }`}
-            >
-              {scopeInfo.scope === 'GLOBAL' ? (
-                <>
-                  <option value="">Semua UP3 (Seluruh Unit)</option>
-                  {scopeInfo.up3_units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.code} - {u.name}
-                    </option>
-                  ))}
-                </>
-              ) : scopeInfo.scope === 'UP3' ? (
-                <option value={scopeInfo.default_up3_id}>
-                  {scopeInfo.up3_units[0]
-                    ? `${scopeInfo.up3_units[0].code} - ${scopeInfo.up3_units[0].name} (UP3 Terkait)`
-                    : 'UP3 Terkait'}
-                </option>
-              ) : (
-                <option value={scopeInfo.default_up3_id}>
-                  {scopeInfo.up3_units[0]
-                    ? `${scopeInfo.up3_units[0].code} - ${scopeInfo.up3_units[0].name} (UP3 Induk)`
-                    : 'UP3 Induk'}
-                </option>
-              )}
-            </select>
+            <SearchSelect
+              ariaLabel="Filter Unit UP3"
+              options={unitScope.up3Options}
+              value={unitScope.up3Value}
+              disabled={unitScope.up3Locked}
+              onChange={handleUp3Change}
+              placeholder="Cari UP3…"
+              className="w-48"
+            />
           </div>
 
-          {/* Filter ULP */}
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-slate-600 dark:text-slate-400">Unit ULP:</span>
-            <select
-              aria-label="Filter Unit ULP"
-              value={unitId}
-              disabled={scopeInfo.scope === 'ULP'}
-              onChange={(e) => setUnitId(e.target.value)}
-              className={`px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-xs ${
-                scopeInfo.scope === 'ULP'
-                  ? 'opacity-80 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60'
-                  : ''
-              }`}
-            >
-              {scopeInfo.scope === 'ULP' ? (
-                <option value={scopeInfo.default_unit_id}>
-                  {scopeInfo.ulp_units[0]
-                    ? `${scopeInfo.ulp_units[0].code} - ${scopeInfo.ulp_units[0].name} (Terkunci)`
-                    : 'ULP Terkait'}
-                </option>
-              ) : (
-                <>
-                  <option value="">
-                    {up3Id
-                      ? `Semua ULP di ${selectedUp3 ? selectedUp3.name : 'UP3 Terpilih'}`
-                      : 'Semua ULP (Seluruh Wilayah)'}
-                  </option>
-                  {filteredUlps.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.code} - {u.name}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
+            <SearchSelect
+              ariaLabel="Filter Unit ULP"
+              options={unitScope.ulpOptions}
+              value={unitScope.ulpValue}
+              disabled={unitScope.ulpLocked}
+              onChange={setUnitId}
+              placeholder="Cari ULP…"
+              className="w-48"
+            />
           </div>
         </div>
 

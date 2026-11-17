@@ -751,6 +751,9 @@ class EisImportTest extends PostgresTestCase
         $this->assertSame('ULP', $units->json('scope'));
         $this->assertSame([$this->ulpA1->getKey()], collect($units->json('ulp_units'))->pluck('id')->all());
         $this->assertSame($this->upA->getKey(), $units->json('default_up3_id'));
+        $shared = $this->as($this->retailA1)->getJson('/api/scoped-units?permission=applications.view')->assertOk();                  // the generic endpoint behind every page's UP3/ULP filter
+        $this->assertSame([$units->json('scope'), $units->json('ulp_units')], [$shared->json('scope'), $shared->json('ulp_units')]);
+        $this->as($this->retailA1)->getJson('/api/scoped-units?permission=users.manage')->assertUnprocessable();                    // only the filter pages' permissions
     }
 
     #[Test]

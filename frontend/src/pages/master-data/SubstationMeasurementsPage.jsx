@@ -674,6 +674,7 @@ export default function SubstationMeasurementsPage() {
         </div>
 
         <HierarchicalUnitFilter
+          permission="substations.view"
           up3Id={up3Id}
           onUp3Change={(newUp3) => {
             setPage(1)
@@ -684,10 +685,7 @@ export default function SubstationMeasurementsPage() {
             setPage(1)
             setUnitId(newUnit)
           }}
-          allUp3Label="Semua UP3"
-          allUnitLabel="Semua unit"
           unitAriaLabel="Unit"
-          selectClassName={inputCls}
         />
 
         {canViewFeeders && (

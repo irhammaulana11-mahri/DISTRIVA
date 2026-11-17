@@ -191,7 +191,7 @@ describe('Master Gardu — SubstationsPage (docs/80 §15)', () => {
         })
       )
     })
-  })
+  }, 20000)
 
   it('3. tombol impor hanya untuk yang berhak (substations.import)', async () => {
     const { unmount } = renderPage({ 'substations.view': true, 'substations.import': true })

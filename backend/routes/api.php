@@ -39,6 +39,7 @@ use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\RabController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RkmController;
+use App\Http\Controllers\ScopedUnitController;
 use App\Http\Controllers\ServiceSlaController;
 use App\Http\Controllers\SubstationController;
 use App\Http\Controllers\SurveyController;
@@ -207,6 +208,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     // Dashboard and reports (docs/62 §41)
     Route::middleware('throttle:admin')->group(function () {
         Route::get('/reports/units', [ReportController::class, 'units']);
+        Route::get('/scoped-units', ScopedUnitController::class);
         Route::get('/reports/settings', [ReportController::class, 'settings']);
         Route::put('/reports/settings', [ReportController::class, 'saveSettings']);
         Route::get('/reports/overview', [ReportController::class, 'overview']);

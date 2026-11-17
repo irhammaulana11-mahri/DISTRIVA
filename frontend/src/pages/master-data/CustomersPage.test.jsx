@@ -183,7 +183,8 @@ describe('Master Pelanggan Page (docs/81)', () => {
     await user.type(searchInput, '51453')
 
     const unitSelect = screen.getByRole('combobox', { name: /Unit ULP/i })
-    await user.selectOptions(unitSelect, 'u-ulp-1')
+    await user.click(unitSelect)
+    await user.click(screen.getByRole('option', { name: /ULP Mojokerto Kota/i }))
 
     const feederSelect = screen.getByRole('combobox', { name: /Penyulang/i })
     await user.selectOptions(feederSelect, 'f-1')

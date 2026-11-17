@@ -670,6 +670,7 @@ export default function CustomersPage() {
           </div>
 
           <HierarchicalUnitFilter
+            permission="customers.view"
             up3Id={up3Id}
             onUp3Change={(newUp3) => {
               setPage(1)
@@ -680,10 +681,7 @@ export default function CustomersPage() {
               setPage(1)
               setUnitId(newUnit)
             }}
-            allUp3Label="Semua UP3"
-            allUnitLabel="Semua unit ULP"
             unitAriaLabel="Unit ULP"
-            selectClassName={inputCls}
           />
 
           <select

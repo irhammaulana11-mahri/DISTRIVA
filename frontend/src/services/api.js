@@ -910,3 +910,8 @@ export const notificationsApi = {
   markAllRead: () => request('/notifications/read-all', { method: 'POST' }),
 }
 
+
+/** Pilihan UP3 / ULP untuk filter unit sebuah halaman, menurut peran dan cakupan pengguna pada izin halaman itu (GET /scoped-units). */
+export const unitScopeApi = {
+  get: (permission) => request(`/scoped-units${qs({ permission })}`),
+}

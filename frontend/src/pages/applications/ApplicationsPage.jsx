@@ -20,6 +20,7 @@ import ApplicationAllocationPanel from './ApplicationAllocationPanel.jsx'
 import ApplicationWorkOrdersPanel from './ApplicationWorkOrdersPanel.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
 import SearchSelect from '../../components/SearchSelect.jsx'
+import { resolveUnitScope } from '../../utils/unitScope.js'
 import EisRunHistory from './EisRunHistory.jsx'
 import AttentionCustomers from './AttentionCustomers.jsx'
 import { AuthenticatedDocumentItem } from '../../components/DocumentGallery.jsx'
@@ -166,15 +167,7 @@ export default function ApplicationsPage() {
     Promise.resolve(applicationApi.units()).then((d) => { if (live && d) setUnitInfo({ scope: d.scope || '', up3_units: d.up3_units || [], ulp_units: d.ulp_units || [] }) }).catch(() => {})
     return () => { live = false }
   }, [])
-  const isGlobal = unitInfo.scope === 'GLOBAL'
-  const up3Locked = !isGlobal && unitInfo.up3_units.length === 1
-  const up3Value = up3Locked ? unitInfo.up3_units[0].id : up3Filter
-  const unitLabel = (u) => (u.code ? `${u.code} - ${u.name}` : u.name)
-  const up3Options = useMemo(() => [...(up3Locked ? [] : [{ value: '', label: 'Semua UP3' }]), ...unitInfo.up3_units.map((u) => ({ value: u.id, label: unitLabel(u) }))], [unitInfo, up3Locked])
-  const ulpChoices = useMemo(() => unitInfo.ulp_units.filter((u) => !up3Value || String(u.parent_id) === String(up3Value)), [unitInfo, up3Value])
-  const ulpLocked = !isGlobal && unitInfo.scope === 'ULP' && ulpChoices.length === 1
-  const ulpValue = ulpLocked ? ulpChoices[0].id : unitFilter
-  const ulpOptions = useMemo(() => [...(ulpLocked ? [] : [{ value: '', label: 'Semua ULP' }]), ...ulpChoices.map((u) => ({ value: u.id, label: unitLabel(u) }))], [ulpChoices, ulpLocked])
+  const { up3Locked, up3Value, up3Options, ulpLocked, ulpValue, ulpOptions } = resolveUnitScope(unitInfo, up3Filter, unitFilter)
 
   // Load applications list
   const loadApplications = useCallback(() => {

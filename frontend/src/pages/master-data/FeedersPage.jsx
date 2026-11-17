@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { feedersApi, substationsApi, adminApi } from '../../services/api.js'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
@@ -770,26 +771,9 @@ export default function FeedersPage() {
     loadFeeders()
   }, [loadFeeders])
 
-  const up3Units = units.filter((u) => u.unit_type === 'UP3' || (!u.unit_type && !u.parent_id))
-  const ulpUnits = units.filter((u) => u.unit_type === 'ULP')
-  const availableUlpUnits = ownerUnitId
-    ? (() => {
-        const matched = ulpUnits.filter((u) => u.parent_id && String(u.parent_id) === String(ownerUnitId))
-        return matched.length > 0 ? matched : ulpUnits
-      })()
-    : ulpUnits
-
   const handleOwnerUnitChange = (newOwnerId) => {
     setPage(1)
     setOwnerUnitId(newOwnerId)
-    if (newOwnerId) {
-      const isStillChild = ulpUnits.some(
-        (u) => String(u.id) === String(servesUnitId) && (!u.parent_id || String(u.parent_id) === String(newOwnerId))
-      )
-      if (!isStillChild) {
-        setServesUnitId('')
-      }
-    }
   }
 
   const stats = useMemo(() => {
@@ -936,38 +920,18 @@ export default function FeedersPage() {
             />
           </div>
 
-          <select
-            aria-label="Cabang"
-            value={ownerUnitId}
-            onChange={(e) => handleOwnerUnitChange(e.target.value)}
-            className={inputCls}
-          >
-            <option value="">Semua UP3 (Seluruh Unit)</option>
-            {up3Units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.code ? `${u.code} - ${u.name}` : u.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            aria-label="Unit"
-            value={servesUnitId}
-            onChange={(e) => {
+          <HierarchicalUnitFilter
+            permission="feeders.view"
+            up3Id={ownerUnitId}
+            onUp3Change={handleOwnerUnitChange}
+            unitId={servesUnitId}
+            onUnitChange={(v) => {
               setPage(1)
-              setServesUnitId(e.target.value)
+              setServesUnitId(v)
             }}
-            className={inputCls}
-          >
-            <option value="">
-              {ownerUnitId ? 'Semua ULP di UP3 Ini' : 'Semua ULP dilayani'}
-            </option>
-            {availableUlpUnits.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.code ? `${u.code} - ${u.name}` : u.name}
-              </option>
-            ))}
-          </select>
+            up3AriaLabel="Cabang"
+            unitAriaLabel="Unit"
+          />
 
           <input
             aria-label="GI"

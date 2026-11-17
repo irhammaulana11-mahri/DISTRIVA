@@ -1492,21 +1492,20 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       expect(up3Select).toBeEnabled()
       expect(ulpSelect).toBeEnabled()
 
-      // Initial state: "Semua UP3 (Seluruh Unit)" and "Semua ULP (Seluruh Wilayah)"
-      expect(screen.getByText('Semua UP3 (Seluruh Unit)')).toBeInTheDocument()
-      expect(screen.getByText('Semua ULP (Seluruh Wilayah)')).toBeInTheDocument()
+      // Awal: Semua UP3 dan Semua ULP
+      expect(up3Select).toHaveValue('Semua UP3')
+      expect(ulpSelect).toHaveValue('Semua ULP')
 
-      // Select UP3-MJK
-      await userEvent.selectOptions(up3Select, 'u-up3-1')
-
-      // Now ULP options should only contain ULP-MJO and ULP-NGN, but NOT ULP-SBY
-      expect(screen.getByText(/Semua ULP di UP3 Mojokerto/i)).toBeInTheDocument()
+      // Pilih UP3-MJK: pilihan ULP hanya yang di bawahnya
+      await userEvent.click(up3Select)
+      await userEvent.click(screen.getByRole('option', { name: /UP3 Mojokerto/i }))
+      await userEvent.click(ulpSelect)
       expect(screen.getByRole('option', { name: /ULP Mojokerto Kota/i })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: /ULP Ngoro/i })).toBeInTheDocument()
       expect(screen.queryByRole('option', { name: /ULP Surabaya Selatan/i })).not.toBeInTheDocument()
 
-      // Select ULP-MJO
-      await userEvent.selectOptions(ulpSelect, 'u-ulp-1')
+      // Pilih ULP-MJO
+      await userEvent.click(screen.getByRole('option', { name: /ULP Mojokerto Kota/i }))
 
       // Click "Terapkan Filter"
       const applyBtn = screen.getByRole('button', { name: /Terapkan Filter/i })
@@ -1525,8 +1524,8 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       const resetBtn = screen.getByRole('button', { name: /Reset Filter/i })
       await userEvent.click(resetBtn)
 
-      expect(up3Select.value).toBe('')
-      expect(ulpSelect.value).toBe('')
+      expect(up3Select).toHaveValue('Semua UP3')
+      expect(ulpSelect).toHaveValue('Semua ULP')
     })
 
     it('hierarkis peran UP3: UP3 terkunci dan ULP terbatas pada unit di bawahnya', async () => {
@@ -1554,10 +1553,11 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
 
       expect(up3Select).toBeDisabled()
       expect(ulpSelect).toBeEnabled()
-      expect(screen.getByText(/UP3-MJK - UP3 Mojokerto \(UP3 Terkait\)/i)).toBeInTheDocument()
-      expect(screen.getByText(/Semua ULP di UP3 Mojokerto/i)).toBeInTheDocument()
+      expect(up3Select).toHaveValue('UP3-MJK - UP3 Mojokerto')
+      expect(ulpSelect).toHaveValue('Semua ULP')
 
-      await userEvent.selectOptions(ulpSelect, 'u-ulp-2')
+      await userEvent.click(ulpSelect)
+      await userEvent.click(screen.getByRole('option', { name: /ULP Ngoro/i }))
       const applyBtn = screen.getByRole('button', { name: /Terapkan Filter/i })
       await userEvent.click(applyBtn)
 
@@ -1595,8 +1595,8 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
 
       expect(up3Select).toBeDisabled()
       expect(ulpSelect).toBeDisabled()
-      expect(screen.getByText(/UP3-MJK - UP3 Mojokerto \(UP3 Induk\)/i)).toBeInTheDocument()
-      expect(screen.getByText(/ULP-MJO - ULP Mojokerto Kota \(Terkunci\)/i)).toBeInTheDocument()
+      expect(up3Select).toHaveValue('UP3-MJK - UP3 Mojokerto')
+      expect(ulpSelect).toHaveValue('ULP-MJO - ULP Mojokerto Kota')
 
       await waitFor(() => {
         expect(reportsApi.overview).toHaveBeenCalledWith(

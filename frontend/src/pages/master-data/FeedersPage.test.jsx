@@ -81,7 +81,7 @@ describe('Master Penyulang Page (docs/81)', () => {
     adminApi.units.mockResolvedValue({
       data: [
         { id: 'u-up3-1', code: 'UP3-MJK', name: 'UP3 Mojokerto', unit_type: 'UP3' },
-        { id: 'u-ulp-1', code: 'ULP-PLSO', name: 'ULP Ploso', unit_type: 'ULP' },
+        { id: 'u-ulp-1', code: 'ULP-PLSO', name: 'ULP Ploso', unit_type: 'ULP', parent_id: 'u-up3-1' },
         { id: 'u-ulp-2', code: 'ULP-MJO', name: 'ULP Mojokerto Kota', unit_type: 'ULP' },
       ],
     })
@@ -174,10 +174,12 @@ describe('Master Penyulang Page (docs/81)', () => {
     await user.type(searchInput, 'Wates')
 
     const ownerSelect = screen.getByRole('combobox', { name: /^Cabang$/i })
-    await user.selectOptions(ownerSelect, 'u-up3-1')
+    await user.click(ownerSelect)
+    await user.click(screen.getByRole('option', { name: /UP3 Mojokerto/i }))
 
     const servesSelect = screen.getByRole('combobox', { name: /^Unit$/i })
-    await user.selectOptions(servesSelect, 'u-ulp-1')
+    await user.click(servesSelect)
+    await user.click(screen.getByRole('option', { name: /ULP Ploso/i }))
 
     const giInput = screen.getByRole('textbox', { name: /GI/i })
     await user.type(giInput, 'GI-MJK')
