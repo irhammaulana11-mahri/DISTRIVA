@@ -6,6 +6,7 @@ use App\Models\OrganizationalUnit;
 use App\Models\User;
 use App\Services\Substations\OmtLoadService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,7 +16,7 @@ use Tests\PostgresTestCase;
 class OmtLoadTest extends PostgresTestCase
 {
     private const HEADER = ['Nama Unit', 'Nama ULP', 'Nama Penyulang', 'Nama Aset', 'Latitude Aset', 'Longitude Aset', 'Konstruksi Aset', 'Kapasitas Aset', 'Tanggal Pengukuran', 'Waktu Pengukuran', 'Beban Trafo',
-        'iar', 'ias', 'iat', 'ibr', 'ibs', 'ibt', 'iur', 'ius', 'iut', 'iun', 'vrn', 'vsn', 'vtn'];
+        'iar', 'ias', 'iat', 'ibr', 'ibs', 'ibt', 'ifn', 'ifr', 'ifs', 'ift', 'iur', 'ius', 'iut', 'iun', 'vrn', 'vsn', 'vtn'];
 
     private OrganizationalUnit $up3;
 
@@ -115,6 +116,41 @@ class OmtLoadTest extends PostgresTestCase
         $again = $svc->load($file, $this->actor)['counts'];
         $this->assertSame([0, 0, 0, 4], [$again['gardu_created'], $again['feeders_created'], $again['readings_stored'], $again['readings_unchanged']]);
         $this->assertSame(3, DB::table('substation_readings')->count());
+    }
+
+    #[Test]
+    public function the_shifted_readings_are_corrected_in_one_transaction_and_the_history_triggers_are_back_afterwards(): void
+    {
+        $day = now()->subDays(40)->toDateString();
+        $shifted = $this->csv([
+            $this->row('HD7', "{$day} 09:00:00", ['vrn' => '', 'vsn' => '', 'vtn' => '', 'iur' => '', 'ius' => '', 'iut' => '', 'ifn' => '230', 'ifr' => '400', 'ifs' => '231', 'ift' => '400', 'ibr' => '30']),      // voltages sat in jurusan F
+            $this->row('HD8', "{$day} 10:00:00", ['ibr' => '20']),                                                                                                                                                 // a normal reading
+        ]);
+        $fixed = $this->csv([
+            $this->row('HD7', "{$day} 09:00:00", ['vrn' => '230', 'vsn' => '231', 'vtn' => '229', 'iur' => '46', 'ius' => '40', 'iut' => '44', 'ibr' => '30']),
+            $this->row('HD8', "{$day} 10:00:00", ['ibr' => '25', 'vrn' => '240']),                                                                                                                                  // must not be touched
+        ]);
+        $svc = app(OmtLoadService::class);
+        $svc->load($shifted, $this->actor);
+        $hd7 = DB::table('substations')->where('code', 'HD0007')->value('id');
+        $id = DB::table('substation_readings')->where('substation_id', $hd7)->value('id');
+        $this->assertSame(['B', 'F'], DB::table('substation_reading_feeders')->where('reading_id', $id)->orderBy('label')->pluck('label')->all());
+
+        $dry = $svc->repairShifted($fixed, true);
+        $this->assertSame([1, 1], [$dry['suspect'], $dry['repaired']]);
+        $this->assertSame(['B', 'F'], DB::table('substation_reading_feeders')->where('reading_id', $id)->orderBy('label')->pluck('label')->all());   // a dry run changes nothing
+
+        $r = $svc->repairShifted($fixed);
+        $this->assertSame([1, 1, 0], [$r['suspect'], $r['repaired'], $r['not_in_file']]);
+        $this->assertSame(['B'], DB::table('substation_reading_feeders')->where('reading_id', $id)->pluck('label')->all());
+        $row = DB::table('substation_readings')->where('id', $id)->first();
+        $this->assertSame([230.0, 231.0, 229.0, 46.0, 40.0, 44.0], [(float) $row->base_voltage_r_v, (float) $row->base_voltage_s_v, (float) $row->base_voltage_t_v, (float) $row->current_r_a, (float) $row->current_s_a, (float) $row->current_t_a]);
+        $hd8 = DB::table('substation_readings as r')->join('substations as s', 's.id', '=', 'r.substation_id')->where('s.code', 'HD0008')->first();
+        $this->assertSame(229.0, (float) $hd8->base_voltage_r_v);                                                                                    // untouched: its fingerprint does not match
+        $this->assertSame(0, $svc->repairShifted($fixed)['suspect']);                                                                                  // a second run finds nothing
+
+        $this->expectException(QueryException::class);                                                                           // the history triggers are enforced again
+        DB::table('substation_readings')->where('id', $id)->update(['current_r_a' => 1]);
     }
 
     #[Test]

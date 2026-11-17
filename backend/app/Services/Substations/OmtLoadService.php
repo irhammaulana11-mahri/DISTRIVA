@@ -3,6 +3,7 @@
 namespace App\Services\Substations;
 
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -135,6 +136,74 @@ class OmtLoadService
         }
 
         return ['dry_run' => $dryRun, 'counts' => $c, 'problems' => array_map(fn ($p) => array_slice(array_keys($p), 0, 20), $problems)];
+    }
+
+    /**
+     * One-off correction (owner approved 2026-11-17): OMT 2023-2 rows that held the old 60-column layout inside 108 columns were loaded with the voltages in jurusan F/G and no base voltage.
+     * Readings are append-only, so the two history triggers are lifted INSIDE one transaction and put back before it ends. Only IMPORT readings with that fingerprint (no base voltage, a jurusan F/G carrying
+     * voltage-like values) are touched; their gardu currents, base voltages and jurusan are replaced from the cleaned CSV. Load (kVA) and loading % came from "Beban Trafo", so they stay.
+     *
+     * @return array<string,int>
+     */
+    public function repairShifted(string $path, bool $dryRun = false): array
+    {
+        $fh = fopen($path, 'r') ?: throw new \RuntimeException("Berkas tidak dapat dibuka: {$path}");
+        $col = array_flip(fgetcsv($fh, 0, ',', '"', '') ?: []);
+        $tz = (string) config('distriva.business_timezone');
+        $utc = fn (string $t): string => CarbonImmutable::parse($t, $tz)->utc()->format('Y-m-d H:i:s');
+        $suspect = [];
+        foreach (DB::select("select distinct r.id, r.substation_id, r.measured_at from substation_readings r join substation_reading_feeders f on f.reading_id = r.id
+            where r.source = 'IMPORT' and r.base_voltage_r_v is null and r.measured_at is not null and f.label in ('F', 'G') and f.current_r_a between 150 and 450 and f.current_n_a between 150 and 300") as $r) {
+            $suspect[$r->substation_id.'|'.CarbonImmutable::parse($r->measured_at)->utc()->format('Y-m-d H:i:s')] = $r->id;
+        }
+        $gardu = DB::table('substations')->pluck('id', 'code')->all();
+        $c = ['suspect' => count($suspect), 'repaired' => 0, 'not_in_file' => 0];
+        $pos = fn (?float $v): ?float => $v !== null && $v > 0 ? $v : null;
+        DB::beginTransaction();
+        try {
+            foreach (['substation_readings' => 'trg_substation_readings_append_only', 'substation_reading_feeders' => 'trg_substation_reading_feeders_append_only'] as $table => $trigger) {
+                DB::statement("ALTER TABLE {$table} DISABLE TRIGGER {$trigger}");
+            }
+            while (($row = fgetcsv($fh, 0, ',', '"', '')) !== false) {
+                $d = fn (string $k) => trim((string) ($row[$col[$k] ?? -1] ?? ''));
+                $substationId = $gardu[self::code($d('Nama Aset'))] ?? null;
+                $id = $substationId === null || $d('Waktu Pengukuran') === '' ? null : ($suspect[$substationId.'|'.$utc($d('Waktu Pengukuran'))] ?? null);
+                if ($id === null) {
+                    continue;
+                }
+                unset($suspect[$substationId.'|'.$utc($d('Waktu Pengukuran'))]);
+                $new = $this->reading($d, null);
+                $n = fn (string $k): ?float => $pos(is_numeric($d($k)) ? (float) $d($k) : null);
+                $ph = ['r' => $n('iur'), 's' => $n('ius'), 't' => $n('iut')];
+                if (array_filter($ph, fn ($v) => $v !== null) === []) {                  // no gardu-level currents: the sum of the jurusan, as a new reading would do
+                    foreach (['r', 's', 't'] as $k) {
+                        $sum = array_sum(array_map(fn ($f) => (float) ($f["current_{$k}_a"] ?? 0), $new['feeders']));
+                        $ph[$k] = $sum > 0 ? round($sum, 2) : null;
+                    }
+                }
+                $volt = fn (string $k): ?float => ($v = $n($k)) !== null && $v < 1000 ? $v : null;                    // the same bound as a normal load: 2230 V is a typo, not a voltage
+                DB::table('substation_readings')->where('id', $id)->update(['current_r_a' => $ph['r'], 'current_s_a' => $ph['s'], 'current_t_a' => $ph['t'], 'current_n_a' => $n('iun'),
+                    'base_voltage_r_v' => $volt('vrn'), 'base_voltage_s_v' => $volt('vsn'), 'base_voltage_t_v' => $volt('vtn')]);
+                DB::table('substation_reading_feeders')->where('reading_id', $id)->delete();
+                foreach ($new['feeders'] as $f) {
+                    DB::table('substation_reading_feeders')->insert(['id' => (string) Str::uuid(), 'reading_id' => $id, 'label' => $f['label'], 'current_r_a' => $pos($f['current_r_a']), 'current_s_a' => $pos($f['current_s_a']),
+                        'current_t_a' => $pos($f['current_t_a']), 'current_n_a' => $pos($f['current_n_a']), 'end_voltage_v' => null]);
+                }
+                $c['repaired']++;
+            }
+            $c['not_in_file'] = count($suspect);
+            foreach (['substation_readings' => 'trg_substation_readings_append_only', 'substation_reading_feeders' => 'trg_substation_reading_feeders_append_only'] as $table => $trigger) {
+                DB::statement("ALTER TABLE {$table} ENABLE TRIGGER {$trigger}");
+            }
+            $dryRun ? DB::rollBack() : DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        } finally {
+            fclose($fh);
+        }
+
+        return $c;
     }
 
     /** @param array<string,object> $byName @param array<string,object> $byCode @return array{id:string,code:string}|null */
