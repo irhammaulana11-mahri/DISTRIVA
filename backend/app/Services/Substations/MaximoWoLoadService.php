@@ -34,6 +34,11 @@ class MaximoWoLoadService
         $c = ['rows' => 0, 'readings_stored' => 0, 'readings_unchanged' => 0, 'readings_skipped' => 0, 'no_measurement' => 0, 'rejected' => 0, 'unknown_gardu' => 0, 'gardu_created' => 0, 'feeders_created' => 0];
         $problems = $missing = [];
         $units = DB::table('organizational_units')->where('unit_type', 'ULP')->pluck('id', 'code')->all();
+        $feederUnit = [];                                                                          // normalised feeder name/code => the ULP that has most gardu on it (for work orders owned by a team account)
+        foreach (DB::select('select f.code, f.name, s.organizational_unit_id as unit, count(*) as n from substations s join distribution_feeders f on f.id = s.feeder_id group by f.code, f.name, s.organizational_unit_id order by n') as $x) {
+            $feederUnit[OmtLoadService::norm($x->code)] = $x->unit;
+            $x->name !== null && $feederUnit[OmtLoadService::norm($x->name)] = $x->unit;
+        }
         $feederByName = $feederByCode = [];
         foreach (DB::table('distribution_feeders')->get(['id', 'code', 'name']) as $f) {
             $feederByCode[OmtLoadService::norm($f->code)] = $f;
@@ -46,7 +51,7 @@ class MaximoWoLoadService
                 $c['rows']++;
                 $code = OmtLoadService::code($d('gardu'));
                 if (! isset($gardu[$code])) {
-                    $info = $this->missingInfo($code, $d, $units, $missing);
+                    $info = $this->missingInfo($code, $d, $units, $feederUnit, $missing);
                     if ($createMissing && $info['unit_id'] !== null) {
                         $gardu[$code] = $this->createGardu($code, $info, $feederByName, $feederByCode, $actor, $c);
                     } else {
@@ -92,17 +97,18 @@ class MaximoWoLoadService
      *
      * @param  callable(string):string  $d
      * @param  array<string,string>  $units  ULP code => id
+     * @param  array<string,string>  $feederUnit  normalised feeder name or code => ULP id with most gardu on that feeder; used when the owner is not a ULP account
      * @param  array<string,array<string,mixed>>  $missing
      * @return array<string,mixed>
      */
-    private function missingInfo(string $code, callable $d, array $units, array &$missing): array
+    private function missingInfo(string $code, callable $d, array $units, array $feederUnit, array &$missing): array
     {
         $location = $d('location');
         $ulp = explode('.', $d('owner'))[0];
         $measured = $d('measured_at');
         if (! isset($missing[$code])) {
             preg_match('/^(GD\d+\.\d+)\b.*?\bPENYULANG\s+(.+)$/i', $location, $m);
-            $missing[$code] = ['code' => $code, 'location_code' => $m[1] ?? '', 'feeder_name' => trim($m[2] ?? ''), 'ulp_code' => $ulp, 'unit_id' => $units[$ulp] ?? null, 'wo_count' => 0, 'first' => '', 'last' => ''];
+            $missing[$code] = ['code' => $code, 'location_code' => $m[1] ?? '', 'feeder_name' => trim($m[2] ?? ''), 'ulp_code' => $ulp, 'unit_id' => $units[$ulp] ?? $feederUnit[OmtLoadService::norm(trim($m[2] ?? ''))] ?? null, 'wo_count' => 0, 'first' => '', 'last' => ''];
         }
         $missing[$code]['wo_count']++;
         if ($measured !== '') {

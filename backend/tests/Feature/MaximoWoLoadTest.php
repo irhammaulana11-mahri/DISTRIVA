@@ -82,19 +82,24 @@ class MaximoWoLoadTest extends PostgresTestCase
         $file = $this->csv([
             ['wonum' => '1', 'gardu' => 'HL0766', 'measured_at' => '2026-08-12 13:00:00', 'pembebanan_trafo_pct' => '40', 'iar' => '10', 'location' => 'GD01.62555109 GD HL0766 PENYULANG BAGOR', 'owner' => '51453.INSPEKTOR.10'],
             ['wonum' => '2', 'gardu' => 'HL0766', 'measured_at' => '2026-08-13 13:00:00', 'pembebanan_trafo_pct' => '41', 'iar' => '11', 'location' => 'GD01.62555109 GD HL0766 PENYULANG BAGOR', 'owner' => '51453.INSPEKTOR.10'],
-            ['wonum' => '3', 'gardu' => 'HL0777', 'measured_at' => '2026-08-12 13:00:00', 'pembebanan_trafo_pct' => '40', 'location' => 'GD01.1 GD HL0777 PENYULANG X', 'owner' => 'TIMHAR.1'],   // unknown ULP: never formed
+            ['wonum' => '3', 'gardu' => 'HL0777', 'measured_at' => '2026-08-12 13:00:00', 'pembebanan_trafo_pct' => '40', 'location' => 'GD01.1 GD HL0777 PENYULANG X', 'owner' => 'TIMHAR.1'],   // unknown ULP and a feeder nobody uses: never formed
+            ['wonum' => '4', 'gardu' => 'HL0788', 'measured_at' => '2026-08-12 13:00:00', 'pembebanan_trafo_pct' => '40', 'location' => 'GD01.2 GD HL0788 PENYULANG SEKATEN', 'owner' => 'TIMHAR.1'],  // team account: the ULP of the feeder's other gardu
         ]);
+        $feeder = (string) Str::uuid();
+        DB::table('distribution_feeders')->insert(['id' => $feeder, 'code' => 'SKTN', 'name' => 'SEKATEN', 'owner_unit_id' => DB::table('substations')->where('id', $this->gardu)->value('organizational_unit_id'), 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('substations')->where('id', $this->gardu)->update(['feeder_id' => $feeder, 'feeder_code' => 'SKTN']);
         $svc = app(MaximoWoLoadService::class);
         $export = tempnam(sys_get_temp_dir(), 'ex');
 
         $svc->load($file, $this->actor, false, false, $export);
         $this->assertSame(1, DB::table('substations')->count());                                                                   // not formed without the option
-        $lines = array_map('str_getcsv', file($export, FILE_IGNORE_NEW_LINES), array_fill(0, 3, ','), array_fill(0, 3, '"'), array_fill(0, 3, ''));
+        $lines = array_map('str_getcsv', file($export, FILE_IGNORE_NEW_LINES), array_fill(0, 4, ','), array_fill(0, 4, '"'), array_fill(0, 4, ''));
         $this->assertSame(['HL0766', 'GD01.62555109', 'BAGOR', '51453', 'ya', '2', '2026-08-12 13:00:00', '2026-08-13 13:00:00'], $lines[1]);
         $this->assertSame(['HL0777', 'GD01.1', 'X', 'TIMHAR', 'tidak', '1', '2026-08-12 13:00:00', '2026-08-12 13:00:00'], $lines[2]);
+        $this->assertSame(['HL0788', 'GD01.2', 'SEKATEN', 'TIMHAR', 'ya', '1', '2026-08-12 13:00:00', '2026-08-12 13:00:00'], $lines[3]);
 
         $r = $svc->load($file, $this->actor, false, true);
-        $this->assertSame([1, 1, 2, 1], [$r['counts']['gardu_created'], $r['counts']['feeders_created'], $r['counts']['readings_stored'], $r['counts']['unknown_gardu']]);
+        $this->assertSame([2, 1, 3, 1], [$r['counts']['gardu_created'], $r['counts']['feeders_created'], $r['counts']['readings_stored'], $r['counts']['unknown_gardu']]);
         $new = DB::table('substations')->where('code', 'HL0766')->first();
         $this->assertTrue((bool) $new->needs_review);
         $this->assertSame('GD01.62555109', $new->location_code);
