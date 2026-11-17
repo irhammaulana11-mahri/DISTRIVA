@@ -51,12 +51,14 @@ class MaximoWoLoadTest extends PostgresTestCase
             ['wonum' => '100000001', 'gardu' => 'HD744', 'measured_at' => '2026-08-12 13:13:15', 'pembebanan_trafo_pct' => '52.65', 'vrn' => '226', 'vsn' => '228', 'vtn' => '230',
                 'iar' => '55', 'ias' => '82', 'iat' => '60', 'ian' => '42', 'icr' => '10', 'ics' => '12', 'ict' => '11'],
             ['wonum' => '100000002', 'gardu' => 'ZZ999', 'measured_at' => '2026-08-12 14:00:00', 'pembebanan_trafo_pct' => '40'],
+            ['wonum' => '100000003', 'gardu' => 'HD744', 'measured_at' => '', 'pembebanan_trafo_pct' => '40'],                                       // no dated measurement: counted, not stored
+            ['wonum' => '100000004', 'gardu' => 'HD744', 'measured_at' => '2999-01-01 10:00:00', 'iar' => '10'],                                      // in the future: rejected, the file still loads
         ]);
         $svc = app(MaximoWoLoadService::class);
 
         $dry = $svc->load($file, $this->actor, true);
         $this->assertSame(0, DB::table('substation_readings')->count());                                                            // a dry run stores nothing
-        $this->assertSame([2, 1, 1], [$dry['counts']['rows'], $dry['counts']['readings_stored'], $dry['counts']['unknown_gardu']]);
+        $this->assertSame([4, 1, 1, 1, 1], [$dry['counts']['rows'], $dry['counts']['readings_stored'], $dry['counts']['unknown_gardu'], $dry['counts']['no_measurement'], $dry['counts']['rejected']]);
 
         $r = $svc->load($file, $this->actor);
         $this->assertSame(['ZZ0999 (WO 100000002)'], $r['problems']['unknown_gardu']);

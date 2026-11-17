@@ -2,6 +2,7 @@
 
 namespace App\Services\Substations;
 
+use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +26,7 @@ class MaximoWoLoadService
             }
         }
         $gardu = DB::table('substations')->get(['id', 'code', 'capacity_kva'])->keyBy('code')->all();
-        $c = ['rows' => 0, 'readings_stored' => 0, 'readings_unchanged' => 0, 'readings_skipped' => 0, 'unknown_gardu' => 0];
+        $c = ['rows' => 0, 'readings_stored' => 0, 'readings_unchanged' => 0, 'readings_skipped' => 0, 'no_measurement' => 0, 'rejected' => 0, 'unknown_gardu' => 0];
         $problems = [];
         DB::beginTransaction();
         try {
@@ -39,7 +40,19 @@ class MaximoWoLoadService
 
                     continue;
                 }
-                $r = $this->substations->storeImportedReading($gardu[$code], $this->reading($d), (string) $actor->getKey());
+                if ($d('measured_at') === '') {                          // a work order with no dated field measurement (not inspected yet, or nothing measured): nothing to store
+                    $c['no_measurement']++;
+
+                    continue;
+                }
+                try {
+                    $r = $this->substations->storeImportedReading($gardu[$code], $this->reading($d), (string) $actor->getKey());
+                } catch (AssignmentRuleViolation $e) {                    // e.g. a time in the future: reported, the rest of the file still loads
+                    $c['rejected']++;
+                    $problems['rejected'][$code.' (WO '.$d('wonum').'): '.$e->getMessage()] = true;
+
+                    continue;
+                }
                 $c['readings_'.match ($r['result'] ?? 'skipped') {
                     'stored' => 'stored', 'unchanged' => 'unchanged', default => 'skipped'
                 }]++;
