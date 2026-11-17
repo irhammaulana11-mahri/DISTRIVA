@@ -7,7 +7,7 @@ import { SubstationMeasurementDetailPage } from './SubstationPages.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import SubstationMeasurementsPage, { SubstationMeasurementDrawer } from './SubstationMeasurementsPage.jsx'
-import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
+import { substationsApi, feedersApi, adminApi, maximoSyncApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   substationsApi: {
@@ -19,6 +19,7 @@ vi.mock('../../services/api.js', () => ({
   },
   feedersApi: { list: vi.fn() },
   adminApi: { units: vi.fn() },
+  maximoSyncApi: { show: vi.fn(), save: vi.fn(), runs: vi.fn(), start: vi.fn(), run: vi.fn() },
 }))
 
 const row = (over = {}) => ({
@@ -479,6 +480,18 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
 
     // 3. Penyulang menampilkan kode dan nama penyulang (JBG01 - Jombang 01)
     expect(rows[0]).toHaveTextContent('JBG01 - Jombang 01')
+  })
+
+  it('tombol Sinkronisasi Maximo hanya untuk yang berhak (substations.sync) dan membuka laci sinkronisasi', async () => {
+    maximoSyncApi.show.mockResolvedValue({ data: { settings: { maximo_url: 'http://m', maximo_username: 'mx', has_password: true, work_type: 'INST1', lookback_days: 3, auto_enabled: false, auto_time: '19:30' }, runs: [] } })
+    maximoSyncApi.runs.mockResolvedValue({ data: [], meta: { current_page: 1, per_page: 10, total: 0, last_page: 1 } })
+    const { unmount } = renderPage({ 'substations.view': true, 'substations.reading': true })
+    await screen.findAllByTestId('substation-measurement-row')
+    expect(screen.queryByRole('button', { name: 'Sinkronisasi Maximo' })).not.toBeInTheDocument()
+    unmount()
+    renderPage({ 'substations.view': true, 'substations.sync': true })
+    await userEvent.click(await screen.findByRole('button', { name: 'Sinkronisasi Maximo' }))
+    expect(await screen.findByText('Tarik WO Inspeksi dari Maximo')).toBeInTheDocument()
   })
 
   it('10. tombol Impor Pengukuran membuka drawer impor lengkap dengan tombol Unduh Template CSV', async () => {

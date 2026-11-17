@@ -76,6 +76,13 @@ return [
         'timeout_seconds' => (int) env('DISTRIVA_EIS_SYNC_TIMEOUT', 10800),
         'run_inline' => (bool) env('DISTRIVA_EIS_SYNC_INLINE', false),   // true: run in the request (tests); false: detached `artisan` process
     ],
+    // Maximo sync started from DISTRIVA (tools/maximo_sync): inspection work orders of the gardu become readings. Same detached-process design as the EIS sync; the first full year takes about half a day, hence the long timeout.
+    'maximo_sync' => [
+        'python' => env('DISTRIVA_MAXIMO_PYTHON', 'python3'),
+        'dir' => env('DISTRIVA_MAXIMO_SYNC_DIR', base_path('../tools/maximo_sync')),
+        'timeout_seconds' => (int) env('DISTRIVA_MAXIMO_SYNC_TIMEOUT', 86400),
+        'run_inline' => (bool) env('DISTRIVA_MAXIMO_SYNC_INLINE', false),
+    ],
     'backup' => [
         'root' => env('DISTRIVA_BACKUP_ROOT', storage_path('app/private/backups')),
         'pg_dump' => env('DISTRIVA_PG_DUMP', 'pg_dump'),

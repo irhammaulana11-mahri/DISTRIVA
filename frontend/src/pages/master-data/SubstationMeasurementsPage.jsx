@@ -12,6 +12,7 @@ import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import SubstationAnalysis, { FlagChips } from './SubstationAnalysis.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import MaximoSyncDrawer from './MaximoSyncDrawer.jsx'
 import { readingTime } from '../../utils/readingTime.js'
 import {
   IconSearch,
@@ -384,6 +385,8 @@ export default function SubstationMeasurementsPage() {
   const { can, isSysAdmin } = useAccess()
   const navigate = useNavigate()
   const canReading = Boolean(can?.['substations.reading'] || isSysAdmin)
+  const canMaximoSync = Boolean(can?.['substations.sync'] || isSysAdmin)
+  const [maximoOpen, setMaximoOpen] = useState(false)
   const canSync = Boolean(can?.['substations.sync'] || can?.['substations.reading'] || can?.['substations.manage'] || can?.['substations.import'] || isSysAdmin)
   const canViewFeeders = Boolean(can?.['feeders.view'])
 
@@ -571,6 +574,11 @@ export default function SubstationMeasurementsPage() {
             <Button variant="secondary" size="sm" onClick={load} icon={IconRefresh} aria-label="Segarkan">
               Segarkan
             </Button>
+            {canMaximoSync && (
+              <Button variant="secondary" icon={IconActivity} onClick={() => setMaximoOpen(true)}>
+                Sinkronisasi Maximo
+              </Button>
+            )}
             {canSync && (
               <Button icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
                 Impor Pengukuran
@@ -926,6 +934,7 @@ export default function SubstationMeasurementsPage() {
         />
       </div>
 
+      {canMaximoSync && <MaximoSyncDrawer open={maximoOpen} onClose={() => setMaximoOpen(false)} onSynced={() => { load(); loadSummary() }} />}
     </div>
   )
 }

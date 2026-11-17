@@ -922,3 +922,12 @@ export const notificationsApi = {
 export const unitScopeApi = {
   get: (permission) => request(`/scoped-units${qs({ permission })}`),
 }
+
+/** Sinkronisasi Maximo dari DISTRIVA (WO inspeksi gardu -> pembacaan): pengaturan, sesi, dan riwayat. */
+export const maximoSyncApi = {
+  show: () => request('/maximo-sync'),
+  save: (body) => request('/maximo-sync/settings', { method: 'PUT', body }),
+  runs: (params = {}) => request(`/maximo-sync/runs${qs(params)}`),
+  start: (body = {}) => request('/maximo-sync/runs', { method: 'POST', body }),
+  run: (id) => request(`/maximo-sync/runs/${id}`),
+}

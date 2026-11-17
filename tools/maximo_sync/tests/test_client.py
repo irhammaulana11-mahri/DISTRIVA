@@ -5,6 +5,7 @@ import unittest
 from urllib.parse import parse_qs
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
 import client  # noqa: E402
 
 
@@ -48,6 +49,30 @@ class ClientTest(unittest.TestCase):
         m.s = Sess([Resp("<html>login</html>")])
         with self.assertRaises(client.MaximoError):
             m.event("x")
+
+
+class AppendTest(unittest.TestCase):
+    def test_tambah_adds_only_the_new_work_orders_to_the_existing_csv(self):
+        import csv
+        import tempfile
+        import main
+        import test_wo
+        with tempfile.TemporaryDirectory() as d:
+            raw, out = os.path.join(d, "raw"), os.path.join(d, "out")
+            os.makedirs(raw)
+            os.makedirs(out)
+            soap = test_wo.report()
+            with open(os.path.join(raw, "wo-100000001.xml"), "w", encoding="utf-8") as fh:
+                fh.write(soap)
+            with open(os.path.join(raw, "wo-100000002.xml"), "w", encoding="utf-8") as fh:
+                fh.write(soap.replace("100000001", "100000002"))
+            import wo
+            wo.write_csv(wo.parse(soap), os.path.join(out, "maximo-wo-pengukuran.csv"))                   # 100000001 is already in the CSV
+            args = type("A", (), {"raw": raw, "out": out})()
+            todo = [{"wonum": "100000001"}, {"wonum": "100000002"}, {"wonum": "100000003"}]               # 100000003 failed / has no file
+            self.assertEqual(main._append(todo, [("100000003", "x")], args), 0)
+            rows = list(csv.DictReader(open(os.path.join(out, "maximo-wo-pengukuran.csv"), encoding="utf-8")))
+            self.assertEqual([r["wonum"] for r in rows], ["100000001", "100000002"])
 
 
 if __name__ == "__main__":

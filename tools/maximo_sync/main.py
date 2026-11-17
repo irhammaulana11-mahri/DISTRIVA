@@ -160,11 +160,36 @@ def ambil(a):
     with ThreadPoolExecutor(max_workers=max(1, a.pekerja)) as ex:
         list(ex.map(lambda ic: work(ic[1], ic[0] == 0), enumerate(chunks)))
     print(f"Selesai {time.time() - t0:.0f} detik; gagal {len(failed)}")
+    print(f"RINGKASAN daftar={len(rows)} dipilih={len(todo)} diambil={len(todo) - len(failed)} gagal={len(failed)}", flush=True)
     if failed:
         with open(os.path.join(a.out, "gagal.txt"), "w", encoding="utf-8") as fh:
             fh.writelines(f"{w}\t{e}\n" for w, e in failed)
         print("Daftar gagal:", os.path.join(a.out, "gagal.txt"), "- jalankan lagi untuk mengulang (yang sudah ada dilewati)")
+    if a.tambah and os.path.isfile(os.path.join(a.out, "maximo-wo-pengukuran.csv")):
+        return _append(todo, failed, a)
     return main(["parse", os.path.join(a.raw, "*.xml"), "--out", a.out]) if todo or done else 0
+
+
+def _append(todo, failed, a):
+    """Adds the work orders fetched in this run to the cumulative CSV (the file keeps one row per work order); a full parse of raw/ takes minutes once there are thousands of files."""
+    bad = {w for w, _ in failed}
+    have = set()
+    path = os.path.join(a.out, "maximo-wo-pengukuran.csv")
+    with open(path, newline="", encoding="utf-8") as fh:
+        have = {r["wonum"] for r in csv.DictReader(fh)}
+    new = []
+    for r in todo:
+        f = os.path.join(a.raw, f"wo-{r['wonum']}.xml")
+        if r["wonum"] in bad or r["wonum"] in have or not os.path.isfile(f):
+            continue
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            new += wo.parse(fh.read())
+    with open(path, "a", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=wo.fieldnames(), restval="")
+        for rec in new:
+            w.writerow(wo.flatten(rec))
+    print(f"CSV: {len(new)} WO ditambahkan ke {path}")
+    return 0
 
 
 def main(argv=None):
@@ -182,6 +207,7 @@ def main(argv=None):
     g.add_argument("--maks", type=int, default=0, help="batasi jumlah WO yang diambil (0 = semua)")
     g.add_argument("--pekerja", type=int, default=1, help="jumlah sesi login paralel (bawaan 1)")
     g.add_argument("--jeda", type=float, default=0.0, help="jeda detik antar WO per sesi")
+    g.add_argument("--tambah", action="store_true", help="hanya WO yang baru diambil yang di-parse dan ditambahkan ke CSV yang sudah ada (tanpa membaca ulang seluruh raw/); dipakai sinkron dari DISTRIVA")
     g.add_argument("--raw", default="raw")
     g.add_argument("--out", default="out")
     c = sub.add_parser("cek", help="uji satu WO dari daftar: login, klik baris, Run report, baca laporan")

@@ -28,6 +28,7 @@ use App\Http\Controllers\MasterData\PriceBookController;
 use App\Http\Controllers\MasterData\TariffBookController;
 use App\Http\Controllers\MasterData\VendorController;
 use App\Http\Controllers\MaterialRequestController;
+use App\Http\Controllers\MaximoSyncController;
 use App\Http\Controllers\MfaController;
 use App\Http\Controllers\MtoController;
 use App\Http\Controllers\NotificationController;
@@ -170,6 +171,11 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::get('/eis-sync', [EisSyncController::class, 'show']);
     Route::put('/eis-sync/settings', [EisSyncController::class, 'save']);
     Route::post('/eis-sync/runs', [EisSyncController::class, 'start']);
+    Route::get('/maximo-sync', [MaximoSyncController::class, 'show']);
+    Route::put('/maximo-sync/settings', [MaximoSyncController::class, 'save']);
+    Route::get('/maximo-sync/runs', [MaximoSyncController::class, 'runs']);
+    Route::post('/maximo-sync/runs', [MaximoSyncController::class, 'start']);
+    Route::get('/maximo-sync/runs/{run}', [MaximoSyncController::class, 'showRun'])->whereUuid('run');
     Route::get('/eis-sync/runs/{run}', [EisSyncController::class, 'showRun'])->whereUuid('run');
     // Forecast of the substation load (docs/11)
     Route::middleware('throttle:admin')->group(function () {
