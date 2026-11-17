@@ -56,7 +56,7 @@ def cek(a):
             fn()
             print("OK  ", name)
         print("OK   id tabel daftar:", m.table or "(tidak ditemukan)")
-        cols = {2: a.filter, **({8: a.status} if a.status else {})}
+        cols = {2: a.filter, 3: a.tipe, **({8: a.status} if a.status else {})}
         rows = len(set(re.findall(r"_tdrow_\[C:1\]_ttxt-lb\[R:(\d+)\]", m.filter_rows(cols))))
         print(f"OK   filter Description '{a.filter}' Status '{a.status}': {rows} baris pada halaman pertama")
         raw = m.report_of_row(a.baris)
@@ -80,12 +80,12 @@ def cek(a):
 def _list_all(m, a):
     """Seluruh baris daftar yang cocok dengan filter, halaman demi halaman."""
     since = a.sejak or (datetime.now() - timedelta(days=365)).strftime("%d/%m/%Y")
-    cols = {2: a.filter, **({8: a.status} if a.status else {}), 15: f">={since}"}
+    cols = {2: a.filter, 3: a.tipe, **({8: a.status} if a.status else {}), 15: f">={since}"}
     answer = m.filter_rows(cols)
     info = m.page_info(answer)
     total = info[2] if info else 0
     rows = m.rows_of(answer)
-    print(f"Daftar: {total} WO cocok (Description '{a.filter}', Status '{a.status}', tanggal status >= {since})")
+    print(f"Daftar: {total} WO cocok (Description '{a.filter}', Work Type '{a.tipe}', Status '{a.status}', tanggal status >= {since})")
     while info and info[1] < info[2]:
         answer = m.next_page()
         new = m.rows_of(answer)
@@ -177,6 +177,7 @@ def main(argv=None):
     g.add_argument("--sejak", help="tanggal status paling awal, dd/mm/yyyy (bawaan: 365 hari lalu)")
     g.add_argument("--filter", default="INSPEKSI GARDU")
     g.add_argument("--status", default="COMP")
+    g.add_argument("--tipe", default="INST1", help="Work Type: INST1 = inspeksi berpengukuran; INST2 = tindak lanjut Perbaikan/Pergantian (tanpa pengukuran); '' = semua")
     g.add_argument("--semua", action="store_true", help="semua WO, bukan hanya yang terbaru per gardu")
     g.add_argument("--maks", type=int, default=0, help="batasi jumlah WO yang diambil (0 = semua)")
     g.add_argument("--pekerja", type=int, default=1, help="jumlah sesi login paralel (bawaan 1)")
@@ -186,6 +187,7 @@ def main(argv=None):
     c = sub.add_parser("cek", help="uji satu WO dari daftar: login, klik baris, Run report, baca laporan")
     c.add_argument("--baris", type=int, default=0, help="baris daftar (0 = paling atas)")
     c.add_argument("--filter", default="INSPEKSI GARDU", help="teks kolom Description pada filter daftar")
+    c.add_argument("--tipe", default="INST1", help="Work Type (INST1 = inspeksi berpengukuran)")
     c.add_argument("--status", default="COMP", help="teks kolom Status pada filter daftar (COMP = selesai; kosongkan dengan '')")
     c.add_argument("--out", default="out")
     a = ap.parse_args(argv)
