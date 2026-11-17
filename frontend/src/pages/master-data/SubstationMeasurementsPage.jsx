@@ -45,7 +45,7 @@ export function ReadingBadge({ status }) {
 
 export const loadingText = (r) => (r?.loading_pct === null || r?.loading_pct === undefined ? '-' : `${fmt(r.loading_pct)}%`)
 
-export function SubstationMeasurementDrawer({ id, asPage = false, canReading, canViewFeeders, feedersList = [], onClose, onChanged }) {
+export function SubstationMeasurementDrawer({ id, asPage = true, canReading, canViewFeeders, feedersList = [], onClose, onChanged }) {
   const { notify } = useNotifications()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -153,8 +153,8 @@ export function SubstationMeasurementDrawer({ id, asPage = false, canReading, ca
       onBack={onClose}
       title={title}
       subtitle={subtitle}
-      size="max-w-3xl"
-      width="max-w-3xl"
+      size="max-w-5xl"
+      width="max-w-5xl"
     >
       {loading ? (
         <div className="py-10 flex justify-center"><Spinner /></div>
@@ -162,24 +162,6 @@ export function SubstationMeasurementDrawer({ id, asPage = false, canReading, ca
         <div className="py-10"><Alert kind="error">{error}</Alert></div>
       ) : !data?.substation ? null : (
         <div className="space-y-5 text-xs" data-testid="substation-measurement-detail">
-          {/* Banner Pratinjau (Hanya di Drawer Preview asPage = false) */}
-          {!asPage && (
-            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900">
-              <div>
-                <div className="font-bold text-blue-950 dark:text-blue-100">Pratinjau Analisis & Pengukuran</div>
-                <div className="text-[11px] text-blue-700 dark:text-blue-300">
-                  Drawer ini hanya menampilkan data analisis & riwayat (read-only). Tambah pembacaan dilakukan di Halaman Analisis.
-                </div>
-              </div>
-              <Link
-                to={`/master-data/substation-measurements/${s.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer"
-              >
-                Buka Halaman Analisis & Pengukuran →
-              </Link>
-            </div>
-          )}
-
           {/* Tombol ke Data Induk Gardu */}
           <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
             <div>
@@ -237,6 +219,7 @@ export function SubstationMeasurementDrawer({ id, asPage = false, canReading, ca
                       <th className="py-2 px-3 text-right">R / S / T (A)</th>
                       <th className="py-2 px-3 text-right">Beban (kVA)</th>
                       <th className="py-2 px-3 text-right">Pembebanan</th>
+                      <th className="py-2 px-3 text-right">Tegangan R / S / T (V)</th>
                       <th className="py-2 px-3 text-right">Teg. Ujung (V)</th>
                       <th className="py-2 px-3">Sumber</th>
                     </tr>
@@ -244,7 +227,7 @@ export function SubstationMeasurementDrawer({ id, asPage = false, canReading, ca
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {!data.readings || data.readings.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-4 text-center text-slate-400">
+                        <td colSpan={8} className="py-4 text-center text-slate-400">
                           Belum ada riwayat pembacaan operasional.
                         </td>
                       </tr>
@@ -260,6 +243,7 @@ export function SubstationMeasurementDrawer({ id, asPage = false, canReading, ca
                           </td>
                           <td className="py-2 px-3 text-right font-mono">{fmt(r.load_kva, 2)}</td>
                           <td className="py-2 px-3 text-right font-mono">{loadingText(r)}</td>
+                          <td className="py-2 px-3 text-right font-mono whitespace-nowrap">{`${fmt(r.base_voltage_r_v, 0)} / ${fmt(r.base_voltage_s_v, 0)} / ${fmt(r.base_voltage_t_v, 0)}`}</td>
                           <td className="py-2 px-3 text-right font-mono">{fmt(r.end_voltage_v)}</td>
                           <td className="py-2 px-3">{r.source}</td>
                         </tr>
@@ -432,31 +416,13 @@ export default function SubstationMeasurementsPage() {
 
   const [units, setUnits] = useState([])
   const [feedersList, setFeedersList] = useState([])
-  const [openId, setOpenId] = useState(searchParams.get('open') || null)
 
-  // Sync openId with URL
+  // Detail pengukuran gardu dibuka sebagai halaman sendiri (bukan drawer pratinjau); tautan lama ?open=<id> dialihkan ke sana.
+  const openDetail = (id) => navigate(`/master-data/substation-measurements/${id}`)
   useEffect(() => {
     const p = searchParams.get('open')
-    if (p && p !== openId) {
-      setOpenId(p)
-    }
-  }, [searchParams])
-
-  const handleOpenDrawer = (id) => {
-    setOpenId(id)
-    const next = new URLSearchParams(searchParams)
-    next.set('open', id)
-    setSearchParams(next, { replace: true })
-  }
-
-  const handleCloseDrawer = () => {
-    setOpenId(null)
-    if (searchParams.has('open')) {
-      const next = new URLSearchParams(searchParams)
-      next.delete('open')
-      setSearchParams(next, { replace: true })
-    }
-  }
+    if (p) navigate(`/master-data/substation-measurements/${p}`, { replace: true })
+  }, [searchParams, navigate])
 
   // Fetch summary counts: N (reading_status=FRESH) dan M (total)
   const loadSummary = useCallback(async () => {
@@ -888,7 +854,7 @@ export default function SubstationMeasurementsPage() {
                   return (
                     <tr
                       key={s.id}
-                      onClick={() => handleOpenDrawer(s.id)}
+                      onClick={() => openDetail(s.id)}
                       className="cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                       data-testid="substation-measurement-row"
                     >
@@ -962,20 +928,6 @@ export default function SubstationMeasurementsPage() {
         />
       </div>
 
-      {openId && (
-        <SubstationMeasurementDrawer
-          id={openId}
-          asPage={false}
-          canReading={canReading}
-          canViewFeeders={canViewFeeders}
-          feedersList={feedersList}
-          onClose={handleCloseDrawer}
-          onChanged={() => {
-            load()
-            loadSummary()
-          }}
-        />
-      )}
     </div>
   )
 }

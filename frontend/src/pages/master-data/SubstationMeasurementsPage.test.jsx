@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SubstationReadingsImportPage } from './ImportPages.jsx'
+import { SubstationMeasurementDetailPage } from './SubstationPages.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import SubstationMeasurementsPage, { SubstationMeasurementDrawer } from './SubstationMeasurementsPage.jsx'
@@ -67,8 +68,12 @@ const analysisMock = (over = {}) => ({
         current_r_a: 100,
         current_s_a: 90,
         current_t_a: 80,
+        base_voltage_r_v: 233,
+        base_voltage_s_v: 236,
+        base_voltage_t_v: 235,
         base_voltage_min_v: 233,
         end_voltage_v: 215,
+        feeders: [{ label: 'A', current_r_a: 60, current_s_a: 55, current_t_a: 50, current_n_a: 12, total_a: 165 }],
         flags: [],
       },
       {
@@ -79,8 +84,15 @@ const analysisMock = (over = {}) => ({
         current_r_a: 150,
         current_s_a: 100,
         current_t_a: 50,
+        base_voltage_r_v: 228,
+        base_voltage_s_v: 231,
+        base_voltage_t_v: 230,
         base_voltage_min_v: 228,
         end_voltage_v: 190,
+        feeders: [
+          { label: 'A', current_r_a: 100, current_s_a: 60, current_t_a: 40, current_n_a: null, total_a: 200 },
+          { label: 'B', current_r_a: 50, current_s_a: 40, current_t_a: 10, current_n_a: null, total_a: 100 },
+        ],
         flags: ['BASE_LOW', 'PHASE_UNBALANCED', 'END_LOW', 'END_DROP'],
       },
     ],
@@ -91,6 +103,9 @@ const analysisMock = (over = {}) => ({
       current_s_a: 100,
       current_t_a: 50,
       current_n_a: 30,
+      base_voltage_r_v: 228,
+      base_voltage_s_v: 231,
+      base_voltage_t_v: 230,
       phase_imbalance_pct: 33.33,
       neutral_ratio_pct: 30,
       feeder_imbalance_pct: 53.85,
@@ -136,6 +151,7 @@ function renderPage(
         <MemoryRouter initialEntries={initialEntries}>
           <Routes>
             <Route path="/master-data/substation-measurements/impor" element={<SubstationReadingsImportPage />} />
+            <Route path="/master-data/substation-measurements/:id" element={<SubstationMeasurementDetailPage />} />
             <Route path="*" element={<SubstationMeasurementsPage />} />
           </Routes>
         </MemoryRouter>
@@ -304,6 +320,15 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
     }
     expect(screen.getByTestId('chart-history')).toBeInTheDocument()
 
+    // Beban per jurusan dan tegangan pangkal R / S / T per pembacaan (terbaru di atas)
+    expect(screen.getByTestId('chart-feeders')).toBeInTheDocument()
+    const [latestVoltage, firstVoltage] = screen.getAllByTestId('history-voltage')
+    expect(latestVoltage).toHaveTextContent('228 / 231 / 230')
+    expect(firstVoltage).toHaveTextContent('233 / 236 / 235')
+    const [latestFeeders] = screen.getAllByTestId('history-feeders')
+    expect(latestFeeders).toHaveTextContent('A 100 / 60 / 40')
+    expect(latestFeeders).toHaveTextContent('B 50 / 40 / 10')
+
     // Keseimbangan
     await userEvent.click(screen.getByRole('button', { name: 'Keseimbangan' }))
     expect(screen.getByTestId('phase-imbalance')).toHaveTextContent('33,3%')
@@ -315,6 +340,8 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
     expect(screen.getByTestId('voltage')).toHaveTextContent('228')
     expect(screen.getByTestId('voltage')).toHaveTextContent('38')
     expect(screen.getByTestId('chart-voltage')).toBeInTheDocument()
+    expect(screen.getByTestId('voltage-phases')).toHaveTextContent('Tegangan pangkal R-N228')
+    expect(screen.getByTestId('chart-voltage-phases')).toBeInTheDocument()
   })
 
   it('6. proyeksi beban: bulan melewati batas dan simulasi growth_kva menanyakan ulang ke server', async () => {
@@ -353,20 +380,20 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
     substationsApi.analysis.mockResolvedValue(analysisMock())
     substationsApi.addReading.mockResolvedValue({ data: {} })
 
-    // Tanpa izin substations.reading di drawer pratinjau
+    // Halaman detail sendiri: tanpa izin substations.reading tidak ada form
     const { unmount } = renderPage({ 'substations.view': true, 'substations.reading': false })
     await userEvent.click((await screen.findAllByTestId('substation-measurement-row'))[0])
     expect(await screen.findByTestId('substation-measurement-detail')).toBeInTheDocument()
     expect(screen.queryByTestId('reading-form')).not.toBeInTheDocument()
     unmount()
 
-    // Dengan izin substations.reading: Drawer preview tetap read-only tanpa CRUD form
-    const { unmount: unmountPreview } = renderPage({ 'substations.view': true, 'substations.reading': true })
+    // Dengan izin substations.reading: formulir tambah pembacaan tersedia di halaman yang sama (tanpa banner pratinjau)
+    const { unmount: unmountPage } = renderPage({ 'substations.view': true, 'substations.reading': true })
     await userEvent.click((await screen.findAllByTestId('substation-measurement-row'))[0])
     expect(await screen.findByTestId('substation-measurement-detail')).toBeInTheDocument()
-    expect(screen.queryByTestId('reading-form')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Buka Halaman Analisis & Pengukuran/i })).toHaveAttribute('href', '/master-data/substation-measurements/s1')
-    unmountPreview()
+    expect(await screen.findByTestId('reading-form')).toBeInTheDocument()
+    expect(screen.queryByText('Pratinjau Analisis & Pengukuran')).not.toBeInTheDocument()
+    unmountPage()
 
     // Pengujian CRUD form pada Drawer Page (SubstationMeasurementDrawer asPage)
     render(
@@ -401,7 +428,7 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
     expect(body.feeders).toEqual([{ label: 'A', current_r_a: 100 }, { label: 'B' }])
   })
 
-  it('8. parameter ?open=<id> otomatis membuka Drawer saat dimuat', async () => {
+  it('8. tautan lama ?open=<id> dialihkan ke halaman detail pengukuran gardu', async () => {
     substationsApi.get.mockResolvedValue({
       data: {
         substation: row({ id: 's1', code: 'HD0001' }),

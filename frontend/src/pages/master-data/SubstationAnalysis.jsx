@@ -5,7 +5,7 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 
 const fmt = (v, d = 1) => (v === null || v === undefined ? '-' : Number(v).toLocaleString('id-ID', { maximumFractionDigits: d }))
-const COLORS = ['#2563eb', '#d97706', '#059669', '#e11d48']
+const COLORS = ['#2563eb', '#d97706', '#059669', '#e11d48', '#7c3aed', '#0891b2', '#65a30d', '#db2777']
 
 export const FLAG_LABEL = {
   BASE_LOW: 'Tegangan pangkal rendah',
@@ -107,16 +107,43 @@ function Th({ children, right }) {
 const TABLE = 'w-full text-left text-xs'
 const HEAD = 'bg-slate-50 dark:bg-slate-800/60 text-[11px] text-slate-600 dark:text-slate-400'
 
+/** Beban (A) tiap jurusan pada satu pembacaan: "A 45 / 52 / 48" = arus fasa R / S / T; netral di tooltip. Kosong = jurusan tidak terukur. */
+function FeederLoads({ feeders = [] }) {
+  if (feeders.length === 0) return <span className="text-slate-400">-</span>
+  return (
+    <div className="space-y-0.5 font-mono whitespace-nowrap">
+      {feeders.map((f) => (
+        <div key={f.label} title={`Jurusan ${f.label}: R ${fmt(f.current_r_a)} A, S ${fmt(f.current_s_a)} A, T ${fmt(f.current_t_a)} A, N ${fmt(f.current_n_a)} A (total ${fmt(f.total_a)} A)`}>
+          <b className="font-sans">{f.label}</b> {fmt(f.current_r_a, 0)} / {fmt(f.current_s_a, 0)} / {fmt(f.current_t_a, 0)}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Satu deret per jurusan (A, B, C, ...): total arus R+S+T tiap pembacaan; pembacaan tanpa jurusan itu memutus garis. */
+function feederSeries(h) {
+  const labels = [...new Set(h.flatMap((r) => (r.feeders || []).map((f) => f.label)))].sort()
+  return labels.map((label) => ({ name: `Jurusan ${label}`, points: h.map((r) => ({ x: r.measured_on, y: (r.feeders || []).find((f) => f.label === label)?.total_a ?? null })) }))
+}
+
 function History({ a }) {
   const h = a.history
   if (h.length === 0) return <p className="text-xs text-slate-500">Belum ada pembacaan.</p>
+  const perFeeder = feederSeries(h)
   return (
     <div className="space-y-3">
       <Legend names={['Pembebanan (%)']} />
       <LineChart testId="chart-history" unit="%" refs={[{ y: 100, label: '100%' }, { y: 80, label: '80%' }]} series={[{ name: 'Pembebanan (%)', points: h.map((r) => ({ x: r.measured_on, y: r.loading_pct })) }]} />
+      {perFeeder.length > 0 && (
+        <>
+          <Legend names={perFeeder.map((x) => x.name)} />
+          <LineChart testId="chart-feeders" unit=" A" series={perFeeder} />
+        </>
+      )}
       <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
         <table className={TABLE}>
-          <thead><tr className={HEAD}><Th>Tanggal & jam</Th><Th right>Kapasitas (kVA)</Th><Th right>R / S / T (A)</Th><Th right>Beban (kVA)</Th><Th right>Pembebanan</Th><Th right>Pangkal min (V)</Th><Th right>Ujung (V)</Th><Th>Sumber</Th></tr></thead>
+          <thead><tr className={HEAD}><Th>Tanggal & jam</Th><Th right>Kapasitas (kVA)</Th><Th right>R / S / T (A)</Th><Th right>Beban (kVA)</Th><Th right>Pembebanan</Th><Th right>Tegangan R / S / T (V)</Th><Th right>Ujung (V)</Th><Th>Beban per jurusan (A)</Th><Th>Sumber</Th></tr></thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {[...h].reverse().map((r, i) => (
               <tr key={`${r.measured_on}-${r.source}-${i}`}>
@@ -128,8 +155,9 @@ function History({ a }) {
                 <td className="py-2 px-3 text-right font-mono">{r.current_r_a === null && r.current_max_a !== null ? `maks ${fmt(r.current_max_a)}` : `${fmt(r.current_r_a)} / ${fmt(r.current_s_a)} / ${fmt(r.current_t_a)}`}</td>
                 <td className="py-2 px-3 text-right font-mono">{fmt(r.load_kva, 2)}</td>
                 <td className="py-2 px-3 text-right font-mono">{r.loading_pct === null ? '-' : `${fmt(r.loading_pct)}%`}</td>
-                <td className="py-2 px-3 text-right font-mono">{fmt(r.base_voltage_min_v)}</td>
+                <td className="py-2 px-3 text-right font-mono whitespace-nowrap" data-testid="history-voltage">{`${fmt(r.base_voltage_r_v, 0)} / ${fmt(r.base_voltage_s_v, 0)} / ${fmt(r.base_voltage_t_v, 0)}`}</td>
                 <td className="py-2 px-3 text-right font-mono">{fmt(r.end_voltage_v)}</td>
+                <td className="py-2 px-3" data-testid="history-feeders"><FeederLoads feeders={r.feeders} /></td>
                 <td className="py-2 px-3">{r.source}</td>
               </tr>
             ))}
@@ -226,6 +254,17 @@ function Voltage({ a }) {
         ))}
       </div>
       {l.base_voltage_min_v === null && <p className="text-xs text-slate-500">Tegangan pangkal belum diukur pada pembacaan terakhir, sehingga drop tidak dapat dihitung.</p>}
+      <div className="grid grid-cols-3 gap-2" data-testid="voltage-phases">
+        {[['R-N', l.base_voltage_r_v], ['S-N', l.base_voltage_s_v], ['T-N', l.base_voltage_t_v]].map(([k, v]) => (
+          <div key={k} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+            <div className="text-[11px] text-slate-500">Tegangan pangkal {k}</div>
+            <div className="text-lg font-bold">{fmt(v)} <span className="text-xs font-normal">V</span></div>
+          </div>
+        ))}
+      </div>
+      <Legend names={['Fasa R (V)', 'Fasa S (V)', 'Fasa T (V)']} />
+      <LineChart testId="chart-voltage-phases" unit=" V" refs={[{ y: lim.base_voltage_min_v, label: `${fmt(lim.base_voltage_min_v, 0)} V` }]}
+        series={[['R', 'base_voltage_r_v'], ['S', 'base_voltage_s_v'], ['T', 'base_voltage_t_v']].map(([n, k]) => ({ name: `Fasa ${n}`, points: h.map((r) => ({ x: r.measured_on, y: r[k] })) }))} />
       <Legend names={['Pangkal terendah (V)', 'Ujung terendah (V)']} />
       <LineChart testId="chart-voltage" unit=" V" refs={[{ y: lim.base_voltage_min_v, label: `${fmt(lim.base_voltage_min_v, 0)} V` }, { y: lim.end_voltage_min_v, label: `${fmt(lim.end_voltage_min_v, 0)} V` }]}
         series={[{ name: 'Pangkal', points: h.map((r) => ({ x: r.measured_on, y: r.base_voltage_min_v })) }, { name: 'Ujung', points: h.map((r) => ({ x: r.measured_on, y: r.end_voltage_min_v })) }]} />

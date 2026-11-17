@@ -10,6 +10,7 @@ Sumber: `tools/samples/omt-pengukuran 2022-1.csv … 2026-2.csv` (unduhan Maximo
 | 3 | **965.329 baris kosong** (sisa Excel); data nyata hanya 83.246 baris. | 2023-2 | Dibuang. |
 | 4 | **Duplikat** antar dan dalam berkas (mis. 30 Juni di dua berkas) — 231 baris. | semua | Dibuang; kunci = ULP + nama aset + waktu; berkas yang lebih baru menang. |
 | 5 | **Data belum lengkap** untuk 2026 (lihat §2). | 2026-1, 2026-2 | Hanya dilaporkan; tidak ditebak. |
+| 6 | **Tata letak lama di dalam 108 kolom** (ditemukan 17 Nov 2026). Sebagian baris 2023-2 (Juli–Nov 2023; 2.808 baris UP3 Mojokerto) berlebar 108 tetapi isinya tata letak lama 60 kolom yang tidak digeser: tegangan (`vrn`…`vtr`) jatuh ke kolom jurusan f/g, nilai NH fuse ke jurusan g–i, 48 kolom terakhir kosong. | 2023-2 | Dikenali dari isinya (`_padded_old_layout`) lalu dibaca sebagai tata letak lama. **Pembacaan yang sudah termuat dari baris ini (2.807 pembacaan, 1 Jul–29 Nov 2023) masih salah di database** (tegangan kosong, arus jurusan F/G berisi tegangan) karena pembacaan append-only; menunggu keputusan pemilik cara mengoreksinya. |
 
 Hasil untuk UP3 Mojokerto: **48.464 pengukuran bersih**, 5.780 gardu, 2 Jan 2022 s.d. 9 Nov 2026, waktu lengkap (hanya 1 baris berjam 00:00:00). Tata letak lama 9.995 baris (2022 s.d. Juni 2023), baru 38.700 (sebelum 231 duplikat dibuang).
 
