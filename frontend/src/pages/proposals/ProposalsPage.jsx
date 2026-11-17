@@ -23,6 +23,7 @@ import {
   IconZap,
   IconCheckCircle,
 } from '../../components/icons.jsx'
+import { filterSelectCls, filterSearchCls } from '../../components/filterStyles.js'
 
 /**
  * ProposalsPage (docs/62 §37, docs/76 & docs/57)
@@ -221,7 +222,7 @@ export default function ProposalsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nomor usulan, judul, permohonan utama, atau ULP..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-brand-500"
+            className={`${filterSearchCls} w-full`}
           />
         </div>
 
@@ -233,7 +234,7 @@ export default function ProposalsPage() {
             id="filter-status-usulan"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold focus:outline-hidden focus:border-brand-500"
+            className={filterSelectCls}
           >
             <option value="">Semua Status</option>
             <option value="OPEN">Aktif (OPEN)</option>

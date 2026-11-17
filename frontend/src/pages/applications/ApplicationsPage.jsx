@@ -20,6 +20,7 @@ import ApplicationAllocationPanel from './ApplicationAllocationPanel.jsx'
 import ApplicationWorkOrdersPanel from './ApplicationWorkOrdersPanel.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
 import SearchSelect from '../../components/SearchSelect.jsx'
+import { filterSelectCls as sharedSelectCls, filterSearchCls } from '../../components/filterStyles.js'
 import { resolveUnitScope } from '../../utils/unitScope.js'
 import EisRunHistory from './EisRunHistory.jsx'
 import AttentionCustomers from './AttentionCustomers.jsx'
@@ -96,7 +97,7 @@ export function formatTariffPower(tariffCode, powerVal, powerUnit) {
   return tariffCode || formattedPower || '-'
 }
 
-const filterSelectCls = 'block w-full h-10 px-3 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer'
+const filterSelectCls = `block w-full ${sharedSelectCls}`
 
 /** Satu filter dengan label kecil di atasnya; lebar mengikuti sel grid. */
 function FilterField({ label, children }) {
@@ -360,7 +361,7 @@ export default function ApplicationsPage() {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                 placeholder="Cari nomor agenda, nomor permohonan, nama pelanggan, atau IDPEL…"
-                className="block w-full pl-10 pr-14 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+                className={`block w-full ${filterSearchCls} pr-14`}
               />
               <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <span className="hidden sm:inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">/</span>
@@ -428,7 +429,7 @@ export default function ApplicationsPage() {
 
             {/* UP3 -> ULP: sys admin memilih bebas; role lain hanya unitnya sendiri (UP3: semua ULP di bawahnya) */}
             <FilterField label="UP3">
-              <SearchSelect
+              <SearchSelect variant="filter"
                 ariaLabel="Filter Unit UP3"
                 options={up3Options}
                 value={up3Value}
@@ -439,7 +440,7 @@ export default function ApplicationsPage() {
             </FilterField>
 
             <FilterField label="ULP">
-              <SearchSelect
+              <SearchSelect variant="filter"
                 ariaLabel="Filter Unit ULP"
                 options={ulpOptions}
                 value={ulpValue}

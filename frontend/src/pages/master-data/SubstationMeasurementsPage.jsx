@@ -27,6 +27,7 @@ import {
   IconRefresh,
   IconCheckCircle,
 } from '../../components/icons.jsx'
+import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 
 const inputCls =
   'px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
@@ -671,13 +672,13 @@ export default function SubstationMeasurementsPage() {
         }}
       >
         <div className="relative">
-          <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+          <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             aria-label="Cari gardu"
             placeholder="Kode, nama, kelurahan…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className={`${inputCls} pl-8 w-48 sm:w-56`}
+            className={`${filterControlCls} pl-8 w-48 sm:w-56`}
           />
         </div>
 
@@ -704,7 +705,7 @@ export default function SubstationMeasurementsPage() {
               setPage(1)
               setFeederId(e.target.value)
             }}
-            className={inputCls}
+            className={filterSelectCls}
           >
             <option value="">Semua penyulang</option>
             {feedersList.map((f) => (
@@ -722,7 +723,7 @@ export default function SubstationMeasurementsPage() {
             setPage(1)
             setReadingStatus(e.target.value)
           }}
-          className={inputCls}
+          className={filterSelectCls}
         >
           <option value="">Semua status pembacaan</option>
           <option value="FRESH">Terkini</option>
@@ -734,7 +735,7 @@ export default function SubstationMeasurementsPage() {
           aria-label="Filter Pembebanan"
           value={loadingPreset}
           onChange={(e) => handlePresetChange(e.target.value)}
-          className={inputCls}
+          className={filterSelectCls}
         >
           <option value="">Semua pembebanan</option>
           <option value="OVERLOAD">&gt; 80 % (overload)</option>
@@ -753,7 +754,7 @@ export default function SubstationMeasurementsPage() {
                 setPage(1)
                 setLoadingMin(e.target.value)
               }}
-              className={`${inputCls} w-20`}
+              className={`${filterControlCls} w-20`}
             />
             <span className="text-slate-400">-</span>
             <input
@@ -765,7 +766,7 @@ export default function SubstationMeasurementsPage() {
                 setPage(1)
                 setLoadingMax(e.target.value)
               }}
-              className={`${inputCls} w-20`}
+              className={`${filterControlCls} w-20`}
             />
           </div>
         )}
@@ -777,7 +778,7 @@ export default function SubstationMeasurementsPage() {
             setPage(1)
             setAlertFilter(e.target.value)
           }}
-          className={inputCls}
+          className={filterSelectCls}
         >
           <option value="">Semua peringatan</option>
           <option value="BASE_LOW">Tegangan pangkal &lt; 231 V</option>

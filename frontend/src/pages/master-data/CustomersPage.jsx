@@ -24,6 +24,7 @@ import {
   IconCheckCircle,
   IconAlertCircle,
 } from '../../components/icons.jsx'
+import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 
 const inputCls =
   'px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
@@ -301,7 +302,7 @@ function CustomerDetail({ id, canManage, onClose, onLinked }) {
 
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                  <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     aria-label="Cari gardu se-ULP"
                     type="text"
@@ -659,13 +660,13 @@ export default function CustomersPage() {
           }}
         >
           <div className="relative">
-            <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               aria-label="Cari pelanggan"
               placeholder="Awalan IDPEL, nama, no. meter…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className={`${inputCls} pl-8 w-56`}
+              className={`${filterControlCls} pl-8 w-56`}
             />
           </div>
 
@@ -691,7 +692,7 @@ export default function CustomersPage() {
               setPage(1)
               setFeederId(e.target.value)
             }}
-            className={inputCls}
+            className={filterSelectCls}
           >
             <option value="">Semua penyulang</option>
             {feeders.map((f) => (
@@ -706,7 +707,7 @@ export default function CustomersPage() {
             placeholder="Tarif (misal: R1)"
             value={tariffCode}
             onChange={(e) => setTariffCode(e.target.value)}
-            className={`${inputCls} w-24`}
+            className={`${filterControlCls} w-24`}
           />
 
           <select
@@ -716,7 +717,7 @@ export default function CustomersPage() {
               setPage(1)
               setStatus(e.target.value)
             }}
-            className={inputCls}
+            className={filterSelectCls}
           >
             <option value="">Semua status</option>
             <option value="AKTIF">AKTIF</option>
@@ -732,7 +733,7 @@ export default function CustomersPage() {
               setPage(1)
               setServiceType(e.target.value)
             }}
-            className={inputCls}
+            className={filterSelectCls}
           >
             <option value="">Semua layanan</option>
             <option value="PASKABAYAR">Paskabayar</option>

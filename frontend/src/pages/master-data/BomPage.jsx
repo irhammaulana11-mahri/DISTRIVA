@@ -26,6 +26,7 @@ import {
   IconRefresh,
   IconZap,
 } from '../../components/icons.jsx'
+import { filterSelectCls } from '../../components/filterStyles.js'
 
 export const BOM_GROUPS = [
   { code: 'SUTM', name: 'SUTM', label: 'Saluran Udara Tegangan Menengah' },
@@ -501,7 +502,7 @@ export default function BomPage() {
               aria-label="Filter Status BOM"
               value={selectedStatus}
               onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
-              className="text-xs px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus-ring cursor-pointer"
+              className={filterSelectCls}
             >
               <option value="">Semua Status</option>
               <option value="APPROVED">Disetujui (Aktif)</option>

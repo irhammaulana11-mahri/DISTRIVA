@@ -30,6 +30,7 @@ import {
   IconAlertCircle,
   IconClock,
 } from '../../components/icons.jsx'
+import { filterSelectCls, filterSearchCls } from '../../components/filterStyles.js'
 
 // Helper to render user roles cleanly as badges
 function renderUserRoles(u) {
@@ -277,7 +278,7 @@ export default function UsersPage() {
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 placeholder="Cari nama atau email…"
-                className="block w-full pl-10 pr-14 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
+                className={`${filterSearchCls} w-full`}
               />
               <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <span className="hidden sm:inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
@@ -295,7 +296,7 @@ export default function UsersPage() {
                 id="status"
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="block w-full px-3.5 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none cursor-pointer"
+                className={`${filterSelectCls} w-full`}
               >
                 <option value="">Semua status</option>
                 <option value="ACTIVE">Aktif</option>

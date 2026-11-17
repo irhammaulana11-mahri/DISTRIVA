@@ -29,6 +29,7 @@ import {
   IconActivity,
   IconCalendar,
 } from '../../components/icons.jsx'
+import { filterControlCls } from '../../components/filterStyles.js'
 
 const REPORT_TAB_ICONS = {
   overview: IconChart,
@@ -679,7 +680,7 @@ export default function ReportsPage() {
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className={filterControlCls}
             />
           </div>
 
@@ -689,14 +690,14 @@ export default function ReportsPage() {
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="px-2.5 py-1 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className={filterControlCls}
             />
           </div>
 
           {/* Filter UP3 -> ULP: aturan seragam (utils/unitScope.js) */}
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-slate-600 dark:text-slate-400">Unit UP3:</span>
-            <SearchSelect
+            <SearchSelect variant="filter"
               ariaLabel="Filter Unit UP3"
               options={unitScope.up3Options}
               value={unitScope.up3Value}
@@ -709,7 +710,7 @@ export default function ReportsPage() {
 
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-slate-600 dark:text-slate-400">Unit ULP:</span>
-            <SearchSelect
+            <SearchSelect variant="filter"
               ariaLabel="Filter Unit ULP"
               options={unitScope.ulpOptions}
               value={unitScope.ulpValue}

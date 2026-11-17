@@ -6,8 +6,9 @@ import EmptyState from '../../components/EmptyState.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import { IconEye, IconRefresh } from '../../components/icons.jsx'
+import { filterSelectCls } from '../../components/filterStyles.js'
 
-const selectCls = 'px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800'
+const selectCls = filterSelectCls
 
 const TRIGGER = {
   AUTO: { label: 'Otomatis', cls: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300' },

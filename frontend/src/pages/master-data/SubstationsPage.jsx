@@ -25,6 +25,7 @@ import {
   IconAlertCircle,
   IconCheckCircle,
 } from '../../components/icons.jsx'
+import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 
 const inputCls =
   'px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
@@ -898,13 +899,13 @@ export default function SubstationsPage() {
           }}
         >
           <div className="relative">
-            <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               aria-label="Cari gardu"
               placeholder="Kode, nama, lokasi…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className={`${inputCls} pl-8 w-48 sm:w-56`}
+              className={`${filterControlCls} pl-8 w-48 sm:w-56`}
             />
           </div>
 
@@ -931,7 +932,7 @@ export default function SubstationsPage() {
                 setPage(1)
                 setFeederId(e.target.value)
               }}
-              className={inputCls}
+              className={filterSelectCls}
             >
               <option value="">Semua penyulang</option>
               {feedersList.map((f) => (
@@ -950,7 +951,7 @@ export default function SubstationsPage() {
               setPage(1)
               setBrand(e.target.value)
             }}
-            className={`${inputCls} w-28`}
+            className={`${filterControlCls} w-28`}
           />
 
           <div className="flex items-center gap-1">
@@ -963,7 +964,7 @@ export default function SubstationsPage() {
                 setPage(1)
                 setYearFrom(e.target.value)
               }}
-              className={`${inputCls} w-20`}
+              className={`${filterControlCls} w-20`}
             />
             <span className="text-slate-400">-</span>
             <input
@@ -975,7 +976,7 @@ export default function SubstationsPage() {
                 setPage(1)
                 setYearTo(e.target.value)
               }}
-              className={`${inputCls} w-20`}
+              className={`${filterControlCls} w-20`}
             />
           </div>
 
@@ -989,7 +990,7 @@ export default function SubstationsPage() {
                 setPage(1)
                 setCapacityMin(e.target.value)
               }}
-              className={`${inputCls} w-20`}
+              className={`${filterControlCls} w-20`}
             />
             <span className="text-slate-400">-</span>
             <input
@@ -1001,7 +1002,7 @@ export default function SubstationsPage() {
                 setPage(1)
                 setCapacityMax(e.target.value)
               }}
-              className={`${inputCls} w-20`}
+              className={`${filterControlCls} w-20`}
             />
           </div>
 
@@ -1013,7 +1014,7 @@ export default function SubstationsPage() {
               setPage(1)
               setKecamatan(e.target.value)
             }}
-            className={`${inputCls} w-28`}
+            className={`${filterControlCls} w-28`}
           />
 
           <select
@@ -1023,7 +1024,7 @@ export default function SubstationsPage() {
               setPage(1)
               setOwnership(e.target.value)
             }}
-            className={inputCls}
+            className={filterSelectCls}
           >
             <option value="">Semua kepemilikan</option>
             <option value="PLN">PLN</option>
@@ -1037,7 +1038,7 @@ export default function SubstationsPage() {
               setPage(1)
               setStatus(e.target.value)
             }}
-            className={inputCls}
+            className={filterSelectCls}
           >
             <option value="">Semua status</option>
             <option value="AKTIF">AKTIF</option>

@@ -30,6 +30,7 @@ import {
   IconCheckCircle,
   IconLayers,
 } from '../../components/icons.jsx'
+import { filterSearchCls } from '../../components/filterStyles.js'
 
 function readFileText(file) {
   if (typeof file?.text === 'function') {
@@ -488,7 +489,7 @@ export default function CategoriesPage() {
                         setCatPage(1)
                       }}
                       placeholder="Cari kode atau nama kategori…"
-                      className="block w-full pl-10 pr-4 py-2 text-base sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+                      className={`${filterSearchCls} w-full`}
                     />
                   </div>
 

@@ -17,6 +17,7 @@ import {
   IconAlertCircle,
   IconFileText,
 } from '../../components/icons.jsx'
+import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 
 export default function RkmPlansPage() {
   const { can } = useAccess()
@@ -308,7 +309,7 @@ export default function RkmPlansPage() {
               required
               value={up3UnitId}
               onChange={(e) => setUp3UnitId(e.target.value)}
-              className="block w-full px-3 py-2 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+              className={`${filterSelectCls} w-full`}
             >
               {up3Units.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -326,7 +327,7 @@ export default function RkmPlansPage() {
               <select
                 value={periodType}
                 onChange={(e) => setPeriodType(e.target.value)}
-                className="block w-full px-3 py-2 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                className={`${filterSelectCls} w-full`}
               >
                 <option value="MONTH">Bulanan (MONTH)</option>
                 <option value="QUARTER">Triwulan (QUARTER)</option>
@@ -343,7 +344,7 @@ export default function RkmPlansPage() {
                 required
                 value={periodStart}
                 onChange={(e) => setPeriodStart(e.target.value)}
-                className="block w-full px-3 py-1.5 text-base sm:text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                className={`${filterControlCls} w-full`}
               />
             </div>
           </div>

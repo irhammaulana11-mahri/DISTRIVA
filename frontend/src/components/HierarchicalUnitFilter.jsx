@@ -26,7 +26,7 @@ export default function HierarchicalUnitFilter({
     <>
       <div className="flex items-center gap-1.5">
         {label('UP3:')}
-        <SearchSelect
+        <SearchSelect variant="filter"
           ariaLabel={up3AriaLabel}
           options={s.up3Options}
           value={s.up3Value}
@@ -38,7 +38,7 @@ export default function HierarchicalUnitFilter({
       </div>
       <div className="flex items-center gap-1.5">
         {label('ULP:')}
-        <SearchSelect
+        <SearchSelect variant="filter"
           ariaLabel={unitAriaLabel}
           options={s.ulpOptions}
           value={s.ulpValue}

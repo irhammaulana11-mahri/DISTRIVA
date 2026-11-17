@@ -25,6 +25,7 @@ import {
   IconFileText,
   IconZap,
 } from '../../components/icons.jsx'
+import { filterSelectCls, filterSearchCls } from '../../components/filterStyles.js'
 
 /**
  * Usulan Survei (docs/82 §11): daftar permintaan survei, perorangan (satu pelanggan) atau kolektif (beberapa pelanggan, satu survei) beserta hasilnya.
@@ -276,22 +277,22 @@ export default function SurveyRequestsPage() {
               setPage(1)
             }}
             placeholder="Cari nomor survei, nomor permohonan, atau nama pelanggan…"
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-brand-500"
+            className={`${filterSearchCls} w-full`}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select aria-label="Jenis survei" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className={inputCls}>
+          <select aria-label="Jenis survei" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className={filterSelectCls}>
             <option value="">Semua jenis</option>
             <option value="INDIVIDUAL">Perorangan</option>
             <option value="COLLECTIVE">Kolektif</option>
           </select>
-          <select aria-label="Hasil survei" value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1) }} className={inputCls}>
+          <select aria-label="Hasil survei" value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1) }} className={filterSelectCls}>
             <option value="">Semua hasil</option>
             <option value="PENDING">Menunggu hasil</option>
             <option value="EXTENSION">Perlu perluasan</option>
             <option value="NO_EXTENSION">Tanpa perluasan</option>
           </select>
-          <select aria-label="Status survei" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className={inputCls}>
+          <select aria-label="Status survei" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className={filterSelectCls}>
             <option value="">Semua status</option>
             <option value="ACTIVE">Berjalan</option>
             <option value="ACCEPTED">Disetujui</option>

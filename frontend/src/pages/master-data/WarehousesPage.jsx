@@ -12,6 +12,7 @@ import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import MimsMirrorTab from './MimsMirrorTab.jsx'
+import { filterSearchCls } from '../../components/filterStyles.js'
 import StockSyncHistory from './StockSyncHistory.jsx'
 import MimsSettingsDrawer from './MimsSettingsDrawer.jsx'
 import MimsStockPullPage from './MimsStockPullPage.jsx'
@@ -677,13 +678,13 @@ export default function WarehousesPage() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div className="relative flex-1 max-w-xs">
-                <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Cari nama atau kode material..."
                   value={positionSearch}
                   onChange={(e) => setPositionSearch(e.target.value)}
-                  className="block w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  className={`block w-full ${filterSearchCls}`}
                 />
               </div>
               <span className="text-xs text-slate-500 font-mono">
@@ -1048,7 +1049,7 @@ export default function WarehousesPage() {
         <div className="space-y-4 text-xs">
           <form onSubmit={handleSearchUnmapped} className="flex items-center gap-2">
             <div className="relative flex-1">
-              <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+              <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Cari nomor atau nama material ERP..."

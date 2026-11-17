@@ -27,6 +27,7 @@ import {
   IconX,
   IconInfo,
 } from '../../components/icons.jsx'
+import { filterSelectCls, filterSearchCls } from '../../components/filterStyles.js'
 
 const SUPPLY_HINT_STORAGE_KEY = 'distriva.khs_map.hide_supply_hint.v1'
 
@@ -516,7 +517,7 @@ export default function KhsMaterialMapPage() {
                       }
                       setPage(1)
                     }}
-                    className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                    className={filterSelectCls}
                   >
                     <option value="unmapped">Belum Dipetakan</option>
                     <option value="mapped">Sudah Dipetakan</option>
@@ -583,7 +584,7 @@ export default function KhsMaterialMapPage() {
             </div>
 
             <div className="relative">
-              <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+              <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Cari kode atau uraian KHS..."
@@ -592,7 +593,7 @@ export default function KhsMaterialMapPage() {
                   setSearch(e.target.value)
                   setPage(1)
                 }}
-                className="block w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                className={`${filterSearchCls} w-full`}
               />
             </div>
           </div>

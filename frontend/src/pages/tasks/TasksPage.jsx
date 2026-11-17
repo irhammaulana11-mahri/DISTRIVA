@@ -27,6 +27,7 @@ import {
   IconSearch,
   IconUser,
 } from '../../components/icons.jsx'
+import { filterSelectCls, filterSearchCls } from '../../components/filterStyles.js'
 
 /**
  * Tugas & SLA (docs/24 §8): tugas yang diberikan Manager ULP kepada petugas, dengan tenggat dalam hari kerja menurut SLA jenis tugas.
@@ -341,7 +342,7 @@ export default function TasksPage() {
                   setPage(1)
                 }}
                 placeholder="Cari judul tugas, no. permohonan, atau petugas…"
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 pl-9 pr-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-hidden"
+                className={`${filterSearchCls} w-full`}
               />
             </div>
             {current.key === 'all' && (
@@ -356,7 +357,7 @@ export default function TasksPage() {
                     setStatusFilter(e.target.value)
                     setPage(1)
                   }}
-                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200"
+                  className={filterSelectCls}
                 >
                   <option value="">Semua Status</option>
                   <option value="ASSIGNED">Ditugaskan</option>

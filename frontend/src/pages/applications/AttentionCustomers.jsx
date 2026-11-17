@@ -6,6 +6,7 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import SearchSelect from '../../components/SearchSelect.jsx'
+import { filterSearchCls } from '../../components/filterStyles.js'
 import { resolveUnitScope } from '../../utils/unitScope.js'
 import TableFooter from '../../components/TableFooter.jsx'
 import { IconEye, IconRefresh, IconSearch, IconX } from '../../components/icons.jsx'
@@ -67,7 +68,7 @@ export default function AttentionCustomers({ formatPower, onOpen, unitInfo, Filt
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
               placeholder="Cari nomor agenda, nomor permohonan, nama pelanggan, atau IDPEL…"
               aria-label="Cari pelanggan"
-              className="block w-full pl-10 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+              className={`block w-full ${filterSearchCls}`}
             />
           </div>
           {dirty && (
@@ -99,10 +100,10 @@ export default function AttentionCustomers({ formatPower, onOpen, unitInfo, Filt
             </select>
           </FilterField>
           <FilterField label="UP3">
-            <SearchSelect ariaLabel="Filter Unit UP3" options={up3Options} value={up3Value} disabled={up3Locked} onChange={(v) => { setUp3Filter(v); setUnitFilter(''); setPage(1) }} placeholder="Cari UP3…" />
+            <SearchSelect variant="filter" ariaLabel="Filter Unit UP3" options={up3Options} value={up3Value} disabled={up3Locked} onChange={(v) => { setUp3Filter(v); setUnitFilter(''); setPage(1) }} placeholder="Cari UP3…" />
           </FilterField>
           <FilterField label="ULP">
-            <SearchSelect ariaLabel="Filter Unit ULP" options={ulpOptions} value={ulpValue} disabled={ulpLocked} onChange={(v) => { setUnitFilter(v); setPage(1) }} placeholder="Cari ULP…" />
+            <SearchSelect variant="filter" ariaLabel="Filter Unit ULP" options={ulpOptions} value={ulpValue} disabled={ulpLocked} onChange={(v) => { setUnitFilter(v); setPage(1) }} placeholder="Cari ULP…" />
           </FilterField>
           <FilterField label="Bulan & Tahun">
             <div className="flex items-center gap-1">

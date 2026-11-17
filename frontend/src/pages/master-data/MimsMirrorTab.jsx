@@ -6,6 +6,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import Button from '../../components/Button.jsx'
 import { IconRefresh } from '../../components/icons.jsx'
+import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 
 const fmtDate = (v) => (v ? String(v).slice(0, 10).split('-').reverse().join('-') : '-')
 const fmtQty = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 3 })
@@ -57,7 +58,6 @@ export default function MimsMirrorTab({ kind, warehouses }) {
     load()
   }, [load])
 
-  const field = 'px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800'
 
   return (
     <div className="space-y-3">
@@ -69,15 +69,15 @@ export default function MimsMirrorTab({ kind, warehouses }) {
           : 'Cermin baca-saja penerimaan material di gudang dari MIMS (jumlah dikirim dan jumlah diterima).'}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <select aria-label="Gudang" value={warehouseId} onChange={(e) => { setWarehouseId(e.target.value); setPage(1) }} className={field}>
+        <select aria-label="Gudang" value={warehouseId} onChange={(e) => { setWarehouseId(e.target.value); setPage(1) }} className={filterSelectCls}>
           <option value="">Semua Gudang</option>
           {warehouses.map((w) => (
             <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
           ))}
         </select>
-        <input aria-label="Dari tanggal" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} className={field} />
+        <input aria-label="Dari tanggal" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} className={filterControlCls} />
         <span className="text-xs text-slate-500">s/d</span>
-        <input aria-label="Sampai tanggal" type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} className={field} />
+        <input aria-label="Sampai tanggal" type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} className={filterControlCls} />
         {isReservations && (
           <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
             <input type="checkbox" checked={pending} onChange={(e) => { setPending(e.target.checked); setPage(1) }} />
@@ -90,7 +90,7 @@ export default function MimsMirrorTab({ kind, warehouses }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={isReservations ? 'Cari reservasi, keterangan, agenda' : isIssues ? 'Cari dokumen, reservasi, material, agenda' : 'Cari pengiriman, permintaan, material'}
-          className={`${field} min-w-64`}
+          className={`${filterControlCls} min-w-64`}
         />
         <Button
           variant="secondary"

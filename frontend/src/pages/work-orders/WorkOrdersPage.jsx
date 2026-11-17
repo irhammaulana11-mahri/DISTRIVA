@@ -22,6 +22,7 @@ import {
   IconSearch,
   IconWrench,
 } from '../../components/icons.jsx'
+import { filterSearchCls } from '../../components/filterStyles.js'
 
 const FILTERS = [
   { key: 'ALL', label: 'Semua' },
@@ -233,7 +234,7 @@ export default function WorkOrdersPage() {
           <div className="relative lg:ml-auto lg:w-80">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><IconSearch size={14} /></span>
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Cari No. Agenda, pelanggan, nomor WO / surat, vendor..." aria-label="Cari"
-              className="w-full pl-9 pr-3 py-1.5 text-base sm:text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" />
+              className={`${filterSearchCls} w-full`} />
           </div>
         </div>
 

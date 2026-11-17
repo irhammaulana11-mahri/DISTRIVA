@@ -28,6 +28,7 @@ import {
   IconArrowRight,
   IconEye,
 } from '../../components/icons.jsx'
+import { filterSelectCls } from '../../components/filterStyles.js'
 
 /**
  * Forecast beban gardu (docs/11; deep learning, keputusan pemilik Nov 2026): satu jaringan saraf bersama memprakirakan beban kVA gardu terhadap kapasitas trafo pada 1, 3, dan 5 tahun ke depan,
@@ -261,7 +262,7 @@ function RunHeader({ title, hook, canRun, disabledReason }) {
         {runs.rows.length > 0 && (
           <div>
             <label htmlFor={`fc-run-${title}`} className="block text-[11px] font-medium text-slate-500">Hasil forecast</label>
-            <select id={`fc-run-${title}`} value={runId} onChange={(e) => setRunId(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-base sm:text-sm focus-ring">
+            <select id={`fc-run-${title}`} value={runId} onChange={(e) => setRunId(e.target.value)} className={filterSelectCls}>
               {runs.rows.map((r) => <option key={r.id} value={r.id}>{fmtDate(r.started_at)} · {({ SUCCEEDED: 'selesai', RUNNING: 'berjalan', INSUFFICIENT: 'data kurang' })[r.status] || 'gagal'}</option>)}
             </select>
           </div>

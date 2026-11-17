@@ -25,6 +25,7 @@ import {
   IconClock,
   IconClipboard,
 } from '../../components/icons.jsx'
+import { filterSearchCls } from '../../components/filterStyles.js'
 
 export default function PoleContractsPage() {
   const navigate = useNavigate()
@@ -245,13 +246,13 @@ export default function PoleContractsPage() {
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-xs">
-            <IconSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Cari nomor KR atau uraian..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="block w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className={`${filterSearchCls} w-full`}
             />
           </div>
           <span className="text-xs text-slate-500 font-mono">

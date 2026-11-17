@@ -1,12 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { IconCheck, IconChevronDown, IconX } from './icons.jsx'
+import { filterControlCls } from './filterStyles.js'
 
 /**
  * Dropdown dengan pencarian (combobox). `options`: [{ value, label, description?, badge?, search? }].
  * Ketik untuk menyaring (label, deskripsi, dan `search`), panah atas/bawah + Enter memilih, Esc menutup.
- * Dengan `required`, sebuah input tersembunyi menjaga validasi bawaan form.
+ * `variant="filter"` memakai gaya baku bilah filter (tinggi h-10, lihat filterStyles.js). Dengan `required`, sebuah input tersembunyi menjaga validasi bawaan form.
  */
-export default function SearchSelect({ options, value, onChange, placeholder = 'Cari…', ariaLabel, disabled = false, required = false, clearable = false, emptyText = 'Tidak ada hasil.', className = '' }) {
+export default function SearchSelect({ options, value, onChange, placeholder = 'Cari…', ariaLabel, disabled = false, required = false, clearable = false, emptyText = 'Tidak ada hasil.', className = '', variant = 'form' }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [active, setActive] = useState(0)
@@ -76,7 +77,9 @@ export default function SearchSelect({ options, value, onChange, placeholder = '
           onClick={() => setOpen(true)}
           onChange={(e) => { setQ(e.target.value); setOpen(true) }}
           onKeyDown={onKeyDown}
-          className={`block w-full pl-3 ${clearable && selected ? 'pr-16' : 'pr-9'} py-2 text-base sm:text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-60 transition`}
+          className={variant === 'filter'
+            ? `block w-full ${filterControlCls} ${clearable && selected ? 'pr-16' : 'pr-9'} disabled:opacity-60`
+            : `block w-full pl-3 ${clearable && selected ? 'pr-16' : 'pr-9'} py-2 text-base sm:text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-60 transition`}
         />
         <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1 text-slate-400">
           {clearable && selected && !disabled && (
