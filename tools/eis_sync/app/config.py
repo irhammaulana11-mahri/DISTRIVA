@@ -23,5 +23,5 @@ EIS_DAYA_MIN = os.getenv("EIS_DAYA_MIN", "0")                         # Range Da
 EIS_DAYA_MAX = os.getenv("EIS_DAYA_MAX", "99999999")
 EIS_MAX_ROWS_PER_FILE = int(os.getenv("EIS_MAX_ROWS_PER_FILE", "3000"))     # a long range is cut into windows of at most this many rows (~1.3 KB a row: DISTRIVA takes 5 MB / 20,000 rows a file)
 EIS_MAX_FILE_BYTES = int(os.getenv("EIS_MAX_FILE_BYTES", str(5 * 1024 * 1024 - 250 * 1024)))
-EIS_MAX_BACKFILL_DAYS = int(os.getenv("EIS_MAX_BACKFILL_DAYS", "730"))        # how far back a sync may reach to refresh an old application that is still running in DISTRIVA
+EIS_MAX_BACKFILL_DAYS = int(os.getenv("EIS_MAX_BACKFILL_DAYS", "180"))        # how far back a sync may reach to refresh an old application that is still running in DISTRIVA (owner 2026-11-17: at most 180 days; a longer range is pulled once, on purpose, with --dari/--sampai)
 
