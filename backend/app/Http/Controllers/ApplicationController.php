@@ -110,7 +110,8 @@ class ApplicationController extends Controller
             'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer'], 'listing' => ['nullable', Rule::in(['all', 'pbpd'])],
             'lifecycle' => ['nullable', Rule::in(['active', 'history'])]]);
 
-        $q = $this->scoped($scope)->orderByDesc('a.created_at');
+        // newest first by the date shown in the table's Tgl. Update EIS column (EIS update date, else the import date)
+        $q = $this->scoped($scope)->orderByRaw('coalesce(a.last_external_status_at, a.created_at) desc')->orderByDesc('a.created_at')->orderBy('a.id');
         $q->join('customers as c', 'c.id', '=', 'a.customer_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id');
         foreach ([['status', 'a.current_status'], ['type', 'a.application_type'], ['unit_id', 'a.organizational_unit_id']] as [$param, $col]) {
             if ($request->filled($param)) {
