@@ -94,6 +94,18 @@ export function formatTariffPower(tariffCode, powerVal, powerUnit) {
   return tariffCode || formattedPower || '-'
 }
 
+const filterSelectCls = 'block w-full h-10 px-3 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer'
+
+/** Satu filter dengan label kecil di atasnya; lebar mengikuti sel grid. */
+function FilterField({ label, children }) {
+  return (
+    <div className="min-w-0 [&_input[role=combobox]]:h-10 [&_input[role=combobox]]:text-xs [&_input[role=combobox]]:sm:text-sm">
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</div>
+      {children}
+    </div>
+  )
+}
+
 export default function ApplicationsPage() {
   const { can, canWrite, isSysAdmin } = useAccess()
   const { notify } = useNotifications()
@@ -340,122 +352,25 @@ export default function ApplicationsPage() {
       <>
         {/* Main Standardized Table Card */}
           <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
-        {/* Filter Toolbar */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1">
-            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-              <IconSearch size={16} />
-            </span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              placeholder="Cari nomor agenda, nomor permohonan, nama pelanggan, atau IDPEL…"
-              className="block w-full pl-10 pr-14 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
-            />
-            <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <span className="hidden sm:inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
-                /
+        {/* Filter Toolbar: pencarian di atas, filter berlabel dalam grid sama lebar */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                <IconSearch size={16} />
               </span>
-            </span>
-          </div>
-
-          {/* Type Filter */}
-          <div className="min-w-[130px]">
-            <select
-              value={typeFilter}
-              onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }}
-              aria-label="Filter Tipe Permohonan"
-              className="block w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer"
-            >
-              <option value="">Semua Tipe</option>
-              <option value="PB">PB (Pasang Baru)</option>
-              <option value="PD">PD (Ubah Daya)</option>
-            </select>
-          </div>
-
-          {/* Power Filter: 3 fasa (>= 6.600 VA) atau semua daya */}
-          <div className="min-w-[150px]">
-            <select
-              value={powerFilter}
-              onChange={(e) => {
-                setPowerFilter(e.target.value)
-                try { localStorage.setItem('distriva.pbpd.power', e.target.value) } catch { /* diabaikan */ }
-                setPage(1)
-              }}
-              aria-label="Filter Daya"
-              className="block w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus-ring"
-            >
-              <option value="3phase">Daya ≥ 6.600 VA (3 fasa)</option>
-              <option value="all">Semua daya</option>
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div className="min-w-[150px]">
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-              aria-label="Filter Status"
-              className="block w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none cursor-pointer"
-            >
-              <option value="">Semua Status</option>
-              <option value="DRAFT">Draf</option>
-              <option value="SUBMITTED">Diajukan</option>
-              <option value="APPROVED">Disetujui</option>
-              <option value="PAID">Bayar</option>
-              <option value="PK_PRINTED">Cetak PK</option>
-              <option value="CONNECTION_IN_PROGRESS">PDL Awal</option>
-              <option value="CONNECTION_DONE">Peremajaan</option>
-              <option value="COMPLETED">Selesai</option>
-              <option value="CANCELLED">Batal</option>
-              <option value="REFUNDED">Restitusi</option>
-            </select>
-          </div>
-
-          {/* UP3 -> ULP: sys admin memilih bebas; role lain hanya unitnya sendiri (UP3: semua ULP di bawahnya) */}
-          <div className="min-w-[170px]">
-            <SearchSelect
-              ariaLabel="Filter Unit UP3"
-              options={up3Options}
-              value={up3Value}
-              disabled={up3Locked}
-              onChange={(v) => { setUp3Filter(v); setUnitFilter(''); setPage(1) }}
-              placeholder="Cari UP3…"
-            />
-          </div>
-          <div className="min-w-[170px]">
-            <SearchSelect
-              ariaLabel="Filter Unit ULP"
-              options={ulpOptions}
-              value={ulpValue}
-              disabled={ulpLocked}
-              onChange={(v) => { setUnitFilter(v); setPage(1) }}
-              placeholder="Cari ULP…"
-            />
-          </div>
-
-          {/* Bulan & tahun (tanggal pada kolom Tgl. Update EIS) */}
-          <div className="flex items-center gap-1">
-            <input
-              type="month"
-              value={monthFilter}
-              onChange={(e) => { setMonthFilter(e.target.value); setPage(1) }}
-              aria-label="Filter Bulan dan Tahun"
-              title="Bulan dan tahun pada kolom Tgl. Update EIS"
-              className="px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 outline-none"
-            />
-            {monthFilter && (
-              <button type="button" onClick={() => { setMonthFilter(''); setPage(1) }} aria-label="Hapus filter bulan" className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
-                <IconX size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* Reset & Refresh */}
-          <div className="flex items-center gap-2 self-end lg:self-auto">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                placeholder="Cari nomor agenda, nomor permohonan, nama pelanggan, atau IDPEL…"
+                className="block w-full pl-10 pr-14 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span className="hidden sm:inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">/</span>
+              </span>
+            </div>
             {(search || typeFilter || statusFilter || monthFilter || (!up3Locked && up3Filter) || (!ulpLocked && unitFilter)) && (
               <button
                 type="button"
@@ -468,7 +383,7 @@ export default function ApplicationsPage() {
                   setMonthFilter('')
                   setPage(1)
                 }}
-                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline px-1 cursor-pointer"
+                className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 Reset
               </button>
@@ -478,10 +393,93 @@ export default function ApplicationsPage() {
               onClick={loadApplications}
               title="Muat Ulang Data"
               aria-label="Muat Ulang"
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <IconRefresh size={16} />
             </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+            <FilterField label="Tipe">
+              <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }} aria-label="Filter Tipe Permohonan" className={filterSelectCls}>
+                <option value="">Semua Tipe</option>
+                <option value="PB">PB (Pasang Baru)</option>
+                <option value="PD">PD (Ubah Daya)</option>
+              </select>
+            </FilterField>
+
+            <FilterField label="Daya">
+              <select
+                value={powerFilter}
+                onChange={(e) => {
+                  setPowerFilter(e.target.value)
+                  try { localStorage.setItem('distriva.pbpd.power', e.target.value) } catch { /* diabaikan */ }
+                  setPage(1)
+                }}
+                aria-label="Filter Daya"
+                className={filterSelectCls}
+              >
+                <option value="3phase">≥ 6.600 VA (3 fasa)</option>
+                <option value="all">Semua daya</option>
+              </select>
+            </FilterField>
+
+            <FilterField label="Status">
+              <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }} aria-label="Filter Status" className={filterSelectCls}>
+                <option value="">Semua Status</option>
+                <option value="DRAFT">Draf</option>
+                <option value="SUBMITTED">Diajukan</option>
+                <option value="APPROVED">Disetujui</option>
+                <option value="PAID">Bayar</option>
+                <option value="PK_PRINTED">Cetak PK</option>
+                <option value="CONNECTION_IN_PROGRESS">PDL Awal</option>
+                <option value="CONNECTION_DONE">Peremajaan</option>
+                <option value="COMPLETED">Selesai</option>
+                <option value="CANCELLED">Batal</option>
+                <option value="REFUNDED">Restitusi</option>
+              </select>
+            </FilterField>
+
+            {/* UP3 -> ULP: sys admin memilih bebas; role lain hanya unitnya sendiri (UP3: semua ULP di bawahnya) */}
+            <FilterField label="UP3">
+              <SearchSelect
+                ariaLabel="Filter Unit UP3"
+                options={up3Options}
+                value={up3Value}
+                disabled={up3Locked}
+                onChange={(v) => { setUp3Filter(v); setUnitFilter(''); setPage(1) }}
+                placeholder="Cari UP3…"
+              />
+            </FilterField>
+
+            <FilterField label="ULP">
+              <SearchSelect
+                ariaLabel="Filter Unit ULP"
+                options={ulpOptions}
+                value={ulpValue}
+                disabled={ulpLocked}
+                onChange={(v) => { setUnitFilter(v); setPage(1) }}
+                placeholder="Cari ULP…"
+              />
+            </FilterField>
+
+            <FilterField label="Bulan & Tahun">
+              <div className="flex items-center gap-1">
+                <input
+                  type="month"
+                  value={monthFilter}
+                  onChange={(e) => { setMonthFilter(e.target.value); setPage(1) }}
+                  aria-label="Filter Bulan dan Tahun"
+                  title="Bulan dan tahun pada kolom Tgl. Update EIS"
+                  className={filterSelectCls}
+                />
+                {monthFilter && (
+                  <button type="button" onClick={() => { setMonthFilter(''); setPage(1) }} aria-label="Hapus filter bulan" className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
+                    <IconX size={14} />
+                  </button>
+                )}
+              </div>
+            </FilterField>
           </div>
         </div>
 
