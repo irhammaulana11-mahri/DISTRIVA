@@ -17,12 +17,15 @@ use Illuminate\Support\Str;
 class MimsIssueSyncService
 {
     /** @return array{status:string,message:?string,documents_new:int,lines:int,matched:int} */
-    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null, ?string $from = null, ?string $to = null): array
+    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null, ?string $from = null, ?string $to = null, string $trigger = 'MANUAL'): array
     {
         $started = now();
-        $finish = function (string $status, ?string $message, int $docs = 0, int $lines = 0, int $matched = 0) use ($wh, $started, $triggeredBy): array {
+        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
+        $since = $from ?? $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $until = $to ?? $now->toDateString();
+        $finish = function (string $status, ?string $message, int $docs = 0, int $lines = 0, int $matched = 0) use ($wh, $started, $triggeredBy, $trigger, $since, $until): array {
             DB::table('mims_issue_sync_runs')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh->id, 'status' => $status, 'message' => $message === null ? null : mb_substr($message, 0, 1000), 'documents_new' => $docs, 'lines' => $lines, 'matched' => $matched,
-                'triggered_by' => $triggeredBy?->getKey(), 'started_at' => $started, 'finished_at' => now()]);
+                'triggered_by' => $triggeredBy?->getKey(), 'trigger_kind' => $trigger, 'range_from' => $since, 'range_to' => $until, 'started_at' => $started, 'finished_at' => now()]);
 
             return ['status' => $status, 'message' => $message, 'documents_new' => $docs, 'lines' => $lines, 'matched' => $matched];
         };
@@ -33,9 +36,6 @@ class MimsIssueSyncService
         $make = fn (int $seconds) => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout($seconds);
         $http = fn () => $make((int) config('distriva.mims.mirror_timeout_seconds'));
         $one = fn () => $make((int) config('distriva.mims.detail_timeout_seconds'));
-        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
-        $since = $from ?? $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
-        $until = $to ?? $now->toDateString();
         // The date range goes into the payload (`tanggal` / `tanggal_akhir`, format d-m-Y as the MIMS screen sends it), so MIMS answers with the window only, not the whole history.
         $payload = fn (string $from, string $to) => ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => 'S', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => $from, 'tanggal_akhir' => $to];
         try {

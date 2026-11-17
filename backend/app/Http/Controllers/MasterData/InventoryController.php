@@ -768,14 +768,17 @@ class InventoryController extends Controller
     }
 
     /**
-     * GET /master-data/stock-sync-runs — the history of every stock pull: the schedule (AUTO), a user pulling on demand (MANUAL), the artisan command (CLI) and the stock files uploaded by hand (FILE),
+     * GET /master-data/stock-sync-runs — the history of every pull. `kind` = stock (default), issues (pengeluaran), receipts (penerimaan) or reservations (reservasi). Stock pulls: the schedule (AUTO), a user pulling on demand (MANUAL), the artisan command (CLI) and the stock files uploaded by hand (FILE),
      * with the date each one was for. Filters: warehouse_id, trigger (AUTO|MANUAL|CLI|FILE), status (OK|FAILED|SKIPPED), month (YYYY-MM of the snapshot date), page, per_page.
      */
     public function syncRuns(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $d = $request->validate(['warehouse_id' => ['nullable', 'uuid'], 'trigger' => ['nullable', Rule::in(['AUTO', 'MANUAL', 'CLI', 'FILE'])], 'status' => ['nullable', Rule::in(['OK', 'FAILED', 'SKIPPED'])],
-            'month' => ['nullable', 'date_format:Y-m'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $d = $request->validate(['kind' => ['nullable', Rule::in(['stock', 'issues', 'receipts', 'reservations'])], 'warehouse_id' => ['nullable', 'uuid'], 'trigger' => ['nullable', Rule::in(['AUTO', 'MANUAL', 'CLI', 'FILE'])],
+            'status' => ['nullable', Rule::in(['OK', 'FAILED', 'SKIPPED'])], 'month' => ['nullable', 'date_format:Y-m'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        if (($d['kind'] ?? 'stock') !== 'stock') {
+            return $this->mirrorRuns($d);
+        }
         $runs = DB::table('stock_sync_runs as r')->selectRaw('r.id, r.warehouse_id, r.trigger_kind, r.status, r.message, r.snapshot_id, r.materials_total, r.materials_mapped, r.triggered_by, r.started_at, r.finished_at, r.as_of');
         $files = DB::table('stock_snapshots as s')->whereRaw("coalesce(s.source_reference, '') not like 'MIMS API%'")->whereNotExists(fn ($q) => $q->from('stock_sync_runs as x')->whereColumn('x.snapshot_id', 's.id'))
             ->selectRaw("s.id, s.warehouse_id, 'FILE' as trigger_kind, 'OK' as status, s.source_reference as message, s.id as snapshot_id, s.materials_total, s.materials_mapped, s.created_by as triggered_by, s.created_at as started_at, s.created_at as finished_at, s.as_of");
@@ -796,6 +799,38 @@ class InventoryController extends Controller
             'sync_configured' => filled(config('distriva.mims.base_url')) && filled(config('distriva.mims.auth_token'))]);
     }
 
+    /** The MIMS mirrors besides stock: the table of their pull runs, the documents they fill and the date column of those documents. */
+    private const MIRRORS = [
+        'issues' => ['runs' => 'mims_issue_sync_runs', 'docs' => 'mims_issue_documents', 'date' => 'issued_on'],
+        'receipts' => ['runs' => 'mims_receipt_sync_runs', 'docs' => 'mims_receipt_documents', 'date' => 'delivered_on'],
+        'reservations' => ['runs' => 'mims_reservation_sync_runs', 'docs' => 'mims_reservations', 'date' => 'reserved_on'],
+    ];
+
+    /** @param array<string,mixed> $d the validated filters of syncRuns @return JsonResponse the history of the issue / receipt / reservation pulls */
+    private function mirrorRuns(array $d): JsonResponse
+    {
+        $kind = $d['kind'];
+        $m = self::MIRRORS[$kind];
+        $q = DB::table("{$m['runs']} as r")->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->leftJoin('users as us', 'us.id', '=', 'r.triggered_by')->orderByDesc('r.started_at')
+            ->select('r.id', 'r.trigger_kind', 'r.status', 'r.message', 'r.documents_new', 'r.started_at', 'r.finished_at', 'r.range_from', 'r.range_to', 'r.range_estimated', 'w.code as warehouse_code', 'w.name as warehouse_name', 'us.name as triggered_by_name')
+            ->selectRaw($kind === 'reservations' ? 'null::int as lines, r.matched' : ($kind === 'receipts' ? 'r.lines, null::int as matched' : 'r.lines, r.matched'));
+        isset($d['warehouse_id']) && $q->where('r.warehouse_id', $d['warehouse_id']);
+        isset($d['trigger']) && $q->where('r.trigger_kind', $d['trigger']);
+        isset($d['status']) && $q->where('r.status', $d['status']);
+        if (isset($d['month'])) {                                                                // the pulls whose range touches the month
+            $start = CarbonImmutable::createFromFormat('Y-m-d', $d['month'].'-01');
+            $q->where('r.range_from', '<=', $start->endOfMonth()->toDateString())->where('r.range_to', '>=', $start->toDateString());
+        }
+        $page = $q->paginate((int) ($d['per_page'] ?? 30));
+
+        return response()->json(['kind' => $kind, 'data' => collect($page->items())->map(fn ($r) => ['id' => $r->id, 'warehouse_code' => $r->warehouse_code, 'warehouse_name' => $r->warehouse_name, 'trigger' => $r->trigger_kind,
+            'triggered_by_name' => $r->triggered_by_name, 'range_from' => $r->range_from === null ? null : substr((string) $r->range_from, 0, 10), 'range_to' => $r->range_to === null ? null : substr((string) $r->range_to, 0, 10),
+            'range_estimated' => (bool) $r->range_estimated, 'status' => $r->status, 'message' => $r->message, 'documents_new' => (int) $r->documents_new, 'lines' => $r->lines === null ? null : (int) $r->lines,
+            'matched' => $r->matched === null ? null : (int) $r->matched, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all(),
+            'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()],
+            'sync_configured' => filled(config('distriva.mims.base_url')) && filled(config('distriva.mims.auth_token'))]);
+    }
+
     /**
      * GET /master-data/stock-coverage?month=YYYY-MM — which days of the month each warehouse has a stock snapshot for and which days (up to today) are still missing.
      * A warehouse without plant and storage location cannot be pulled from the ERP: it is listed as not configured, its days are not counted as missing.
@@ -803,23 +838,47 @@ class InventoryController extends Controller
     public function stockCoverage(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $d = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $d = $request->validate(['month' => ['nullable', 'date_format:Y-m'], 'kind' => ['nullable', Rule::in(['stock', 'issues', 'receipts', 'reservations'])]]);
+        $kind = $d['kind'] ?? 'stock';
         $tz = (string) config('distriva.business_timezone');
         $today = CarbonImmutable::now($tz)->startOfDay();
         $start = CarbonImmutable::createFromFormat('Y-m-d', ($d['month'] ?? $today->format('Y-m')).'-01', $tz)->startOfMonth();
         $days = $start->daysInMonth;
         $last = $start->endOfMonth()->isBefore($today) ? $days : ($start->isAfter($today) ? 0 : $today->day);          // the last day that is already due
-        $have = DB::table('stock_snapshots')->where('as_of', '>=', $start->toDateString())->where('as_of', '<=', $start->endOfMonth()->toDateString())->get(['warehouse_id', 'as_of'])
-            ->groupBy('warehouse_id')->map(fn ($rows) => $rows->map(fn ($r) => (int) substr((string) $r->as_of, 8, 2))->unique()->sort()->values()->all());
-        $warehouses = DB::table('warehouses')->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'plant', 'stor_loc'])->map(function ($w) use ($have, $last) {
-            $taken = $have->get($w->id, []);
+        $first = $start->toDateString();
+        $end = $start->endOfMonth()->toDateString();
+        $dayOf = fn ($date) => (int) substr((string) $date, 8, 2);
+        $exact = $estimated = $docs = [];
+        if ($kind === 'stock') {
+            foreach (DB::table('stock_snapshots')->where('as_of', '>=', $first)->where('as_of', '<=', $end)->get(['warehouse_id', 'as_of']) as $r) {
+                $exact[$r->warehouse_id][$dayOf($r->as_of)] = true;
+            }
+        } else {
+            $m = self::MIRRORS[$kind];
+            // a successful pull covers the days of the range it asked MIMS for; ranges of old pulls were estimated, so they are told apart
+            foreach (DB::table($m['runs'])->where('status', 'OK')->where('range_from', '<=', $end)->where('range_to', '>=', $first)->get(['warehouse_id', 'range_from', 'range_to', 'range_estimated']) as $r) {
+                $from = max(1, (int) ($r->range_from < $first ? 1 : $dayOf($r->range_from)));
+                $to = min($days, (int) ($r->range_to > $end ? $days : $dayOf($r->range_to)));
+                for ($day = $from; $day <= $to; $day++) {
+                    $r->range_estimated ? ($estimated[$r->warehouse_id][$day] = true) : ($exact[$r->warehouse_id][$day] = true);
+                }
+            }
+            foreach (DB::table($m['docs'])->selectRaw("warehouse_id, {$m['date']} as d, count(*) as n")->whereRaw("{$m['date']} >= ? and {$m['date']} <= ?", [$first, $end])->groupBy('warehouse_id')->groupByRaw($m['date'])->get() as $r) {
+                $docs[$r->warehouse_id][$dayOf($r->d)] = (int) $r->n;
+            }
+        }
+        $warehouses = DB::table('warehouses')->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'plant', 'stor_loc'])->map(function ($w) use ($exact, $estimated, $docs, $last) {
+            $taken = array_keys($exact[$w->id] ?? []);
+            sort($taken);
+            $guess = array_values(array_diff(array_keys($estimated[$w->id] ?? []), $taken));
+            sort($guess);
             $configured = $w->plant !== null && $w->stor_loc !== null;
 
-            return ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'configured' => $configured, 'days_taken' => $taken,
-                'days_missing' => $configured && $last > 0 ? array_values(array_diff(range(1, $last), $taken)) : []];
+            return ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'configured' => $configured, 'days_taken' => $taken, 'days_estimated' => $guess, 'docs_per_day' => (object) ($docs[$w->id] ?? []),
+                'days_missing' => $configured && $last > 0 ? array_values(array_diff(range(1, $last), $taken, $guess)) : []];
         })->all();
 
-        return response()->json(['month' => $start->format('Y-m'), 'days_in_month' => $days, 'last_due_day' => $last, 'data' => $warehouses]);
+        return response()->json(['kind' => $kind, 'month' => $start->format('Y-m'), 'days_in_month' => $days, 'last_due_day' => $last, 'data' => $warehouses]);
     }
 
     /**

@@ -361,6 +361,27 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       await userEvent.selectOptions(screen.getByLabelText('Filter pemicu'), 'MANUAL')
       await waitFor(() => expect(warehousesApi.syncRuns).toHaveBeenLastCalledWith(expect.objectContaining({ trigger: 'MANUAL' })))
 
+      // Pengeluaran / Penerimaan / Reservasi: riwayat dan cakupannya sendiri, dengan rentang data yang diminta ke MIMS
+      warehousesApi.syncRuns.mockResolvedValue({
+        data: [{ id: 'i-1', trigger: 'MANUAL', triggered_by_name: 'Budi Konstruksi', range_from: '2026-10-01', range_to: '2026-10-31', range_estimated: false, warehouse_code: 'GDG-UP3', warehouse_name: 'Gudang Area Mojokerto', status: 'OK', message: null, documents_new: 12, lines: 40, matched: 3, started_at: '2026-11-07T06:00:00Z' },
+          { id: 'i-2', trigger: 'AUTO', range_from: '2026-08-09', range_to: '2026-11-07', range_estimated: true, warehouse_code: 'GDG-UP3', warehouse_name: 'Gudang Area Mojokerto', status: 'OK', message: null, documents_new: 0, lines: 0, matched: 0, started_at: '2026-11-07T10:00:00Z' }],
+        meta: { current_page: 1, per_page: 10, total: 2, last_page: 1 },
+        sync_configured: true,
+      })
+      warehousesApi.stockCoverage.mockResolvedValue({ kind: 'issues', month: '2026-11', days_in_month: 30, last_due_day: 7, data: [{ id: 'w-1', code: 'GDG-UP3', name: 'Gudang Area Mojokerto', configured: true, days_taken: [1, 2], days_estimated: [3, 4], docs_per_day: { 2: 5 }, days_missing: [5, 6, 7] }] })
+      await userEvent.click(screen.getByRole('tab', { name: 'Pengeluaran Material' }))
+      await waitFor(() => expect(warehousesApi.syncRuns).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'issues' })))
+      await waitFor(() => expect(warehousesApi.stockCoverage).toHaveBeenLastCalledWith(expect.any(String), 'issues'))
+      expect(await screen.findByText('Riwayat Sinkronisasi MIMS: Pengeluaran Material')).toBeInTheDocument()
+      expect(screen.getAllByTestId('run-docs').map((e) => e.textContent)).toEqual(['12', '0'])
+      expect(screen.getAllByTestId('run-as-of')[1]).toHaveTextContent('≈')                                  // rentang perkiraan ditandai
+      expect(screen.queryByRole('columnheader', { name: 'Aksi' })).not.toBeInTheDocument()                 // tanpa cuplikan untuk dilihat
+      const [issuesRow] = screen.getAllByTestId('coverage-row')
+      expect(issuesRow.querySelectorAll('[data-day-state="estimated"]')).toHaveLength(2)
+      expect(issuesRow.querySelectorAll('[data-day-state="missing"]')).toHaveLength(3)
+      expect(screen.getByTestId('coverage-missing-total')).toHaveTextContent('3')
+      expect(within(screen.getByLabelText('Filter pemicu')).queryByRole('option', { name: 'Berkas' })).not.toBeInTheDocument()
+
       // Security check: ensure no token or secret credential input exists in DOM
       expect(screen.queryByPlaceholderText(/token/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/Bearer/i)).not.toBeInTheDocument()

@@ -881,6 +881,43 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_history_and_coverage_of_issue_receipt_and_reservation_pulls_show_the_range_each_pull_asked_for_and_the_days_still_missing(): void
+    {
+        $wh = $this->warehouse();
+        DB::table('warehouses')->where('id', $wh)->update(['plant' => '5118', 'stor_loc' => '2810']);
+        $month = now()->format('Y-m');
+        $day = fn (int $d) => $month.'-'.str_pad((string) $d, 2, '0', STR_PAD_LEFT);
+        $run = fn (string $table, array $extra) => DB::table($table)->insert($extra + ['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'status' => 'OK', 'trigger_kind' => 'MANUAL', 'triggered_by' => $this->konstruksi->getKey(),
+            'started_at' => now(), 'finished_at' => now(), 'range_from' => $day(2), 'range_to' => $day(4), 'range_estimated' => false]);
+        $run('mims_issue_sync_runs', ['documents_new' => 3, 'lines' => 9]);
+        $run('mims_issue_sync_runs', ['status' => 'FAILED', 'range_from' => $day(10), 'range_to' => $day(12), 'trigger_kind' => 'AUTO', 'message' => 'MIMS menjawab status HTTP 500.']);       // a failed pull covers nothing
+        $run('mims_issue_sync_runs', ['range_from' => $day(6), 'range_to' => $day(7), 'range_estimated' => true]);                                                                    // an old pull with an estimated range
+        $run('mims_receipt_sync_runs', ['documents_new' => 1, 'lines' => 4]);
+        $run('mims_reservation_sync_runs', ['documents_new' => 2, 'matched' => 1]);
+        DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => 'DOC1', 'reservation_no' => 'R1', 'issued_on' => $day(3), 'fetched_at' => now()]);
+        DB::table('mims_issue_documents')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh, 'material_document' => 'DOC2', 'reservation_no' => 'R2', 'issued_on' => $day(3), 'fetched_at' => now()]);
+
+        $issues = $this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=issues')->assertOk();
+        $this->assertSame(3, count($issues->json('data')));
+        $ok = collect($issues->json('data'))->first(fn ($r) => $r['status'] === 'OK' && ! $r['range_estimated']);
+        $this->assertSame([$day(2), $day(4), 3, 9, 'MANUAL'], [$ok['range_from'], $ok['range_to'], $ok['documents_new'], $ok['lines'], $ok['trigger']]);
+        $this->assertSame(['AUTO'], collect($this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=issues&trigger=AUTO')->json('data'))->pluck('trigger')->all());
+        $this->assertSame(0, count($this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=issues&month='.now()->subMonths(2)->format('Y-m'))->json('data')));   // no pull touches that month
+        $this->assertSame([2, null], [$this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=reservations')->json('data.0.documents_new'), $this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=reservations')->json('data.0.lines')]);
+        $this->assertSame([1, 4], [$this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=receipts')->json('data.0.documents_new'), $this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=receipts')->json('data.0.lines')]);
+        $this->as($this->viewer)->getJson('/api/master-data/stock-sync-runs?kind=pengeluaran')->assertUnprocessable();
+
+        $cov = $this->as($this->viewer)->getJson('/api/master-data/stock-coverage?kind=issues&month='.$month)->assertOk();
+        $row = collect($cov->json('data'))->firstWhere('code', 'GD-1');
+        $this->assertSame([[2, 3, 4], [6, 7]], [$row['days_taken'], $row['days_estimated']]);                                          // the failed pull (10-12) counts for nothing
+        $this->assertSame(['3' => 2], $row['docs_per_day']);                                                                           // documents per day, for the tooltip
+        $due = range(1, $cov->json('last_due_day'));
+        $this->assertSame(array_values(array_diff($due, [2, 3, 4, 6, 7])), $row['days_missing']);
+        $this->assertSame([2, 3, 4], collect($this->as($this->viewer)->getJson('/api/master-data/stock-coverage?kind=receipts&month='.$month)->json('data'))->firstWhere('code', 'GD-1')['days_taken']);
+        $this->as($this->viewer)->getJson('/api/master-data/stock-coverage?kind=lainnya')->assertUnprocessable();
+    }
+
+    #[Test]
     public function a_snapshot_below_the_safety_stock_alerts_the_stock_importers_of_the_unit_once_and_refreshes_the_unread_alert(): void
     {
         $wh = $this->warehouse();

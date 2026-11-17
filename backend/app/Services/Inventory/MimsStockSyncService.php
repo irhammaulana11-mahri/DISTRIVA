@@ -137,7 +137,7 @@ class MimsStockSyncService
                     break;
                 }
             }
-            $mirrors = array_values(array_filter([$s->auto_issues ? $this->issues->syncWarehouse($wh, $token, $user) : null, $s->auto_receipts ? $this->receipts->syncWarehouse($wh, $token, $user) : null]));
+            $mirrors = array_values(array_filter([$s->auto_issues ? $this->issues->syncWarehouse($wh, $token, $user, null, null, null, 'AUTO') : null, $s->auto_receipts ? $this->receipts->syncWarehouse($wh, $token, $user, null, null, null, 'AUTO') : null]));
             foreach ($mirrors as $m) {
                 if ($m['status'] === 'FAILED' && str_contains((string) $m['message'], 'token ditolak')) {
                     $rejected = true;

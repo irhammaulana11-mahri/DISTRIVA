@@ -25,12 +25,15 @@ class MimsReservationSyncService
     private const STATUS_KEYS = ['status_pemakaian', 'status_reservasi', 'status', 'status_sap'];
 
     /** @return array{status:string,message:?string,documents_new:int,matched:int} */
-    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null, ?string $from = null, ?string $to = null): array
+    public function syncWarehouse(object $wh, ?string $token, ?User $triggeredBy = null, ?int $days = null, ?string $from = null, ?string $to = null, string $trigger = 'MANUAL'): array
     {
         $started = now();
-        $finish = function (string $status, ?string $message, int $docs = 0, int $matched = 0) use ($wh, $started, $triggeredBy): array {
+        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
+        $since = $from ?? $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
+        $until = $to ?? $now->toDateString();
+        $finish = function (string $status, ?string $message, int $docs = 0, int $matched = 0) use ($wh, $started, $triggeredBy, $trigger, $since, $until): array {
             DB::table('mims_reservation_sync_runs')->insert(['id' => (string) Str::uuid(), 'warehouse_id' => $wh->id, 'status' => $status, 'message' => $message === null ? null : mb_substr($message, 0, 1000), 'documents_new' => $docs, 'matched' => $matched,
-                'triggered_by' => $triggeredBy?->getKey(), 'started_at' => $started, 'finished_at' => now()]);
+                'triggered_by' => $triggeredBy?->getKey(), 'trigger_kind' => $trigger, 'range_from' => $since, 'range_to' => $until, 'started_at' => $started, 'finished_at' => now()]);
 
             return ['status' => $status, 'message' => $message, 'documents_new' => $docs, 'matched' => $matched];
         };
@@ -41,9 +44,6 @@ class MimsReservationSyncService
         $make = fn (int $seconds) => Http::withHeaders(['auth-token' => (string) ($token ?? config('distriva.mims.auth_token')), 'Accept' => 'application/json'])->withOptions(['verify' => (bool) config('distriva.mims.verify_ssl')])->timeout($seconds);
         $http = fn () => $make((int) config('distriva.mims.mirror_timeout_seconds'));
         $one = fn () => $make((int) config('distriva.mims.detail_timeout_seconds'));
-        $now = CarbonImmutable::now((string) config('distriva.business_timezone'));
-        $since = $from ?? $now->subDays($days ?? (int) config('distriva.mims.issue_days'))->toDateString();
-        $until = $to ?? $now->toDateString();
         $payload = fn (string $a, string $b) => ['id_pel' => '', 'jenis_pekerjaan' => '', 'no_pemakaian' => '', 'no_pemesanan' => '', 'plant' => (string) $wh->plant, 'status_sap' => '', 'stor_loc' => (string) $wh->stor_loc, 'tanggal' => $a, 'tanggal_akhir' => $b];
         // MIMS answers a short range in seconds but times out on a wide one, so the list is requested in windows (default 7 days).
         $window = max(1, (int) config('distriva.mims.reservation_window_days'));

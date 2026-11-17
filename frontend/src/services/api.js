@@ -338,12 +338,18 @@ export const warehousesApi = {
   },
   syncRuns: (params = {}) => {
     const q = new URLSearchParams()
-    for (const k of ['warehouse_id', 'trigger', 'status', 'month', 'page', 'per_page']) if (params[k]) q.append(k, params[k])
+    for (const k of ['kind', 'warehouse_id', 'trigger', 'status', 'month', 'page', 'per_page']) if (params[k]) q.append(k, params[k])
     const s = q.toString()
     return request(`/master-data/stock-sync-runs${s ? '?' + s : ''}`)
   },
   // Hari tiap bulan yang sudah/belum punya cuplikan stok per gudang (month = YYYY-MM).
-  stockCoverage: (month) => request(`/master-data/stock-coverage${month ? `?month=${month}` : ''}`),
+  stockCoverage: (month, kind) => {
+    const q = new URLSearchParams()
+    month && q.append('month', month)
+    kind && kind !== 'stock' && q.append('kind', kind)
+    const s = q.toString()
+    return request(`/master-data/stock-coverage${s ? '?' + s : ''}`)
+  },
   // Penarikan MIMS berjalan sebagai proses latar belakang di server: mulai, lalu pantau hasil per gudang sampai selesai.
   // Mengembalikan { data: [hasil per gudang] }; onProgress(rows) dipanggil setiap hasil bertambah.
   syncStock: async (body, onProgress) => {
