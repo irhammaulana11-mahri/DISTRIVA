@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { masterExcelApi, adminApi } from '../../services/api.js'
+import { masterExcelApi, adminApi, triggerFileDownload } from '../../services/api.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
-import { IconUpload, IconRefresh, IconTrash, IconCheckCircle, IconAlertCircle, IconInfo } from '../../components/icons.jsx'
+import { IconUpload, IconDownload, IconRefresh, IconTrash, IconCheckCircle, IconAlertCircle, IconInfo } from '../../components/icons.jsx'
 
 const fmtSize = (b) => (b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
 const fmtWhen = (iso) => {
@@ -16,7 +16,7 @@ const fmtWhen = (iso) => {
   return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
 }
 const today = () => new Date().toISOString().slice(0, 10)
-const KIND = { RAB_KKF: 'Excel RAB & KKF', TARIF: 'Excel Tarif & Jam Nyala' }
+const KIND = { RAB_KKF: 'Excel RAB & KKF', TARIF: 'Excel Tarif & Jam Nyala', DISTRIVA: 'MASTER DISTRIVA' }
 const STATE = {
   UPLOADED: ['Terunggah', 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'],
   PROCESSING: ['Diperiksa…', 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'],
@@ -36,7 +36,7 @@ const chip = (map, key) => {
 const card = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs'
 const input = 'rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus-ring'
 
-function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploaded }) {
+function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploaded, className = '', actions = null }) {
   const { notify } = useNotifications()
   const ref = useRef(null)
   const [file, setFile] = useState(null)
@@ -62,7 +62,7 @@ function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploa
     }
   }
   return (
-    <section className={card} aria-label={title}>
+    <section className={`${card} ${className}`} aria-label={title}>
       <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{hint}</p>
       {disabled ? <p className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-850 p-3 text-xs text-slate-500">Akun Anda tidak berwenang menyiapkan data ini.</p> : (
@@ -91,7 +91,10 @@ function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploa
               <p className="mt-1 text-[11px] text-slate-500">Untuk menambah atau memperbarui satu ULP: pilih ULP itu, unggah laporan penjualannya, terapkan. ULP lain tidak berubah.</p>
             </div>
           )}
-          <Button icon={IconUpload} onClick={submit} loading={busy} disabled={!file}>Unggah &amp; periksa</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button icon={IconUpload} onClick={submit} loading={busy} disabled={!file}>Unggah &amp; periksa</Button>
+            {actions}
+          </div>
         </div>
       )}
     </section>
@@ -113,8 +116,8 @@ function Applied({ result }) {
   )
 }
 
-function ApplyBar({ dataset, label, needName, defaultName, disabled, applied, onApply, extra }) {
-  const [validFrom, setValidFrom] = useState(today())
+function ApplyBar({ dataset, label, needName, defaultName, disabled, applied, onApply, extra, defaultValidFrom }) {
+  const [validFrom, setValidFrom] = useState(defaultValidFrom || today())
   const [name, setName] = useState(defaultName || '')
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -143,7 +146,7 @@ function ApplyBar({ dataset, label, needName, defaultName, disabled, applied, on
   )
 }
 
-function BomSection({ imp, can, onApply }) {
+function BomSection({ imp, can, onApply, defaultValidFrom, workbook = false }) {
   const groups = imp.report?.bom?.groups || []
   const [pick, setPick] = useState(null)
   const changed = groups.filter((g) => g.status === 'CHANGED').map((g) => g.group)
@@ -152,7 +155,7 @@ function BomSection({ imp, can, onApply }) {
   return (
     <section className={card} aria-labelledby="mx-bom">
       <h3 id="mx-bom" className="text-base font-semibold text-slate-900 dark:text-slate-100">BOM (rumus volume)</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400">Dibandingkan baris demi baris dengan BOM yang disetujui. Kode KHS lama di Excel diterjemahkan ke kode yang dipakai.</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{workbook ? 'Dibandingkan baris demi baris dengan BOM yang disetujui. Kelompok yang berubah hanya bisa diterapkan bila hasil hitung Excel sama dengan hitungan DISTRIVA.' : 'Dibandingkan baris demi baris dengan BOM yang disetujui. Kode KHS lama di Excel diterjemahkan ke kode yang dipakai.'}</p>
       <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
         <table className="w-full min-w-136 text-left text-xs">
           <caption className="sr-only">Perbandingan BOM per kelompok</caption>
@@ -165,6 +168,7 @@ function BomSection({ imp, can, onApply }) {
                 <td className="px-3 py-2"><input type="checkbox" aria-label={`Terapkan ${g.group}`} disabled={g.status !== 'CHANGED'} checked={selected.includes(g.group) && g.status === 'CHANGED'} onChange={() => toggle(g.group)} /></td>
                 <td className="px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">{g.group}
                   {g.samples?.length > 0 && <details className="mt-1 font-normal text-slate-500"><summary className="cursor-pointer">Contoh perubahan</summary><ul className="mt-1 space-y-1">{g.samples.map((s) => <li key={s.sequence}>baris {s.sequence}: <span className="line-through">{s.before}</span> → {s.after}</li>)}</ul></details>}
+                  {g.parity && <p className="mt-1 text-[11px] font-normal text-slate-500">{g.parity.mismatch_count > 0 ? <span className="text-rose-600">{`Hasil hitung berbeda di ${g.parity.mismatch_count} sel`}</span> : `Hasil hitung cocok (${g.parity.checked} sel diuji)`}</p>}
                   <Problems items={g.problems} />
                 </td>
                 <td className="px-3 py-2">{chip(CHANGE, g.status)}</td>
@@ -174,7 +178,7 @@ function BomSection({ imp, can, onApply }) {
           </tbody>
         </table>
       </div>
-      <ApplyBar dataset="BOM" label="Terapkan BOM terpilih" disabled={!can || selected.length === 0 || changed.length === 0} applied={imp.applied?.BOM} onApply={onApply} extra={() => ({ groups: selected })} />
+      <ApplyBar dataset="BOM" label="Terapkan BOM terpilih" defaultValidFrom={defaultValidFrom} disabled={!can || selected.length === 0 || changed.length === 0} applied={imp.applied?.BOM} onApply={onApply} extra={() => ({ groups: selected })} />
       {!can && <p className="mt-2 text-xs text-slate-500">Menerapkan BOM memerlukan izin kelola BOM.</p>}
     </section>
   )
@@ -243,6 +247,30 @@ function TariffSection({ imp, can, onApply }) {
   )
 }
 
+function DistrivaSection({ imp, can, onApply }) {
+  const r = imp.report || {}
+  const m = r.meta || {}
+  return (
+    <>
+      <section className={card} aria-labelledby="mx-distriva">
+        <h3 id="mx-distriva" className="text-base font-semibold text-slate-900 dark:text-slate-100">Template MASTER DISTRIVA</h3>
+        <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 text-xs">
+          {[['Versi template', m.template_version || '-'], ['Berlaku sejak', m.valid_from || '-'], ['Dasar perubahan', m.basis || '-']].map(([l, v]) => (
+            <div key={l} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3"><dt className="text-slate-500">{l}</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100 break-words">{v}</dd></div>
+          ))}
+        </dl>
+        {r.layout_problem_count > 0 && (
+          <div className="mt-3">
+            <Alert variant="error">{`${r.layout_problem_count} masalah pada susunan berkas. Perbaiki sel yang disebut di Excel lalu unggah ulang; belum ada yang dibandingkan.`}</Alert>
+            <Problems items={r.layout_problems} />
+          </div>
+        )}
+      </section>
+      {!r.blocked && <BomSection imp={imp} can={can.bom} onApply={onApply} defaultValidFrom={m.valid_from} workbook />}
+    </>
+  )
+}
+
 function Detail({ imp, can, onChanged, onRemoved }) {
   const { notify } = useNotifications()
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -274,6 +302,7 @@ function Detail({ imp, can, onChanged, onRemoved }) {
       {imp.status === 'FAILED' && <Alert variant="error">{imp.message || 'Berkas gagal diperiksa.'}</Alert>}
       {imp.status === 'READY' && imp.report && (
         <>
+          {imp.kind === 'DISTRIVA' && <DistrivaSection imp={imp} can={can} onApply={apply} />}
           {imp.kind === 'RAB_KKF' && <BomSection imp={imp} can={can.bom} onApply={apply} />}
           {imp.kind === 'RAB_KKF' && <PriceSection imp={imp} can={can.price} onApply={apply} />}
           {imp.kind === 'TARIF' && <TariffSection imp={imp} can={can.tariffs} onApply={apply} />}
@@ -289,6 +318,7 @@ function Detail({ imp, can, onChanged, onRemoved }) {
 
 /** Impor master dari Excel: unggah, periksa terhadap data yang berlaku, lalu terapkan hanya perubahan sebagai DRAFT (disetujui akun lain). */
 export default function MasterExcelImportPage() {
+  const { notify } = useNotifications()
   const [state, setState] = useState({ loading: true, error: '', rows: [], can: {}, limits: {}, coverage: [] })
   const [selected, setSelected] = useState(null)
   const [units, setUnits] = useState([])
@@ -319,7 +349,19 @@ export default function MasterExcelImportPage() {
     return () => clearInterval(t)
   }, [selected, load])
 
-  const nothing = !state.can.rab && !state.can.tariff
+  const nothing = !state.can.rab && !state.can.tariff && !state.can.bom
+  const [downloading, setDownloading] = useState(false)
+  const downloadTemplate = async () => {
+    setDownloading(true)
+    try {
+      const { blob, filename } = await masterExcelApi.template()
+      triggerFileDownload(blob, filename)
+    } catch (err) {
+      notify({ type: 'error', title: 'Template tidak dapat diunduh', desc: err?.message || 'Terjadi kesalahan.', tag: 'Excel' })
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -335,6 +377,7 @@ export default function MasterExcelImportPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
+            <UploadCard kind="DISTRIVA" className="lg:col-span-2" title="MASTER DISTRIVA (template untuk unit induk)" hint="Unduh template berisi aturan BOM yang berlaku, isi di Excel (kirim ke unit induk bila perlu), lalu unggah kembali. Hasil hitung Excel dicocokkan dengan mesin DISTRIVA sebelum menjadi DRAFT." disabled={!state.can.bom} units={units} actions={<Button variant="secondary" icon={IconDownload} loading={downloading} onClick={downloadTemplate}>Unduh template</Button>} onUploaded={(imp) => { setSelected(imp); load() }} />
             <UploadCard kind="RAB_KKF" title="Excel RAB & KKF" hint="Memeriksa BOM dan buku harga (MASTER RAB & KKF.xlsx)." disabled={!state.can.rab} units={units} onUploaded={(imp) => { setSelected(imp); load() }} />
             <UploadCard kind="TARIF" title="Excel Tarif & Jam Nyala" hint="Memeriksa harga rata-rata, jam nyala, dan UJL (MASTER TARIF & JAM NYALA.xlsx)." disabled={!state.can.tariff} units={units} coverage={state.coverage} onUploaded={(imp) => { setSelected(imp); load() }} />
           </div>

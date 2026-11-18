@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import MasterExcelImportPage from './MasterExcelImportPage.jsx'
-import { masterExcelApi, adminApi } from '../../services/api.js'
+import { masterExcelApi, adminApi, triggerFileDownload } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
-  masterExcelApi: { list: vi.fn(), get: vi.fn(), upload: vi.fn(), recheck: vi.fn(), apply: vi.fn(), remove: vi.fn() },
+  masterExcelApi: { list: vi.fn(), get: vi.fn(), upload: vi.fn(), recheck: vi.fn(), apply: vi.fn(), remove: vi.fn(), template: vi.fn() },
   adminApi: { units: vi.fn() },
+  triggerFileDownload: vi.fn(),
 }))
 
 const CAN = { rab: true, tariff: true, bom: true, price: true, tariffs: true }
@@ -90,6 +91,51 @@ describe('Impor Master dari Excel', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
     expect(await screen.findByRole('button', { name: 'Buat buku harga DRAFT' })).toBeDisabled()
     expect(screen.getByText(/memerlukan izin kelola harga/)).toBeInTheDocument()
-    expect(screen.getByText('Akun Anda tidak berwenang menyiapkan data ini.')).toBeInTheDocument()
+    expect(screen.getAllByText('Akun Anda tidak berwenang menyiapkan data ini.')).toHaveLength(2)      // kartu Tarif dan kartu Template MASTER DISTRIVA (tanpa izin BOM)
+  })
+  const distriva = {
+    ...ready, id: 'i-9', kind: 'DISTRIVA', file_name: 'MASTER-DISTRIVA-20261118.xlsx',
+    report: { blocked: false, layout_problems: [], layout_problem_count: 0, meta: { template_version: '1', valid_from: '2026-12-01', basis: 'Surat 123/XYZ' },
+      bom: { groups: [
+        { group: 'SUTM', status: 'CHANGED', excel_lines: 608, current_lines: 608, changed: 1, added: 0, removed: 0, samples: [], problems: [], new_codes: [], parity: { checked: 2402, no_stored_value: 0, mismatch_count: 0, mismatches: [] } },
+        { group: 'SUTR', status: 'BLOCKED', excel_lines: 131, current_lines: 131, changed: 1, added: 0, removed: 0, samples: [], problems: ['3 sel hasil hitung Excel berbeda dengan hitungan DISTRIVA.'], new_codes: [], parity: { checked: 513, no_stored_value: 0, mismatch_count: 3, mismatches: [] } },
+      ] } },
+  }
+
+  it('template MASTER DISTRIVA: mengunduh template dari BOM berlaku', async () => {
+    masterExcelApi.template.mockResolvedValue({ blob: new Blob(['x']), filename: 'MASTER-DISTRIVA-20261118.xlsx' })
+    renderPage()
+    const card = await screen.findByRole('region', { name: /MASTER DISTRIVA \(template untuk unit induk\)/ })
+    await userEvent.click(within(card).getByRole('button', { name: 'Unduh template' }))
+    await waitFor(() => expect(triggerFileDownload).toHaveBeenCalledWith(expect.any(Blob), 'MASTER-DISTRIVA-20261118.xlsx'))
+  })
+
+  it('hasil pemeriksaan template: kecocokan hitung per kelompok, tanggal berlaku terisi dari berkas, dan hanya kelompok yang cocok bisa diterapkan', async () => {
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...distriva, report: null }], can: CAN, limits: { max_mb: 60 } })
+    masterExcelApi.get.mockResolvedValue({ data: distriva })
+    masterExcelApi.apply.mockResolvedValue({ data: { status: 'OK', message: '1 kelompok BOM dibuat sebagai DRAFT (SUTM).' }, import: { ...distriva, applied: { BOM: { status: 'OK', message: '1 kelompok BOM dibuat sebagai DRAFT (SUTM).', link: '/master-data/bom' } } } })
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    expect(await screen.findByText('Surat 123/XYZ')).toBeInTheDocument()
+    expect(screen.getByText('Hasil hitung cocok (2402 sel diuji)')).toBeInTheDocument()
+    expect(screen.getByText('Hasil hitung berbeda di 3 sel')).toBeInTheDocument()
+    expect(screen.getByLabelText('Terapkan SUTR')).toBeDisabled()                       // Excel and engine disagree: blocked
+    expect(screen.getByLabelText('Berlaku mulai')).toHaveValue('2026-12-01')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Terapkan BOM terpilih' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Terapkan sebagai DRAFT' }))
+    await waitFor(() => expect(masterExcelApi.apply).toHaveBeenCalledTimes(1))
+    expect(masterExcelApi.apply.mock.calls[0][1]).toMatchObject({ dataset: 'BOM', valid_from: '2026-12-01', groups: ['SUTM'] })
+  })
+
+  it('masalah susunan berkas ditampilkan per sel dan tidak ada yang dibandingkan', async () => {
+    const bad = { ...distriva, report: { blocked: true, layout_problem_count: 2, layout_problems: ['SUTM!J10: isi "banyak" bukan angka maupun rumus.', 'SUTM!A11: nomor baris 99 tidak sama dengan baris Excel 11.'], meta: { template_version: '1', valid_from: '2026-12-01', basis: null }, bom: { groups: [] } } }
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...bad, report: null }], can: CAN, limits: { max_mb: 60 } })
+    masterExcelApi.get.mockResolvedValue({ data: bad })
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    expect(await screen.findByText(/2 masalah pada susunan berkas/)).toBeInTheDocument()
+    expect(screen.getByText(/SUTM!J10/)).toBeInTheDocument()
+    expect(screen.queryByText('BOM (rumus volume)')).not.toBeInTheDocument()
   })
 })

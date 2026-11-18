@@ -238,6 +238,7 @@ export const masterExcelApi = {
   recheck: (id) => request(`/master-data/excel-imports/${id}/recheck`, { method: 'POST' }),
   apply: (id, body) => request(`/master-data/excel-imports/${id}/apply`, { method: 'POST', body }),
   remove: (id) => request(`/master-data/excel-imports/${id}`, { method: 'DELETE' }),
+  template: () => downloadBlob('/master-data/excel-imports/template'),   // MASTER DISTRIVA.xlsx dari BOM yang berlaku
 }
 
 export const tariffBooksApi = {
