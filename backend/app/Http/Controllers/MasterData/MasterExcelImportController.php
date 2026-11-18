@@ -18,9 +18,9 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /** Excel master from the screen (docs/85): upload -> check (extract + compare) -> apply the differences as DRAFT. Grant (403/404) -> validation (422) -> rule (409). */
 class MasterExcelImportController extends Controller
 {
-    private const NEED = ['RAB_KKF' => ['bom.manage', 'prices.manage'], 'TARIF' => ['tariffs.manage'], 'DISTRIVA' => ['bom.manage', 'prices.manage', 'tariffs.manage']];
+    private const NEED = ['RAB_KKF' => ['bom.manage', 'prices.manage'], 'TARIF' => ['tariffs.manage'], 'DISTRIVA' => ['bom.manage', 'prices.manage', 'tariffs.manage', 'kkf_params.manage']];
 
-    private const DATASET_PERMISSION = ['BOM' => 'bom.manage', 'PRICE' => 'prices.manage', 'TARIFF' => 'tariffs.manage'];
+    private const DATASET_PERMISSION = ['BOM' => 'bom.manage', 'PRICE' => 'prices.manage', 'TARIFF' => 'tariffs.manage', 'KKF' => 'kkf_params.manage'];
 
     public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly MasterExcelImportService $imports, private readonly MasterWorkbookExporter $exporter) {}
 
@@ -31,7 +31,7 @@ class MasterExcelImportController extends Controller
 
         return response()->json(['data' => $this->imports->list(), 'tariff_coverage' => $this->imports->tariffCoverage(), 'limits' => ['max_mb' => (int) config('distriva.master_excel.max_mb'), 'accept' => ['.xlsx']],
             'can' => ['rab' => $this->hasAny($request, self::NEED['RAB_KKF']), 'tariff' => $this->hasAny($request, self::NEED['TARIF']), 'bom' => $this->authorizer->allows($request->user(), 'bom.manage'),
-                'price' => $this->authorizer->allows($request->user(), 'prices.manage'), 'tariffs' => $this->authorizer->allows($request->user(), 'tariffs.manage')]]);
+                'price' => $this->authorizer->allows($request->user(), 'prices.manage'), 'tariffs' => $this->authorizer->allows($request->user(), 'tariffs.manage'), 'kkf' => $this->authorizer->allows($request->user(), 'kkf_params.manage')]]);
     }
 
     /** POST /master-data/excel-imports (multipart: file, kind, ulp_code) — stores the workbook and starts the check */
@@ -89,7 +89,7 @@ class MasterExcelImportController extends Controller
         $d = Validator::make($request->all(), [
             'dataset' => ['required', Rule::in(array_keys(self::DATASET_PERMISSION))],
             'valid_from' => ['required', 'date_format:Y-m-d'],
-            'name' => [Rule::requiredIf(in_array($dataset, ['PRICE', 'TARIFF'], true)), 'nullable', 'string', 'max:150'],
+            'name' => [Rule::requiredIf(in_array($dataset, ['PRICE', 'TARIFF', 'KKF'], true)), 'nullable', 'string', 'max:150'],
             'groups' => ['sometimes', 'array', 'max:20'], 'groups.*' => ['string', 'max:30'],
         ])->validate();
         $result = $this->imports->apply($id, $d['dataset'], $d, $request->user());

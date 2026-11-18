@@ -23,12 +23,13 @@ class MasterWorkbookReader
      *   sim: array<string,array{psg_bkr:array<string,array{psg?:float,bkr?:float}>,params:array<string,mixed>,expected:array<int,array<string,mixed>>}>,
      *   problems: list<string>,
      *   price: array{rows:list<array<string,string>>,zones:list<int>},
-     *   tariff: array{rows:list<array<string,string>>}
+     *   tariff: array{rows:list<array<string,string>>},
+     *   kkf: array{values:array<string,float>,rules:array<string,string>,cases:list<array<string,mixed>>}
      * }
      */
     public function read(string $path): array
     {
-        $out = ['meta' => ['template_version' => null, 'valid_from' => null, 'basis' => null], 'docs' => [], 'sim' => [], 'problems' => [], 'price' => ['rows' => [], 'zones' => []], 'tariff' => ['rows' => []]];
+        $out = ['meta' => ['template_version' => null, 'valid_from' => null, 'basis' => null], 'docs' => [], 'sim' => [], 'problems' => [], 'price' => ['rows' => [], 'zones' => []], 'tariff' => ['rows' => []], 'kkf' => ['values' => [], 'rules' => [], 'cases' => []]];
         try {
             $reader = IOFactory::createReader('Xlsx');
             $reader->setReadDataOnly(false);
@@ -39,7 +40,7 @@ class MasterWorkbookReader
             return $out;
         }
         $names = $ss->getSheetNames();
-        foreach (['INFO', 'GAMBAR', '_PETA', 'HARGA', 'TARIF'] as $need) {
+        foreach (['INFO', 'GAMBAR', '_PETA', 'HARGA', 'TARIF', 'PARAMETER_KKF', 'ATURAN', 'UJI_KKF'] as $need) {
             if (! in_array($need, $names, true)) {
                 $out['problems'][] = "Lembar {$need} tidak ditemukan: gunakan template yang diunduh dari DISTRIVA (jangan ubah nama lembar).";
             }
@@ -106,6 +107,7 @@ class MasterWorkbookReader
         }
         $out['price'] = $this->price($ss, $out['problems']);
         $out['tariff'] = $this->tariff($ss, $out['problems']);
+        $out['kkf'] = $this->kkf($ss, $out['problems']);
         $ss->disconnectWorksheets();
 
         return $out;
@@ -274,7 +276,7 @@ class MasterWorkbookReader
     }
 
     /** A number cell as text ('' when empty); anything else is a problem naming the cell. @param list<string> $problems */
-    private function number(Cell $c, string $where, array &$problems): string
+    private function number(Cell $c, string $where, array &$problems, bool $allowNegative = false): string
     {
         try {
             $v = $c->isFormula() ? $c->getCalculatedValue() : $c->getValue();
@@ -284,13 +286,96 @@ class MasterWorkbookReader
         if ($v === null || (is_string($v) && trim($v) === '')) {
             return '';
         }
-        if (! is_numeric($v) || (float) $v < 0) {
-            $problems[] = "{$where}: isi \"".mb_substr((string) $v, 0, 30).'" harus berupa angka (tidak negatif).';
+        if (! is_numeric($v) || (! $allowNegative && (float) $v < 0)) {
+            $problems[] = "{$where}: isi \"".mb_substr((string) $v, 0, 30).'" harus berupa angka'.($allowNegative ? '.' : ' (tidak negatif).');
 
             return '';
         }
 
         return (string) (floor((float) $v) == (float) $v ? (int) $v : (float) $v);
+    }
+
+    /**
+     * PARAMETER_KKF (the nine values of a parameter set, within the ranges the database enforces), ATURAN (fixed rules, for comparison only) and UJI_KKF (sample cases with Excel's expected results).
+     *
+     * @param  list<string>  $problems
+     * @return array{values:array<string,float>,rules:array<string,string>,cases:list<array<string,mixed>>}
+     */
+    private function kkf(Spreadsheet $ss, array &$problems): array
+    {
+        $h = MasterWorkbookExporter::TABLE_HEAD_ROW;
+        $out = ['values' => [], 'rules' => [], 'cases' => []];
+        $range = ['discount_rate' => [0.0, 1.0, false], 'bpp' => [0.0, 1e9, false], 'om_rate' => [0.0, 1.0, true], 'load_factor' => [0.0, 1.0, false], 'roe' => [0.0, 1.0, true], 'interest_rate' => [0.0, 1.0, true], 'tax_rate' => [0.0, 1.0, true], 'horizon_years' => [1.0, 50.0, true], 'payback_limit_months' => [1.0, 600.0, true]];
+
+        $s = $ss->getSheetByName('PARAMETER_KKF');
+        if (strtoupper((string) $this->text($s->getCell("A{$h}"))) !== 'KUNCI' || strtoupper((string) $this->text($s->getCell("B{$h}"))) !== 'NILAI') {
+            $problems[] = "PARAMETER_KKF!A{$h}: judul kolom harus \"KUNCI\" dan \"NILAI\" (jangan mengubah susunan).";
+        } else {
+            for ($r = $h + 1; $r <= $s->getHighestDataRow(); $r++) {
+                $key = $this->text($s->getCell("A{$r}"));
+                if ($key === null) {
+                    continue;
+                }
+                if (! isset($range[$key])) {
+                    $problems[] = "PARAMETER_KKF!A{$r}: kunci \"{$key}\" tidak dikenal.";
+
+                    continue;
+                }
+                $raw = $this->number($s->getCell("B{$r}"), "PARAMETER_KKF!B{$r}", $problems);
+                if ($raw === '') {
+                    $problems[] = "PARAMETER_KKF!B{$r}: nilai {$key} wajib diisi.";
+
+                    continue;
+                }
+                [$min, $max, $inclusiveMin] = $range[$key];
+                $v = (float) $raw;
+                $okMin = $inclusiveMin ? $v >= $min : $v > $min;
+                $okMax = in_array($key, ['load_factor', 'horizon_years', 'payback_limit_months', 'bpp'], true) ? $v <= $max : $v < $max;
+                if (! $okMin || ! $okMax) {
+                    $problems[] = "PARAMETER_KKF!B{$r}: nilai {$key} = {$raw} di luar batas yang diizinkan.";
+
+                    continue;
+                }
+                $out['values'][$key] = $v;
+            }
+            $missing = array_diff(array_keys($range), array_keys($out['values']));
+            if ($missing !== [] && $problems === []) {
+                $problems[] = 'PARAMETER_KKF: baris tidak lengkap, kurang: '.implode(', ', $missing).'.';
+            }
+        }
+
+        $a = $ss->getSheetByName('ATURAN');
+        for ($r = $h + 1; $r <= $a->getHighestDataRow(); $r++) {
+            $key = $this->text($a->getCell("A{$r}"));
+            $key !== null && $out['rules'][$key] = $this->text($a->getCell("B{$r}")) ?? '';
+        }
+
+        $u = $ss->getSheetByName('UJI_KKF');
+        for ($r = $h + 1; $r <= $u->getHighestDataRow(); $r++) {
+            $name = $this->text($u->getCell("A{$r}"));
+            $cols = ['investment' => 'B', 'connection_fee' => 'C', 'power_kva' => 'D', 'jam_nyala' => 'E', 'avg_price' => 'F', 'esthetic_fee' => 'G', 'npv' => 'H', 'irr_percent' => 'I', 'payback_months' => 'J'];
+            $any = $name !== null;
+            $vals = [];
+            foreach ($cols as $key => $col) {
+                $vals[$key] = $this->number($u->getCell("{$col}{$r}"), "UJI_KKF!{$col}{$r}", $problems, in_array($key, ['npv', 'irr_percent'], true));
+                $any = $any || $vals[$key] !== '';
+            }
+            $feasible = strtoupper($this->text($u->getCell("K{$r}")) ?? '');
+            if (! $any && $feasible === '') {
+                continue;
+            }
+            if ($feasible !== '' && ! in_array($feasible, ['YA', 'TIDAK'], true)) {
+                $problems[] = "UJI_KKF!K{$r}: isi harus YA atau TIDAK.";
+            }
+            foreach (['investment', 'connection_fee', 'power_kva', 'jam_nyala', 'avg_price'] as $need) {
+                if ($vals[$need] === '') {
+                    $problems[] = 'UJI_KKF!'.$cols[$need]."{$r}: masukan wajib diisi.";
+                }
+            }
+            $out['cases'][] = ['row' => $r, 'name' => $name ?? "baris {$r}", 'inputs' => $vals, 'feasible' => $feasible];
+        }
+
+        return $out;
     }
 
     private function cached(Cell $c): mixed

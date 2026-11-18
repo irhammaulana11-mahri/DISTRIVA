@@ -6,6 +6,8 @@ use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Bom\BomService;
+use App\Services\Kkf\KkfCalculator;
+use App\Services\Kkf\KkfParameterService;
 use App\Services\Kkf\TariffBookService;
 use App\Services\Master\MasterExcelImportService;
 use App\Services\Prices\PriceBookService;
@@ -141,7 +143,7 @@ class MasterWorkbookTest extends PostgresTestCase
         $this->as($this->viewer)->get('/api/master-data/excel-imports/template')->assertForbidden();
         $path = $this->download();
         $ss = IOFactory::load($path);
-        $this->assertSame(['PETUNJUK', 'INFO', 'KHS', 'STANDAR_KONSTRUKSI', 'HARGA', 'TARIF', 'GAMBAR', 'SUTM', '_PETA'], $ss->getSheetNames());
+        $this->assertSame(['PETUNJUK', 'INFO', 'KHS', 'STANDAR_KONSTRUKSI', 'HARGA', 'TARIF', 'PARAMETER_KKF', 'ATURAN', 'UJI_KKF', 'GAMBAR', 'SUTM', '_PETA'], $ss->getSheetNames());
         $this->assertSame('=TRUNC((GAMBAR!U6*1.02*3)/1)*1', $ss->getSheetByName('SUTM')->getCell('I10')->getValue());    // the stored formula text, with the workbook's own cell references
         $this->assertSame('JTMR1', $ss->getSheetByName('SUTM')->getCell('B10')->getValue());
         $this->assertSame('A3C 150', $ss->getSheetByName('GAMBAR')->getCell('T6')->getValue());                          // label beside the PSG cell
@@ -333,5 +335,94 @@ class MasterWorkbookTest extends PostgresTestCase
 
         $head = $this->edit($path, fn ($ss) => $ss->getSheetByName('HARGA')->setCellValueExplicit('D4', 'HARGA', 's'));
         $this->assertStringContainsString('HARGA!D4', $this->upload($head)['report']['layout_problems'][0]);
+    }
+
+    /** An approved KKF parameter set in force, as the screen creates and approves one. */
+    private function approvedKkfSet(): void
+    {
+        $service = app(KkfParameterService::class);
+        $id = $service->create(['name' => 'Parameter 2026', 'valid_from' => '2026-01-01'], $this->engineer);
+        DB::table('kkf_parameter_sets')->where('id', $id)->update(['status' => 'APPROVED', 'approved_by' => $this->manager->getKey(), 'approved_at' => now()]);
+    }
+
+    /** The expected results of the two UJI_KKF cases as DISTRIVA calculates them for the given parameter values (what the parent unit would copy from its own Excel). */
+    private function fillExpected($ss, array $params): void
+    {
+        $u = $ss->getSheetByName('UJI_KKF');
+        foreach ([5, 6] as $r) {
+            $res = (new KkfCalculator)->calculate(['investment' => $u->getCell("B{$r}")->getValue(), 'connection_fee' => $u->getCell("C{$r}")->getValue(), 'power_kva' => $u->getCell("D{$r}")->getValue(), 'jam_nyala' => $u->getCell("E{$r}")->getValue(),
+                'avg_price' => $u->getCell("F{$r}")->getValue(), 'esthetic_fee' => 0, 'bpp' => $params['bpp'], 'discount_rate' => $params['discount_rate'], 'om_rate' => $params['om_rate'], 'load_factor' => $params['load_factor'],
+                'horizon' => (int) $params['horizon_years'], 'payback_limit_months' => (int) $params['payback_limit_months']]);
+            $u->setCellValue("H{$r}", round($res['npv'], 2))->setCellValue("I{$r}", $res['irr_percent'] === null ? null : round($res['irr_percent'], 4))
+                ->setCellValue("J{$r}", $res['payback'] === null ? null : $res['payback']['years'] * 12 + $res['payback']['months'])->setCellValueExplicit("K{$r}", $res['feasible'] ? 'YA' : 'TIDAK', 's');
+        }
+    }
+
+    #[Test]
+    public function the_template_carries_the_kkf_parameters_the_fixed_rules_and_sample_cases_and_an_unchanged_upload_matches(): void
+    {
+        $this->approvedBooks();
+        $this->approvedKkfSet();
+        $ss = IOFactory::load($this->download());
+        $k = $ss->getSheetByName('PARAMETER_KKF');
+        $this->assertSame(['discount_rate', 'bpp', 'om_rate', 'load_factor', 'roe', 'interest_rate', 'tax_rate', 'horizon_years', 'payback_limit_months'], array_map(fn ($r) => $k->getCell("A{$r}")->getValue(), range(5, 13)));
+        $this->assertEquals([0.0778, 552], [$k->getCell('B5')->getValue(), $k->getCell('B6')->getValue()]);
+        $a = $ss->getSheetByName('ATURAN');
+        $this->assertEquals([0.11, 0.003, 'kkf-1'], [$a->getCell('B5')->getValue(), $a->getCell('B6')->getValue(), $a->getCell('B7')->getValue()]);
+        $u = $ss->getSheetByName('UJI_KKF');
+        $this->assertSame(['YA', 'TIDAK'], [$u->getCell('K5')->getValue(), $u->getCell('K6')->getValue()]);
+
+        $report = $this->upload($this->edit($this->download(), fn ($s) => null))['report'];
+        $this->assertSame(['UNCHANGED', 7, 0], [$report['kkf']['status'], $report['kkf']['cases']['checked'], $report['kkf']['cases']['mismatch_count']]);       // case 1: NPV, IRR, payback, layak; case 2 (not feasible, no payback): NPV, IRR, layak
+        $this->assertSame('SAME', $report['rules']['status']);
+    }
+
+    #[Test]
+    public function changed_kkf_parameters_need_the_expected_results_of_the_parent_unit_and_then_become_a_draft_set(): void
+    {
+        $this->approvedBooks();
+        $this->approvedKkfSet();
+        $bump = fn ($ss) => $ss->getSheetByName('PARAMETER_KKF')->setCellValue('B6', 600);                                        // BPP 552 -> 600
+
+        $stale = $this->upload($this->edit($this->download(), $bump))['report']['kkf'];                                           // expected results still the old ones
+        $this->assertSame('BLOCKED', $stale['status']);
+        $this->assertGreaterThan(0, $stale['cases']['mismatch_count']);
+        $this->assertStringContainsString('berbeda dengan hitungan DISTRIVA', implode(' ', $stale['problems']));
+
+        $new = array_merge(KkfParameterService::DEFAULTS, ['bpp' => 600]);
+        $up = $this->upload($this->edit($this->download(), function ($ss) use ($bump, $new) {
+            $bump($ss);
+            $this->fillExpected($ss, $new);
+        }));
+        $this->assertSame(['CHANGED', 0], [$up['report']['kkf']['status'], $up['report']['kkf']['cases']['mismatch_count']]);
+        $this->assertSame('bpp', $up['report']['kkf']['changes'][0]['field']);
+
+        $this->as($this->engineer)->postJson('/api/master-data/excel-imports/'.$up['id'].'/apply', ['dataset' => 'KKF', 'valid_from' => '2026-12-01', 'name' => 'Parameter 2027'])->assertCreated();
+        $draft = DB::table('kkf_parameter_sets')->where('name', 'Parameter 2027')->first();
+        $this->assertSame(['DRAFT', 600.0], [$draft->status, (float) $draft->bpp]);
+        $this->assertSame(552.0, (float) DB::table('kkf_parameter_sets')->where('name', 'Parameter 2026')->value('bpp'));      // the approved set is untouched
+        $this->as($this->viewer)->postJson('/api/master-data/excel-imports/'.$up['id'].'/apply', ['dataset' => 'KKF', 'valid_from' => '2026-12-01', 'name' => 'x'])->assertForbidden();
+    }
+
+    #[Test]
+    public function a_fixed_rule_that_differs_in_the_workbook_is_only_reported_and_kkf_mistakes_are_reported_by_cell(): void
+    {
+        $this->approvedBooks();
+        $this->approvedKkfSet();
+        $path = $this->download();
+
+        $rule = $this->upload($this->edit($path, fn ($ss) => $ss->getSheetByName('ATURAN')->setCellValue('B5', 0.12)))['report'];
+        $this->assertSame('DIFFERENT', $rule['rules']['status']);
+        $this->assertSame('ppn_rate', $rule['rules']['differences'][0]['rule']);
+        $this->assertFalse($rule['blocked']);                                                                                     // the upload itself is not stopped
+
+        $range = $this->edit($path, fn ($ss) => $ss->getSheetByName('PARAMETER_KKF')->setCellValue('B8', 1.5));                  // load factor above 1
+        $this->assertStringContainsString('PARAMETER_KKF!B8', $this->upload($range)['report']['layout_problems'][0]);
+
+        $yesNo = $this->edit($path, fn ($ss) => $ss->getSheetByName('UJI_KKF')->setCellValueExplicit('K5', 'MUNGKIN', 's'));
+        $this->assertStringContainsString('UJI_KKF!K5', $this->upload($yesNo)['report']['layout_problems'][0]);
+
+        $key = $this->edit($path, fn ($ss) => $ss->getSheetByName('PARAMETER_KKF')->setCellValueExplicit('A6', 'bunga', 's'));
+        $this->assertStringContainsString('PARAMETER_KKF!A6', $this->upload($key)['report']['layout_problems'][0]);
     }
 }

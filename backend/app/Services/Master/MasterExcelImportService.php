@@ -6,9 +6,13 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Bom\BomService;
+use App\Services\Kkf\KkfCalculator;
+use App\Services\Kkf\KkfParameterService;
+use App\Services\Kkf\KkfService;
 use App\Services\Kkf\TariffBookService;
 use App\Services\Notifications\InAppNotifier;
 use App\Services\Prices\PriceBookService;
+use App\Services\Rab\RabService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -264,7 +268,112 @@ class MasterExcelImportService
             }
         }
 
+        $out['rules'] = $this->compareRules($r['kkf']['rules']);
+        $out['kkf'] = $this->compareKkf($r['kkf']);
+
         return $out;
+    }
+
+    /**
+     * KKF parameters of the workbook against the set in force, and the sample cases (UJI_KKF) against the engine run with the workbook's own parameters.
+     *
+     * @param  array{values:array<string,float>,rules:array<string,string>,cases:list<array<string,mixed>>}  $k
+     * @return array<string,mixed>
+     */
+    private function compareKkf(array $k): array
+    {
+        $cur = app(KkfParameterService::class)->resolve(now()->toDateString());
+        $changes = [];
+        foreach (KkfParameterService::FIELDS as $f) {
+            $old = (float) ($cur->{$f} ?? KkfParameterService::DEFAULTS[$f]);
+            $new = $k['values'][$f] ?? null;
+            if ($new !== null && abs($new - $old) > 1e-9) {
+                $changes[] = ['field' => $f, 'label' => MasterWorkbookExporter::KKF_LABELS[$f][0], 'before' => $old, 'after' => $new];
+            }
+        }
+        $p = fn (string $f) => (float) ($k['values'][$f] ?? KkfParameterService::DEFAULTS[$f]);
+        $calc = new KkfCalculator;
+        $checked = $skipped = 0;
+        $mismatches = [];
+        $problems = [];
+        foreach ($k['cases'] as $c) {
+            $i = array_map(fn ($v) => $v === '' ? null : (float) $v, $c['inputs']);
+            try {
+                $res = $calc->calculate(['investment' => $i['investment'], 'connection_fee' => $i['connection_fee'], 'power_kva' => $i['power_kva'], 'jam_nyala' => $i['jam_nyala'], 'avg_price' => $i['avg_price'], 'esthetic_fee' => $i['esthetic_fee'] ?? 0.0,
+                    'bpp' => $p('bpp'), 'discount_rate' => $p('discount_rate'), 'om_rate' => $p('om_rate'), 'load_factor' => $p('load_factor'), 'horizon' => (int) $p('horizon_years'), 'payback_limit_months' => (int) $p('payback_limit_months')]);
+            } catch (\InvalidArgumentException $e) {
+                $problems[] = "UJI_KKF!A{$c['row']}: {$e->getMessage()}";
+
+                continue;
+            }
+            $mine = ['npv' => $res['npv'], 'irr_percent' => $res['irr_percent'], 'payback_months' => $res['payback'] === null ? null : $res['payback']['years'] * 12 + $res['payback']['months']];
+            $any = false;
+            foreach (['npv' => 'H', 'irr_percent' => 'I', 'payback_months' => 'J'] as $key => $col) {
+                if ($i[$key] === null) {
+                    continue;
+                }
+                $any = true;
+                $checked++;
+                $ok = $mine[$key] !== null && match ($key) {
+                    'npv' => abs($i[$key] - $mine[$key]) <= 1.0 + 1e-4 * abs($mine[$key]),
+                    'irr_percent' => abs($i[$key] - $mine[$key]) <= 0.01,
+                    default => (int) round($i[$key]) === (int) $mine[$key],
+                };
+                $ok || $mismatches[] = ['cell' => "UJI_KKF!{$col}{$c['row']}", 'case' => $c['name'], 'excel' => $i[$key], 'distriva' => $mine[$key] === null ? null : round($mine[$key], 4)];
+            }
+            if ($c['feasible'] !== '') {
+                $any = true;
+                $checked++;
+                $mine['feasible'] = $res['feasible'] ? 'YA' : 'TIDAK';
+                $c['feasible'] === $mine['feasible'] || $mismatches[] = ['cell' => "UJI_KKF!K{$c['row']}", 'case' => $c['name'], 'excel' => $c['feasible'], 'distriva' => $mine['feasible']];
+            }
+            $any || $skipped++;
+        }
+        $status = $cur === null ? 'NEW' : ($changes === [] ? 'UNCHANGED' : 'CHANGED');
+        if ($mismatches !== []) {
+            $problems[] = count($mismatches).' hasil contoh KKF di Excel berbeda dengan hitungan DISTRIVA (contoh: '.collect($mismatches)->take(3)->map(fn ($m) => "{$m['cell']} Excel={$m['excel']} DISTRIVA={$m['distriva']}")->implode('; ').'). Periksa rumus atau parameter di Excel; bila rumus KKF unit induk memang berubah, program DISTRIVA perlu disesuaikan.';
+            $status !== 'UNCHANGED' && $status = 'BLOCKED';
+        }
+
+        return ['status' => $status, 'set' => $cur?->name, 'changes' => $changes, 'values' => $k['values'], 'cases' => ['checked' => $checked, 'skipped' => $skipped, 'mismatch_count' => count($mismatches), 'mismatches' => array_slice($mismatches, 0, 15)], 'problems' => $problems];
+    }
+
+    /**
+     * Fixed rules that live in the program (PPN, insurance rate, KKF engine): a different value in the workbook is only reported.
+     *
+     * @param  array<string,string>  $rules
+     * @return array<string,mixed>
+     */
+    private function compareRules(array $rules): array
+    {
+        $mine = ['ppn_rate' => [RabService::PPN, 'PPN pada RAB'], 'insurance_rate' => [RabService::INSURANCE, 'Tarif asuransi pada RAB'], 'kkf_engine' => [KkfService::ENGINE, 'Versi mesin hitung KKF']];
+        $diff = [];
+        foreach ($mine as $key => [$v, $label]) {
+            $w = $rules[$key] ?? null;
+            if ($w === null || $w === '') {
+                continue;
+            }
+            $same = is_string($v) ? $w === $v : (is_numeric($w) && abs((float) $w - $v) < 1e-9);
+            $same || $diff[] = ['rule' => $key, 'label' => $label, 'workbook' => $w, 'distriva' => (string) $v];
+        }
+
+        return ['status' => $diff === [] ? 'SAME' : 'DIFFERENT', 'differences' => $diff];
+    }
+
+    /**
+     * @param  array<string,mixed>  $report
+     * @return array<string,mixed>
+     */
+    private function applyKkf(array $report, string $validFrom, string $name, string $source, User $actor): array
+    {
+        $k = $report['kkf'] ?? null;
+        if (! in_array($k['status'] ?? null, ['CHANGED', 'NEW'], true)) {
+            throw new AssignmentRuleViolation('Tidak ada perubahan parameter KKF yang bisa diterapkan'.(($k['status'] ?? '') === 'BLOCKED' ? ' (hasil contoh KKF di Excel belum cocok dengan DISTRIVA)' : '').'.');
+        }
+        $id = app(KkfParameterService::class)->create(['name' => $name, 'valid_from' => $validFrom, 'notes' => $source, 'reason' => 'Impor template MASTER DISTRIVA'] + $k['values'], $actor);
+        $this->notifyApproval('kkf_params.approve', 'kkf_parameter_sets', 'set parameter KKF', $actor, 'Parameter KKF', '/master-data/kkf-parameters');
+
+        return ['status' => 'OK', 'id' => $id, 'message' => 'Set parameter KKF DRAFT dibuat ('.count($k['changes']).' nilai berubah).', 'link' => '/master-data/kkf-parameters'];
     }
 
     /**
@@ -656,6 +765,7 @@ class MasterExcelImportService
             'BOM' => $this->applyBom($report, $work, $validFrom, $source, (array) ($params['groups'] ?? []), $actor),
             'PRICE' => $this->applyPrice($report, $work, $validFrom, (string) $params['name'], $source, $actor),
             'TARIFF' => $this->applyTariff($report, $work, $validFrom, (string) $params['name'], $source, $actor),
+            'KKF' => $this->applyKkf($report, $validFrom, (string) $params['name'], $source, $actor),
             default => throw new AssignmentRuleViolation('Dataset tidak dikenal.'),
         };
         $applied[$dataset] = $result + ['at' => now()->toIso8601String(), 'by' => $actor->name];

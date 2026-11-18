@@ -2,6 +2,10 @@
 
 namespace App\Services\Master;
 
+use App\Services\Kkf\KkfCalculator;
+use App\Services\Kkf\KkfParameterService;
+use App\Services\Kkf\KkfService;
+use App\Services\Rab\RabService;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -21,7 +25,7 @@ use RuntimeException;
  */
 class MasterWorkbookExporter
 {
-    public const TEMPLATE_VERSION = '2';
+    public const TEMPLATE_VERSION = '3';
 
     public const INFO_VERSION = 'B3';
 
@@ -34,7 +38,7 @@ class MasterWorkbookExporter
     /** HARGA and TARIF: titles above, column headers on this row, data below. */
     public const TABLE_HEAD_ROW = 4;
 
-    /** @return array{groups:array<string,array{version:int,lines:int}>,skipped:list<string>,price_rows:int,tariff_rows:int} */
+    /** @return array{groups:array<string,array{version:int,lines:int}>,skipped:list<string>,price_rows:int,tariff_rows:int,kkf_cases:int} */
     public function build(string $path): array
     {
         $ss = new Spreadsheet;
@@ -46,9 +50,12 @@ class MasterWorkbookExporter
         $std = $ss->createSheet()->setTitle('STANDAR_KONSTRUKSI');
         $harga = $ss->createSheet()->setTitle('HARGA');
         $tarif = $ss->createSheet()->setTitle('TARIF');
+        $kkf = $ss->createSheet()->setTitle('PARAMETER_KKF');
+        $aturan = $ss->createSheet()->setTitle('ATURAN');
+        $ujiKkf = $ss->createSheet()->setTitle('UJI_KKF');
         $gambar = $ss->createSheet()->setTitle('GAMBAR');
 
-        $summary = ['groups' => [], 'skipped' => [], 'price_rows' => 0, 'tariff_rows' => 0];
+        $summary = ['groups' => [], 'skipped' => [], 'price_rows' => 0, 'tariff_rows' => 0, 'kkf_cases' => 0];
         $peta = [];
         $occupied = [];
         $bomSheets = [];
@@ -84,6 +91,9 @@ class MasterWorkbookExporter
         $this->standardSheet($std);
         $summary['price_rows'] = $this->hargaSheet($harga);
         $summary['tariff_rows'] = $this->tarifSheet($tarif);
+        $this->kkfParameterSheet($kkf);
+        $this->aturanSheet($aturan);
+        $summary['kkf_cases'] = $this->ujiKkfSheet($ujiKkf);
         $this->gambarSheet($gambar, $bomSheets, $occupied);
         foreach ($bomSheets as $group => [$h]) {
             $lines = $this->bomSheet($ss->createSheet()->setTitle($group), (string) $group, $h);
@@ -129,7 +139,9 @@ class MasterWorkbookExporter
             '7. Simpan dari Excel (agar hasil hitung tersimpan). Lembar _PETA tersembunyi: jangan diubah. Lembar KHS dan STANDAR_KONSTRUKSI hanya rujukan.',
             '8. Lembar HARGA: ubah HARGA MATERIAL dan harga jasa PASANG/BONGKAR per zona (angka, rupiah). Kode KHS, status (HARGA/PLN), dan nilai asuransi hanya rujukan: yang berlaku tetap dipertahankan. Baris tidak boleh ditambah atau dihapus.',
             '9. Lembar TARIF: ubah harga rata-rata, jam nyala (jam per bulan, bukan ribuan), dan UJL per tarif dan daya. Kolom ULP kosong = berlaku untuk semua ULP; jam nyala per ULP diisi dengan kode ULP. Baris yang tidak ada di sini tetap seperti yang berlaku.',
-            '10. Berkas yang diterima menjadi DRAFT; aturan baru berlaku setelah disetujui akun DISTRIVA lain. Data yang sudah berlaku tidak pernah ditimpa.',
+            '10. Lembar PARAMETER_KKF: ubah kolom NILAI (tingkat diskonto, BPP, faktor beban, dan seterusnya). Perubahan menjadi set parameter KKF DRAFT.',
+            '11. Lembar UJI_KKF: contoh perhitungan kelayakan. Isi hasil dari Excel unit induk; DISTRIVA menghitung ulang dengan parameter di berkas ini dan menolak bila berbeda. Lembar ATURAN hanya rujukan (PPN, tarif asuransi, versi mesin KKF ada di program).',
+            '12. Berkas yang diterima menjadi DRAFT; aturan baru berlaku setelah disetujui akun DISTRIVA lain. Data yang sudah berlaku tidak pernah ditimpa.',
         ];
         foreach ($rows as $i => $t) {
             $s->setCellValue('A'.($i + 1), $t);
@@ -248,6 +260,101 @@ class MasterWorkbookExporter
         $s->freezePane('A'.($h + 1));
 
         return $r - $h;
+    }
+
+    /** Labels of the KKF parameters (key => [label, unit hint]). */
+    public const KKF_LABELS = [
+        'discount_rate' => ['Tingkat diskonto (pecahan, 0,0778 = 7,78%)', 'pecahan'],
+        'bpp' => ['BPP / biaya pokok penyediaan (Rp per kWh)', 'Rp/kWh'],
+        'om_rate' => ['Biaya O&M (pecahan dari investasi per tahun)', 'pecahan'],
+        'load_factor' => ['Faktor beban (0 sampai 1)', 'pecahan'],
+        'roe' => ['ROE (pecahan)', 'pecahan'],
+        'interest_rate' => ['Suku bunga pinjaman (pecahan)', 'pecahan'],
+        'tax_rate' => ['Tarif pajak (pecahan)', 'pecahan'],
+        'horizon_years' => ['Horizon analisis (tahun, 1 sampai 50)', 'tahun'],
+        'payback_limit_months' => ['Batas payback (bulan)', 'bulan'],
+    ];
+
+    /** Parameter KKF in force today (or the defaults when there is none). */
+    private function kkfParameterSheet(Worksheet $s): void
+    {
+        $set = app(KkfParameterService::class)->resolve(now()->toDateString());
+        $s->setCellValue('A1', 'PARAMETER_KKF: '.($set === null ? 'belum ada set yang disetujui (nilai bawaan)' : "{$set->name} (berlaku sejak {$set->valid_from})"));
+        $s->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        $s->setCellValue('A2', 'Ubah kolom NILAI. Kolom KUNCI jangan diubah. Perubahan menjadi set parameter KKF DRAFT yang disetujui akun lain.');
+        $h = self::TABLE_HEAD_ROW;
+        $s->fromArray([['KUNCI', 'NILAI', 'KETERANGAN']], null, 'A'.$h);
+        $this->head($s, "A{$h}:C{$h}");
+        $r = $h;
+        foreach (self::KKF_LABELS as $key => [$label]) {
+            $r++;
+            $s->setCellValueExplicit('A'.$r, $key, DataType::TYPE_STRING);
+            $s->setCellValue('B'.$r, (float) ($set->{$key} ?? KkfParameterService::DEFAULTS[$key]));
+            $s->setCellValueExplicit('C'.$r, $label, DataType::TYPE_STRING);
+        }
+        $s->getStyle('B'.($h + 1).':B'.$r)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+        $s->getColumnDimension('A')->setWidth(24);
+        $s->getColumnDimension('B')->setWidth(16);
+        $s->getColumnDimension('C')->setWidth(70);
+    }
+
+    /** Rules that live in DISTRIVA's code, not in data: shown so a different value in the parent unit's workbook is noticed. */
+    private function aturanSheet(Worksheet $s): void
+    {
+        $s->setCellValue('A1', 'ATURAN TETAP (hanya rujukan)');
+        $s->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        $s->setCellValue('A2', 'Aturan ini ada di program DISTRIVA. Mengubah nilainya di sini TIDAK mengubah perhitungan; unggahan hanya akan memberi peringatan bahwa program perlu disesuaikan oleh pengembang.');
+        $h = self::TABLE_HEAD_ROW;
+        $s->fromArray([['ATURAN', 'NILAI', 'KETERANGAN']], null, 'A'.$h);
+        $this->head($s, "A{$h}:C{$h}");
+        $rows = [
+            ['ppn_rate', RabService::PPN, 'PPN pada RAB (pecahan), dibulatkan 0 desimal'],
+            ['insurance_rate', RabService::INSURANCE, 'Tarif asuransi pada RAB (pecahan dari nilai asuransi)'],
+            ['kkf_engine', KkfService::ENGINE, 'Versi mesin hitung KKF (rumus NPV, IRR, payback, kelayakan)'],
+        ];
+        foreach ($rows as $i => [$k, $v, $d]) {
+            $r = $h + 1 + $i;
+            $s->setCellValueExplicit('A'.$r, $k, DataType::TYPE_STRING);
+            is_string($v) ? $s->setCellValueExplicit('B'.$r, $v, DataType::TYPE_STRING) : $s->setCellValue('B'.$r, $v);
+            $s->setCellValueExplicit('C'.$r, $d, DataType::TYPE_STRING);
+        }
+        $s->getColumnDimension('A')->setWidth(22);
+        $s->getColumnDimension('B')->setWidth(14);
+        $s->getColumnDimension('C')->setWidth(80);
+    }
+
+    /** Two sample cases with the results DISTRIVA calculates now; the parent unit replaces the expected results with those from its own Excel. @return int cases written */
+    private function ujiKkfSheet(Worksheet $s): int
+    {
+        $s->setCellValue('A1', 'UJI_KKF: contoh perhitungan kelayakan');
+        $s->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        $s->setCellValue('A2', 'Isi masukan (kolom B-G) dan hasil dari Excel unit induk (kolom H-K). DISTRIVA menghitung ulang dengan PARAMETER_KKF di berkas ini dan membandingkan. Kosongkan hasil untuk tidak menguji baris itu. NPV: tahun 0 tidak didiskon (NPV() Excel dikalikan 1 + diskonto).');
+        $h = self::TABLE_HEAD_ROW;
+        $s->fromArray([['CONTOH', 'INVESTASI (RAB, Rp)', 'BIAYA PENYAMBUNGAN (Rp)', 'DAYA (kVA)', 'JAM NYALA', 'HARGA RATA-RATA (Rp/kWh)', 'BIAYA ESTETIKA (Rp)', 'NPV (Rp)', 'IRR (%)', 'PAYBACK (bulan)', 'LAYAK (YA/TIDAK)']], null, 'A'.$h);
+        $this->head($s, "A{$h}:K{$h}");
+        $set = app(KkfParameterService::class)->resolve(now()->toDateString());
+        $p = fn (string $k) => (float) ($set->{$k} ?? KkfParameterService::DEFAULTS[$k]);
+        $cases = [['Contoh 1 (layak)', 40000000, 15000000, 16.5, 150, 1500, 0], ['Contoh 2 (tidak layak)', 400000000, 5000000, 16.5, 150, 1500, 0]];
+        $calc = new KkfCalculator;
+        foreach ($cases as $i => $c) {
+            $r = $h + 1 + $i;
+            foreach ($c as $col => $v) {
+                is_string($v) ? $s->setCellValueExplicit(Coordinate::stringFromColumnIndex($col + 1).$r, $v, DataType::TYPE_STRING) : $s->setCellValue(Coordinate::stringFromColumnIndex($col + 1).$r, $v);
+            }
+            $res = $calc->calculate(['investment' => $c[1], 'connection_fee' => $c[2], 'power_kva' => $c[3], 'jam_nyala' => $c[4], 'avg_price' => $c[5], 'esthetic_fee' => $c[6], 'bpp' => $p('bpp'), 'discount_rate' => $p('discount_rate'), 'om_rate' => $p('om_rate'),
+                'load_factor' => $p('load_factor'), 'horizon' => (int) $p('horizon_years'), 'payback_limit_months' => (int) $p('payback_limit_months')]);
+            $s->setCellValue('H'.$r, round($res['npv'], 2));
+            $res['irr_percent'] !== null && $s->setCellValue('I'.$r, round($res['irr_percent'], 4));
+            $res['payback'] !== null && $s->setCellValue('J'.$r, $res['payback']['years'] * 12 + $res['payback']['months']);
+            $s->setCellValueExplicit('K'.$r, $res['feasible'] ? 'YA' : 'TIDAK', DataType::TYPE_STRING);
+        }
+        $s->getStyle('B'.($h + 1).':G'.($h + 40))->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+        $s->getColumnDimension('A')->setWidth(26);
+        foreach (['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as $c) {
+            $s->getColumnDimension($c)->setWidth(20);
+        }
+
+        return count($cases);
     }
 
     private function khsSheet(Worksheet $s): void
