@@ -125,7 +125,7 @@ export default function ReportsPage() {
     { id: 'pipeline', label: 'Alur Pekerjaan per ULP (Funnel)', profiles: ['executive', 'mulp', 'teknik', 'niaga', 'admin', 'viewer'] },
     { id: 'sla', label: 'Siklus Waktu & SLA (Lead Time)', profiles: ['executive', 'mulp', 'teknik', 'niaga', 'admin', 'viewer'] },
     { id: 'costVariance', label: 'Realisasi Biaya (RAB vs SPK)', profiles: ['executive', 'perencanaan', 'admin', 'viewer'] },
-    { id: 'vendorPerformance', label: 'Rapor Kinerja Mitra / Vendor', anyOf: ['reports.view', 'vendor.portal'], profiles: ['executive', 'konstruksi', 'vendor', 'admin', 'viewer'] },
+    { id: 'vendorPerformance', label: 'Rapor Kinerja Mitra / Vendor', capability: 'reports.view', profiles: ['executive', 'konstruksi', 'admin', 'viewer'] },
     { id: 'criticalStock', label: 'Stok Kritis & Buffer Material', profiles: ['executive', 'konstruksi', 'admin', 'viewer'] },
     { id: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', profiles: ['executive', 'perencanaan', 'admin', 'viewer'] },
     { id: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', profiles: ['perencanaan', 'admin', 'viewer'] },

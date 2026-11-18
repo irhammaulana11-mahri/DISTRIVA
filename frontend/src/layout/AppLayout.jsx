@@ -104,7 +104,7 @@ const masterDataNav = [
   { to: '/master-data/pole-contracts', label: 'Kontrak Rinci Tiang', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi'], icon: IconClipboard, group: 'Keuangan & Tarif' },
   { to: '/master-data/kkf-parameters', label: 'Parameter KKF', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconChart, group: 'Keuangan & Tarif' },
   { to: '/master-data/tariff-books', label: 'Buku Tarif Listrik', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconZap, group: 'Keuangan & Tarif' },
-  { to: '/master-data/excel-import', label: 'Impor dari Excel', capability: 'master_data.view', profiles: ['perencanaan'], icon: IconUpload, group: 'Keuangan & Tarif' },
+  { to: '/master-data/excel-import', label: 'Impor dari Excel', anyOf: ['bom.manage', 'prices.manage', 'tariffs.manage'], profiles: ['perencanaan'], icon: IconUpload, group: 'Keuangan & Tarif' },
 ]
 
 // 4. Laporan & Monitoring (Terbagi ke sub-halaman sesuai peran & kewenangan)
@@ -114,7 +114,7 @@ const reportsNav = [
   { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'niaga', 'admin'], icon: IconClock },
   { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB vs SPK)', capability: 'reports.view', profiles: ['executive', 'perencanaan', 'admin'], icon: IconCalculator },
   { to: '/reports/critical-stock', tabId: 'criticalStock', label: 'Stok Kritis & Material', capability: 'reports.view', profiles: ['executive', 'konstruksi', 'admin'], icon: IconTruck },
-  { to: '/reports/vendor-performance', tabId: 'vendorPerformance', label: 'Rapor Kinerja Vendor', anyOf: ['reports.view', 'vendor.portal'], profiles: ['executive', 'konstruksi', 'vendor', 'admin'], icon: IconClipboard },
+  { to: '/reports/vendor-performance', tabId: 'vendorPerformance', label: 'Rapor Kinerja Vendor', capability: 'reports.view', profiles: ['executive', 'konstruksi', 'admin'], icon: IconClipboard },
   { to: '/reports/kkf-feasibility', tabId: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', capability: 'reports.view', profiles: ['executive', 'perencanaan', 'admin'], icon: IconZap },
   { to: '/reports/erp-anomalies', tabId: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', capability: 'reports.view', profiles: ['perencanaan', 'admin'], icon: IconAlertCircle },
 ]
@@ -434,7 +434,7 @@ export default function AppLayout() {
 
   const accessibleMasterDataItems = mustChangePassword
     ? []
-    : masterDataNav.filter((n) => can[n.capability] && visibleForProfiles(n, userProfiles))
+    : masterDataNav.filter((n) => (n.anyOf ? n.anyOf.some((c) => Boolean(can[c])) : can[n.capability]) && visibleForProfiles(n, userProfiles))
 
   const accessibleReportsItems = mustChangePassword
     ? []

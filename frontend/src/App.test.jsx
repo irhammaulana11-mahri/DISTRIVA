@@ -323,6 +323,17 @@ describe('admin UI', () => {
     expect(screen.getByRole('link', { name: 'Unit organisasi' })).toBeInTheDocument()
   })
 
+  it('opens master-data action pages only for the capability the server asks for, not for read access alone', async () => {
+    session()
+    const readOnly = { can: { 'master_data.view': true, 'substations.view': true } }
+    for (const path of ['/master-data/excel-import', '/master-data/materials/m1/ubah', '/master-data/kkf-parameters/baru', '/master-data/categories/baru', '/master-data/warehouses/baru', '/master-data/substation-measurements/impor']) {
+      mockApi({ 'GET /me': { user }, 'GET /master-data/access': readOnly, 'GET /admin/access': noAccess })
+      const { unmount } = renderAt(path)
+      expect(await screen.findByText('Halaman tidak ditemukan')).toBeInTheDocument()
+      unmount()
+    }
+  })
+
   it('shows "not found" for admin URLs the user has no capability for', async () => {
     session()
     const calls = mockApi({ 'GET /me': { user }, 'GET /admin/access': noAccess })
