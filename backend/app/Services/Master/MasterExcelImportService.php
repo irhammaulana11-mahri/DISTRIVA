@@ -460,6 +460,7 @@ class MasterExcelImportService
                 continue;
             }
             $unknown = [];
+            $translate = $translate && ! ($doc['codes_final'] ?? false);    // SR1PH: the sheet names its materials, the extractor already gives the code in use
             foreach ($doc['lines'] as &$l) {
                 if ($translate && ($l['khs_code'] ?? null) !== null) {
                     $c = (string) $l['khs_code'];

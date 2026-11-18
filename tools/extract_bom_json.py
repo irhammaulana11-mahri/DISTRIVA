@@ -117,6 +117,44 @@ def pbpd_doc(wb, g, grp, sheet):
     if uses_power: params += [pw["F8"], pw["F7"]]
     return {"group": grp, "source": f"MASTER RAB & KKF.xlsx / sheet {sheet}", "inputs": [], "lines": lines, "input_values": {}, "params": params, "constants": consts, "review": review}
 
+SR1PH_SHEET = "APP 1 PHASA"
+SR1PH_CODES = {   # the sheet names its materials, it has no KHS code column: name (without spaces, lower case) -> code in use
+    "jasakegiatan": "JTMR950", 'polebracket3-6"': "JTMR896", "servicewedgeclamp2/4x6/10mm": "A332", "strainhook/ekorbabi": "JTMR943",
+    "cablesuport(508/u/2009)": "JTMR806", "conn.pressal/altype10-16mm2/50-70mm2+scoot+cover": "JTMR944",
+    "bundl.cond.3x50+1x35mm-50cm(kumis)": "JTMR946", "linetapconnector(typepress)35-70/35-70mm+scoth": "JTMR47",
+    "linetapconnector(typepress)16-25/35-70mm+heatshrink": "3280068", "kwhmeterelectronic1phs(pasca/prabayar)": "JTMR949",
+    "mcb230v-2as/d35a-1phasa": "JTMR826", "twistedcable2x10mm\u00b2-al": "JTMR938", "segelplastik": "JTMR947", "pakubeton": "JTMR948"}
+SR1PH_COUNT = re.compile(r"^GAMBAR!AA\d+(?:\+GAMBAR!AA\d+)*$")
+SR1PH_QTY = re.compile(r'^(?:IF\(SUM\(\$G\$11:\$G\$12\)="0","0",SUM\(\$G\$11:\$G\$12\)\*(\d+)\)|SUM\(G11:G12\)(?:\*(\d+))?|F33(?:\*(\d+))?)$')
+
+def sr1ph_doc(wb, pbpd):
+    """APP 1 PHASA (SR1PH): sheet of revision 2026-11-18, only SDES-1. G11 = number of customers from GAMBAR!AA51:AA52 (becomes line 11, line 12 = their total as SUM(G11:G12) does),
+    every material has its quantity in column F as k x that total (becomes H12*k) and is named, not coded (SR1PH_CODES). Prices are NOT read: they stay in the price book.
+    Rows that do not fit these shapes go to review (dropped); the angkutan row (SUM of KG) is a price-book matter and is skipped."""
+    s = wb.load(SR1PH_SHEET)
+    lines, review = [], []
+    g11 = ((s.get(11) or {}).get("G") or (None, None))[1]
+    g11 = (g11 or "").strip().lstrip("=").replace(" ", "")
+    if not SR1PH_COUNT.match(g11): review.append({"sequence": 11, "items": [{"column": "G", "formula": g11, "stray_cells": ["jumlah pelanggan bukan GAMBAR!AAnn"]}]}); g11 = "0"
+    lines.append({"sequence": 11, "khs_code": None, "description": "Pelanggan SDES-1 (dari gambar)", "H": g11, "source": f"{SR1PH_SHEET}!G11", "expected": {}})
+    lines.append({"sequence": 12, "khs_code": None, "description": "Total pelanggan SR 1 fasa (SUM(G11:G12) pada lembar)", "H": "H11", "source": f"{SR1PH_SHEET}!G12", "expected": {}})
+    for r, cells in sorted(s.items()):
+        if r < 19 or r > 40: continue
+        name = " ".join(((cells.get("B") or (None,))[0] or "").split())
+        fc = ((cells.get("F") or (None, None))[1] or "").strip().lstrip("=").replace(" ", "")
+        if not name or not fc or r in (33, 38): continue
+        code = SR1PH_CODES.get(re.sub(r"\s+", "", name).lower())
+        if r == 19:
+            if fc != "G11" or code is None: review.append({"sequence": r, "items": [{"column": "F", "formula": fc, "stray_cells": ["bentuk jasa tidak dikenal"]}]}); continue
+            lines.append({"sequence": r, "khs_code": code, "description": "Jasa Kegiatan SDES-1", "I": "H11", "source": f"{SR1PH_SHEET}!B{r}", "expected": {}}); continue
+        m = SR1PH_QTY.match(fc)
+        if not m or code is None:
+            review.append({"sequence": r, "items": [{"column": "F", "formula": fc, "stray_cells": (["nama material tidak ada di daftar kode"] if code is None else []) + ([] if m else ["bentuk jumlah tidak dikenal"])}]}); continue
+        k = int(next((x for x in m.groups() if x), 1))
+        lines.append({"sequence": r, "khs_code": code, "description": name, "H": "H12" if k == 1 else f"H12*{k}", "source": f"{SR1PH_SHEET}!B{r}", "expected": {}})
+    params = [p for p in pbpd["params"] if p["name"].startswith("PBPD:")]
+    return {"group": "SR1PH", "source": f"MASTER RAB & KKF.xlsx / sheet {SR1PH_SHEET} (revisi 2026-11-18: hanya SDES-1)", "codes_final": True, "inputs": [], "lines": lines, "input_values": {}, "params": params, "constants": {}, "review": review}
+
 def main(src, out, golden=None):
     wb = WB(src); g = wb.load("GAMBAR"); os.makedirs(out, exist_ok=True)
     all_docs = {}
@@ -173,6 +211,11 @@ def main(src, out, golden=None):
         with open(os.path.join(out, f"bom_{grp}.json"), "w", encoding="utf-8") as fh: json.dump(doc, fh, ensure_ascii=False, indent=1)
         print(f"{grp}: lines={len(doc['lines'])} dynamicB={sum(1 for l in doc['lines'] if 'B' in l)} params={len(doc['params'])} REVIEW (dropped)={len(doc['review'])}")
         for x in doc["review"]: print("   review:", grp, x["sequence"], json.dumps(x["items"], ensure_ascii=False)[:300])
+    if any(n == SR1PH_SHEET for n, _, _ in wb.sheets):
+        doc = sr1ph_doc(wb, all_docs["PBPD_6_41"]); all_docs["SR1PH"] = doc
+        with open(os.path.join(out, "bom_SR1PH.json"), "w", encoding="utf-8") as fh: json.dump(doc, fh, ensure_ascii=False, indent=1)
+        print(f"SR1PH: lines={len(doc['lines'])} params={len(doc['params'])} REVIEW (dropped)={len(doc['review'])}")
+        for x in doc["review"]: print("   review: SR1PH", x["sequence"], json.dumps(x["items"], ensure_ascii=False)[:300])
     if golden:
         with gzip.open(golden, "wt", encoding="utf-8") as fh: json.dump(all_docs, fh, ensure_ascii=False, separators=(",", ":"))
         print("golden:", golden, os.path.getsize(golden), "bytes")

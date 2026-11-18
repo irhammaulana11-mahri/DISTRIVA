@@ -162,6 +162,17 @@ class MasterExcelImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_sheet_that_names_its_materials_brings_codes_in_use_and_is_not_translated_with_the_old_code_map(): void
+    {
+        file_put_contents($this->tools.'/extract_bom_json.py', "import sys, json, os\ndoc={'group':'SR1PH','source':'x','codes_final':True,'inputs':[],'lines':[{'sequence':11,'khs_code':None,'description':'n','H':'1','source':'APP 1 PHASA!G11'},{'sequence':20,'khs_code':'JTMR1','description':'a','H':'H11*2','source':'APP 1 PHASA!B20'}]}\njson.dump(doc, open(os.path.join(sys.argv[2],'bom_SR1PH.json'),'w'))\n");
+        $up = $this->as($this->engineer)->post('/api/master-data/excel-imports', ['file' => $this->workbook(), 'kind' => 'RAB_KKF'], ['Accept' => 'application/json'])->assertStatus(202)->json('data');
+        app(MasterExcelImportService::class)->process($up['id']);
+
+        $g = collect($this->as($this->engineer)->getJson("/api/master-data/excel-imports/{$up['id']}")->assertOk()->json('data.report.bom.groups'))->firstWhere('group', 'SR1PH');
+        $this->assertSame(['NEW', []], [$g['status'], $g['new_codes']]);      // JTMR1 is not an old code: without codes_final it would be BLOCKED as "no new code"
+    }
+
+    #[Test]
     public function a_tariff_workbook_replaces_only_the_rows_of_its_ulp_and_flags_a_wrong_unit(): void
     {
         $up = $this->as($this->engineer)->post('/api/master-data/excel-imports', ['file' => $this->workbook(), 'kind' => 'TARIF', 'ulp_code' => $this->ulp->code], ['Accept' => 'application/json'])->assertStatus(202)->json('data');
