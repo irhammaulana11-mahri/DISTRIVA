@@ -102,6 +102,30 @@ class KkfParameterTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_wrong_parameter_draft_is_discarded_with_its_history_and_can_never_be_approved_or_changed_again(): void
+    {
+        $id = (string) $this->create(['bpp' => 540.98])->json('data.id');
+        $url = "/api/master-data/kkf-parameters/{$id}/discard";
+
+        $this->as($this->vendor)->postJson($url, ['reason' => 'x'])->assertForbidden();
+        $this->as($this->engineer)->postJson($url, [])->assertUnprocessable();                                                    // reason is required
+        $this->as($this->engineer)->postJson($url, ['reason' => 'BPP salah'])->assertOk();
+        $this->assertSame('DISCARDED', DB::table('kkf_parameter_sets')->where('id', $id)->value('status'));
+        $this->assertSame(['CREATED', 'DISCARDED'], DB::table('kkf_parameter_events')->where('parameter_set_id', $id)->orderBy('occurred_at')->pluck('event_type')->all());
+
+        $this->approve($id)->assertStatus(409);                                                                                   // a discarded draft cannot be approved
+        $this->as($this->engineer)->putJson("/api/master-data/kkf-parameters/{$id}", ['bpp' => 552])->assertStatus(409);           // and cannot be edited
+        $this->as($this->engineer)->postJson($url, ['reason' => 'lagi'])->assertStatus(409);
+        try {
+            DB::transaction(fn () => DB::table('kkf_parameter_sets')->where('id', $id)->update(['bpp' => 1]));
+            $this->fail('a discarded set must be immutable');
+        } catch (QueryException) {
+            $this->addToAssertionCount(1);
+        }
+        $this->as($this->viewer)->getJson('/api/master-data/kkf-parameters/active?date=2026-03-01')->assertNotFound();   // never in force
+    }
+
+    #[Test]
     public function draft_is_editable_approved_is_frozen_and_new_set_closes_old(): void
     {
         $a = $this->create(['bpp' => 540.98])->json('data.id');

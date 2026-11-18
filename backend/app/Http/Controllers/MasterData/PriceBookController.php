@@ -21,7 +21,7 @@ class PriceBookController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $request->validate(['status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE'])]]);
+        $request->validate(['status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE', 'DISCARDED'])]]);
         $q = DB::table('price_books as b')->selectRaw('b.*, (select count(*) from price_book_items i where i.price_book_id = b.id) as items_count, (select count(*) from price_book_zones z where z.price_book_id = b.id) as zones_count')->orderByDesc('b.valid_from');
         if ($request->filled('status')) {
             $q->where('b.status', $request->query('status'));
@@ -131,6 +131,19 @@ class PriceBookController extends Controller
         $this->notifier->approved('price_books', $data['book_ids'], 'buku harga', $actor, $data['reason'], 'Buku Harga', '/master-data/harga');
 
         return response()->json(['data' => $out]);
+    }
+
+    /** A wrong draft is thrown away (status DISCARDED, history kept): whoever prepares (prices.manage) or approves (prices.approve). */
+    public function discard(Request $request, string $book): JsonResponse
+    {
+        $actor = $request->user();
+        if (! $this->authorizer->allows($actor, 'prices.manage')) {
+            $this->authorizer->authorize($actor, 'prices.approve');
+        }
+        $data = Validator::make($request->all(), ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->books->discard($book, $data['reason'], $actor);
+
+        return response()->json(['message' => 'Draf buku harga dibatalkan.']);
     }
 
     public function retire(Request $request, string $book): JsonResponse

@@ -25,6 +25,7 @@ vi.mock('../../services/api.js', () => ({
     update: vi.fn(),
     approve: vi.fn(),
     retire: vi.fn(),
+    discard: vi.fn(),
   },
 }))
 
@@ -257,6 +258,20 @@ describe('Parameter KKF Workflow (docs/68)', () => {
     const [id, changes] = kkfParametersApi.update.mock.calls[0]
     expect(id).toBe('kkf-draft-1')
     expect(changes).toEqual({ bpp: 600 }) // Only BPP changed, delta verification!
+  })
+
+  it('discards a wrong DRAFT parameter set with a mandatory reason and sends POST /discard', async () => {
+    const user = userEvent.setup()
+    kkfParametersApi.discard.mockResolvedValueOnce({ message: 'Draf set parameter dibatalkan.' })
+    renderKkfPage()
+    await user.click((await screen.findAllByRole('button', { name: /^Batalkan$/ }))[0])
+    expect(await screen.findByText(/Batalkan Draf Parameter KKF: Parameter KKF Rencana 2027/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Batalkan Draf' }))
+    expect(await screen.findByText('Alasan wajib diisi.')).toBeInTheDocument()
+    expect(kkfParametersApi.discard).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText(/Alasan/), 'BPP salah.')
+    await user.click(screen.getByRole('button', { name: 'Batalkan Draf' }))
+    await waitFor(() => expect(kkfParametersApi.discard).toHaveBeenCalledWith('kkf-draft-1', { reason: 'BPP salah.' }))
   })
 
   it('5. approves parameter set with mandatory reason, handling 403 and 409 errors verbatim', async () => {

@@ -221,6 +221,7 @@ export const priceBookApi = {
   setInsured: (id, code, body) => request(`/master-data/price-books/${id}/items/${encodeURIComponent(code)}/insured`, { method: 'PATCH', body }),
   approve: (body) => request('/master-data/price-books/approve', { method: 'POST', body }),
   retire: (id, body) => request(`/master-data/price-books/${id}/retire`, { method: 'POST', body }),
+  discard: (id, body) => request(`/master-data/price-books/${id}/discard`, { method: 'POST', body }),
 }
 
 export const kkfParametersApi = {
@@ -231,6 +232,7 @@ export const kkfParametersApi = {
   update: (id, body) => request(`/master-data/kkf-parameters/${id}`, { method: 'PUT', body }),
   approve: (body) => request('/master-data/kkf-parameters/approve', { method: 'POST', body }),
   retire: (id, body) => request(`/master-data/kkf-parameters/${id}/retire`, { method: 'POST', body }),
+  discard: (id, body) => request(`/master-data/kkf-parameters/${id}/discard`, { method: 'POST', body }),
 }
 
 // Excel master dari layar: unggah, periksa terhadap data berlaku, terapkan perubahan sebagai DRAFT
@@ -251,6 +253,7 @@ export const tariffBooksApi = {
   import: (formData) => request('/master-data/tariff-books/import', { method: 'POST', body: formData }),
   approve: (body) => request('/master-data/tariff-books/approve', { method: 'POST', body }),
   retire: (id, body) => request(`/master-data/tariff-books/${id}/retire`, { method: 'POST', body }),
+  discard: (id, body) => request(`/master-data/tariff-books/${id}/discard`, { method: 'POST', body }),
 }
 
 // KKO (docs/62 §51): pembebanan trafo + tegangan lokasi, keputusan Teknik; tidak menghalangi alur

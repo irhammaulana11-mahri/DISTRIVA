@@ -367,6 +367,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/kkf-parameters/{set}', [KkfParameterController::class, 'show'])->whereUuid('set');
         Route::put('/kkf-parameters/{set}', [KkfParameterController::class, 'update'])->whereUuid('set');
         Route::post('/kkf-parameters/{set}/retire', [KkfParameterController::class, 'retire'])->whereUuid('set');
+        Route::post('/kkf-parameters/{set}/discard', [KkfParameterController::class, 'discard'])->whereUuid('set');
 
         Route::get('/vendors', [VendorController::class, 'index']);
         Route::post('/vendors', [VendorController::class, 'create']);
@@ -449,6 +450,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/tariff-books/{book}', [TariffBookController::class, 'show'])->whereUuid('book');
         Route::get('/tariff-books/{book}/rows', [TariffBookController::class, 'rows'])->whereUuid('book');
         Route::post('/tariff-books/{book}/retire', [TariffBookController::class, 'retire'])->whereUuid('book');
+        Route::post('/tariff-books/{book}/discard', [TariffBookController::class, 'discard'])->whereUuid('book');
 
         Route::get('/price-books', [PriceBookController::class, 'index']);
         Route::post('/price-books/import', [PriceBookController::class, 'import']);
@@ -459,6 +461,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::put('/price-books/{book}/zones', [PriceBookController::class, 'setZone'])->whereUuid('book');
         Route::patch('/price-books/{book}/items/{code}/insured', [PriceBookController::class, 'setInsured'])->whereUuid('book')->where('code', '[A-Za-z0-9._-]{1,30}');
         Route::post('/price-books/{book}/retire', [PriceBookController::class, 'retire'])->whereUuid('book');
+        Route::post('/price-books/{book}/discard', [PriceBookController::class, 'discard'])->whereUuid('book');
 
         Route::get('/bom', [BomController::class, 'index']);
         Route::post('/bom/import', [BomController::class, 'import']);

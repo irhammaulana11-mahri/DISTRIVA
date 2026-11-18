@@ -93,6 +93,14 @@ export default function KkfParametersPage() {
           desc: `Set parameter "${dialog.set.name}" berhasil disetujui dan kini aktif berlaku.`,
           tag: 'Parameter KKF',
         })
+      } else if (dialog.type === 'discard') {
+        await kkfParametersApi.discard(dialog.set.id, { reason })
+        notify({
+          type: 'warning',
+          title: 'Draf Parameter KKF Dibatalkan',
+          desc: `Draf set parameter KKF "${dialog.set.name}" dibatalkan; riwayatnya tetap tersimpan dan tidak dapat disetujui lagi.`,
+          tag: 'Parameter KKF',
+        })
       } else if (dialog.type === 'retire') {
         await kkfParametersApi.retire(dialog.set.id, { reason })
         notify({
@@ -377,6 +385,18 @@ export default function KkfParametersPage() {
                             </button>
                           )}
 
+                          {isDraft && (canManage || canApprove) && (
+                            <button
+                              type="button"
+                              onClick={() => setDialog({ type: 'discard', set: s })}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                              title="Batalkan Draf Ini"
+                            >
+                              <IconTrash size={13} />
+                              <span>Batalkan</span>
+                            </button>
+                          )}
+
                           {isApproved && canApprove && (
                             <button
                               type="button"
@@ -414,7 +434,24 @@ export default function KkfParametersPage() {
       </div>
 
       {/* Confirmation Dialog with mandatory reason for Approve / Retire */}
-      {dialog && (
+      {/* Discard a wrong DRAFT (status DISCARDED, history kept) */}
+      {dialog?.type === 'discard' && (
+        <ReasonDialog
+          isOpen={true}
+          title={`Batalkan Draf Parameter KKF: ${dialog.set.name}`}
+          description="Draf tidak dihapus: riwayatnya tetap tersimpan, tetapi tidak bisa disetujui atau diubah lagi. Alasan pembatalan wajib dan tercatat."
+          confirmLabel="Batalkan Draf"
+          confirmVariant="danger"
+          onConfirm={handleConfirmAction}
+          onClose={() => {
+            setDialog(null)
+            setDialogError('')
+          }}
+          error={dialogError}
+        />
+      )}
+
+      {dialog && dialog.type !== 'discard' && (
         <ReasonDialog
           title={
             dialog.type === 'approve'

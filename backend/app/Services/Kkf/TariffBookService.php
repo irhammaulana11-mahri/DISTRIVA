@@ -146,6 +146,19 @@ class TariffBookService
         }
     }
 
+    /** Throws a wrong DRAFT away without deleting it (status DISCARDED, immutable, history kept; the events table is append-only). */
+    public function discard(string $id, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($id, $reason, $actor): void {
+            $b = DB::table('tariff_books')->where('id', $id)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            if ($b->status !== 'DRAFT') {
+                throw new AssignmentRuleViolation('Hanya buku tarif berstatus DRAFT yang dapat dibatalkan.');
+            }
+            DB::table('tariff_books')->where('id', $id)->update(['status' => 'DISCARDED', 'updated_at' => now()]);
+            $this->event($id, 'DISCARDED', $actor, $reason, ['name' => $b->name]);
+        });
+    }
+
     public function retire(string $id, string $reason, User $actor): void
     {
         DB::transaction(function () use ($id, $reason, $actor): void {

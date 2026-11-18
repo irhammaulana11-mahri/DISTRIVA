@@ -96,6 +96,17 @@ class KkfParameterService
         }
     }
 
+    /** Throws a wrong DRAFT away without deleting it (status DISCARDED, immutable, history kept; the events table is append-only). */
+    public function discard(string $id, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($id, $reason, $actor): void {
+            $s = DB::table('kkf_parameter_sets')->where('id', $id)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $this->requireDraft($s, 'dibatalkan');
+            DB::table('kkf_parameter_sets')->where('id', $id)->update(['status' => 'DISCARDED', 'updated_at' => now()]);
+            $this->event($id, 'DISCARDED', $actor, $reason, ['name' => $s->name]);
+        });
+    }
+
     public function retire(string $id, string $reason, User $actor): void
     {
         DB::transaction(function () use ($id, $reason, $actor): void {

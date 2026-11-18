@@ -76,6 +76,14 @@ export default function TariffBooksPage() {
           desc: `Buku tarif "${dialog.book.name}" telah disetujui dan kini aktif berlaku.`,
           tag: 'Buku Tarif',
         })
+      } else if (dialog.type === 'discard') {
+        await tariffBooksApi.discard(dialog.book.id, { reason })
+        notify({
+          type: 'warning',
+          title: 'Draf Buku Tarif Dibatalkan',
+          desc: `Draf buku tarif "${dialog.book.name}" dibatalkan; riwayatnya tetap tersimpan dan tidak dapat disetujui lagi.`,
+          tag: 'Buku Tarif',
+        })
       } else if (dialog.type === 'retire') {
         await tariffBooksApi.retire(dialog.book.id, { reason })
         notify({
@@ -92,7 +100,7 @@ export default function TariffBooksPage() {
       setDialogError(msg)
       notify({
         type: 'error',
-        title: dialog.type === 'approve' ? 'Gagal Menyetujui Buku Tarif' : 'Gagal Menonaktifkan Buku Tarif',
+        title: dialog.type === 'approve' ? 'Gagal Menyetujui Buku Tarif' : dialog.type === 'discard' ? 'Gagal Membatalkan Draf' : 'Gagal Menonaktifkan Buku Tarif',
         desc: msg,
         tag: 'Buku Tarif',
       })
@@ -365,6 +373,18 @@ export default function TariffBooksPage() {
                             </Button>
                           )}
 
+                          {isDraft && (canManage || canApprove) && (
+                            <button
+                              type="button"
+                              onClick={() => setDialog({ type: 'discard', book: b })}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                              title="Batalkan Draf Ini"
+                            >
+                              <IconTrash size={13} />
+                              <span>Batalkan</span>
+                            </button>
+                          )}
+
                           {isApproved && canApprove && (
                             <button
                               type="button"
@@ -401,7 +421,24 @@ export default function TariffBooksPage() {
       </div>
 
       {/* Confirmation Dialog with Audit Reason */}
-      {dialog && (
+      {/* Discard a wrong DRAFT (status DISCARDED, history kept) */}
+      {dialog?.type === 'discard' && (
+        <ReasonDialog
+          isOpen={true}
+          title={`Batalkan Draf Buku Tarif: ${dialog.book.name}`}
+          description="Draf tidak dihapus: riwayatnya tetap tersimpan, tetapi tidak bisa disetujui atau diubah lagi. Alasan pembatalan wajib dan tercatat."
+          confirmLabel="Batalkan Draf"
+          confirmVariant="danger"
+          onConfirm={handleConfirmAction}
+          onClose={() => {
+            setDialog(null)
+            setDialogError('')
+          }}
+          error={dialogError}
+        />
+      )}
+
+      {dialog && dialog.type !== 'discard' && (
         <ReasonDialog
           isOpen={true}
           title={

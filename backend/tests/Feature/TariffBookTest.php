@@ -128,6 +128,30 @@ class TariffBookTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_wrong_tariff_draft_is_discarded_with_its_history_and_can_never_be_approved_or_changed_again(): void
+    {
+        $this->upload()->assertCreated();
+        $id = (string) DB::table('tariff_books')->value('id');
+        $url = "/api/master-data/tariff-books/{$id}/discard";
+
+        $this->as($this->vendor)->postJson($url, ['reason' => 'x'])->assertForbidden();
+        $this->as($this->engineer)->postJson($url, [])->assertUnprocessable();                                                    // reason is required
+        $this->as($this->engineer)->postJson($url, ['reason' => 'jam nyala salah'])->assertOk();
+        $this->assertSame('DISCARDED', DB::table('tariff_books')->where('id', $id)->value('status'));
+        $this->assertSame(['CREATED', 'DISCARDED'], DB::table('tariff_book_events')->where('tariff_book_id', $id)->orderBy('occurred_at')->pluck('event_type')->all());   // history kept
+
+        $this->approve($id)->assertStatus(409);                                                                                   // a discarded draft cannot be approved
+        $this->as($this->engineer)->postJson($url, ['reason' => 'lagi'])->assertStatus(409);                                      // only a DRAFT can be discarded
+        try {
+            DB::transaction(fn () => DB::table('tariff_book_rows')->where('tariff_book_id', $id)->update(['jam_nyala' => 1]));
+            $this->fail('rows of a discarded book must be immutable');
+        } catch (QueryException) {
+            $this->addToAssertionCount(1);
+        }
+        $this->as($this->engineer)->getJson('/api/master-data/tariff-books?status=DISCARDED')->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    #[Test]
     public function resolve_prefers_the_ulp_row_never_guesses_a_neighbouring_power_and_needs_an_active_book(): void
     {
         $svc = app(TariffBookService::class);

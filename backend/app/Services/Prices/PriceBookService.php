@@ -202,6 +202,17 @@ class PriceBookService
         });
     }
 
+    /** Throws a wrong DRAFT away without deleting it (status DISCARDED, immutable, history kept; the events table is append-only). */
+    public function discard(string $bookId, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($bookId, $reason, $actor): void {
+            $book = DB::table('price_books')->where('id', $bookId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $this->requireDraft($book, 'dibatalkan');
+            DB::table('price_books')->where('id', $bookId)->update(['status' => 'DISCARDED', 'updated_at' => now()]);
+            $this->event($bookId, 'DISCARDED', $actor, $reason, ['name' => $book->name]);
+        });
+    }
+
     /**
      * Sets (or clears, null) the MDU / insured value of ONE item of a DRAFT book. The reason is required and the before/after values are kept in the book's history;
      * an approved book never changes (database trigger), a new book is made through an import.

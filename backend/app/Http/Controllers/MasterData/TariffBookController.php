@@ -21,7 +21,7 @@ class TariffBookController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $request->validate(['status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE'])]]);
+        $request->validate(['status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE', 'DISCARDED'])]]);
         $q = DB::table('tariff_books as b')->selectRaw('b.*, (select count(*) from tariff_book_rows r where r.tariff_book_id = b.id) as rows_count')->orderByDesc('b.valid_from');
         if ($request->filled('status')) {
             $q->where('b.status', $request->query('status'));
@@ -82,6 +82,19 @@ class TariffBookController extends Controller
         $this->notifier->approved('tariff_books', $data['book_ids'], 'buku tarif', $actor, $data['reason'], 'Buku Tarif', '/master-data/tariff-books');
 
         return response()->json(['data' => $out]);
+    }
+
+    /** A wrong draft is thrown away (status DISCARDED, history kept): whoever prepares (tariffs.manage) or approves (tariffs.approve). */
+    public function discard(Request $request, string $book): JsonResponse
+    {
+        $actor = $request->user();
+        if (! $this->authorizer->allows($actor, 'tariffs.manage')) {
+            $this->authorizer->authorize($actor, 'tariffs.approve');
+        }
+        $data = Validator::make($request->all(), ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->books->discard($book, $data['reason'], $actor);
+
+        return response()->json(['message' => 'Draf buku tarif dibatalkan.']);
     }
 
     public function retire(Request $request, string $book): JsonResponse

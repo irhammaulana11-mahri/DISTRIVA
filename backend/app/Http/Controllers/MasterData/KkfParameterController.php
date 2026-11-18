@@ -21,7 +21,7 @@ class KkfParameterController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $request->validate(['status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE'])]]);
+        $request->validate(['status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE', 'DISCARDED'])]]);
         $q = DB::table('kkf_parameter_sets')->orderByDesc('valid_from')->orderByDesc('created_at');
         if ($request->filled('status')) {
             $q->where('status', $request->query('status'));
@@ -77,6 +77,19 @@ class KkfParameterController extends Controller
         $this->notifier->approved('kkf_parameter_sets', $data['set_ids'], 'parameter KKF', $actor, $data['reason'], 'KKF', '/master-data/kkf-parameters');
 
         return response()->json(['data' => $out]);
+    }
+
+    /** A wrong draft is thrown away (status DISCARDED, history kept): whoever prepares (kkf_params.manage) or approves (kkf_params.approve). */
+    public function discard(Request $request, string $set): JsonResponse
+    {
+        $actor = $request->user();
+        if (! $this->authorizer->allows($actor, 'kkf_params.manage')) {
+            $this->authorizer->authorize($actor, 'kkf_params.approve');
+        }
+        $data = Validator::make($request->all(), ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->sets->discard($set, $data['reason'], $actor);
+
+        return response()->json(['message' => 'Draf set parameter dibatalkan.']);
     }
 
     public function retire(Request $request, string $set): JsonResponse

@@ -78,6 +78,14 @@ export default function PriceBooksPage() {
           desc: `Buku harga "${dialog.book.name}" telah disetujui dan kini aktif berlaku.`,
           tag: 'Buku Harga',
         })
+      } else if (dialog.type === 'discard') {
+        await priceBookApi.discard(dialog.book.id, { reason })
+        notify({
+          type: 'warning',
+          title: 'Draf Buku Harga Dibatalkan',
+          desc: `Draf buku harga "${dialog.book.name}" dibatalkan; riwayatnya tetap tersimpan dan tidak dapat disetujui lagi.`,
+          tag: 'Buku Harga',
+        })
       } else if (dialog.type === 'retire') {
         await priceBookApi.retire(dialog.book.id, { reason })
         notify({
@@ -94,7 +102,7 @@ export default function PriceBooksPage() {
       setDialogError(msg)
       notify({
         type: 'error',
-        title: dialog.type === 'approve' ? 'Gagal Menyetujui Buku Harga' : 'Gagal Menonaktifkan Buku Harga',
+        title: dialog.type === 'approve' ? 'Gagal Menyetujui Buku Harga' : dialog.type === 'discard' ? 'Gagal Membatalkan Draf' : 'Gagal Menonaktifkan Buku Harga',
         desc: msg,
         tag: 'Buku Harga',
       })
@@ -435,6 +443,18 @@ export default function PriceBooksPage() {
                           </button>
                         )}
 
+                        {isDraft && (canManage || canApprove) && (
+                          <button
+                            type="button"
+                            onClick={() => setDialog({ type: 'discard', book: b })}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                            title="Batalkan Draf Ini"
+                          >
+                            <IconTrash size={13} />
+                            <span>Batalkan</span>
+                          </button>
+                        )}
+
                         {isApproved && canApprove && (
                           <button
                             type="button"
@@ -487,7 +507,24 @@ export default function PriceBooksPage() {
       />
 
       {/* Approve / Retire Reason Dialog */}
-      {dialog && (
+      {/* Discard a wrong DRAFT (status DISCARDED, history kept) */}
+      {dialog?.type === 'discard' && (
+        <ReasonDialog
+          isOpen={true}
+          title={`Batalkan Draf Buku Harga: ${dialog.book.name}`}
+          description="Draf tidak dihapus: riwayatnya tetap tersimpan, tetapi tidak bisa disetujui atau diubah lagi. Alasan pembatalan wajib dan tercatat."
+          confirmLabel="Batalkan Draf"
+          confirmVariant="danger"
+          onConfirm={handleConfirmAction}
+          onClose={() => {
+            setDialog(null)
+            setDialogError('')
+          }}
+          error={dialogError}
+        />
+      )}
+
+      {dialog && dialog.type !== 'discard' && (
         <ReasonDialog
           isOpen={true}
           title={

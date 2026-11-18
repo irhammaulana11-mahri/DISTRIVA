@@ -18,6 +18,7 @@ vi.mock('../../services/api.js', () => ({
     import: vi.fn(),
     approve: vi.fn(),
     retire: vi.fn(),
+    discard: vi.fn(),
   },
 }))
 
@@ -292,6 +293,19 @@ describe('TariffBooks Master Data Workflow', () => {
       'tb-draft-1',
       expect.objectContaining({ tariff: 'R1' }),
     )
+  })
+
+  it('discards a wrong DRAFT tariff book with a mandatory reason and sends POST /discard', async () => {
+    tariffBooksApi.discard.mockResolvedValueOnce({ message: 'Draf buku tarif dibatalkan.' })
+    renderWithContext(<TariffBooksPage />, { can: { 'master_data.view': true, 'tariffs.manage': true, 'tariffs.approve': true } })
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Batalkan$/ }))[0])
+    expect(await screen.findByText(/Batalkan Draf Buku Tarif: Buku Tarif Listrik PLN 2026/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Batalkan Draf' }))
+    expect(await screen.findByText('Alasan wajib diisi.')).toBeInTheDocument()
+    expect(tariffBooksApi.discard).not.toHaveBeenCalled()
+    await userEvent.type(screen.getByLabelText(/Alasan/), 'Jam nyala salah.')
+    await userEvent.click(screen.getByRole('button', { name: 'Batalkan Draf' }))
+    await waitFor(() => expect(tariffBooksApi.discard).toHaveBeenCalledWith('tb-draft-1', { reason: 'Jam nyala salah.' }))
   })
 
   it('5. approves draft book and retires active book with required audit reason', async () => {

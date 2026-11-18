@@ -18,6 +18,7 @@ vi.mock('../../services/api.js', () => ({
     import: vi.fn(),
     setZone: vi.fn(),
     setInsured: vi.fn(),
+    discard: vi.fn(),
     createFromActive: vi.fn(),
     approve: vi.fn(),
     retire: vi.fn(),
@@ -294,6 +295,19 @@ describe('Buku Harga Kontrak Workflow (Tahap 5A - docs/67)', () => {
     await waitFor(() => expect(priceBookApi.createFromActive).toHaveBeenCalledTimes(1))
     expect(priceBookApi.createFromActive.mock.calls[0][0]).toMatchObject({ reason: 'Selaras Excel revisi' })
     expect(await screen.findByText('Buku Harga Kontrak Jatim 2026')).toBeInTheDocument()       // navigated to the new draft
+  })
+
+  it('discards a wrong DRAFT price book with a mandatory reason and sends POST /discard', async () => {
+    priceBookApi.discard.mockResolvedValueOnce({ message: 'Draf buku harga dibatalkan.' })
+    renderPriceBooksPage()
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Batalkan$/ }))[0])
+    expect(await screen.findByText(/Batalkan Draf Buku Harga: Buku Harga Kontrak Jatim 2026/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Batalkan Draf' }))
+    expect(await screen.findByText('Alasan wajib diisi.')).toBeInTheDocument()                   // no reason, nothing sent
+    expect(priceBookApi.discard).not.toHaveBeenCalled()
+    await userEvent.type(screen.getByLabelText(/Alasan/), 'Harga salah, unggah ulang.')
+    await userEvent.click(screen.getByRole('button', { name: 'Batalkan Draf' }))
+    await waitFor(() => expect(priceBookApi.discard).toHaveBeenCalledWith('f8d287b7-a07b-4f84-a67e-4f50b06f2759', { reason: 'Harga salah, unggah ulang.' }))
   })
 
   it('changes the MDU value of one item of a DRAFT book with a mandatory reason', async () => {

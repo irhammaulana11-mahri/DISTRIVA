@@ -218,6 +218,29 @@ class PriceBookTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_wrong_price_draft_is_discarded_with_its_history_and_can_never_be_approved_or_changed_again(): void
+    {
+        $this->khs([1, 2]);
+        $this->upload()->assertCreated();
+        $id = (string) DB::table('price_books')->value('id');
+        $url = "/api/master-data/price-books/{$id}/discard";
+        $code = DB::table('khs_items')->orderBy('code')->value('code');
+
+        $this->as($this->vendor)->postJson($url, ['reason' => 'x'])->assertForbidden();
+        $this->as($this->engineer)->postJson($url, [])->assertUnprocessable();                                                    // reason is required
+        $this->as($this->engineer)->postJson($url, ['reason' => 'harga salah'])->assertOk();
+        $this->assertSame('DISCARDED', DB::table('price_books')->where('id', $id)->value('status'));
+        $this->assertSame(['CREATED', 'DISCARDED'], DB::table('price_book_events')->where('price_book_id', $id)->orderBy('occurred_at')->pluck('event_type')->all());
+
+        $this->zone($id)->assertStatus(409);                                                                                      // zones, MDU and approval are refused on a discarded book
+        $this->as($this->engineer)->patchJson("/api/master-data/price-books/{$id}/items/{$code}/insured", ['insured_value' => 5, 'reason' => 'x'])->assertStatus(409);
+        $this->approve($id)->assertStatus(409);
+        $this->as($this->engineer)->postJson($url, ['reason' => 'lagi'])->assertStatus(409);
+        $this->assertDatabaseTriggerBlocks(fn () => DB::table('price_book_items')->where('price_book_id', $id)->delete());
+        $this->as($this->engineer)->getJson('/api/master-data/price-books?status=DISCARDED')->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    #[Test]
     public function a_zone_needs_an_up3_and_a_zone_the_book_has_prices_for(): void
     {
         $this->khs([1, 2]);
