@@ -301,6 +301,7 @@ export default function PriceBooksPage() {
             { id: 'DRAFT', label: 'Draf (Menunggu Persetujuan)' },
             { id: 'APPROVED', label: 'Disetujui (Aktif)' },
             { id: 'INACTIVE', label: 'Nonaktif' },
+            { id: 'DISCARDED', label: 'Dibatalkan' },
           ].map((tab) => (
             <button
               key={tab.id}

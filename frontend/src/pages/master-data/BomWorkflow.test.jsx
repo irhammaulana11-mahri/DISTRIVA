@@ -316,6 +316,26 @@ describe('BOM Workflow (Docs 61 & 66)', () => {
       expect(screen.getByText('Angka (≥ 0)')).toBeInTheDocument()
     })
 
+    it('discards a DRAFT version from the detail page with a mandatory reason', async () => {
+      bomApi.get.mockResolvedValue({ data: mockDetail })
+      bomApi.lines.mockResolvedValue(mockLines)
+      bomApi.discard.mockResolvedValueOnce({ data: { id: 'bom-pbpd-1', status: 'DISCARDED' } })
+      const user = userEvent.setup()
+
+      renderWithAccess(
+        <Routes>
+          <Route path="/master-data/bom/:id" element={<BomDetailPage />} />
+        </Routes>,
+        { route: '/master-data/bom/bom-pbpd-1' }
+      )
+
+      await user.click(await screen.findByRole('button', { name: 'Batalkan Draf' }))
+      expect(await screen.findByText(/Batalkan Draf BOM PBPD_6_41 v1/)).toBeInTheDocument()
+      await user.type(screen.getByLabelText(/Alasan/), 'Rumus salah.')
+      await user.click(screen.getAllByRole('button', { name: 'Batalkan Draf' }).at(-1))
+      await waitFor(() => expect(bomApi.discard).toHaveBeenCalledWith('bom-pbpd-1', { reason: 'Rumus salah.' }))
+    })
+
     it('renders pagination and per_page filter for BOM formula lines', async () => {
       const mockManyLines = {
         data: Array.from({ length: 50 }, (_, i) => ({

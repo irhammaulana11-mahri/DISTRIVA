@@ -8,6 +8,7 @@ import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import Modal from '../../components/Modal.jsx'
+import ReasonDialog from '../../components/ReasonDialog.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
@@ -53,6 +54,9 @@ export default function BomDetailPage() {
   const [approveReason, setApproveReason] = useState('')
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState('')
+
+  // Discard dialog (a wrong DRAFT)
+  const [discardOpen, setDiscardOpen] = useState(false)
 
   // Retire dialog
   const [retireOpen, setRetireOpen] = useState(false)
@@ -146,6 +150,19 @@ export default function BomDetailPage() {
     } finally {
       setApproving(false)
     }
+  }
+
+  // Handle Discard (a wrong DRAFT: status DISCARDED, history kept)
+  const handleDiscard = async (reason) => {
+    await bomApi.discard(id, { reason })
+    setDiscardOpen(false)
+    notify({
+      type: 'warning',
+      title: 'Draf BOM Dibatalkan',
+      desc: 'Draf BOM dibatalkan; riwayatnya tetap tersimpan dan tidak dapat disetujui lagi.',
+      tag: 'Bill of Materials',
+    })
+    loadBom()
   }
 
   // Handle Retire
@@ -322,6 +339,18 @@ export default function BomDetailPage() {
                 <IconCheck size={14} />
                 <span>Setujui Versi Ini</span>
               </Button>
+            )}
+
+            {isDraft && (canManage || canApprove) && (
+              <button
+                type="button"
+                onClick={() => setDiscardOpen(true)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                title="Batalkan Draf Ini"
+              >
+                <IconTrash size={13} />
+                <span>Batalkan Draf</span>
+              </button>
             )}
 
             {isApproved && canApprove && (
@@ -723,6 +752,19 @@ export default function BomDetailPage() {
           </div>
         </form>
       </Modal>
+
+      {/* DISCARD DRAFT */}
+      {discardOpen && (
+        <ReasonDialog
+          isOpen={true}
+          title={`Batalkan Draf BOM ${bom.group} v${bom.version_number}`}
+          description="Draf tidak dihapus: riwayatnya tetap tersimpan, tetapi tidak bisa disetujui atau diubah lagi. Alasan pembatalan wajib dan tercatat."
+          confirmLabel="Batalkan Draf"
+          confirmVariant="danger"
+          onConfirm={handleDiscard}
+          onClose={() => setDiscardOpen(false)}
+        />
+      )}
 
       {/* RETIRE DRAWER */}
       <Modal

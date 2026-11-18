@@ -310,6 +310,22 @@ describe('Buku Harga Kontrak Workflow (Tahap 5A - docs/67)', () => {
     await waitFor(() => expect(priceBookApi.discard).toHaveBeenCalledWith('f8d287b7-a07b-4f84-a67e-4f50b06f2759', { reason: 'Harga salah, unggah ulang.' }))
   })
 
+  it('lists discarded drafts under the Dibatalkan filter', async () => {
+    renderPriceBooksPage()
+    await userEvent.click(await screen.findByText('Dibatalkan'))
+    await waitFor(() => expect(priceBookApi.list).toHaveBeenCalledWith({ status: 'DISCARDED' }))
+  })
+
+  it('discards a DRAFT price book from its detail page with a mandatory reason', async () => {
+    priceBookApi.discard.mockResolvedValueOnce({ message: 'Draf buku harga dibatalkan.' })
+    renderDetailPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Batalkan Draf' }))
+    expect(await screen.findByText(/Batalkan Draf Buku Harga: Buku Harga Kontrak Jatim 2026/)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText(/Alasan/), 'Harga salah.')
+    await userEvent.click(screen.getAllByRole('button', { name: 'Batalkan Draf' }).at(-1))
+    await waitFor(() => expect(priceBookApi.discard).toHaveBeenCalledWith('f8d287b7-a07b-4f84-a67e-4f50b06f2759', { reason: 'Harga salah.' }))
+  })
+
   it('changes the MDU value of one item of a DRAFT book with a mandatory reason', async () => {
     priceBookApi.setInsured.mockResolvedValueOnce({ message: 'Nilai MDU diperbarui.' })
     renderDetailPage()

@@ -259,6 +259,25 @@ describe('TariffBooks Master Data Workflow', () => {
     })
   })
 
+  it('lists discarded drafts under the Dibatalkan filter and discards a draft from its detail page', async () => {
+    tariffBooksApi.discard.mockResolvedValueOnce({ message: 'Draf buku tarif dibatalkan.' })
+    const { unmount } = renderWithContext(<TariffBooksPage />, { can: { 'master_data.view': true, 'tariffs.manage': true } })
+    await userEvent.click(await screen.findByText('Dibatalkan'))
+    await waitFor(() => expect(tariffBooksApi.list).toHaveBeenCalledWith({ status: 'DISCARDED' }))
+    unmount()
+
+    renderWithContext(
+      <Routes>
+        <Route path="/master-data/tariff-books/:id" element={<TariffBookDetailPage />} />
+      </Routes>,
+      { can: { 'master_data.view': true, 'tariffs.manage': true }, initialEntries: ['/master-data/tariff-books/tb-draft-1'] },
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Batalkan Draf' }))
+    await userEvent.type(await screen.findByLabelText(/Alasan/), 'Jam nyala salah.')
+    await userEvent.click(screen.getAllByRole('button', { name: 'Batalkan Draf' }).at(-1))
+    await waitFor(() => expect(tariffBooksApi.discard).toHaveBeenCalledWith('tb-draft-1', { reason: 'Jam nyala salah.' }))
+  })
+
   it('4. views tariff book detail with rows pagination, tariff code filter, and audit trail', async () => {
     renderWithContext(
       <Routes>

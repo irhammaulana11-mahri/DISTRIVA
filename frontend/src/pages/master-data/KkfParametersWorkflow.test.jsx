@@ -370,6 +370,21 @@ describe('Parameter KKF Workflow (docs/68)', () => {
     expect(screen.queryByTitle('Nonaktifkan Set Parameter')).not.toBeInTheDocument()
   })
 
+  it('lists discarded drafts under the Dibatalkan filter and discards a draft from its detail page', async () => {
+    const user = userEvent.setup()
+    kkfParametersApi.discard.mockResolvedValueOnce({ message: 'Draf set parameter dibatalkan.' })
+    const { unmount } = renderKkfPage()
+    await user.click(await screen.findByText('Dibatalkan'))
+    await waitFor(() => expect(kkfParametersApi.list).toHaveBeenCalledWith({ status: 'DISCARDED' }))
+    unmount()
+
+    renderDetailPage()
+    await user.click(await screen.findByRole('button', { name: 'Batalkan Draf' }))
+    await user.type(await screen.findByLabelText(/Alasan/), 'BPP salah.')
+    await user.click(screen.getAllByRole('button', { name: 'Batalkan Draf' }).at(-1))
+    await waitFor(() => expect(kkfParametersApi.discard).toHaveBeenCalledWith('kkf-draft-1', { reason: 'BPP salah.' }))
+  })
+
   it('8. renders detail page with parameter grid and event history', async () => {
     renderDetailPage()
 
