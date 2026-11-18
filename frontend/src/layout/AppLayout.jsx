@@ -79,7 +79,7 @@ const operationsNav = [
 const planningNav = [
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecast Beban Gardu', capability: 'forecast.view', icon: IconChart },
-  { to: '/master-data/warehouses', label: 'Gudang & Stok Material', capability: 'master_data.view', profiles: ['konstruksi', 'executive'], icon: IconBuilding },
+  { to: '/master-data/warehouses', label: 'Gudang & Stok Material', capability: 'master_data.view', profiles: ['konstruksi', 'executive', 'mulp'], icon: IconBuilding },
 ]
 
 // 3. Master Data (Dikelompokkan secara logis & disaring kewenangan)
@@ -90,20 +90,20 @@ const masterDataNav = [
   { to: '/master-data/customers', label: 'Master Pelanggan', capability: 'customers.view', icon: IconUsers, group: 'Aset Jaringan & Pelanggan' },
 
   // Standar & Konstruksi
-  { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
+  { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'jaringan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
   { to: '/master-data/bom', label: 'Bill of Materials (BOM)', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconDocument, group: 'Standar & Konstruksi' },
 
   // Material & Logistik
-  { to: '/master-data/materials', label: 'Katalog Material ERP', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconTag, group: 'Material & Logistik' },
-  { to: '/master-data/mapping', label: 'Pemetaan Material (SKU↔KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconTag, group: 'Material & Logistik' },
-  { to: '/master-data/categories', label: 'Kategori & Satuan', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconFolder, group: 'Material & Logistik' },
+  { to: '/master-data/materials', label: 'Katalog Material ERP', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconTag, group: 'Material & Logistik' },
+  { to: '/master-data/mapping', label: 'Pemetaan Material (SKU↔KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconTag, group: 'Material & Logistik' },
+  { to: '/master-data/categories', label: 'Kategori & Satuan', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconFolder, group: 'Material & Logistik' },
 
   // Keuangan & Tarif
-  { to: '/master-data/khs', label: 'Katalog Harga Satuan (KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconClipboard, group: 'Keuangan & Tarif' },
-  { to: '/master-data/harga', label: 'Buku Harga Kontrak', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconTag, group: 'Keuangan & Tarif' },
-  { to: '/master-data/pole-contracts', label: 'Kontrak Rinci Tiang', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconClipboard, group: 'Keuangan & Tarif' },
-  { to: '/master-data/kkf-parameters', label: 'Parameter KKF', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconChart, group: 'Keuangan & Tarif' },
-  { to: '/master-data/tariff-books', label: 'Buku Tarif Listrik', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconZap, group: 'Keuangan & Tarif' },
+  { to: '/master-data/khs', label: 'Katalog Harga Satuan (KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'executive', 'mulp'], icon: IconClipboard, group: 'Keuangan & Tarif' },
+  { to: '/master-data/harga', label: 'Buku Harga Kontrak', capability: 'master_data.view', profiles: ['perencanaan', 'executive', 'mulp'], icon: IconTag, group: 'Keuangan & Tarif' },
+  { to: '/master-data/pole-contracts', label: 'Kontrak Rinci Tiang', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconClipboard, group: 'Keuangan & Tarif' },
+  { to: '/master-data/kkf-parameters', label: 'Parameter KKF', capability: 'master_data.view', profiles: ['perencanaan', 'executive', 'mulp'], icon: IconChart, group: 'Keuangan & Tarif' },
+  { to: '/master-data/tariff-books', label: 'Buku Tarif Listrik', capability: 'master_data.view', profiles: ['perencanaan', 'executive', 'mulp'], icon: IconZap, group: 'Keuangan & Tarif' },
   { to: '/master-data/excel-import', label: 'Impor dari Excel', anyOf: ['bom.manage', 'prices.manage', 'tariffs.manage'], profiles: ['perencanaan'], icon: IconUpload, group: 'Keuangan & Tarif' },
 ]
 
