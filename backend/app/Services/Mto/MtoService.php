@@ -283,6 +283,7 @@ class MtoService
         $date ??= $this->today();
         $items = DB::table('mto_items')->where('package_id', $packageId)->get();
         $params = (array) json_decode((string) $pkg->params, true);
+        $powerParams = $this->applicationPowerParams((string) $pkg->application_id);
         $groups = [];
         $lines = [];
         $volumes = [];                                         // rows without a KHS code (their H is the group volume the REKAP shows), by group and BOM row
@@ -305,7 +306,7 @@ class MtoService
             }
             $declared = array_column((array) json_decode((string) $header->parameters, true), 'name');
             try {
-                $res = $this->calculator->calculate($header->id, $inputs, array_intersect_key($params, array_flip($declared)));
+                $res = $this->calculator->calculate($header->id, $inputs, array_intersect_key($powerParams + $params, array_flip($declared)));
             } catch (FormulaException $e) {
                 throw new AssignmentRuleViolation("Perhitungan BOM {$group} gagal: ".$e->getMessage());
             }
@@ -484,6 +485,23 @@ class MtoService
     private function today(): string
     {
         return CarbonImmutable::now(config('distriva.business_timezone'))->toDateString();
+    }
+
+    /**
+     * The power of the application (kVA) as BOM parameters: the APP sheets of the workbook choose their items by the power in 'ISIAN KKF' (F8 after, F7 before). Always taken
+     * from the application, never typed; a new connection has no power before (0). Empty when the application has no new power.
+     *
+     * @return array<string,float>
+     */
+    private function applicationPowerParams(string $applicationId): array
+    {
+        $app = DB::table('applications')->where('id', $applicationId)->first(['new_power_value', 'new_power_unit', 'old_power_value', 'old_power_unit']);
+        if ($app === null || $app->new_power_value === null) {
+            return [];
+        }
+        $kva = fn ($v, $u) => $v === null ? 0.0 : (float) $v * (strtoupper((string) $u) === 'KVA' ? 1.0 : 0.001);
+
+        return ['PERMOHONAN:DAYA_BARU_KVA' => $kva($app->new_power_value, $app->new_power_unit), 'PERMOHONAN:DAYA_LAMA_KVA' => $kva($app->old_power_value, $app->old_power_unit)];
     }
 
     /** The PBPD BOM groups join the calculation when any PBPD:* parameter is present; SR1PH when any PBPD:* or SR1:* parameter is present AND its BOM is approved (valid today). */

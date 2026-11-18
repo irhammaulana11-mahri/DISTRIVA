@@ -10,6 +10,7 @@ use App\Services\Inventory\MaterialSupplier;
 use App\Services\Kkf\KkfCalculator;
 use App\Services\Kkf\KkfService;
 use App\Services\Mto\GambarReader;
+use App\Services\Mto\MtoService;
 use App\Services\Mto\PdfGambarReader;
 use App\Services\WorkOrders\MaterialOutbox;
 use App\Support\Terbilang;
@@ -2092,6 +2093,23 @@ class MtoTest extends PostgresTestCase
         $this->as($this->perencanaan)->postJson("/api/proposals/{$prop}/kkf-runs", ['dry_run' => 1, 'members' => [['application_id' => (string) Str::uuid()]]])->assertStatus(409);   // not a member
         DB::table('applications')->where('id', $a2)->update(['total_cost' => null]);
         $this->as($this->perencanaan)->postJson("/api/proposals/{$prop}/kkf-runs", ['dry_run' => 1])->assertStatus(409);        // a member without synced total cost blocks the whole KKF
+    }
+
+    #[Test]
+    public function the_power_of_the_application_feeds_the_app_bom_parameters_in_kva(): void
+    {
+        $p = $this->approvedPackageWithPbpd();
+        $app = (string) DB::table('mto_packages')->where('id', $p)->value('application_id');
+        $power = fn () => (new \ReflectionMethod(MtoService::class, 'applicationPowerParams'))->invoke(app(MtoService::class), $app);
+
+        DB::table('applications')->where('id', $app)->update(['old_power_value' => 16500, 'old_power_unit' => 'VA', 'new_power_value' => 53, 'new_power_unit' => 'kVA']);
+        $this->assertEqualsWithDelta(['PERMOHONAN:DAYA_BARU_KVA' => 53.0, 'PERMOHONAN:DAYA_LAMA_KVA' => 16.5], $power(), 1e-9);   // VA is converted, kVA is kept
+
+        DB::table('applications')->where('id', $app)->update(['old_power_value' => null, 'old_power_unit' => null]);
+        $this->assertSame(0.0, $power()['PERMOHONAN:DAYA_LAMA_KVA']);                                                            // a new connection has no power before
+
+        DB::table('applications')->where('id', $app)->update(['new_power_value' => null, 'new_power_unit' => null]);
+        $this->assertSame([], $power());                                                                                         // without a new power the parameters keep their defaults
     }
 
     #[Test]

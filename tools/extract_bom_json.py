@@ -48,22 +48,39 @@ def pbpd_doc(wb, g, grp, sheet):
     gref = re.compile(r"GAMBAR!\$?([A-Z]{1,3})\$?(\d+)")
     ranges = [cellval(g, f"AD{r}") for r in range(3, 15 + 1)]
     ranges = [" ".join(x.split()) for x in ranges if x]
-    jenis = [" ".join(cellval(g, f"AM{r}").split()) for r in range(6, 11)]
-    pay = [" ".join(str(cellval(g, f"AN{r}")).split()) for r in (6, 7)]
+    jenis = [" ".join(str(cellval(g, f"AM{r}") or "").split()) for r in range(6, 11)]
+    jenis = [x for x in jenis if x]                       # revision 2026-11-18: the lists AD/AM of GAMBAR are gone (the sheets choose by power instead), so options may be empty
+    pay = [" ".join(str(cellval(g, f"AN{r}") or "").split()) for r in (6, 7)]
+    pay = [x for x in pay if x] or ["TUNAI", "PLN"]
     params, consts = [], {}
     def txt(ref):
         v = cellval(g, ref); return " ".join(v.split()) if isinstance(v, str) else ""
-    params.append({"cell": "Z50", "name": "PBPD:JENIS", "type": "text", "options": jenis, "default": txt("Z50"), "description": "Jenis pekerjaan (GAMBAR!Z50)"})
-    params.append({"cell": "S55", "name": "PBPD:PEMBAYARAN", "type": "text", "options": pay, "default": txt("S55") or pay[0], "description": "TUNAI = material dibeli vendor pelaksana; PLN (GAMBAR!S55)"})
+    opt = lambda xs: {"options": xs} if xs else {}
+    params.append({"cell": "Z50", "name": "PBPD:JENIS", "type": "text", **opt(jenis), "default": txt("Z50") if not jenis or txt("Z50") in jenis else "", "description": "Jenis pekerjaan (GAMBAR!Z50)"})
+    params.append({"cell": "S55", "name": "PBPD:PEMBAYARAN", "type": "text", **opt(pay), "default": txt("S55") if txt("S55") in pay else pay[0], "description": "TUNAI = material dibeli vendor pelaksana; PLN (GAMBAR!S55)"})
     for n, r in enumerate(range(51, 57), 1):
-        params.append({"cell": f"Z{r}", "name": f"PBPD:RENTANG_{n}", "type": "text", "options": ranges, "default": txt(f"Z{r}"), "description": f"Rentang daya baris {n} (GAMBAR!Z{r})"})
+        params.append({"cell": f"Z{r}", "name": f"PBPD:RENTANG_{n}", "type": "text", **opt(ranges), "default": txt(f"Z{r}") if not ranges or txt(f"Z{r}") in ranges else "", "description": f"Rentang daya baris {n} (GAMBAR!Z{r})"})
         for col, kind in (("AA", "PSG"), ("AB", "BKR")):
             v = num(cellval(g, f"{col}{r}"))
             params.append({"cell": f"{col}{r}", "name": f"PBPD:{kind}_{n}", "type": "number", "default": v if v is not None else 0, "description": f"Jumlah {'pasang baru' if kind == 'PSG' else 'bongkar/perubahan'} baris {n} (GAMBAR!{col}{r})"})
     for r in range(3, 16):
         if cellval(g, f"AD{r}"): consts[f"AD{r}"] = " ".join(cellval(g, f"AD{r}").split())
-    for r in range(6, 11): consts[f"AM{r}"] = " ".join(cellval(g, f"AM{r}").split())
-    known = {p["cell"] for p in params} | set(consts)
+    for r in range(6, 11):
+        if cellval(g, f"AM{r}"): consts[f"AM{r}"] = " ".join(cellval(g, f"AM{r}").split())
+    # revision 2026-11-18: the sheets read the power of the application from 'ISIAN KKF' (F8 = power after, F7 = power before, kVA). Becomes two declared parameters
+    # (pseudo cells AC53/AC54 of GAMBAR, like SR1:SDES2) that the MTO fills from the application; the default is the value stored in the workbook.
+    isian = None
+    try: isian = wb.load("ISIAN KKF")
+    except StopIteration:
+        try: isian = wb.load("ISIANKKF")
+        except StopIteration: pass
+    pw = {}
+    for cell, ref, name, label in (("AC53", "F8", "PERMOHONAN:DAYA_BARU_KVA", "daya sesudah (kVA)"), ("AC54", "F7", "PERMOHONAN:DAYA_LAMA_KVA", "daya sebelum (kVA)")):
+        v = num(cellval(isian, ref)) if isian else None
+        pw[ref] = {"cell": cell, "name": name, "type": "number", "default": v if v is not None else 0, "description": f"{label.capitalize()} dari ISIAN KKF!{ref}; diisi otomatis dari permohonan saat MTO dihitung"}
+    isian_ref = re.compile(r"'?ISIAN ?KKF'?!\$?F\$?([78])\b")
+    uses_power = False
+    known = {p["cell"] for p in params} | set(consts) | {"AC53", "AC54"}
     lines, review = [], []
     for r, cells in sorted(wb.load(sheet).items()):
         if r < 9: continue
@@ -74,6 +91,8 @@ def pbpd_doc(wb, g, grp, sheet):
             if col != "B" and num(c[0]) is not None: expected[col] = num(c[0])
             if c[1]:
                 text = c[1].strip().lstrip("=").lstrip("+")
+                if isian_ref.search(text):
+                    text = isian_ref.sub(lambda m: "GAMBAR!" + pw["F" + m.group(1)]["cell"], text); uses_power = True
                 stray = [f"{a}{b}" for a, b in gref.findall(text) if f"{a}{b}" not in known]
                 other = re.search(r"(?<!GAMBAR)!", text)
                 if stray or other: bad.append({"column": col, "formula": text, "stray_cells": stray or ["sheet lain"]}); continue
@@ -95,6 +114,7 @@ def pbpd_doc(wb, g, grp, sheet):
         line = {"sequence": r, "khs_code": code, "description": desc, **hik, "source": f"{sheet}!B{r}", "expected": expected}
         if "B" in f: line["B"] = f["B"]; line["khs_codes"] = codes
         lines.append(line)
+    if uses_power: params += [pw["F8"], pw["F7"]]
     return {"group": grp, "source": f"MASTER RAB & KKF.xlsx / sheet {sheet}", "inputs": [], "lines": lines, "input_values": {}, "params": params, "constants": consts, "review": review}
 
 def main(src, out, golden=None):

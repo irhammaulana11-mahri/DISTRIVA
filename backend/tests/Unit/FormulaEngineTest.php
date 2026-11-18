@@ -49,6 +49,8 @@ class FormulaEngineTest extends TestCase
         $this->assertSame(3.0, $this->calc('TRUNC(3.99)'));
         $this->assertSame(-3.0, $this->calc('TRUNC(-3.99)'));
         $this->assertSame(1.23, $this->calc('TRUNC(1.239,2)'));
+        $this->assertSame(3.5, $this->calc('ABS(-3.5)'));                                              // the APP sheets pick items by |ampere - rating| <= tolerance
+        $this->assertSame(1.0, $this->calc('IF(ABS(53/0.22/3-80)<=20,1,0)'));
         $this->assertSame(3.0, $this->calc('ROUND(2.5,0)'));
         $this->assertSame(-3.0, $this->calc('ROUND(-2.5,0)'));
         $this->assertSame(4.0, $this->calc('ROUNDUP(3.01,0)'));

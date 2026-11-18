@@ -236,6 +236,10 @@ final class Evaluator
                 }
 
                 return $t;
+            case 'ABS':
+                $this->arity($fn, $a, 1, 1);
+
+                return abs($this->num($a[0]));
             case 'TRUNC':
                 $this->arity($fn, $a, 1, 2);
                 $p = 10 ** (int) $this->num($a[1] ?? 0);

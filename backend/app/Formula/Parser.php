@@ -17,7 +17,7 @@ final class Parser
 
     public const MAX_DEPTH = 40;
 
-    public const FUNCTIONS = ['IF', 'OR', 'AND', 'SUM', 'TRUNC', 'ROUND', 'ROUNDUP', 'SUMIF'];
+    public const FUNCTIONS = ['IF', 'OR', 'AND', 'SUM', 'TRUNC', 'ROUND', 'ROUNDUP', 'SUMIF', 'ABS'];
 
     private const TOKEN = '/\G\s*(?:(?<num>\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(?<str>"(?:[^"]|"")*")|(?<var>\{[A-Za-z0-9_.:\-]+\})|(?<ref>(?:(?:\'[^\']+\'|[A-Za-z_][A-Za-z0-9_.]*)!)?\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?)|(?<fn>[A-Z][A-Z0-9.]*)\(|(?<op><=|>=|<>|[-+*\/^(),=<>&%]))/';
 
