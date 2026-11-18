@@ -74,6 +74,10 @@ export default function BomPage() {
   const [retireReason, setRetireReason] = useState('')
   const [retiring, setRetiring] = useState(false)
   const [retireError, setRetireError] = useState('')
+  const [discardTarget, setDiscardTarget] = useState(null)
+  const [discardReason, setDiscardReason] = useState('')
+  const [discardError, setDiscardError] = useState('')
+  const [discarding, setDiscarding] = useState(false)
 
   // Edit Draft Modal
   const [editDraftTarget, setEditDraftTarget] = useState(null)
@@ -203,6 +207,38 @@ export default function BomPage() {
       setRetireError(err?.message || 'Gagal menonaktifkan versi BOM.')
     } finally {
       setRetiring(false)
+    }
+  }
+
+  // Discard a wrong DRAFT (status DISCARDED, history kept)
+  const handleOpenDiscard = (bom) => {
+    setDiscardTarget(bom)
+    setDiscardReason('')
+    setDiscardError('')
+  }
+
+  const handleSubmitDiscard = async (e) => {
+    e.preventDefault()
+    if (!discardReason.trim()) {
+      setDiscardError('Alasan pembatalan wajib diisi.')
+      return
+    }
+    setDiscarding(true)
+    setDiscardError('')
+    try {
+      await bomApi.discard(discardTarget.id, { reason: discardReason.trim() })
+      notify({
+        type: 'warning',
+        title: 'Draf BOM Dibatalkan',
+        desc: `Draf BOM ${discardTarget.group} v${discardTarget.version_number} dibatalkan; riwayatnya tetap tersimpan.`,
+        tag: 'Bill of Materials',
+      })
+      setDiscardTarget(null)
+      loadBoms()
+    } catch (err) {
+      setDiscardError(err?.message || 'Gagal membatalkan draf BOM.')
+    } finally {
+      setDiscarding(false)
     }
   }
 
@@ -508,6 +544,7 @@ export default function BomPage() {
               <option value="APPROVED">Disetujui (Aktif)</option>
               <option value="DRAFT">Draf</option>
               <option value="INACTIVE">Nonaktif</option>
+              <option value="DISCARDED">Dibatalkan</option>
             </select>
           </div>
         </div>
@@ -673,6 +710,18 @@ export default function BomPage() {
                             </button>
                           )}
 
+                          {bom.status === 'DRAFT' && (canManage || canApprove) && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDiscard(bom)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer"
+                              title="Batalkan Draf Ini"
+                            >
+                              <IconTrash size={13} />
+                              <span>Batalkan</span>
+                            </button>
+                          )}
+
                           {bom.status === 'APPROVED' && canApprove && (
                             <button
                               type="button"
@@ -813,6 +862,51 @@ export default function BomPage() {
               disabled={retiring || !retireReason.trim()}
             >
               {retiring ? <Spinner size={14} label="Menonaktifkan..." /> : 'Nonaktifkan Sekarang'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Discard Draft Modal */}
+      <Modal
+        open={Boolean(discardTarget)}
+        onClose={() => setDiscardTarget(null)}
+        title="Batalkan Draf BOM"
+        size="max-w-md"
+      >
+        <form onSubmit={handleSubmitDiscard} className="space-y-4 text-xs">
+          {discardError && <Alert kind="error">{discardError}</Alert>}
+
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300">
+            <p className="font-bold">Konfirmasi Pembatalan Draf</p>
+            <p className="text-[11px] mt-1">
+              Draf {discardTarget?.group} v{discardTarget?.version_number} akan dibatalkan (DISCARDED). Draf tidak dihapus: riwayatnya tetap tersimpan,
+              tetapi tidak bisa disetujui atau diubah lagi dan nomor versinya tidak dipakai ulang.
+            </p>
+          </div>
+
+          <div>
+            <label className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+              Alasan Pembatalan <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              rows={3}
+              maxLength={1000}
+              required
+              disabled={discarding}
+              placeholder="Contoh: Rumus salah, akan diunggah ulang dari Excel yang sudah diperbaiki..."
+              value={discardReason}
+              onChange={(e) => setDiscardReason(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="secondary" onClick={() => setDiscardTarget(null)} disabled={discarding}>
+              Kembali
+            </Button>
+            <Button type="submit" variant="danger" disabled={discarding || !discardReason.trim()}>
+              {discarding ? <Spinner size={14} label="Membatalkan..." /> : 'Batalkan Draf'}
             </Button>
           </div>
         </form>

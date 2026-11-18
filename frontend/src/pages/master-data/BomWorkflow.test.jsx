@@ -19,6 +19,7 @@ vi.mock('../../services/api.js', () => ({
     updateDraft: vi.fn(),
     approve: vi.fn(),
     retire: vi.fn(),
+    discard: vi.fn(),
     calculate: vi.fn(),
   },
   masterDataApi: {
@@ -151,6 +152,24 @@ describe('BOM Workflow (Docs 61 & 66)', () => {
         version_ids: ['bom-pbpd-1'],
         reason: 'Disetujui untuk operasional MTO 2026.',
       })
+    })
+
+    it('discards a wrong draft with a mandatory reason and sends POST /discard', async () => {
+      const user = userEvent.setup()
+      bomApi.list.mockResolvedValue({ data: mockBoms })
+      bomApi.discard.mockResolvedValue({ data: { id: 'bom-pbpd-1', status: 'DISCARDED' } })
+
+      renderWithAccess(<BomPage />, { can: { 'bom.manage': true, 'bom.approve': true } })
+      await waitFor(() => expect(screen.getByText(/Draf BOM Menunggu Persetujuan/i)).toBeInTheDocument())
+
+      await user.click(screen.getAllByRole('button', { name: /^Batalkan$/i })[0])
+      expect(screen.getByText(/Konfirmasi Pembatalan Draf/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Batalkan Draf/i })).toBeDisabled()          // no reason, no submit
+
+      await user.type(screen.getByPlaceholderText(/Rumus salah/i), 'Rumus salah, unggah ulang.')
+      await user.click(screen.getByRole('button', { name: /Batalkan Draf/i }))
+
+      expect(bomApi.discard).toHaveBeenCalledWith('bom-pbpd-1', { reason: 'Rumus salah, unggah ulang.' })
     })
 
     it('displays 403 or 409 error verbatim when approval fails', async () => {

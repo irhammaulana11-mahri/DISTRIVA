@@ -25,7 +25,7 @@ class BomController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $request->validate(['group' => ['nullable', Rule::in((array) config('distriva.bom_groups'))], 'status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE'])]]);
+        $request->validate(['group' => ['nullable', Rule::in((array) config('distriva.bom_groups'))], 'status' => ['nullable', Rule::in(['DRAFT', 'APPROVED', 'INACTIVE', 'DISCARDED'])]]);
 
         $q = DB::table('bom_headers as h')->selectRaw('h.*, (select count(*) from bom_lines l where l.bom_header_id = h.id) as lines_count');
         $groups = (array) config('distriva.bom_groups');
@@ -117,6 +117,19 @@ class BomController extends Controller
         $this->authorizer->authorize($actor, 'bom.approve');
         $data = Validator::make($request->all(), ['reason' => ['required', 'string', 'max:1000']])->validate();
         $this->bom->retire($header, $data['reason'], $actor);
+
+        return response()->json(['data' => $this->header(DB::table('bom_headers')->where('id', $header)->first())]);
+    }
+
+    /** A wrong draft is thrown away (status DISCARDED, history kept): whoever prepares (bom.manage) or approves (bom.approve) BOM versions. */
+    public function discard(Request $request, string $header): JsonResponse
+    {
+        $actor = $request->user();
+        if (! $this->authorizer->allows($actor, 'bom.manage')) {
+            $this->authorizer->authorize($actor, 'bom.approve');
+        }
+        $data = Validator::make($request->all(), ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->bom->discard($header, $data['reason'], $actor);
 
         return response()->json(['data' => $this->header(DB::table('bom_headers')->where('id', $header)->first())]);
     }

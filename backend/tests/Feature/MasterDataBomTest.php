@@ -230,6 +230,32 @@ class MasterDataBomTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_wrong_draft_is_discarded_with_its_history_and_can_never_be_approved_or_changed_again(): void
+    {
+        $doc = $this->tiny();
+        $this->catalogue([$doc]);
+        $this->upload($doc)->assertCreated();
+        $v1 = (string) DB::table('bom_headers')->value('id');
+
+        $this->as($this->engineer)->postJson("/api/master-data/bom/{$v1}/discard", [])->assertUnprocessable();                                    // reason is required
+        $this->as($this->engineer)->postJson("/api/master-data/bom/{$v1}/discard", ['reason' => 'rumus salah'])->assertOk()->assertJsonPath('data.status', 'DISCARDED');
+        $this->assertSame(['CREATED', 'DISCARDED'], DB::table('bom_events')->where('bom_header_id', $v1)->orderBy('occurred_at')->pluck('event_type')->all());   // history kept, nothing deleted
+
+        $this->approve($v1)->assertStatus(409);                                                                                                   // a discarded draft cannot be approved
+        $this->as($this->engineer)->patchJson("/api/master-data/bom/{$v1}", ['name' => 'x', 'reason' => 'x'])->assertStatus(409);
+        $this->as($this->engineer)->postJson("/api/master-data/bom/{$v1}/discard", ['reason' => 'lagi'])->assertStatus(409);                       // only a DRAFT can be discarded
+        $this->assertDatabaseTriggerBlocks(fn () => DB::table('bom_lines')->where('bom_header_id', $v1)->delete());
+        $this->assertDatabaseTriggerBlocks(fn () => DB::table('bom_headers')->where('id', $v1)->update(['status' => 'DRAFT']));
+
+        $this->upload($doc)->assertCreated();                                                                                                     // the number is not reused
+        $this->assertSame([1, 2], DB::table('bom_headers')->orderBy('version_number')->pluck('version_number')->map(fn ($v) => (int) $v)->all());
+        $this->as($this->engineer)->getJson('/api/master-data/bom?status=DISCARDED')->assertOk()->assertJsonCount(1, 'data');
+
+        $other = (string) DB::table('bom_headers')->where('version_number', 2)->value('id');
+        $this->as($this->makeUser())->postJson("/api/master-data/bom/{$other}/discard", ['reason' => 'x'])->assertForbidden();                    // no role, no right
+    }
+
+    #[Test]
     public function the_creator_cannot_approve_their_own_draft_not_even_with_both_roles_and_the_database_agrees(): void
     {
         $doc = $this->tiny();

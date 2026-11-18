@@ -207,6 +207,7 @@ export const bomApi = {
   updateDraft: (id, body) => request(`/master-data/bom/${id}`, { method: 'PATCH', body }),
   approve: (body) => request('/master-data/bom/versions/approve', { method: 'POST', body }),
   retire: (id, body) => request(`/master-data/bom/${id}/retire`, { method: 'POST', body }),
+  discard: (id, body) => request(`/master-data/bom/${id}/discard`, { method: 'POST', body }),
   calculate: (id, body) => request(`/master-data/bom/${id}/calculate`, { method: 'POST', body }),
 }
 

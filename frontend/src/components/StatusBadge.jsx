@@ -3,6 +3,7 @@ const tone = {
   PENDING_ACTIVATION: 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60',
   SUSPENDED: 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border-rose-200/80 dark:border-rose-800/60',
   INACTIVE: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+  DISCARDED: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
   PENDING_BACKEND: 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60',
   // Distriva / EIS Lifecycle Statuses
   DRAFT: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
@@ -48,6 +49,7 @@ const dotColor = {
   PENDING_ACTIVATION: 'bg-amber-500',
   SUSPENDED: 'bg-rose-500',
   INACTIVE: 'bg-slate-400',
+  DISCARDED: 'bg-slate-300',
   PENDING_BACKEND: 'bg-amber-500',
   DRAFT: 'bg-slate-400',
   SUBMITTED: 'bg-blue-500',
@@ -90,6 +92,7 @@ const label = {
   PENDING_ACTIVATION: 'Menunggu aktivasi',
   SUSPENDED: 'Ditangguhkan',
   INACTIVE: 'Nonaktif',
+  DISCARDED: 'Dibatalkan',
   PENDING_BACKEND: 'Menunggu Backend',
   DRAFT: 'Draf',
   SUBMITTED: 'Diajukan',

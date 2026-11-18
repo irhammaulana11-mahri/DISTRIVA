@@ -465,6 +465,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::patch('/bom/{header}', [BomController::class, 'updateDraft'])->whereUuid('header');
         Route::get('/bom/{header}/lines', [BomController::class, 'lines'])->whereUuid('header');
         Route::post('/bom/{header}/retire', [BomController::class, 'retire'])->whereUuid('header');
+        Route::post('/bom/{header}/discard', [BomController::class, 'discard'])->whereUuid('header');
         Route::post('/bom/{header}/calculate', [BomController::class, 'calculate'])->whereUuid('header');
 
         Route::get('/construction-types', [ConstructionTypeController::class, 'index']);

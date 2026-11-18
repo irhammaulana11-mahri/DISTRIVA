@@ -229,6 +229,20 @@ class BomService
     }
 
     /**
+     * Throws a wrong DRAFT away without deleting it: status DISCARDED, immutable like an approved version, kept with its history (the events table is append-only).
+     * A discarded version never takes part in a calculation; its version number is not reused.
+     */
+    public function discard(string $headerId, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($headerId, $reason, $actor): void {
+            $h = DB::table('bom_headers')->where('id', $headerId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $this->requireDraft($h, 'dibatalkan');
+            DB::table('bom_headers')->where('id', $headerId)->update(['status' => 'DISCARDED', 'updated_at' => now()]);
+            $this->event($headerId, 'DISCARDED', $actor, $reason, ['group' => $h->group_code, 'version_number' => (int) $h->version_number]);
+        });
+    }
+
+    /**
      * Calculates a document exactly as the engine would after approval, without keeping anything: the version is imported inside a transaction that is rolled back.
      * `typed` = GAMBAR cell => number (the drawing inputs typed in the workbook), `paramValues` = parameter name => value.
      *
