@@ -94,7 +94,34 @@ class KkfService
         $hash = hash('sha256', json_encode(['inputs' => $inputs, 'sources' => $sources], JSON_THROW_ON_ERROR));
 
         return ['application_id' => $applicationId, 'proposal_id' => $proposalId, 'valid_on' => $date, 'inputs' => $inputs, 'sources' => $sources, 'result' => $result,
-            'feasible' => (bool) $result['feasible'], 'extended_required' => ! $result['feasible'], 'snapshot_hash' => $hash];
+            'feasible' => (bool) $result['feasible'], 'extended_required' => ! $result['feasible'], 'snapshot_hash' => $hash, 'warnings' => $this->appCountWarnings($rab, count($members))];
+    }
+
+    /**
+     * A collective KKF takes its investment from the representative's RAB run, whose APP material follows the PBPD block of that drawing (PBPD:PSG_n = customers installed per power range).
+     * When that block counts fewer installations than the proposal has members, the investment is too small and the KKF looks better than it is: reported, never blocking (a drawing may
+     * legitimately cover an APP only for some members).
+     *
+     * @return list<array{code:string,message:string,members:int,psg_total:float}>
+     */
+    private function appCountWarnings(object $rab, int $memberCount): array
+    {
+        if ($memberCount < 2) {
+            return [];
+        }
+        $params = (array) json_decode((string) DB::table('mto_packages')->where('id', $rab->mto_package_id)->value('params'), true);
+        $psg = 0.0;
+        foreach ($params as $name => $value) {
+            if (str_starts_with((string) $name, 'PBPD:PSG_')) {
+                $psg += (float) $value;
+            }
+        }
+        if ($psg >= $memberCount) {
+            return [];
+        }
+
+        return [['code' => 'APP_COUNT_BELOW_MEMBERS', 'members' => $memberCount, 'psg_total' => $psg,
+            'message' => 'Usulan ini memiliki '.$memberCount.' pelanggan, tetapi blok PBPD pada gambar permohonan wakil hanya memuat '.rtrim(rtrim(number_format($psg, 2, '.', ''), '0'), '.').' pemasangan APP. Material APP pada RAB (investasi KKF) mungkin kurang; periksa jumlah pelanggan per rentang daya pada gambar.']];
     }
 
     /**

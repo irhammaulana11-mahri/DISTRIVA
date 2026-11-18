@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Inventory\MaterialSupplier;
 use App\Services\Kkf\KkfCalculator;
+use App\Services\Kkf\KkfService;
 use App\Services\Mto\GambarReader;
 use App\Services\Mto\PdfGambarReader;
 use App\Services\WorkOrders\MaterialOutbox;
@@ -2075,6 +2076,10 @@ class MtoTest extends PostgresTestCase
         $this->assertEqualsWithDelta($expectedEnergy, $dry->json('data.result.years.1.energy_sold_mwh'), 1e-9);
         $this->assertCount(2, $dry->json('data.sources.members'));
         $this->assertSame($prop, $dry->json('data.sources.proposal_id'));
+        $this->assertSame([], $dry->json('data.warnings'));                                                                     // the drawing's PBPD block counts 2 APP installations = 2 members
+        $warn = (new \ReflectionMethod(KkfService::class, 'appCountWarnings'))->invoke(app(KkfService::class), (object) ['mto_package_id' => $p], 3);   // a third member the drawing does not count
+        $this->assertSame(['APP_COUNT_BELOW_MEMBERS'], array_column($warn, 'code'));
+        $this->assertSame([3, 2.0], [$warn[0]['members'], $warn[0]['psg_total']]);
 
         $run = $this->as($this->perencanaan)->postJson("/api/proposals/{$prop}/kkf-runs", [])->assertCreated();
         $this->assertSame($dry->json('data.snapshot_hash'), $run->json('data.snapshot_hash'));

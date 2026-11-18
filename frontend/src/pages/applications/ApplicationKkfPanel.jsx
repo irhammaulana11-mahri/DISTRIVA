@@ -559,6 +559,13 @@ export default function ApplicationKkfPanel({
       {/* KKF Results Card */}
       {activeData && result && (
         <div className="space-y-4">
+          {(activeData.warnings || []).map((w) => (
+            <div key={w.code} data-testid="kkf-warning">
+              <Alert kind="warning" className="text-xs">
+                {w.message}
+              </Alert>
+            </div>
+          ))}
           {/* Extended Approval Warning Banner */}
           {activeData.extended_required && (
             <div className="p-4 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 text-rose-900 dark:text-rose-200 text-xs space-y-1.5 shadow-xs">

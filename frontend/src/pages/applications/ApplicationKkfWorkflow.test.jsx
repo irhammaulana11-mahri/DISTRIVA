@@ -168,6 +168,16 @@ describe('ApplicationKkfPanel Workflow (docs/69 & docs/62 §26)', () => {
     })
   })
 
+  it('shows the APP-count warning returned with a collective KKF result', async () => {
+    kkfRunsApi.run.mockResolvedValueOnce({
+      ...mockDryRunResultFeasible,
+      data: { ...mockDryRunResultFeasible.data, warnings: [{ code: 'APP_COUNT_BELOW_MEMBERS', message: 'Usulan ini memiliki 3 pelanggan, tetapi blok PBPD hanya memuat 2 pemasangan APP.' }] },
+    })
+    renderPanel(mockAppPrepaid, { canRun: true, canView: true })
+    await userEvent.click(screen.getByRole('button', { name: /Hitung \(Dry Run\)/ }))
+    expect(await screen.findByTestId('kkf-warning')).toHaveTextContent(/memuat 2 pemasangan APP/)
+  })
+
   it('1. renders KKF panel with non-editable connection fee (BP) and automatic meter type from PAKET_SAR', async () => {
     renderPanel(mockAppPrepaid, { canRun: true, canView: true })
 
