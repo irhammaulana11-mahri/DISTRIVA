@@ -18,6 +18,7 @@ vi.mock('../../services/api.js', () => ({
     import: vi.fn(),
     setZone: vi.fn(),
     setInsured: vi.fn(),
+    createFromActive: vi.fn(),
     approve: vi.fn(),
     retire: vi.fn(),
   },
@@ -278,6 +279,21 @@ describe('Buku Harga Kontrak Workflow (Tahap 5A - docs/67)', () => {
     // Apply button must be disabled
     const applyBtn = screen.getByRole('button', { name: /Terapkan & Buat Draf/i })
     expect(applyBtn).toBeDisabled()
+  })
+
+  it('creates a DRAFT as a copy of the book in force with a mandatory reason and opens it', async () => {
+    priceBookApi.createFromActive.mockResolvedValueOnce({ data: { id: 'f8d287b7-a07b-4f84-a67e-4f50b06f2759', items: 504 } })
+    renderPriceBooksPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buat Draf dari Buku Berlaku' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Buat Draf' }))
+    expect(await screen.findByText(/wajib diisi/)).toBeInTheDocument()                          // no reason, nothing sent
+    expect(priceBookApi.createFromActive).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByLabelText(/Alasan/), 'Selaras Excel revisi')
+    await userEvent.click(screen.getByRole('button', { name: 'Buat Draf' }))
+    await waitFor(() => expect(priceBookApi.createFromActive).toHaveBeenCalledTimes(1))
+    expect(priceBookApi.createFromActive.mock.calls[0][0]).toMatchObject({ reason: 'Selaras Excel revisi' })
+    expect(await screen.findByText('Buku Harga Kontrak Jatim 2026')).toBeInTheDocument()       // navigated to the new draft
   })
 
   it('changes the MDU value of one item of a DRAFT book with a mandatory reason', async () => {

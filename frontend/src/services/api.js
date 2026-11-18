@@ -217,6 +217,7 @@ export const priceBookApi = {
   items: (id, params = {}) => request(`/master-data/price-books/${id}/items${qs(params)}`),
   import: (formData) => request('/master-data/price-books/import', { method: 'POST', body: formData }),
   setZone: (id, body) => request(`/master-data/price-books/${id}/zones`, { method: 'PUT', body }),
+  createFromActive: (body) => request('/master-data/price-books/from-active', { method: 'POST', body }),
   setInsured: (id, code, body) => request(`/master-data/price-books/${id}/items/${encodeURIComponent(code)}/insured`, { method: 'PATCH', body }),
   approve: (body) => request('/master-data/price-books/approve', { method: 'POST', body }),
   retire: (id, body) => request(`/master-data/price-books/${id}/retire`, { method: 'POST', body }),

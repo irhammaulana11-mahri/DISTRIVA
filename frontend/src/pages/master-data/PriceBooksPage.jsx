@@ -8,6 +8,7 @@ import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
+import PriceBookCloneModal from './PriceBookCloneModal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import {
@@ -37,6 +38,7 @@ export default function PriceBooksPage() {
 
   const [dialog, setDialog] = useState(null) // { type: 'approve' | 'retire', book }
   const [dialogError, setDialogError] = useState('')
+  const [cloneOpen, setCloneOpen] = useState(false)
 
   const canManage = Boolean(can['prices.manage'])
   const canApprove = Boolean(can['prices.approve'])
@@ -144,6 +146,11 @@ export default function PriceBooksPage() {
             >
               Segarkan
             </Button>
+            {canManage && (
+              <Button variant="secondary" size="md" onClick={() => setCloneOpen(true)}>
+                Buat Draf dari Buku Berlaku
+              </Button>
+            )}
             {canManage && (
               <button
                 type="button"
@@ -461,6 +468,23 @@ export default function PriceBooksPage() {
           perPageOptions={[10, 25, 50, 100]}
         />
       </div>
+
+      {/* Draft from the book in force */}
+      <PriceBookCloneModal
+        open={cloneOpen}
+        onClose={() => setCloneOpen(false)}
+        onCreated={(created) => {
+          setCloneOpen(false)
+          notify({
+            type: 'success',
+            title: 'Draf Buku Harga Dibuat',
+            desc: 'Draf berisi salinan buku harga berlaku. Ubah nilai MDU per barang di halaman rinciannya, lalu minta persetujuan.',
+            tag: 'Buku Harga',
+          })
+          if (created?.id) navigate(`/master-data/harga/${created.id}`)
+          else loadBooks()
+        }}
+      />
 
       {/* Approve / Retire Reason Dialog */}
       {dialog && (

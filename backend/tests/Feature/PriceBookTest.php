@@ -186,6 +186,38 @@ class PriceBookTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_draft_can_start_as_a_copy_of_the_book_in_force_and_its_mdu_adjusted_without_a_price_file(): void
+    {
+        $this->khs([1, 2]);
+        $csv = "kode,nama,status_material,harga_material,nilai_asuransi,z2_pasang,z2_bongkar\n1,A,PLN,,\"1.000,00\",10,5\n2,B,HARGA,100,,20,8\n";
+        $this->as($this->engineer)->postJson('/api/master-data/price-books/from-active', ['name' => 'Salinan', 'valid_from' => '2026-12-01', 'reason' => 'x'])->assertStatus(409);   // nothing approved yet
+
+        $this->upload($csv)->assertCreated();
+        $old = (string) DB::table('price_books')->value('id');
+        $this->zone($old)->assertOk();
+        $this->approve($old)->assertOk();
+
+        $this->as($this->viewer)->postJson('/api/master-data/price-books/from-active', ['name' => 'Salinan', 'valid_from' => '2026-12-01', 'reason' => 'x'])->assertForbidden();
+        $this->as($this->engineer)->postJson('/api/master-data/price-books/from-active', ['name' => 'Salinan', 'valid_from' => '2026-12-01'])->assertUnprocessable();                   // reason is required
+        $r = $this->as($this->engineer)->postJson('/api/master-data/price-books/from-active', ['name' => 'Salinan', 'valid_from' => '2026-12-01', 'reason' => 'Selaras Excel revisi'])->assertCreated();
+        $new = (string) $r->json('data.id');
+        $this->assertSame(2, $r->json('data.items'));
+        $this->assertSame('DRAFT', DB::table('price_books')->where('id', $new)->value('status'));
+
+        $rows = fn (string $book) => DB::table('price_book_items as p')->join('khs_items as k', 'k.id', '=', 'p.khs_item_id')->leftJoin('price_book_service_prices as s', 's.price_book_item_id', '=', 'p.id')
+            ->where('p.price_book_id', $book)->orderBy('k.code')->get(['k.code', 'p.material_status', 'p.material_price', 'p.insured_value', 's.zone', 's.install_price', 's.remove_price'])->map(fn ($x) => (array) $x)->all();
+        $this->assertEquals($rows($old), $rows($new));                                                                                                                                  // items and service prices are identical
+        $this->assertSame(1, DB::table('price_book_zones')->where('price_book_id', $new)->count());                                                                                     // zones are copied too
+        $event = DB::table('price_book_events')->where('price_book_id', $new)->where('event_type', 'CREATED')->first();
+        $this->assertSame($old, json_decode($event->details, true)['copied_from']);
+
+        $code = DB::table('khs_items')->orderBy('code')->value('code');                                                                                                                 // the copy is a normal draft: MDU is adjusted on it, the original stays untouched
+        $this->as($this->engineer)->patchJson("/api/master-data/price-books/{$new}/items/{$code}/insured", ['insured_value' => 1234, 'reason' => 'uji'])->assertOk();
+        $this->assertEquals(1000, DB::table('price_book_items as p')->join('khs_items as k', 'k.id', '=', 'p.khs_item_id')->where('p.price_book_id', $old)->where('k.code', $code)->value('p.insured_value'));
+        $this->approve($new)->assertOk();                                                                                                                                               // approved by another account: closes the old book
+    }
+
+    #[Test]
     public function a_zone_needs_an_up3_and_a_zone_the_book_has_prices_for(): void
     {
         $this->khs([1, 2]);

@@ -88,6 +88,18 @@ class PriceBookController extends Controller
         return response()->json(['data' => $r['summary'], 'rows' => $r['rows']], $r['summary']['dry_run'] ? 200 : 201);
     }
 
+    /** A DRAFT that starts as a copy of the book in force (to adjust MDU values and the like without a price file). */
+    public function createDraftFromActive(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'prices.manage');
+        $data = Validator::make($request->all(), ['name' => ['required', 'string', 'max:150'], 'contract_reference' => ['nullable', 'string', 'max:150'], 'valid_from' => ['required', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'max:1000']])->validate();
+        $r = $this->books->createDraftFromActive($data['name'], $data['contract_reference'] ?? null, $data['valid_from'], $data['reason'], $actor);
+        $this->notifier->approvalRequested('prices.approve', 'price_books', 'buku harga', $actor, 'Buku Harga', '/master-data/harga');
+
+        return response()->json(['data' => $r], 201);
+    }
+
     public function setZone(Request $request, string $book): JsonResponse
     {
         $actor = $request->user();

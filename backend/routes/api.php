@@ -452,6 +452,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
 
         Route::get('/price-books', [PriceBookController::class, 'index']);
         Route::post('/price-books/import', [PriceBookController::class, 'import']);
+        Route::post('/price-books/from-active', [PriceBookController::class, 'createDraftFromActive']);
         Route::post('/price-books/approve', [PriceBookController::class, 'approve']);
         Route::get('/price-books/{book}', [PriceBookController::class, 'show'])->whereUuid('book');
         Route::get('/price-books/{book}/items', [PriceBookController::class, 'items'])->whereUuid('book');

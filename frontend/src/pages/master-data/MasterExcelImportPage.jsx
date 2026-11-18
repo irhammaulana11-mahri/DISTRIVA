@@ -213,7 +213,7 @@ function PriceSection({ imp, can, onApply, defaultValidFrom }) {
       )}
       {p.mdu_differences?.count > 0 && (
         <div className="mt-3" data-testid="mdu-differences">
-          <Alert variant="warning">{`Nilai MDU di Excel berbeda dari buku yang berlaku pada ${p.mdu_differences.count.toLocaleString('id-ID')} barang. Nilai MDU tidak ditimpa dari Excel; bila perlu diubah, ubah per barang di draf buku harga (tombol Ubah pada kolom Nilai MDU).`}</Alert>
+          <Alert variant="warning">{`Nilai MDU di Excel berbeda dari buku yang berlaku pada ${p.mdu_differences.count.toLocaleString('id-ID')} barang. Nilai MDU tidak ditimpa dari Excel; bila perlu diubah, buat draf dari buku berlaku di halaman Buku Harga lalu ubah per barang (tombol Ubah pada kolom Nilai MDU).`}</Alert>
           <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
             <table className="w-full min-w-120 text-left text-xs">
               <caption className="sr-only">Selisih nilai MDU</caption>

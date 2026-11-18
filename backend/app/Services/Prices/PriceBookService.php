@@ -141,6 +141,46 @@ class PriceBookService
         return ['summary' => array_merge($summary, ['id' => $id, 'created' => true]), 'rows' => $out];
     }
 
+    /**
+     * A DRAFT that starts as a COPY of the book in force (items, service prices per zone and the UP3 zones), so MDU values (or anything else the book allows) can be adjusted on the
+     * draft without a new price file. The copy is only a draft: approval by another account is still required, and it closes the previous book like any other draft.
+     *
+     * @return array{id:string, items:int, copied_from:string}
+     */
+    public function createDraftFromActive(string $name, ?string $contract, string $validFrom, string $reason, User $actor): array
+    {
+        $from = DB::table('price_books')->where('status', 'APPROVED')->orderByDesc('valid_from')->first()
+            ?? throw new AssignmentRuleViolation('Belum ada buku harga yang disetujui untuk disalin.');
+
+        return DB::transaction(function () use ($from, $name, $contract, $validFrom, $reason, $actor): array {
+            $id = (string) Str::uuid();
+            DB::table('price_books')->insert(['id' => $id, 'name' => $name, 'contract_reference' => $contract ?? $from->contract_reference, 'valid_from' => $validFrom, 'status' => 'DRAFT',
+                'source_reference' => mb_substr('Salinan dari '.$from->name, 0, 255), 'created_by' => $actor->getKey(), 'created_at' => now(), 'updated_at' => now()]);
+            $items = 0;
+            foreach (DB::table('price_book_items')->where('price_book_id', $from->id)->orderBy('id')->get()->chunk(200) as $chunk) {
+                $itemRows = [];
+                $svcRows = [];
+                $services = DB::table('price_book_service_prices')->whereIn('price_book_item_id', $chunk->pluck('id'))->get()->groupBy('price_book_item_id');
+                foreach ($chunk as $it) {
+                    $iid = (string) Str::uuid();
+                    $itemRows[] = ['id' => $iid, 'price_book_id' => $id, 'khs_item_id' => $it->khs_item_id, 'material_status' => $it->material_status, 'material_price' => $it->material_price, 'insured_value' => $it->insured_value, 'created_at' => now(), 'updated_at' => now()];
+                    foreach ($services->get($it->id, collect()) as $sv) {
+                        $svcRows[] = ['id' => (string) Str::uuid(), 'price_book_item_id' => $iid, 'zone' => $sv->zone, 'install_price' => $sv->install_price, 'remove_price' => $sv->remove_price];
+                    }
+                }
+                DB::table('price_book_items')->insert($itemRows);
+                $svcRows === [] || DB::table('price_book_service_prices')->insert($svcRows);
+                $items += count($itemRows);
+            }
+            $zones = DB::table('price_book_zones')->where('price_book_id', $from->id)->get()
+                ->map(fn ($z) => ['id' => (string) Str::uuid(), 'price_book_id' => $id, 'up3_unit_id' => $z->up3_unit_id, 'zone' => $z->zone, 'created_at' => now(), 'updated_at' => now()])->all();
+            $zones === [] || DB::table('price_book_zones')->insert($zones);
+            $this->event($id, 'CREATED', $actor, $reason, ['items' => $items, 'copied_from' => $from->id, 'copied_from_name' => $from->name, 'zones' => count($zones)]);
+
+            return ['id' => $id, 'items' => $items, 'copied_from' => $from->id];
+        });
+    }
+
     /** Sets the service zone of one UP3 in a DRAFT book (a zone the book has prices for). */
     public function setZone(string $bookId, string $up3UnitId, int $zone, string $reason, User $actor): void
     {
