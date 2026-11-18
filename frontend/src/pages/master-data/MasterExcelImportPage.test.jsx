@@ -12,7 +12,7 @@ vi.mock('../../services/api.js', () => ({
   triggerFileDownload: vi.fn(),
 }))
 
-const CAN = { rab: true, tariff: true, bom: true, price: true, tariffs: true }
+const CAN = { rab: true, tariff: true, bom: true, price: true, tariffs: true, kkf: true }
 const ready = {
   id: 'i-1', kind: 'RAB_KKF', file_name: 'MASTER RAB & KKF.xlsx', size_bytes: 25000000, status: 'READY', created_at: '2026-11-15T10:00:00Z', uploaded_by_name: 'Perencana', applied: {},
   report: {
@@ -145,6 +145,43 @@ describe('Impor Master dari Excel', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Terapkan sebagai DRAFT' }))
     await waitFor(() => expect(masterExcelApi.apply).toHaveBeenCalledTimes(1))
     expect(masterExcelApi.apply.mock.calls[0][1]).toMatchObject({ dataset: 'TARIFF', valid_from: '2026-12-01' })
+  })
+
+  it('template: parameter KKF yang berubah dan hasil contoh dari Excel ditampilkan, aturan tetap yang berbeda hanya diperingatkan', async () => {
+    const full = { ...distriva, report: { ...distriva.report,
+      rules: { status: 'DIFFERENT', differences: [{ rule: 'ppn_rate', label: 'PPN pada RAB', workbook: '0.12', distriva: '0.11' }] },
+      kkf: { status: 'CHANGED', set: 'Parameter 2026', values: { bpp: 600 }, changes: [{ field: 'bpp', label: 'BPP / biaya pokok penyediaan (Rp per kWh)', before: 552, after: 600 }], problems: [], cases: { checked: 7, skipped: 0, mismatch_count: 0, mismatches: [] } } } }
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...full, report: null }], can: CAN, limits: { max_mb: 60 } })
+    masterExcelApi.get.mockResolvedValue({ data: full })
+    masterExcelApi.apply.mockResolvedValue({ data: { status: 'OK', message: 'Set parameter KKF DRAFT dibuat (1 nilai berubah).' }, import: { ...full, applied: { KKF: { status: 'OK', message: 'Set parameter KKF DRAFT dibuat (1 nilai berubah).', link: '/master-data/kkf-parameters' } } } })
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    expect(await screen.findByText('Parameter KKF')).toBeInTheDocument()
+    expect(screen.getByText('Hasil contoh cocok (7 nilai diuji)')).toBeInTheDocument()
+    expect(screen.getByText(/BPP \/ biaya pokok penyediaan/)).toBeInTheDocument()
+    expect(screen.getByText(/Aturan tetap di berkas berbeda dengan program DISTRIVA: PPN pada RAB \(Excel 0.12, DISTRIVA 0.11\)/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Buat set parameter KKF DRAFT' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Terapkan sebagai DRAFT' }))
+    await waitFor(() => expect(masterExcelApi.apply).toHaveBeenCalledTimes(1))
+    expect(masterExcelApi.apply.mock.calls[0][1]).toMatchObject({ dataset: 'KKF', valid_from: '2026-12-01' })
+  })
+
+  it('template: uji pembulatan RAB yang berbeda hanya diperingatkan, yang cocok ditandai cocok', async () => {
+    const mismatch = { ...distriva, report: { ...distriva.report, rab: { status: 'MISMATCH', checked: 6, mismatch_count: 1, mismatches: [{ cell: 'UJI_RAB!D5', case: 'Contoh 1', excel: 13703600, distriva: 13703800 }] } } }
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...mismatch, report: null }], can: CAN, limits: { max_mb: 60 } })
+    masterExcelApi.get.mockResolvedValue({ data: mismatch })
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    expect(await screen.findByText(/Pembulatan RAB di Excel berbeda dengan aturan DISTRIVA di 1 sel \(UJI_RAB!D5: Excel 13703600, DISTRIVA 13703800\)/)).toBeInTheDocument()
+  })
+
+  it('template: uji pembulatan RAB yang cocok ditandai cocok', async () => {
+    const match = { ...distriva, report: { ...distriva.report, rab: { status: 'MATCH', checked: 6, mismatch_count: 0, mismatches: [] } } }
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...match, report: null }], can: CAN, limits: { max_mb: 60 } })
+    masterExcelApi.get.mockResolvedValue({ data: match })
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    expect(await screen.findByText('Uji pembulatan RAB cocok (6 nilai diuji).')).toBeInTheDocument()
   })
 
   it('masalah susunan berkas ditampilkan per sel dan tidak ada yang dibandingkan', async () => {

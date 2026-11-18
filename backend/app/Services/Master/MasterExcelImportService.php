@@ -268,6 +268,7 @@ class MasterExcelImportService
             }
         }
 
+        $out['rab'] = $this->compareRab($r['rab_cases']);
         $out['rules'] = $this->compareRules($r['kkf']['rules']);
         $out['kkf'] = $this->compareKkf($r['kkf']);
 
@@ -336,6 +337,33 @@ class MasterExcelImportService
         }
 
         return ['status' => $status, 'set' => $cur?->name, 'changes' => $changes, 'values' => $k['values'], 'cases' => ['checked' => $checked, 'skipped' => $skipped, 'mismatch_count' => count($mismatches), 'mismatches' => array_slice($mismatches, 0, 15)], 'problems' => $problems];
+    }
+
+    /**
+     * UJI_RAB against the closing rule of the RAB (PPN and the rounded group total).
+     *
+     * @param  list<array<string,mixed>>  $cases
+     * @return array<string,mixed>
+     */
+    private function compareRab(array $cases): array
+    {
+        $checked = 0;
+        $mismatches = [];
+        foreach ($cases as $c) {
+            if ($c['subtotal'] === '') {
+                continue;
+            }
+            $mine = RabService::closeGroup((float) $c['subtotal']);
+            foreach (['ppn' => 'C', 'total' => 'D'] as $key => $col) {
+                if ($c[$key] === '') {
+                    continue;
+                }
+                $checked++;
+                abs((float) $c[$key] - $mine[$key]) <= 0.005 || $mismatches[] = ['cell' => "UJI_RAB!{$col}{$c['row']}", 'case' => $c['name'], 'excel' => (float) $c[$key], 'distriva' => $mine[$key]];
+            }
+        }
+
+        return ['status' => $mismatches === [] ? 'MATCH' : 'MISMATCH', 'checked' => $checked, 'mismatch_count' => count($mismatches), 'mismatches' => array_slice($mismatches, 0, 15)];
     }
 
     /**

@@ -247,6 +247,29 @@ function TariffSection({ imp, can, onApply, defaultValidFrom, perRow = false }) 
   )
 }
 
+function KkfSection({ imp, can, onApply, defaultValidFrom }) {
+  const k = imp.report?.kkf
+  if (!k) return null
+  const c = k.cases || {}
+  const fmt = (v) => (typeof v === 'number' ? v.toLocaleString('id-ID', { maximumFractionDigits: 6 }) : v)
+  return (
+    <section className={card} aria-labelledby="mx-kkf">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 id="mx-kkf" className="text-base font-semibold text-slate-900 dark:text-slate-100">Parameter KKF</h3>
+        {chip(CHANGE, k.status)}
+      </div>
+      <p className="text-xs text-slate-500">{k.set ? `Dasar perbandingan: ${k.set}.` : 'Belum ada set parameter yang disetujui.'} Contoh hitung (UJI_KKF) dicocokkan dengan mesin KKF memakai parameter di berkas ini.</p>
+      <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{c.mismatch_count > 0 ? <span className="text-rose-600">{`Hasil contoh berbeda di ${c.mismatch_count} sel`}</span> : `Hasil contoh cocok (${c.checked ?? 0} nilai diuji${c.skipped ? `, ${c.skipped} contoh tanpa hasil dilewati` : ''})`}</p>
+      {k.changes?.length > 0 && (
+        <ul className="mt-3 space-y-1 text-xs">{k.changes.map((x) => <li key={x.field}><strong>{x.label}</strong>: <span className="line-through text-slate-400">{fmt(x.before)}</span> → {fmt(x.after)}</li>)}</ul>
+      )}
+      <Problems items={k.problems} />
+      <ApplyBar dataset="KKF" label="Buat set parameter KKF DRAFT" defaultValidFrom={defaultValidFrom} needName defaultName={`Parameter KKF ${today()}`} disabled={!can || !['CHANGED', 'NEW'].includes(k.status)} applied={imp.applied?.KKF} onApply={onApply} />
+      {!can && <p className="mt-2 text-xs text-slate-500">Membuat set parameter KKF memerlukan izin kelola parameter KKF.</p>}
+    </section>
+  )
+}
+
 function DistrivaSection({ imp, can, onApply }) {
   const r = imp.report || {}
   const m = r.meta || {}
@@ -269,6 +292,13 @@ function DistrivaSection({ imp, can, onApply }) {
       {!r.blocked && <BomSection imp={imp} can={can.bom} onApply={onApply} defaultValidFrom={m.valid_from} workbook />}
       {!r.blocked && <PriceSection imp={imp} can={can.price} onApply={onApply} defaultValidFrom={m.valid_from} />}
       {!r.blocked && <TariffSection imp={imp} can={can.tariffs} onApply={onApply} defaultValidFrom={m.valid_from} perRow />}
+      {!r.blocked && <KkfSection imp={imp} can={can.kkf} onApply={onApply} defaultValidFrom={m.valid_from} />}
+      {!r.blocked && r.rab && (r.rab.status === 'MISMATCH'
+        ? <Alert variant="warning">{`Pembulatan RAB di Excel berbeda dengan aturan DISTRIVA di ${r.rab.mismatch_count} sel (${r.rab.mismatches.slice(0, 3).map((x) => `${x.cell}: Excel ${x.excel}, DISTRIVA ${x.distriva}`).join('; ')}). Unggahan ini tidak mengubah aturan RAB; bila memang berubah, program perlu disesuaikan oleh pengembang.`}</Alert>
+        : r.rab.checked > 0 && <p className="text-xs text-slate-500">{`Uji pembulatan RAB cocok (${r.rab.checked} nilai diuji).`}</p>)}
+      {!r.blocked && r.rules?.status === 'DIFFERENT' && (
+        <Alert variant="warning">{`Aturan tetap di berkas berbeda dengan program DISTRIVA: ${r.rules.differences.map((d) => `${d.label} (Excel ${d.workbook}, DISTRIVA ${d.distriva})`).join('; ')}. Unggahan ini tidak mengubah aturan tersebut; bila memang berubah, program perlu disesuaikan oleh pengembang.`}</Alert>
+      )}
     </>
   )
 }
@@ -351,7 +381,7 @@ export default function MasterExcelImportPage() {
     return () => clearInterval(t)
   }, [selected, load])
 
-  const nothing = !state.can.rab && !state.can.tariff && !state.can.bom && !state.can.price && !state.can.tariffs
+  const nothing = !state.can.rab && !state.can.tariff && !state.can.bom && !state.can.price && !state.can.tariffs && !state.can.kkf
   const [downloading, setDownloading] = useState(false)
   const downloadTemplate = async () => {
     setDownloading(true)
@@ -379,7 +409,7 @@ export default function MasterExcelImportPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <UploadCard kind="DISTRIVA" className="lg:col-span-2" title="MASTER DISTRIVA (template untuk unit induk)" hint="Unduh template berisi aturan BOM, harga, dan tarif yang berlaku, isi di Excel (kirim ke unit induk bila perlu), lalu unggah kembali. Hasil hitung Excel dicocokkan dengan mesin DISTRIVA sebelum menjadi DRAFT." disabled={!state.can.bom && !state.can.price && !state.can.tariffs} units={units} actions={<Button variant="secondary" icon={IconDownload} loading={downloading} onClick={downloadTemplate}>Unduh template</Button>} onUploaded={(imp) => { setSelected(imp); load() }} />
+            <UploadCard kind="DISTRIVA" className="lg:col-span-2" title="MASTER DISTRIVA (template untuk unit induk)" hint="Unduh template berisi aturan BOM, harga, tarif, dan parameter KKF yang berlaku, isi di Excel (kirim ke unit induk bila perlu), lalu unggah kembali. Hasil hitung Excel dicocokkan dengan mesin DISTRIVA sebelum menjadi DRAFT." disabled={!state.can.bom && !state.can.price && !state.can.tariffs && !state.can.kkf} units={units} actions={<Button variant="secondary" icon={IconDownload} loading={downloading} onClick={downloadTemplate}>Unduh template</Button>} onUploaded={(imp) => { setSelected(imp); load() }} />
             <UploadCard kind="RAB_KKF" title="Excel RAB & KKF" hint="Memeriksa BOM dan buku harga (MASTER RAB & KKF.xlsx)." disabled={!state.can.rab} units={units} onUploaded={(imp) => { setSelected(imp); load() }} />
             <UploadCard kind="TARIF" title="Excel Tarif & Jam Nyala" hint="Memeriksa harga rata-rata, jam nyala, dan UJL (MASTER TARIF & JAM NYALA.xlsx)." disabled={!state.can.tariff} units={units} coverage={state.coverage} onUploaded={(imp) => { setSelected(imp); load() }} />
           </div>

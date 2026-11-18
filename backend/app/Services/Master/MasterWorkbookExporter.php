@@ -25,7 +25,7 @@ use RuntimeException;
  */
 class MasterWorkbookExporter
 {
-    public const TEMPLATE_VERSION = '3';
+    public const TEMPLATE_VERSION = '4';
 
     public const INFO_VERSION = 'B3';
 
@@ -38,7 +38,7 @@ class MasterWorkbookExporter
     /** HARGA and TARIF: titles above, column headers on this row, data below. */
     public const TABLE_HEAD_ROW = 4;
 
-    /** @return array{groups:array<string,array{version:int,lines:int}>,skipped:list<string>,price_rows:int,tariff_rows:int,kkf_cases:int} */
+    /** @return array{groups:array<string,array{version:int,lines:int}>,skipped:list<string>,price_rows:int,tariff_rows:int,kkf_cases:int,rab_cases:int} */
     public function build(string $path): array
     {
         $ss = new Spreadsheet;
@@ -53,9 +53,10 @@ class MasterWorkbookExporter
         $kkf = $ss->createSheet()->setTitle('PARAMETER_KKF');
         $aturan = $ss->createSheet()->setTitle('ATURAN');
         $ujiKkf = $ss->createSheet()->setTitle('UJI_KKF');
+        $ujiRab = $ss->createSheet()->setTitle('UJI_RAB');
         $gambar = $ss->createSheet()->setTitle('GAMBAR');
 
-        $summary = ['groups' => [], 'skipped' => [], 'price_rows' => 0, 'tariff_rows' => 0, 'kkf_cases' => 0];
+        $summary = ['groups' => [], 'skipped' => [], 'price_rows' => 0, 'tariff_rows' => 0, 'kkf_cases' => 0, 'rab_cases' => 0];
         $peta = [];
         $occupied = [];
         $bomSheets = [];
@@ -94,6 +95,7 @@ class MasterWorkbookExporter
         $this->kkfParameterSheet($kkf);
         $this->aturanSheet($aturan);
         $summary['kkf_cases'] = $this->ujiKkfSheet($ujiKkf);
+        $summary['rab_cases'] = $this->ujiRabSheet($ujiRab);
         $this->gambarSheet($gambar, $bomSheets, $occupied);
         foreach ($bomSheets as $group => [$h]) {
             $lines = $this->bomSheet($ss->createSheet()->setTitle($group), (string) $group, $h);
@@ -141,7 +143,8 @@ class MasterWorkbookExporter
             '9. Lembar TARIF: ubah harga rata-rata, jam nyala (jam per bulan, bukan ribuan), dan UJL per tarif dan daya. Kolom ULP kosong = berlaku untuk semua ULP; jam nyala per ULP diisi dengan kode ULP. Baris yang tidak ada di sini tetap seperti yang berlaku.',
             '10. Lembar PARAMETER_KKF: ubah kolom NILAI (tingkat diskonto, BPP, faktor beban, dan seterusnya). Perubahan menjadi set parameter KKF DRAFT.',
             '11. Lembar UJI_KKF: contoh perhitungan kelayakan. Isi hasil dari Excel unit induk; DISTRIVA menghitung ulang dengan parameter di berkas ini dan menolak bila berbeda. Lembar ATURAN hanya rujukan (PPN, tarif asuransi, versi mesin KKF ada di program).',
-            '12. Berkas yang diterima menjadi DRAFT; aturan baru berlaku setelah disetujui akun DISTRIVA lain. Data yang sudah berlaku tidak pernah ditimpa.',
+            '12. Lembar UJI_RAB: uji pembulatan RAB. Isi SUBTOTAL kelompok dan hasil PPN serta TOTAL dari Excel unit induk; DISTRIVA membandingkannya dengan aturan RAB yang sama.',
+            '13. Berkas yang diterima menjadi DRAFT; aturan baru berlaku setelah disetujui akun DISTRIVA lain. Data yang sudah berlaku tidak pernah ditimpa.',
         ];
         foreach ($rows as $i => $t) {
             $s->setCellValue('A'.($i + 1), $t);
@@ -352,6 +355,34 @@ class MasterWorkbookExporter
         $s->getColumnDimension('A')->setWidth(26);
         foreach (['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as $c) {
             $s->getColumnDimension($c)->setWidth(20);
+        }
+
+        return count($cases);
+    }
+
+    /** Rounding test of the RAB: the subtotal of a group in, PPN and the rounded group total out. The parent unit replaces the expected values with those of its own Excel. @return int cases written */
+    private function ujiRabSheet(Worksheet $s): int
+    {
+        $s->setCellValue('A1', 'UJI_RAB: pembulatan PPN dan total kelompok');
+        $s->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        $s->setCellValue('A2', 'Isi SUBTOTAL kelompok (jumlah material, jasa, commissioning, K3L, asuransi) dan hasil dari Excel unit induk: PPN dan TOTAL kelompok. DISTRIVA menghitung dengan aturan RAB yang sama dan membandingkan. Kosongkan hasil untuk tidak menguji baris itu.');
+        $h = self::TABLE_HEAD_ROW;
+        $s->fromArray([['CONTOH', 'SUBTOTAL KELOMPOK (Rp)', 'PPN (Rp)', 'TOTAL KELOMPOK (Rp)']], null, 'A'.$h);
+        $this->head($s, "A{$h}:D{$h}");
+        $cases = [['Contoh 1', 12345678.0], ['Contoh 2', 1000000.0], ['Contoh 3 (pembulatan)', 987654.32]];
+        foreach ($cases as $i => [$name, $subtotal]) {
+            $r = $h + 1 + $i;
+            $res = RabService::closeGroup($subtotal);
+            $s->setCellValueExplicit('A'.$r, $name, DataType::TYPE_STRING);
+            $s->setCellValue('B'.$r, $subtotal);
+            $s->setCellValue('C'.$r, $res['ppn']);
+            $s->setCellValue('D'.$r, $res['total']);
+        }
+        $s->getStyle('B'.($h + 1).':B'.($h + 40))->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+        $s->getStyle('B'.($h + 1).':D'.($h + 40))->getNumberFormat()->setFormatCode('#,##0.00');
+        $s->getColumnDimension('A')->setWidth(28);
+        foreach (['B', 'C', 'D'] as $c) {
+            $s->getColumnDimension($c)->setWidth(24);
         }
 
         return count($cases);

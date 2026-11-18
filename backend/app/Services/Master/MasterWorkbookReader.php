@@ -24,12 +24,13 @@ class MasterWorkbookReader
      *   problems: list<string>,
      *   price: array{rows:list<array<string,string>>,zones:list<int>},
      *   tariff: array{rows:list<array<string,string>>},
-     *   kkf: array{values:array<string,float>,rules:array<string,string>,cases:list<array<string,mixed>>}
+     *   kkf: array{values:array<string,float>,rules:array<string,string>,cases:list<array<string,mixed>>},
+     *   rab_cases: list<array<string,mixed>>
      * }
      */
     public function read(string $path): array
     {
-        $out = ['meta' => ['template_version' => null, 'valid_from' => null, 'basis' => null], 'docs' => [], 'sim' => [], 'problems' => [], 'price' => ['rows' => [], 'zones' => []], 'tariff' => ['rows' => []], 'kkf' => ['values' => [], 'rules' => [], 'cases' => []]];
+        $out = ['meta' => ['template_version' => null, 'valid_from' => null, 'basis' => null], 'docs' => [], 'sim' => [], 'problems' => [], 'price' => ['rows' => [], 'zones' => []], 'tariff' => ['rows' => []], 'kkf' => ['values' => [], 'rules' => [], 'cases' => []], 'rab_cases' => []];
         try {
             $reader = IOFactory::createReader('Xlsx');
             $reader->setReadDataOnly(false);
@@ -40,7 +41,7 @@ class MasterWorkbookReader
             return $out;
         }
         $names = $ss->getSheetNames();
-        foreach (['INFO', 'GAMBAR', '_PETA', 'HARGA', 'TARIF', 'PARAMETER_KKF', 'ATURAN', 'UJI_KKF'] as $need) {
+        foreach (['INFO', 'GAMBAR', '_PETA', 'HARGA', 'TARIF', 'PARAMETER_KKF', 'ATURAN', 'UJI_KKF', 'UJI_RAB'] as $need) {
             if (! in_array($need, $names, true)) {
                 $out['problems'][] = "Lembar {$need} tidak ditemukan: gunakan template yang diunduh dari DISTRIVA (jangan ubah nama lembar).";
             }
@@ -108,6 +109,7 @@ class MasterWorkbookReader
         $out['price'] = $this->price($ss, $out['problems']);
         $out['tariff'] = $this->tariff($ss, $out['problems']);
         $out['kkf'] = $this->kkf($ss, $out['problems']);
+        $out['rab_cases'] = $this->rabCases($ss, $out['problems']);
         $ss->disconnectWorksheets();
 
         return $out;
@@ -376,6 +378,34 @@ class MasterWorkbookReader
         }
 
         return $out;
+    }
+
+    /**
+     * UJI_RAB: group subtotal with the PPN and rounded total the parent unit's Excel gives.
+     *
+     * @param  list<string>  $problems
+     * @return list<array<string,mixed>>
+     */
+    private function rabCases(Spreadsheet $ss, array &$problems): array
+    {
+        $h = MasterWorkbookExporter::TABLE_HEAD_ROW;
+        $u = $ss->getSheetByName('UJI_RAB');
+        $cases = [];
+        for ($r = $h + 1; $r <= $u->getHighestDataRow(); $r++) {
+            $name = $this->text($u->getCell("A{$r}"));
+            $subtotal = $this->number($u->getCell("B{$r}"), "UJI_RAB!B{$r}", $problems);
+            $ppn = $this->number($u->getCell("C{$r}"), "UJI_RAB!C{$r}", $problems);
+            $total = $this->number($u->getCell("D{$r}"), "UJI_RAB!D{$r}", $problems);
+            if ($name === null && $subtotal === '' && $ppn === '' && $total === '') {
+                continue;
+            }
+            if ($subtotal === '') {
+                $problems[] = "UJI_RAB!B{$r}: subtotal wajib diisi.";
+            }
+            $cases[] = ['row' => $r, 'name' => $name ?? "baris {$r}", 'subtotal' => $subtotal, 'ppn' => $ppn, 'total' => $total];
+        }
+
+        return $cases;
     }
 
     private function cached(Cell $c): mixed

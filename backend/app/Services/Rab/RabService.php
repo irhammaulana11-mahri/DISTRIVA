@@ -28,6 +28,18 @@ class RabService
     public function __construct(private readonly PriceBookService $prices) {}
 
     /**
+     * The closing of one group: PPN rounded to whole rupiah, the total rounded UP to the next hundred (workbook REKAP). One place, so the master workbook's rounding test uses exactly what the RAB uses.
+     *
+     * @return array{subtotal:float,ppn:float,total:float}
+     */
+    public static function closeGroup(float $subtotal): array
+    {
+        $ppn = round($subtotal * self::PPN, 0);
+
+        return ['subtotal' => $subtotal, 'ppn' => $ppn, 'total' => ceil(round($subtotal + $ppn, 2) / 100) * 100];
+    }
+
+    /**
      * Pure calculation. Nothing is stored.
      *
      * @return array<string,mixed>
@@ -129,9 +141,7 @@ class RabService
             }
             $pln = $g['material_pln'];
             unset($g['material_pln']);
-            $subtotal = array_sum($g);
-            $ppn = round($subtotal * self::PPN, 0);
-            $groups[$group] = $g + ['material_pln' => $pln, 'subtotal' => $subtotal, 'ppn' => $ppn, 'total' => ceil(round($subtotal + $ppn, 2) / 100) * 100];
+            $groups[$group] = $g + ['material_pln' => $pln] + self::closeGroup(array_sum($g));
         }
         $grand = array_sum(array_column($groups, 'total'));
         $params = ['ppn_rate' => self::PPN, 'insurance_rate' => self::INSURANCE, 'rounding' => 'PPN ROUND 0; group total ROUNDUP -2 (workbook REKAP)'];

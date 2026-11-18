@@ -143,7 +143,7 @@ class MasterWorkbookTest extends PostgresTestCase
         $this->as($this->viewer)->get('/api/master-data/excel-imports/template')->assertForbidden();
         $path = $this->download();
         $ss = IOFactory::load($path);
-        $this->assertSame(['PETUNJUK', 'INFO', 'KHS', 'STANDAR_KONSTRUKSI', 'HARGA', 'TARIF', 'PARAMETER_KKF', 'ATURAN', 'UJI_KKF', 'GAMBAR', 'SUTM', '_PETA'], $ss->getSheetNames());
+        $this->assertSame(['PETUNJUK', 'INFO', 'KHS', 'STANDAR_KONSTRUKSI', 'HARGA', 'TARIF', 'PARAMETER_KKF', 'ATURAN', 'UJI_KKF', 'UJI_RAB', 'GAMBAR', 'SUTM', '_PETA'], $ss->getSheetNames());
         $this->assertSame('=TRUNC((GAMBAR!U6*1.02*3)/1)*1', $ss->getSheetByName('SUTM')->getCell('I10')->getValue());    // the stored formula text, with the workbook's own cell references
         $this->assertSame('JTMR1', $ss->getSheetByName('SUTM')->getCell('B10')->getValue());
         $this->assertSame('A3C 150', $ss->getSheetByName('GAMBAR')->getCell('T6')->getValue());                          // label beside the PSG cell
@@ -424,5 +424,25 @@ class MasterWorkbookTest extends PostgresTestCase
 
         $key = $this->edit($path, fn ($ss) => $ss->getSheetByName('PARAMETER_KKF')->setCellValueExplicit('A6', 'bunga', 's'));
         $this->assertStringContainsString('PARAMETER_KKF!A6', $this->upload($key)['report']['layout_problems'][0]);
+    }
+
+    #[Test]
+    public function the_rab_rounding_test_matches_the_engine_and_a_different_rounding_in_excel_is_reported(): void
+    {
+        $this->approvedBooks();
+        $this->approvedKkfSet();
+        $ss = IOFactory::load($this->download());
+        $u = $ss->getSheetByName('UJI_RAB');
+        $this->assertEquals([12345678, 1358025, 13703800], [$u->getCell('B5')->getValue(), $u->getCell('C5')->getValue(), $u->getCell('D5')->getValue()]);     // PPN 11% rounded, total rounded UP to the next hundred
+
+        $ok = $this->upload($this->edit($this->download(), fn ($s) => null))['report']['rab'];
+        $this->assertSame(['MATCH', 6, 0], [$ok['status'], $ok['checked'], $ok['mismatch_count']]);
+
+        $r = $this->upload($this->edit($this->download(), fn ($s) => $s->getSheetByName('UJI_RAB')->setCellValue('D5', 13703600)))['report'];   // Excel rounds to the nearest hundred instead of up
+        $this->assertSame(['MISMATCH', 1, 'UJI_RAB!D5'], [$r['rab']['status'], $r['rab']['mismatch_count'], $r['rab']['mismatches'][0]['cell']]);
+        $this->assertFalse($r['blocked']);                                                                                        // reported, never imported
+
+        $bad = $this->edit($this->download(), fn ($s) => $s->getSheetByName('UJI_RAB')->setCellValue('B5', 'banyak'));
+        $this->assertStringContainsString('UJI_RAB!B5', $this->upload($bad)['report']['layout_problems'][0]);
     }
 }
