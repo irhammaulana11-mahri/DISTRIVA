@@ -21,7 +21,7 @@ use RuntimeException;
  */
 class MasterWorkbookExporter
 {
-    public const TEMPLATE_VERSION = '1';
+    public const TEMPLATE_VERSION = '2';
 
     public const INFO_VERSION = 'B3';
 
@@ -31,7 +31,10 @@ class MasterWorkbookExporter
 
     public const BOM_HEAD_ROW = 8;
 
-    /** @return array{groups:array<string,array{version:int,lines:int}>,skipped:list<string>} */
+    /** HARGA and TARIF: titles above, column headers on this row, data below. */
+    public const TABLE_HEAD_ROW = 4;
+
+    /** @return array{groups:array<string,array{version:int,lines:int}>,skipped:list<string>,price_rows:int,tariff_rows:int} */
     public function build(string $path): array
     {
         $ss = new Spreadsheet;
@@ -41,9 +44,11 @@ class MasterWorkbookExporter
         $info = $ss->createSheet()->setTitle('INFO');
         $khs = $ss->createSheet()->setTitle('KHS');
         $std = $ss->createSheet()->setTitle('STANDAR_KONSTRUKSI');
+        $harga = $ss->createSheet()->setTitle('HARGA');
+        $tarif = $ss->createSheet()->setTitle('TARIF');
         $gambar = $ss->createSheet()->setTitle('GAMBAR');
 
-        $summary = ['groups' => [], 'skipped' => []];
+        $summary = ['groups' => [], 'skipped' => [], 'price_rows' => 0, 'tariff_rows' => 0];
         $peta = [];
         $occupied = [];
         $bomSheets = [];
@@ -77,6 +82,8 @@ class MasterWorkbookExporter
         $this->infoSheet($info, $bomSheets);
         $this->khsSheet($khs);
         $this->standardSheet($std);
+        $summary['price_rows'] = $this->hargaSheet($harga);
+        $summary['tariff_rows'] = $this->tarifSheet($tarif);
         $this->gambarSheet($gambar, $bomSheets, $occupied);
         foreach ($bomSheets as $group => [$h]) {
             $lines = $this->bomSheet($ss->createSheet()->setTitle($group), (string) $group, $h);
@@ -120,7 +127,9 @@ class MasterWorkbookExporter
             '6. Lembar GAMBAR berisi jumlah pasang/bongkar tiap jenis konstruksi dan parameter (sel kuning). Isi contoh angka di sana untuk melihat hasil hitung di lembar BOM; DISTRIVA menghitung ulang',
             '   dengan angka yang sama dan membandingkannya dengan hasil Excel. Jika berbeda, unggahan ditolak dengan daftar baris yang berbeda.',
             '7. Simpan dari Excel (agar hasil hitung tersimpan). Lembar _PETA tersembunyi: jangan diubah. Lembar KHS dan STANDAR_KONSTRUKSI hanya rujukan.',
-            '8. Berkas yang diterima menjadi DRAFT; aturan baru berlaku setelah disetujui akun DISTRIVA lain. Data yang sudah berlaku tidak pernah ditimpa.',
+            '8. Lembar HARGA: ubah HARGA MATERIAL dan harga jasa PASANG/BONGKAR per zona (angka, rupiah). Kode KHS, status (HARGA/PLN), dan nilai asuransi hanya rujukan: yang berlaku tetap dipertahankan. Baris tidak boleh ditambah atau dihapus.',
+            '9. Lembar TARIF: ubah harga rata-rata, jam nyala (jam per bulan, bukan ribuan), dan UJL per tarif dan daya. Kolom ULP kosong = berlaku untuk semua ULP; jam nyala per ULP diisi dengan kode ULP. Baris yang tidak ada di sini tetap seperti yang berlaku.',
+            '10. Berkas yang diterima menjadi DRAFT; aturan baru berlaku setelah disetujui akun DISTRIVA lain. Data yang sudah berlaku tidak pernah ditimpa.',
         ];
         foreach ($rows as $i => $t) {
             $s->setCellValue('A'.($i + 1), $t);
@@ -156,6 +165,89 @@ class MasterWorkbookExporter
         $s->getColumnDimension('A')->setWidth(42);
         $s->getColumnDimension('B')->setWidth(28);
         $s->getColumnDimension('C')->setWidth(18);
+    }
+
+    /** The approved price book: per KHS code the material price and the install / remove price of every zone the book uses. @return int rows written */
+    private function hargaSheet(Worksheet $s): int
+    {
+        $pb = DB::table('price_books')->where('status', 'APPROVED')->orderByDesc('valid_from')->first();
+        $s->setCellValue('A1', 'HARGA: '.($pb === null ? 'belum ada buku harga yang disetujui' : "{$pb->name} (berlaku sejak {$pb->valid_from})"));
+        $s->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        $s->setCellValue('A2', 'Ubah angka pada kolom HARGA MATERIAL dan PASANG/BONGKAR (rupiah). Kolom A-C dan E hanya rujukan. Jangan sisip, hapus, atau ubah urutan kolom dan baris.');
+        $h = self::TABLE_HEAD_ROW;
+        $zones = $pb === null ? [] : DB::table('price_book_service_prices as sp')->join('price_book_items as pi', 'pi.id', '=', 'sp.price_book_item_id')->where('pi.price_book_id', $pb->id)->distinct()->orderBy('sp.zone')->pluck('sp.zone')->map(fn ($z) => (int) $z)->all();
+        $head = ['KODE KHS', 'NAMA', 'STATUS MATERIAL', 'HARGA MATERIAL', 'NILAI ASURANSI'];
+        foreach ($zones as $z) {
+            array_push($head, "ZONA {$z} PASANG", "ZONA {$z} BONGKAR");
+        }
+        $last = Coordinate::stringFromColumnIndex(count($head));
+        $s->fromArray([$head], null, 'A'.$h);
+        $this->head($s, "A{$h}:{$last}{$h}");
+        $r = $h;
+        if ($pb !== null) {
+            $names = DB::table('khs_item_versions as v')->whereRaw('v.version_number = (select max(x.version_number) from khs_item_versions x where x.khs_item_id = v.khs_item_id)')->pluck('v.name', 'v.khs_item_id')->all();
+            foreach (DB::table('price_book_items as p')->join('khs_items as i', 'i.id', '=', 'p.khs_item_id')->where('p.price_book_id', $pb->id)->orderBy('i.code')->get(['p.id', 'p.khs_item_id', 'i.code', 'p.material_status', 'p.material_price', 'p.insured_value']) as $p) {
+                $r++;
+                $s->setCellValueExplicit('A'.$r, (string) $p->code, DataType::TYPE_STRING);
+                $s->setCellValueExplicit('B'.$r, (string) ($names[$p->khs_item_id] ?? ''), DataType::TYPE_STRING);
+                $s->setCellValueExplicit('C'.$r, $p->material_status === 'PLN' ? 'PLN' : 'HARGA', DataType::TYPE_STRING);
+                $p->material_price !== null && $s->setCellValue('D'.$r, (float) $p->material_price);
+                $p->insured_value !== null && $s->setCellValue('E'.$r, (float) $p->insured_value);
+                $svc = DB::table('price_book_service_prices')->where('price_book_item_id', $p->id)->get()->keyBy(fn ($x) => (int) $x->zone);
+                foreach ($zones as $i => $z) {
+                    if (isset($svc[$z])) {
+                        $s->setCellValue(Coordinate::stringFromColumnIndex(6 + $i * 2).$r, (float) $svc[$z]->install_price);
+                        $s->setCellValue(Coordinate::stringFromColumnIndex(7 + $i * 2).$r, (float) $svc[$z]->remove_price);
+                    }
+                }
+            }
+            if ($r > $h) {
+                $s->getStyle('D'.($h + 1).':'.$last.$r)->getNumberFormat()->setFormatCode('#,##0');
+                $s->getStyle('D'.($h + 1).':D'.$r)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+                if ($zones !== []) {
+                    $s->getStyle('F'.($h + 1).':'.$last.$r)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+                }
+            }
+        }
+        $s->getColumnDimension('A')->setWidth(14);
+        $s->getColumnDimension('B')->setWidth(60);
+        $s->getColumnDimension('C')->setWidth(16);
+        $s->freezePane('C'.($h + 1));
+
+        return $r - $h;
+    }
+
+    /** The approved tariff book: average price, jam nyala and UJL per tariff, power and ULP (blank ULP = every ULP). @return int rows written */
+    private function tarifSheet(Worksheet $s): int
+    {
+        $book = DB::table('tariff_books')->where('status', 'APPROVED')->orderByDesc('valid_from')->first();
+        $s->setCellValue('A1', 'TARIF: '.($book === null ? 'belum ada buku tarif yang disetujui' : "{$book->name} (berlaku sejak {$book->valid_from})"));
+        $s->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        $s->setCellValue('A2', 'Ubah harga rata-rata, jam nyala (jam per bulan), dan UJL. Kolom TARIF, DAYA, dan ULP menentukan baris: jangan diubah. Kolom ULP kosong = berlaku untuk semua ULP.');
+        $h = self::TABLE_HEAD_ROW;
+        $s->fromArray([['TARIF', 'DAYA (VA)', 'HARGA RATA-RATA', 'JAM NYALA', 'UJL', 'ULP']], null, 'A'.$h);
+        $this->head($s, "A{$h}:F{$h}");
+        $r = $h;
+        if ($book !== null) {
+            foreach (DB::table('tariff_book_rows as t')->leftJoin('organizational_units as u', 'u.id', '=', 't.ulp_unit_id')->where('t.tariff_book_id', $book->id)->orderBy('t.tariff_code')->orderBy('t.power_va')->orderBy('u.code')->get(['t.tariff_code', 't.power_va', 't.avg_price', 't.jam_nyala', 't.ujl', 'u.code as ulp']) as $t) {
+                $r++;
+                $s->setCellValueExplicit('A'.$r, (string) $t->tariff_code, DataType::TYPE_STRING);
+                $t->power_va !== null && $s->setCellValue('B'.$r, (int) $t->power_va);
+                $t->avg_price !== null && $s->setCellValue('C'.$r, (float) $t->avg_price);
+                $t->jam_nyala !== null && $s->setCellValue('D'.$r, (float) $t->jam_nyala);
+                $t->ujl !== null && $s->setCellValue('E'.$r, (float) $t->ujl);
+                $s->setCellValueExplicit('F'.$r, (string) ($t->ulp ?? ''), DataType::TYPE_STRING);
+            }
+            if ($r > $h) {
+                $s->getStyle('C'.($h + 1).':E'.$r)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+            }
+        }
+        foreach (['A' => 12, 'B' => 12, 'C' => 18, 'D' => 14, 'E' => 12, 'F' => 14] as $c => $w) {
+            $s->getColumnDimension($c)->setWidth($w);
+        }
+        $s->freezePane('A'.($h + 1));
+
+        return $r - $h;
     }
 
     private function khsSheet(Worksheet $s): void

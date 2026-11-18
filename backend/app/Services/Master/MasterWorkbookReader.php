@@ -3,8 +3,10 @@
 namespace App\Services\Master;
 
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as XlDate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Throwable;
 
@@ -19,12 +21,14 @@ class MasterWorkbookReader
      *   meta: array{template_version:?string, valid_from:?string, basis:?string},
      *   docs: array<string,array<string,mixed>>,
      *   sim: array<string,array{psg_bkr:array<string,array{psg?:float,bkr?:float}>,params:array<string,mixed>,expected:array<int,array<string,mixed>>}>,
-     *   problems: list<string>
+     *   problems: list<string>,
+     *   price: array{rows:list<array<string,string>>,zones:list<int>},
+     *   tariff: array{rows:list<array<string,string>>}
      * }
      */
     public function read(string $path): array
     {
-        $out = ['meta' => ['template_version' => null, 'valid_from' => null, 'basis' => null], 'docs' => [], 'sim' => [], 'problems' => []];
+        $out = ['meta' => ['template_version' => null, 'valid_from' => null, 'basis' => null], 'docs' => [], 'sim' => [], 'problems' => [], 'price' => ['rows' => [], 'zones' => []], 'tariff' => ['rows' => []]];
         try {
             $reader = IOFactory::createReader('Xlsx');
             $reader->setReadDataOnly(false);
@@ -35,7 +39,7 @@ class MasterWorkbookReader
             return $out;
         }
         $names = $ss->getSheetNames();
-        foreach (['INFO', 'GAMBAR', '_PETA'] as $need) {
+        foreach (['INFO', 'GAMBAR', '_PETA', 'HARGA', 'TARIF'] as $need) {
             if (! in_array($need, $names, true)) {
                 $out['problems'][] = "Lembar {$need} tidak ditemukan: gunakan template yang diunduh dari DISTRIVA (jangan ubah nama lembar).";
             }
@@ -100,6 +104,8 @@ class MasterWorkbookReader
         if ($out['docs'] === []) {
             $out['problems'][] = 'Tidak ada lembar BOM (SUTM, MVTIC, ...) pada berkas.';
         }
+        $out['price'] = $this->price($ss, $out['problems']);
+        $out['tariff'] = $this->tariff($ss, $out['problems']);
         $ss->disconnectWorksheets();
 
         return $out;
@@ -162,6 +168,129 @@ class MasterWorkbookReader
         if ($lines === []) {
             $problems[] = "{$group}: tidak ada baris BOM.";
         }
+    }
+
+    /**
+     * HARGA: material price and the install / remove price of every zone, per KHS code (the same columns the price-book CSV has).
+     *
+     * @param  list<string>  $problems
+     * @return array{rows:list<array<string,string>>,zones:list<int>}
+     */
+    private function price(Spreadsheet $ss, array &$problems): array
+    {
+        $s = $ss->getSheetByName('HARGA');
+        $h = MasterWorkbookExporter::TABLE_HEAD_ROW;
+        $fixed = ['KODE KHS', 'NAMA', 'STATUS MATERIAL', 'HARGA MATERIAL', 'NILAI ASURANSI'];
+        foreach ($fixed as $i => $title) {
+            if (strtoupper((string) $this->text($s->getCell([$i + 1, $h]))) !== $title) {
+                $problems[] = 'HARGA!'.Coordinate::stringFromColumnIndex($i + 1)."{$h}: judul kolom harus \"{$title}\" (jangan mengubah susunan kolom).";
+
+                return ['rows' => [], 'zones' => []];
+            }
+        }
+        $zoneCols = [];
+        $zones = [];
+        for ($c = 6; $c <= Coordinate::columnIndexFromString($s->getHighestDataColumn($h)); $c++) {
+            $title = strtoupper((string) $this->text($s->getCell([$c, $h])));
+            if (! preg_match('/^ZONA (\d+) (PASANG|BONGKAR)$/', $title, $m)) {
+                $problems[] = 'HARGA!'.Coordinate::stringFromColumnIndex($c)."{$h}: judul kolom \"{$title}\" tidak dikenal (harus \"ZONA n PASANG\" atau \"ZONA n BONGKAR\").";
+
+                return ['rows' => [], 'zones' => []];
+            }
+            $zoneCols[$c] = 'z'.$m[1].'_'.strtolower($m[2]);
+            $zones[(int) $m[1]] = true;
+        }
+        $rows = [];
+        $seen = [];
+        $max = $s->getHighestDataRow();
+        for ($r = $h + 1; $r <= $max; $r++) {
+            $code = $this->text($s->getCell("A{$r}"));
+            if ($code === null) {
+                continue;
+            }
+            if (isset($seen[$code])) {
+                $problems[] = "HARGA!A{$r}: kode {$code} muncul dua kali.";
+
+                continue;
+            }
+            $seen[$code] = true;
+            $row = ['kode' => $code, 'nama' => $this->text($s->getCell("B{$r}")) ?? '', 'status_material' => $this->text($s->getCell("C{$r}")) ?? '',
+                'harga_material' => $this->number($s->getCell("D{$r}"), "HARGA!D{$r}", $problems), 'nilai_asuransi' => $this->number($s->getCell("E{$r}"), "HARGA!E{$r}", $problems)];
+            foreach ($zoneCols as $c => $key) {
+                $row[$key] = $this->number($s->getCell([$c, $r]), 'HARGA!'.Coordinate::stringFromColumnIndex($c).$r, $problems);
+            }
+            $rows[] = $row;
+        }
+
+        return ['rows' => $rows, 'zones' => array_keys($zones)];
+    }
+
+    /**
+     * TARIF: average price, jam nyala and UJL per tariff, power and ULP (blank ULP = every ULP).
+     *
+     * @param  list<string>  $problems
+     * @return array{rows:list<array<string,string>>}
+     */
+    private function tariff(Spreadsheet $ss, array &$problems): array
+    {
+        $s = $ss->getSheetByName('TARIF');
+        $h = MasterWorkbookExporter::TABLE_HEAD_ROW;
+        foreach (['TARIF', 'DAYA (VA)', 'HARGA RATA-RATA', 'JAM NYALA', 'UJL', 'ULP'] as $i => $title) {
+            if (strtoupper((string) $this->text($s->getCell([$i + 1, $h]))) !== $title) {
+                $problems[] = 'TARIF!'.Coordinate::stringFromColumnIndex($i + 1)."{$h}: judul kolom harus \"{$title}\" (jangan mengubah susunan kolom).";
+
+                return ['rows' => []];
+            }
+        }
+        $rows = [];
+        $seen = [];
+        $max = $s->getHighestDataRow();
+        for ($r = $h + 1; $r <= $max; $r++) {
+            $tariff = $this->text($s->getCell("A{$r}"));
+            if ($tariff === null) {
+                continue;
+            }
+            $power = $this->number($s->getCell("B{$r}"), "TARIF!B{$r}", $problems);
+            $avg = $this->number($s->getCell("C{$r}"), "TARIF!C{$r}", $problems);
+            $jam = $this->number($s->getCell("D{$r}"), "TARIF!D{$r}", $problems);
+            $ujl = $this->number($s->getCell("E{$r}"), "TARIF!E{$r}", $problems);
+            $ulp = $this->text($s->getCell("F{$r}")) ?? '';
+            foreach ([['harga rata-rata', $avg, 'C'], ['jam nyala', $jam, 'D']] as [$label, $v, $col]) {
+                if ($v === '') {
+                    $problems[] = "TARIF!{$col}{$r}: {$label} wajib diisi.";
+                }
+            }
+            $key = strtoupper($tariff).'|'.$power.'|'.$ulp;
+            if (isset($seen[$key])) {
+                $problems[] = "TARIF!A{$r}: baris {$tariff} {$power} {$ulp} muncul dua kali.";
+
+                continue;
+            }
+            $seen[$key] = true;
+            $rows[] = ['tarif' => $tariff, 'daya_va' => $power, 'harga_rata2' => $avg, 'jam_nyala' => $jam, 'ujl' => $ujl, 'ulp' => $ulp];
+        }
+
+        return ['rows' => $rows];
+    }
+
+    /** A number cell as text ('' when empty); anything else is a problem naming the cell. @param list<string> $problems */
+    private function number(Cell $c, string $where, array &$problems): string
+    {
+        try {
+            $v = $c->isFormula() ? $c->getCalculatedValue() : $c->getValue();
+        } catch (Throwable) {
+            $v = null;
+        }
+        if ($v === null || (is_string($v) && trim($v) === '')) {
+            return '';
+        }
+        if (! is_numeric($v) || (float) $v < 0) {
+            $problems[] = "{$where}: isi \"".mb_substr((string) $v, 0, 30).'" harus berupa angka (tidak negatif).';
+
+            return '';
+        }
+
+        return (string) (floor((float) $v) == (float) $v ? (int) $v : (float) $v);
     }
 
     private function cached(Cell $c): mixed

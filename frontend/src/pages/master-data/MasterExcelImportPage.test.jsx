@@ -128,6 +128,25 @@ describe('Impor Master dari Excel', () => {
     expect(masterExcelApi.apply.mock.calls[0][1]).toMatchObject({ dataset: 'BOM', valid_from: '2026-12-01', groups: ['SUTM'] })
   })
 
+  it('template: harga dan tarif ikut dibandingkan dan diterapkan terpisah dengan tanggal berlaku dari berkas', async () => {
+    const full = { ...distriva, report: { ...distriva.report,
+      price: { status: 'CHANGED', excel_rows: 504, current_rows: 504, changed_rows: 2, unchanged_rows: 502, added_in_excel: 0, new_codes: { count: 0, items: [] }, book: 'Kontrak jasa', samples: [], problems: [] },
+      tariff: { status: 'CHANGED', excel_rows: 30, current_rows: 30, changed_rows: 1, added_rows: 0, unchanged_rows: 29, samples: [], problems: [], warnings: [], coverage_after: [] } } }
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...full, report: null }], can: CAN, limits: { max_mb: 60 } })
+    masterExcelApi.get.mockResolvedValue({ data: full })
+    masterExcelApi.apply.mockResolvedValue({ data: { status: 'OK', message: 'Buku tarif DRAFT dibuat (30 baris).' }, import: { ...full, applied: { TARIFF: { status: 'OK', message: 'Buku tarif DRAFT dibuat (30 baris).', link: '/master-data/tariff-books' } } } })
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    expect(await screen.findByText('Buku harga')).toBeInTheDocument()
+    expect(screen.getByText('Buku tarif, jam nyala, dan UJL')).toBeInTheDocument()
+    expect(screen.getByText(/Setiap baris membawa kode ULP-nya sendiri/)).toBeInTheDocument()
+    expect(screen.getAllByLabelText('Berlaku mulai').map((i) => i.value)).toEqual(['2026-12-01', '2026-12-01', '2026-12-01'])   // BOM, harga, tarif: tanggal dari lembar INFO
+    await userEvent.click(screen.getByRole('button', { name: 'Buat buku tarif DRAFT' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Terapkan sebagai DRAFT' }))
+    await waitFor(() => expect(masterExcelApi.apply).toHaveBeenCalledTimes(1))
+    expect(masterExcelApi.apply.mock.calls[0][1]).toMatchObject({ dataset: 'TARIFF', valid_from: '2026-12-01' })
+  })
+
   it('masalah susunan berkas ditampilkan per sel dan tidak ada yang dibandingkan', async () => {
     const bad = { ...distriva, report: { blocked: true, layout_problem_count: 2, layout_problems: ['SUTM!J10: isi "banyak" bukan angka maupun rumus.', 'SUTM!A11: nomor baris 99 tidak sama dengan baris Excel 11.'], meta: { template_version: '1', valid_from: '2026-12-01', basis: null }, bom: { groups: [] } } }
     masterExcelApi.list.mockResolvedValue({ data: [{ ...bad, report: null }], can: CAN, limits: { max_mb: 60 } })

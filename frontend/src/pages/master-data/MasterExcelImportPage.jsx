@@ -184,7 +184,7 @@ function BomSection({ imp, can, onApply, defaultValidFrom, workbook = false }) {
   )
 }
 
-function PriceSection({ imp, can, onApply }) {
+function PriceSection({ imp, can, onApply, defaultValidFrom }) {
   const p = imp.report?.price
   if (!p) return null
   return (
@@ -213,13 +213,13 @@ function PriceSection({ imp, can, onApply }) {
       )}
       {p.note && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{p.note}</p>}
       <Problems items={p.problems} />
-      <ApplyBar dataset="PRICE" label="Buat buku harga DRAFT" needName defaultName={`Buku harga ${today()}`} disabled={!can || p.status !== 'CHANGED'} applied={imp.applied?.PRICE} onApply={onApply} />
+      <ApplyBar dataset="PRICE" label="Buat buku harga DRAFT" defaultValidFrom={defaultValidFrom} needName defaultName={`Buku harga ${today()}`} disabled={!can || p.status !== 'CHANGED'} applied={imp.applied?.PRICE} onApply={onApply} />
       {!can && <p className="mt-2 text-xs text-slate-500">Membuat buku harga memerlukan izin kelola harga.</p>}
     </section>
   )
 }
 
-function TariffSection({ imp, can, onApply }) {
+function TariffSection({ imp, can, onApply, defaultValidFrom, perRow = false }) {
   const t = imp.report?.tariff
   if (!t) return null
   return (
@@ -228,7 +228,7 @@ function TariffSection({ imp, can, onApply }) {
         <h3 id="mx-tariff" className="text-base font-semibold text-slate-900 dark:text-slate-100">Buku tarif, jam nyala, dan UJL</h3>
         {chip(CHANGE, t.status)}
       </div>
-      <p className="text-xs text-slate-500">{imp.ulp_code ? `Jam nyala dari ULP ${imp.ulp_code}.` : 'Tanpa ULP: baris berlaku untuk semua ULP.'} {t.book ? `Dasar perbandingan: ${t.book}.` : ''}</p>
+      <p className="text-xs text-slate-500">{perRow ? 'Setiap baris membawa kode ULP-nya sendiri (kosong = semua ULP).' : imp.ulp_code ? `Jam nyala dari ULP ${imp.ulp_code}.` : 'Tanpa ULP: baris berlaku untuk semua ULP.'} {t.book ? `Dasar perbandingan: ${t.book}.` : ''}</p>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
         {[['Baris di Excel', t.excel_rows], ['Baris berlaku', t.current_rows], ['Berubah', t.changed_rows], ['Baru', t.added_rows]].map(([l, v]) => (
           <div key={l} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3"><dt className="text-slate-500">{l}</dt><dd className="mt-0.5 text-lg font-bold text-slate-900 dark:text-slate-100">{(v ?? 0).toLocaleString('id-ID')}</dd></div>
@@ -241,7 +241,7 @@ function TariffSection({ imp, can, onApply }) {
         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Setelah diterapkan: {t.coverage_after.filter((c) => c.rows > 0).map((c) => `${c.name} ${c.rows} baris`).join(', ') || 'belum ada baris'}{t.coverage_after.some((c) => c.rows === 0 && c.code !== '') ? `. Belum ada: ${t.coverage_after.filter((c) => c.rows === 0 && c.code !== '').map((c) => c.name).join(', ')}.` : '.'}</p>
       )}
       <Problems items={t.problems} />
-      <ApplyBar dataset="TARIFF" label="Buat buku tarif DRAFT" needName defaultName={`Buku tarif ${today()}`} disabled={!can || t.status !== 'CHANGED'} applied={imp.applied?.TARIFF} onApply={onApply} />
+      <ApplyBar dataset="TARIFF" label="Buat buku tarif DRAFT" defaultValidFrom={defaultValidFrom} needName defaultName={`Buku tarif ${today()}`} disabled={!can || t.status !== 'CHANGED'} applied={imp.applied?.TARIFF} onApply={onApply} />
       {!can && <p className="mt-2 text-xs text-slate-500">Membuat buku tarif memerlukan izin kelola tarif.</p>}
     </section>
   )
@@ -267,6 +267,8 @@ function DistrivaSection({ imp, can, onApply }) {
         )}
       </section>
       {!r.blocked && <BomSection imp={imp} can={can.bom} onApply={onApply} defaultValidFrom={m.valid_from} workbook />}
+      {!r.blocked && <PriceSection imp={imp} can={can.price} onApply={onApply} defaultValidFrom={m.valid_from} />}
+      {!r.blocked && <TariffSection imp={imp} can={can.tariffs} onApply={onApply} defaultValidFrom={m.valid_from} perRow />}
     </>
   )
 }
@@ -349,7 +351,7 @@ export default function MasterExcelImportPage() {
     return () => clearInterval(t)
   }, [selected, load])
 
-  const nothing = !state.can.rab && !state.can.tariff && !state.can.bom
+  const nothing = !state.can.rab && !state.can.tariff && !state.can.bom && !state.can.price && !state.can.tariffs
   const [downloading, setDownloading] = useState(false)
   const downloadTemplate = async () => {
     setDownloading(true)
@@ -377,7 +379,7 @@ export default function MasterExcelImportPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <UploadCard kind="DISTRIVA" className="lg:col-span-2" title="MASTER DISTRIVA (template untuk unit induk)" hint="Unduh template berisi aturan BOM yang berlaku, isi di Excel (kirim ke unit induk bila perlu), lalu unggah kembali. Hasil hitung Excel dicocokkan dengan mesin DISTRIVA sebelum menjadi DRAFT." disabled={!state.can.bom} units={units} actions={<Button variant="secondary" icon={IconDownload} loading={downloading} onClick={downloadTemplate}>Unduh template</Button>} onUploaded={(imp) => { setSelected(imp); load() }} />
+            <UploadCard kind="DISTRIVA" className="lg:col-span-2" title="MASTER DISTRIVA (template untuk unit induk)" hint="Unduh template berisi aturan BOM, harga, dan tarif yang berlaku, isi di Excel (kirim ke unit induk bila perlu), lalu unggah kembali. Hasil hitung Excel dicocokkan dengan mesin DISTRIVA sebelum menjadi DRAFT." disabled={!state.can.bom && !state.can.price && !state.can.tariffs} units={units} actions={<Button variant="secondary" icon={IconDownload} loading={downloading} onClick={downloadTemplate}>Unduh template</Button>} onUploaded={(imp) => { setSelected(imp); load() }} />
             <UploadCard kind="RAB_KKF" title="Excel RAB & KKF" hint="Memeriksa BOM dan buku harga (MASTER RAB & KKF.xlsx)." disabled={!state.can.rab} units={units} onUploaded={(imp) => { setSelected(imp); load() }} />
             <UploadCard kind="TARIF" title="Excel Tarif & Jam Nyala" hint="Memeriksa harga rata-rata, jam nyala, dan UJL (MASTER TARIF & JAM NYALA.xlsx)." disabled={!state.can.tariff} units={units} coverage={state.coverage} onUploaded={(imp) => { setSelected(imp); load() }} />
           </div>

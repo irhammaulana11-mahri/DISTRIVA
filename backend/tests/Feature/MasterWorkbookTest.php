@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Bom\BomService;
+use App\Services\Kkf\TariffBookService;
 use App\Services\Master\MasterExcelImportService;
+use App\Services\Prices\PriceBookService;
 use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -138,7 +141,7 @@ class MasterWorkbookTest extends PostgresTestCase
         $this->as($this->viewer)->get('/api/master-data/excel-imports/template')->assertForbidden();
         $path = $this->download();
         $ss = IOFactory::load($path);
-        $this->assertSame(['PETUNJUK', 'INFO', 'KHS', 'STANDAR_KONSTRUKSI', 'GAMBAR', 'SUTM', '_PETA'], $ss->getSheetNames());
+        $this->assertSame(['PETUNJUK', 'INFO', 'KHS', 'STANDAR_KONSTRUKSI', 'HARGA', 'TARIF', 'GAMBAR', 'SUTM', '_PETA'], $ss->getSheetNames());
         $this->assertSame('=TRUNC((GAMBAR!U6*1.02*3)/1)*1', $ss->getSheetByName('SUTM')->getCell('I10')->getValue());    // the stored formula text, with the workbook's own cell references
         $this->assertSame('JTMR1', $ss->getSheetByName('SUTM')->getCell('B10')->getValue());
         $this->assertSame('A3C 150', $ss->getSheetByName('GAMBAR')->getCell('T6')->getValue());                          // label beside the PSG cell
@@ -192,10 +195,11 @@ class MasterWorkbookTest extends PostgresTestCase
         });
         $zip = new ZipArchive;
         $zip->open($edited);
-        $sheet = $zip->getFromName('xl/worksheets/sheet6.xml');
-        $tampered = preg_replace('/(<c r="I11"[^>]*><f>[^<]*<\/f><v>)[^<]*(<\/v>)/', '${1}99999${2}', $sheet, 1, $n);
-        $this->assertSame(1, $n);
-        $zip->addFromString('xl/worksheets/sheet6.xml', $tampered);
+        $n = array_search('SUTM', IOFactory::load($edited)->getSheetNames(), true) + 1;                                  // the sheet file of SUTM follows the sheet order
+        $sheet = $zip->getFromName("xl/worksheets/sheet{$n}.xml");
+        $tampered = preg_replace('/(<c r="I11"[^>]*><f>[^<]*<\/f><v>)[^<]*(<\/v>)/', '${1}99999${2}', $sheet, 1, $count);
+        $this->assertSame(1, $count);
+        $zip->addFromString("xl/worksheets/sheet{$n}.xml", $tampered);
         $zip->close();
 
         $g = $this->upload($edited)['report']['bom']['groups'][0];
@@ -238,5 +242,96 @@ class MasterWorkbookTest extends PostgresTestCase
         $g = $this->upload($edited)['report']['bom']['groups'][0];
         $this->assertSame('BLOCKED', $g['status']);
         $this->assertStringContainsString('TIDAKADA', implode(' ', $g['problems']));
+    }
+
+    private function csv(string $content): UploadedFile
+    {
+        $p = tempnam(sys_get_temp_dir(), 'mw');
+        file_put_contents($p, $content);
+
+        return new UploadedFile($p, 'x.csv', 'text/csv', null, true);
+    }
+
+    /** An approved price book and tariff book next to the BOM, the way the screen imports them. */
+    private function approvedBooks(): void
+    {
+        $this->approvedBom();
+        $up3 = DB::table('organizational_units')->where('unit_type', 'UP3')->first();
+        $ulp = $this->makeUnit('ULP', OrganizationalUnit::query()->findOrFail($up3->id));
+        $books = app(PriceBookService::class);
+        $id = $books->import($this->csv("kode,nama,status_material,harga_material,nilai_asuransi,z1_pasang,z1_bongkar\nJTMR1,A,HARGA,400,,100,50\nJTMR2,B,PLN,,7,200,100\n"), 'Buku harga lama', 'KONTRAK-1', '2026-01-01', 'uji', false, $this->engineer)['summary']['id'];
+        $books->setZone($id, (string) $up3->id, 1, 'uji zona', $this->engineer);
+        DB::table('price_books')->where('id', $id)->update(['status' => 'APPROVED', 'approved_by' => $this->manager->getKey(), 'approved_at' => now()]);
+        $tid = app(TariffBookService::class)->import($this->csv("tarif,daya_va,harga_rata2,jam_nyala,ujl,ulp\nB1,450,535,137,80,{$ulp->code}\nB1,900,630,149,80,\n"), 'Buku tarif lama', '2026-01-01', 'uji', false, $this->engineer)['summary']['tariff_book_id'];
+        DB::table('tariff_books')->where('id', $tid)->update(['status' => 'APPROVED', 'approved_by' => $this->manager->getKey(), 'approved_at' => now()]);
+    }
+
+    #[Test]
+    public function the_template_carries_the_approved_price_and_tariff_books_and_an_unchanged_upload_changes_nothing(): void
+    {
+        $this->approvedBooks();
+        $ss = IOFactory::load($this->download());
+        $h = $ss->getSheetByName('HARGA');
+        $this->assertSame(['KODE KHS', 'NAMA', 'STATUS MATERIAL', 'HARGA MATERIAL', 'NILAI ASURANSI', 'ZONA 1 PASANG', 'ZONA 1 BONGKAR'], array_map(fn ($c) => $h->getCell([$c, 4])->getValue(), range(1, 7)));
+        $this->assertEquals(['JTMR1', 'HARGA', 400, 100, 50], [$h->getCell('A5')->getValue(), $h->getCell('C5')->getValue(), $h->getCell('D5')->getValue(), $h->getCell('F5')->getValue(), $h->getCell('G5')->getValue()]);
+        $this->assertSame('PLN', $h->getCell('C6')->getValue());
+        $t = $ss->getSheetByName('TARIF');
+        $this->assertEquals(['B1', 450, 535, 137, 80], [$t->getCell('A5')->getValue(), $t->getCell('B5')->getValue(), $t->getCell('C5')->getValue(), $t->getCell('D5')->getValue(), $t->getCell('E5')->getValue()]);
+
+        $report = $this->upload($this->edit($this->download(), fn ($s) => null))['report'];
+        $this->assertSame(['UNCHANGED', 'UNCHANGED'], [$report['price']['status'], $report['tariff']['status']]);
+        $this->assertSame(2, $report['tariff']['excel_rows']);
+    }
+
+    #[Test]
+    public function changed_prices_and_tariffs_become_drafts_that_keep_what_was_not_touched(): void
+    {
+        $this->approvedBooks();
+        $edited = $this->edit($this->download(), function ($ss) {
+            $ss->getSheetByName('HARGA')->setCellValue('D5', 450)->setCellValue('F5', 120);        // material price and install price of zone 1
+            $ss->getSheetByName('TARIF')->setCellValue('D5', 140)->setCellValue('E6', 85);          // jam nyala of the ULP row and UJL of the general row
+            $ss->getSheetByName('INFO')->setCellValueExplicit('B5', '2026-12-01', 's');
+        });
+        $up = $this->upload($edited);
+        $this->assertSame(['CHANGED', 1], [$up['report']['price']['status'], $up['report']['price']['changed_rows']]);
+        $this->assertSame(['CHANGED', 2], [$up['report']['tariff']['status'], $up['report']['tariff']['changed_rows']]);
+
+        $apply = fn (array $body) => $this->as($this->engineer)->postJson('/api/master-data/excel-imports/'.$up['id'].'/apply', $body + ['valid_from' => '2026-12-01'])->assertCreated();
+        $apply(['dataset' => 'PRICE', 'name' => 'Buku harga baru']);
+        $apply(['dataset' => 'TARIFF', 'name' => 'Buku tarif baru']);
+
+        $pb = DB::table('price_books')->where('name', 'Buku harga baru')->first();
+        $this->assertSame('DRAFT', $pb->status);
+        $items = DB::table('price_book_items as p')->join('khs_items as i', 'i.id', '=', 'p.khs_item_id')->where('p.price_book_id', $pb->id)->get(['i.code', 'p.material_status', 'p.material_price', 'p.insured_value', 'p.id'])->keyBy('code');
+        $this->assertSame([450.0, 'PRICED'], [(float) $items['JTMR1']->material_price, $items['JTMR1']->material_status]);
+        $this->assertSame(['PLN', 7.0], [$items['JTMR2']->material_status, (float) $items['JTMR2']->insured_value]);                  // status and insured value are kept
+        $this->assertSame(120.0, (float) DB::table('price_book_service_prices')->where('price_book_item_id', $items['JTMR1']->id)->value('install_price'));
+
+        $tb = DB::table('tariff_books')->where('name', 'Buku tarif baru')->first();
+        $rows = DB::table('tariff_book_rows')->where('tariff_book_id', $tb->id)->orderBy('power_va')->get(['power_va', 'jam_nyala', 'ujl', 'ulp_unit_id']);
+        $this->assertSame([[450, 140.0, 80.0], [900, 149.0, 85.0]], $rows->map(fn ($r) => [(int) $r->power_va, (float) $r->jam_nyala, (float) $r->ujl])->all());
+        $this->assertNull($rows[1]->ulp_unit_id);                                                                                    // the general row stays general
+        $this->assertSame(1, DB::table('price_books')->where('status', 'APPROVED')->count());
+    }
+
+    #[Test]
+    public function price_and_tariff_mistakes_are_reported_by_cell(): void
+    {
+        $this->approvedBooks();
+        $path = $this->download();
+
+        $text = $this->edit($path, fn ($ss) => $ss->getSheetByName('HARGA')->setCellValue('D5', 'mahal'));
+        $this->assertStringContainsString('HARGA!D5', $this->upload($text)['report']['layout_problems'][0]);
+
+        $negative = $this->edit($path, fn ($ss) => $ss->getSheetByName('TARIF')->setCellValue('C5', -1));
+        $this->assertStringContainsString('TARIF!C5', $this->upload($negative)['report']['layout_problems'][0]);
+
+        $unknownUlp = $this->edit($path, fn ($ss) => $ss->getSheetByName('TARIF')->setCellValueExplicit('F6', '99999', 's'));
+        $r = $this->upload($unknownUlp)['report'];
+        $this->assertTrue($r['blocked']);
+        $this->assertStringContainsString('99999', implode(' ', $r['layout_problems']));
+
+        $head = $this->edit($path, fn ($ss) => $ss->getSheetByName('HARGA')->setCellValueExplicit('D4', 'HARGA', 's'));
+        $this->assertStringContainsString('HARGA!D4', $this->upload($head)['report']['layout_problems'][0]);
     }
 }

@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /** Excel master from the screen (docs/85): upload -> check (extract + compare) -> apply the differences as DRAFT. Grant (403/404) -> validation (422) -> rule (409). */
 class MasterExcelImportController extends Controller
 {
-    private const NEED = ['RAB_KKF' => ['bom.manage', 'prices.manage'], 'TARIF' => ['tariffs.manage'], 'DISTRIVA' => ['bom.manage']];
+    private const NEED = ['RAB_KKF' => ['bom.manage', 'prices.manage'], 'TARIF' => ['tariffs.manage'], 'DISTRIVA' => ['bom.manage', 'prices.manage', 'tariffs.manage']];
 
     private const DATASET_PERMISSION = ['BOM' => 'bom.manage', 'PRICE' => 'prices.manage', 'TARIFF' => 'tariffs.manage'];
 

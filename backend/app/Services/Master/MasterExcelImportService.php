@@ -239,7 +239,32 @@ class MasterExcelImportService
             file_put_contents($work.'/bom_'.$group.'.json', json_encode($doc, JSON_UNESCAPED_UNICODE));
         }
 
-        return $report + ['bom' => $this->compareBom($work, [], $actor, false, $r['sim']), 'blocked' => false];
+        $out = $report + ['bom' => $this->compareBom($work, [], $actor, false, $r['sim']), 'blocked' => false];
+
+        $codes = array_combine(array_map('strval', array_keys($known)), array_map('strval', array_keys($known)));
+        $head = ['kode', 'nama', 'status_material', 'harga_material', 'nilai_asuransi'];
+        foreach ($r['price']['zones'] as $z) {
+            array_push($head, "z{$z}_pasang", "z{$z}_bongkar");
+        }
+        if ($r['price']['rows'] !== []) {
+            $this->writeCsv($work.'/price.csv', $head, array_map(fn ($row) => array_map(fn ($c) => $row[$c] ?? '', $head), $r['price']['rows']));
+            $out['price'] = $this->comparePrice($work, $codes);
+        }
+        if ($r['tariff']['rows'] !== []) {
+            $ulps = DB::table('organizational_units')->where('unit_type', 'ULP')->pluck('code')->all();
+            $unknown = collect($r['tariff']['rows'])->pluck('ulp')->filter(fn ($u) => $u !== '' && ! in_array($u, $ulps, true))->unique()->values()->all();
+            if ($unknown !== []) {
+                $out['layout_problems'][] = 'TARIF: kode ULP tidak dikenal: '.implode(', ', array_slice($unknown, 0, 8)).'.';
+                $out['layout_problem_count']++;
+                $out['blocked'] = true;
+                $out['bom'] = ['groups' => []];
+                unset($out['price']);
+            } else {
+                $out += $this->compareTariff($r['tariff']['rows'], $work, null, true);
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -521,6 +546,19 @@ class MasterExcelImportService
         if ($rows === []) {
             throw new AssignmentRuleViolation('Tidak ada baris tarif yang terbaca dari Excel.');
         }
+
+        return $this->compareTariff($rows, $work, $ulp, false);
+    }
+
+    /**
+     * Compares tariff rows (from the Excel extractor or the DISTRIVA workbook) with the approved book; rows of the book that are not in the file stay.
+     *
+     * @param  list<array<string,string>>  $rows  tarif, daya_va, harga_rata2, jam_nyala, ujl, ulp
+     * @param  bool  $ulpPerRow  every row carries its own ULP (the DISTRIVA workbook), so no single ULP has to be chosen
+     * @return array<string,mixed>
+     */
+    private function compareTariff(array $rows, string $work, ?string $ulp, bool $ulpPerRow): array
+    {
         $cur = DB::table('tariff_books')->where('status', 'APPROVED')->orderByDesc('valid_from')->first();
         $currentRows = [];
         if ($cur !== null) {
@@ -554,7 +592,7 @@ class MasterExcelImportService
             $after[(string) ($m['ulp'] ?? '')] = ($after[(string) ($m['ulp'] ?? '')] ?? 0) + 1;
         }
         $warnings = [];
-        if ($ulp === null && collect($currentRows)->contains(fn ($r) => $r['ulp'] !== null)) {
+        if (! $ulpPerRow && $ulp === null && collect($currentRows)->contains(fn ($r) => $r['ulp'] !== null)) {
             $warnings[] = 'ULP tidak dipilih, jadi baris dari Excel berlaku untuk semua ULP. Karena buku berlaku sudah punya baris khusus per ULP, pilih ULP asal laporan penjualan agar jam nyala tidak tercampur.';
         }
         $out = array_map(fn ($m) => [$m['tarif'], $m['daya_va'] ?? '', $m['harga_rata2'] ?? '', $m['jam_nyala'] ?? '', $m['ujl'] ?? '', $m['ulp'] ?? ''], array_values($merged));
