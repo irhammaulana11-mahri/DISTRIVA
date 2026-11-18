@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
 import { reportsApi, adminApi, triggerFileDownload } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
-import { resolveProfiles, visibleForProfiles } from '../../features/dashboard/profiles.js'
+import { resolveMenuProfiles, visibleForProfiles } from '../../features/dashboard/profiles.js'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -117,18 +117,18 @@ export default function ReportsPage() {
   const navigate = useNavigate()
   const { can, isSysAdmin } = useAccess()
   const canViewReports = Boolean(can?.['reports.view'])
-  const userProfiles = resolveProfiles({ can, isSysAdmin })
+  const userProfiles = resolveMenuProfiles({ can, isSysAdmin })
 
   // Master definition of tabs with role profiles
   const ALL_REPORT_TABS = useMemo(() => [
-    { id: 'overview', label: 'Ringkasan Operasional (Overview)', profiles: ['executive', 'mulp', 'admin', 'viewer'] },
-    { id: 'pipeline', label: 'Alur Pekerjaan per ULP (Funnel)', profiles: ['executive', 'mulp', 'teknik', 'niaga', 'admin', 'viewer'] },
-    { id: 'sla', label: 'Siklus Waktu & SLA (Lead Time)', profiles: ['executive', 'mulp', 'teknik', 'niaga', 'admin', 'viewer'] },
-    { id: 'costVariance', label: 'Realisasi Biaya (RAB vs SPK)', profiles: ['executive', 'perencanaan', 'admin', 'viewer'] },
-    { id: 'vendorPerformance', label: 'Rapor Kinerja Mitra / Vendor', capability: 'reports.view', profiles: ['executive', 'konstruksi', 'admin', 'viewer'] },
-    { id: 'criticalStock', label: 'Stok Kritis & Buffer Material', profiles: ['executive', 'konstruksi', 'admin', 'viewer'] },
-    { id: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', profiles: ['executive', 'perencanaan', 'admin', 'viewer'] },
-    { id: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', profiles: ['perencanaan', 'admin', 'viewer'] },
+    { id: 'overview', label: 'Ringkasan Operasional (Overview)', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin', 'viewer'] },
+    { id: 'pipeline', label: 'Alur Pekerjaan per ULP (Funnel)', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin', 'viewer'] },
+    { id: 'sla', label: 'Siklus Waktu & SLA (Lead Time)', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin', 'viewer'] },
+    { id: 'costVariance', label: 'Realisasi Biaya (RAB vs SPK)', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin', 'viewer'] },
+    { id: 'vendorPerformance', label: 'Rapor Kinerja Mitra / Vendor', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'admin', 'viewer'] },
+    { id: 'criticalStock', label: 'Stok Kritis & Buffer Material', profiles: ['executive', 'mulp', 'teknik', 'konstruksi', 'admin', 'viewer'] },
+    { id: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin', 'viewer'] },
+    { id: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin', 'viewer'] },
   ], [])
 
   const visibleTabs = useMemo(() => {

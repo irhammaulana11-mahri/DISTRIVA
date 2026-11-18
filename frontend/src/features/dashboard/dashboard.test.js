@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveProfiles, visibleForProfiles } from './profiles.js'
+import { resolveProfiles, resolveMenuProfiles, visibleForProfiles } from './profiles.js'
 import { buildDashboard, completenessOf, funnelStages, formatRupiah } from './dashboardModel.js'
 
 describe('resolveProfiles', () => {
@@ -126,5 +126,21 @@ describe('buildDashboard', () => {
     expect(f.at(-1)).toMatchObject({ key: 'bastp_closed', value: 1 })
     expect(formatRupiah(1500000)).toBe('Rp 1.500.000')
     expect(formatRupiah(null)).toBe('–')
+  })
+})
+
+describe('resolveMenuProfiles (penyaring menu)', () => {
+  const harga = { 'khs.manage': true, 'prices.manage': true }
+  it('Asman Jaringan (hak harga tanpa tiang/KKF/RAB) diberi profil jaringan, bukan perencanaan', () => {
+    expect(resolveMenuProfiles({ can: harga })).toEqual(['jaringan'])
+    expect(resolveProfiles({ can: harga })).toEqual(['perencanaan']) // dasbor tidak berubah
+  })
+  it('Perencanaan (punya hak tiang/KKF/RAB) tetap perencanaan', () => {
+    expect(resolveMenuProfiles({ can: { ...harga, 'poles.manage': true, 'kkf.run': true } })).toEqual(['perencanaan'])
+  })
+  it('menu harga/tarif tidak tampil untuk jaringan, tampil untuk perencanaan', () => {
+    const item = { profiles: ['perencanaan', 'executive'] }
+    expect(visibleForProfiles(item, ['jaringan'])).toBe(false)
+    expect(visibleForProfiles(item, ['perencanaan'])).toBe(true)
   })
 })

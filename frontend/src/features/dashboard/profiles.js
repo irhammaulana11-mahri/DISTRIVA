@@ -74,3 +74,17 @@ export function visibleForProfiles(item, userProfiles) {
   if (userProfiles.includes('admin') || userProfiles.includes('viewer') || userProfiles.includes('general')) return true
   return item.profiles.some((p) => userProfiles.includes(p))
 }
+
+/**
+ * Profil khusus penyaring menu (bukan dasbor). Asman Jaringan memegang hak harga/KHS yang sama dengan Perencanaan di server, tetapi
+ * bidang kerjanya jaringan, gardu, penyulang, dan vendor: tanpa hak khas Perencanaan (tiang, KKF, RAB) ia diberi profil `jaringan`
+ * sehingga menu harga, tarif, dan KKF tidak ditampilkan. Dasbor tetap memakai `resolveProfiles`. Hanya tampilan; server tetap memutuskan.
+ */
+export function resolveMenuProfiles(args = {}) {
+  const base = resolveProfiles(args)
+  const can = args.can || {}
+  if (base.includes('perencanaan') && !holdsAny(can, ['poles.manage', 'kkf.run', 'rab.run'])) {
+    return base.map((p) => (p === 'perencanaan' ? 'jaringan' : p))
+  }
+  return base
+}

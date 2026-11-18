@@ -41,7 +41,7 @@ import {
   IconRefresh,
 } from '../components/icons.jsx'
 import { MODULE_DOMAINS } from '../features/modules/moduleRegistry.js'
-import { resolveProfiles, visibleForProfiles } from '../features/dashboard/profiles.js'
+import { resolveMenuProfiles, visibleForProfiles } from '../features/dashboard/profiles.js'
 
 // Icon mapping for Distribution Modules
 const MODULE_ICONS = {
@@ -77,9 +77,9 @@ const operationsNav = [
 
 // 3. Perencanaan & Logistik (RKM, Forecast Beban Gardu, Gudang & Stok Material)
 const planningNav = [
-  { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
+  { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecast Beban Gardu', capability: 'forecast.view', icon: IconChart },
-  { to: '/master-data/warehouses', label: 'Gudang & Stok Material', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconBuilding },
+  { to: '/master-data/warehouses', label: 'Gudang & Stok Material', capability: 'master_data.view', profiles: ['konstruksi', 'executive'], icon: IconBuilding },
 ]
 
 // 3. Master Data (Dikelompokkan secara logis & disaring kewenangan)
@@ -90,18 +90,18 @@ const masterDataNav = [
   { to: '/master-data/customers', label: 'Master Pelanggan', capability: 'customers.view', icon: IconUsers, group: 'Aset Jaringan & Pelanggan' },
 
   // Standar & Konstruksi
-  { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
-  { to: '/master-data/bom', label: 'Bill of Materials (BOM)', capability: 'master_data.view', profiles: ['perencanaan', 'teknik', 'mulp', 'executive'], icon: IconDocument, group: 'Standar & Konstruksi' },
+  { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
+  { to: '/master-data/bom', label: 'Bill of Materials (BOM)', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconDocument, group: 'Standar & Konstruksi' },
 
   // Material & Logistik
   { to: '/master-data/materials', label: 'Katalog Material ERP', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconTag, group: 'Material & Logistik' },
-  { to: '/master-data/mapping', label: 'Pemetaan Material (SKU↔KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi'], icon: IconTag, group: 'Material & Logistik' },
-  { to: '/master-data/categories', label: 'Kategori & Satuan', capability: 'master_data.view', profiles: ['perencanaan'], icon: IconFolder, group: 'Material & Logistik' },
+  { to: '/master-data/mapping', label: 'Pemetaan Material (SKU↔KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconTag, group: 'Material & Logistik' },
+  { to: '/master-data/categories', label: 'Kategori & Satuan', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconFolder, group: 'Material & Logistik' },
 
   // Keuangan & Tarif
   { to: '/master-data/khs', label: 'Katalog Harga Satuan (KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconClipboard, group: 'Keuangan & Tarif' },
   { to: '/master-data/harga', label: 'Buku Harga Kontrak', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconTag, group: 'Keuangan & Tarif' },
-  { to: '/master-data/pole-contracts', label: 'Kontrak Rinci Tiang', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi'], icon: IconClipboard, group: 'Keuangan & Tarif' },
+  { to: '/master-data/pole-contracts', label: 'Kontrak Rinci Tiang', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive'], icon: IconClipboard, group: 'Keuangan & Tarif' },
   { to: '/master-data/kkf-parameters', label: 'Parameter KKF', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconChart, group: 'Keuangan & Tarif' },
   { to: '/master-data/tariff-books', label: 'Buku Tarif Listrik', capability: 'master_data.view', profiles: ['perencanaan', 'executive'], icon: IconZap, group: 'Keuangan & Tarif' },
   { to: '/master-data/excel-import', label: 'Impor dari Excel', anyOf: ['bom.manage', 'prices.manage', 'tariffs.manage'], profiles: ['perencanaan'], icon: IconUpload, group: 'Keuangan & Tarif' },
@@ -109,14 +109,14 @@ const masterDataNav = [
 
 // 4. Laporan & Monitoring (Terbagi ke sub-halaman sesuai peran & kewenangan)
 const reportsNav = [
-  { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif & KPI', capability: 'reports.view', profiles: ['executive', 'mulp', 'admin'], icon: IconChart },
-  { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'niaga', 'admin'], icon: IconActivity },
-  { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'niaga', 'admin'], icon: IconClock },
-  { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB vs SPK)', capability: 'reports.view', profiles: ['executive', 'perencanaan', 'admin'], icon: IconCalculator },
-  { to: '/reports/critical-stock', tabId: 'criticalStock', label: 'Stok Kritis & Material', capability: 'reports.view', profiles: ['executive', 'konstruksi', 'admin'], icon: IconTruck },
-  { to: '/reports/vendor-performance', tabId: 'vendorPerformance', label: 'Rapor Kinerja Vendor', capability: 'reports.view', profiles: ['executive', 'konstruksi', 'admin'], icon: IconClipboard },
-  { to: '/reports/kkf-feasibility', tabId: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', capability: 'reports.view', profiles: ['executive', 'perencanaan', 'admin'], icon: IconZap },
-  { to: '/reports/erp-anomalies', tabId: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', capability: 'reports.view', profiles: ['perencanaan', 'admin'], icon: IconAlertCircle },
+  { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif & KPI', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
+  { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconActivity },
+  { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconClock },
+  { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB vs SPK)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconCalculator },
+  { to: '/reports/critical-stock', tabId: 'criticalStock', label: 'Stok Kritis & Material', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'konstruksi', 'admin'], icon: IconTruck },
+  { to: '/reports/vendor-performance', tabId: 'vendorPerformance', label: 'Rapor Kinerja Vendor', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'admin'], icon: IconClipboard },
+  { to: '/reports/kkf-feasibility', tabId: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconZap },
+  { to: '/reports/erp-anomalies', tabId: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconAlertCircle },
 ]
 
 // 5. Administrasi (Pengguna, Unit, Mitra)
@@ -413,7 +413,7 @@ export default function AppLayout() {
   }, [])
 
   // Menu disaring menurut profil kerja (petunjuk tampilan; server tetap menegakkan izin).
-  const userProfiles = resolveProfiles({ can, isSysAdmin })
+  const userProfiles = resolveMenuProfiles({ can, isSysAdmin })
   const showModuleRoadmap = isSysAdmin || userProfiles.includes('admin')
 
   const mainItems = mustChangePassword
