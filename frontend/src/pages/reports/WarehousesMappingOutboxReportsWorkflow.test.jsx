@@ -971,7 +971,7 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
         expect(screen.getByText('42')).toBeInTheDocument()
         expect(screen.getByText(/Rp 350.000.000/i)).toBeInTheDocument()
         expect(screen.getByText(/20 Layak/i)).toBeInTheDocument()
-        expect(screen.getByText(/25 WO/i)).toBeInTheDocument()
+        expect(screen.getByTestId('report-stat-cards')).toHaveTextContent(/25\s*WO/i)
       })
 
       // Test XLSX download
@@ -1014,7 +1014,8 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       await waitFor(() => {
         expect(screen.getByText('ULP-MJO')).toBeInTheDocument()
         expect(screen.getByText('ULP Mojokerto Kota')).toBeInTheDocument()
-        expect(screen.getByText('18')).toBeInTheDocument()
+        expect(within(screen.getByRole('table')).getByText('18')).toBeInTheDocument()      // kartu statistik di atas juga memuat jumlah total
+        expect(screen.getByTestId('report-stat-cards')).toHaveTextContent(/20\s*Agenda/i)
       })
     })
 
@@ -1376,7 +1377,18 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
             unmapped_skus_count: 1,
             unmapped_skus_total_qty: 25,
             recent_sync_failures_count: 1,
+            process_anomalies_count: 2,
+            process_high_count: 1,
+            process_stages_affected: 2,
+            by_category: [
+              { category: 'WO_NO_PROGRESS', label: 'SPK terbit tanpa laporan progres', stage: 'SPK / Konstruksi', count: 1 },
+              { category: 'KKO_UNDECIDED', label: 'KKO belum diputuskan', stage: 'KKO', count: 1 },
+            ],
           },
+          process_anomalies: [
+            { category: 'WO_NO_PROGRESS', category_label: 'SPK terbit tanpa laporan progres', stage: 'SPK / Konstruksi', severity: 'HIGH', reference: 'PBPD-0001', unit_code: '51453', unit_name: 'ULP Jombang', detail: 'SPK WO-1 terbit 20 hari lalu tanpa laporan progres.', since: '2026-10-25 08:00:00', age_days: 20 },
+            { category: 'KKO_UNDECIDED', category_label: 'KKO belum diputuskan', stage: 'KKO', severity: 'MEDIUM', reference: 'PBPD-0002', unit_code: '51453', unit_name: 'ULP Jombang', detail: 'KKO gardu HD0208 belum diputuskan.', since: '2026-11-10 08:00:00', age_days: 8 },
+          ],
           unmapped_materials: [
             {
               material_no: '000000000003110025',
@@ -1410,18 +1422,26 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       })
 
       // Switch to ERP Anomalies Tab
-      const erpTab = screen.getByRole('button', { name: /Anomali & Rekonsiliasi ERP/i })
+      const erpTab = screen.getByRole('button', { name: /Anomali & Rekonsiliasi/i })
       fireEvent.click(erpTab)
 
+      // Bawaan: anomali seluruh proses (bukan hanya MIMS), lengkap dengan kartu ringkasnya
       await waitFor(() => {
         expect(reportsApi.erpAnomalies).toHaveBeenCalled()
+        expect(screen.getByText('PBPD-0001')).toBeInTheDocument()
+        expect(screen.getByText(/tanpa laporan progres\./i)).toBeInTheDocument()
+        expect(screen.getByTestId('report-stat-cards')).toHaveTextContent(/Anomali Seluruh Proses/i)
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: /SKU MIMS Belum Dipetakan/i }))
+      await waitFor(() => {
         expect(screen.getByText('000000000003110025')).toBeInTheDocument()
         expect(screen.getByText('POLE CONCRETE 9M 200DAN')).toBeInTheDocument()
         expect(screen.getByText('GDG-UP3')).toBeInTheDocument()
       })
 
       // Switch to Failures subtab
-      const failuresSubtab = screen.getByRole('button', { name: /Log Kegagalan Sinkronisasi/i })
+      const failuresSubtab = screen.getByRole('button', { name: /Kegagalan Sinkronisasi MIMS \(/i })
       fireEvent.click(failuresSubtab)
 
       await waitFor(() => {
@@ -1568,6 +1588,33 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
 
       expect(up3Select).toHaveValue('Semua UP3')
       expect(ulpSelect).toHaveValue('Semua ULP')
+    })
+
+    it('dropdown UP3/ULP terisi dari jawaban server tanpa pembungkus data, dapat dicari dengan mengetik, dan kartu statistik berada di atas filter', async () => {
+      reportsApi.units.mockResolvedValue({
+        scope: 'GLOBAL',
+        up3_units: [
+          { id: 'u-up3-1', code: 'UP3-MJK', name: 'UP3 Mojokerto' },
+          { id: 'u-up3-2', code: 'UP3-SBY', name: 'UP3 Surabaya' },
+        ],
+        ulp_units: [{ id: 'u-ulp-1', code: 'ULP-MJO', name: 'ULP Mojokerto Kota', parent_id: 'u-up3-1' }],
+        default_up3_id: '',
+        default_unit_id: '',
+      })
+
+      renderWithProviders(<ReportsPage />, { can: { 'reports.view': true } })
+
+      const up3Select = await screen.findByRole('combobox', { name: /Filter Unit UP3/i })
+      await waitFor(() => expect(up3Select).toBeEnabled())
+      await userEvent.click(up3Select)
+      expect(await screen.findByRole('option', { name: /UP3 Surabaya/i })).toBeInTheDocument()
+      await userEvent.type(up3Select, 'sura')
+      expect(screen.getByRole('option', { name: /UP3 Surabaya/i })).toBeInTheDocument()
+      expect(screen.queryByRole('option', { name: /UP3 Mojokerto/i })).not.toBeInTheDocument()
+
+      const cards = screen.getByTestId('report-stat-cards')
+      const filterBar = screen.getByText('Terapkan Filter').closest('div.p-4')
+      expect(cards.compareDocumentPosition(filterBar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()   // kartu dahulu, filter di bawahnya
     })
 
     it('hierarkis peran UP3: UP3 terkunci dan ULP terbatas pada unit di bawahnya', async () => {

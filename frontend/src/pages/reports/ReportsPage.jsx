@@ -12,6 +12,7 @@ import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ReportSettingsDrawer from './ReportSettingsDrawer.jsx'
+import StatGrid from './ReportStatCards.jsx'
 import {
   IconChart,
   IconDownload,
@@ -106,9 +107,9 @@ const REPORT_PAGE_INFO = {
     crumb: 'Analisis Kelayakan KKF',
   },
   erpAnomalies: {
-    title: 'Anomali Integrasi & Rekonsiliasi ERP MIMS',
-    subtitle: 'Pusat rekonsiliasi integrasi sistem logistik ERP MIMS, deteksi material belum terpetakan, dan penanganan kegagalan sinkronisasi.',
-    crumb: 'Anomali & Rekonsiliasi ERP',
+    title: 'Anomali & Rekonsiliasi Seluruh Proses',
+    subtitle: 'Temuan yang tertahan atau tidak wajar sepanjang proses: permohonan, survei, KKO, SPK, BASTP, material, dan dokumen, ditambah rekonsiliasi stok ERP MIMS.',
+    crumb: 'Anomali & Rekonsiliasi',
   },
 }
 
@@ -128,7 +129,7 @@ export default function ReportsPage() {
     { id: 'vendorPerformance', label: 'Rapor Kinerja Mitra / Vendor', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'admin', 'viewer'] },
     { id: 'criticalStock', label: 'Stok Kritis & Buffer Material', profiles: ['executive', 'mulp', 'teknik', 'konstruksi', 'admin', 'viewer'] },
     { id: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin', 'viewer'] },
-    { id: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin', 'viewer'] },
+    { id: 'erpAnomalies', label: 'Anomali & Rekonsiliasi', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin', 'viewer'] },
   ], [])
 
   const visibleTabs = useMemo(() => {
@@ -254,7 +255,8 @@ export default function ReportsPage() {
   const [anomaliesData, setAnomaliesData] = useState({ summary: {}, unmapped_materials: [], sync_failures: [] })
   const [loadingAnomalies, setLoadingAnomalies] = useState(false)
   const [anomaliesError, setAnomaliesError] = useState('')
-  const [anomalySubTab, setAnomalySubTab] = useState('UNMAPPED') // UNMAPPED | FAILURES
+  const [anomalySubTab, setAnomalySubTab] = useState('PROCESS') // PROCESS | UNMAPPED | FAILURES
+  const [anomalyCategory, setAnomalyCategory] = useState('ALL')
   const [anomalyPage, setAnomalyPage] = useState(1)
   const [anomalyPerPage, setAnomalyPerPage] = useState(10)
 
@@ -266,7 +268,7 @@ export default function ReportsPage() {
     reportsApi
       .units()
       .then((res) => {
-        const d = res?.data || {}
+        const d = res?.data?.scope ? res.data : res || {} // server mengirim isi langsung; pembungkus `data` hanya pada tiruan lama
         const up3s = Array.isArray(d.up3_units) ? d.up3_units : []
         const ulps = Array.isArray(d.ulp_units) ? d.ulp_units : []
         setScopeInfo({
@@ -607,6 +609,102 @@ export default function ReportsPage() {
     return rows
   }, [kkfData, kkfFilterStatus])
 
+  // Kartu statistik di bawah header: satu tempat untuk semua tab (komponen ReportStatCards).
+  const num = (n) => Number(n || 0).toLocaleString('id-ID')
+  const rupiah = (n) => `Rp ${Math.round(Number(n) || 0).toLocaleString('id-ID')}`
+  const processRows = Array.isArray(anomaliesData?.process_anomalies) ? anomaliesData.process_anomalies : []
+  const anomalyCategoryOptions = useMemo(() => {
+    const cats = Array.isArray(anomaliesData?.summary?.by_category) ? anomaliesData.summary.by_category : []
+    return [
+      { value: 'ALL', label: `Semua jenis (${cats.reduce((a, c) => a + (c.count || 0), 0)})` },
+      ...cats.map((c) => ({ value: c.category, label: `${c.label} (${c.count})`, description: c.stage, search: c.stage })),
+    ]
+  }, [anomaliesData])
+  const filteredProcessRows = useMemo(
+    () => (anomalyCategory === 'ALL' ? processRows : processRows.filter((r) => r.category === anomalyCategory)),
+    [processRows, anomalyCategory],
+  )
+  const anomalyActiveRows =
+    anomalySubTab === 'PROCESS' ? filteredProcessRows : anomalySubTab === 'UNMAPPED' ? anomaliesData.unmapped_materials || [] : anomaliesData.sync_failures || []
+
+  const statItems = (() => {
+    const sum = (rows, k) => (rows || []).reduce((acc, r) => acc + (Number(r[k]) || 0), 0)
+    switch (activeTab) {
+      case 'overview':
+        return [
+          { label: 'Total Permohonan', value: num(appStats.total), sub: `PB: ${appStats.by_type?.PASANG_BARU ?? 0} · PD: ${appStats.by_type?.PERUBAHAN_DAYA ?? 0}`, tone: 'slate', icon: IconFileText },
+          { label: 'Total Nilai Investasi (RAB)', value: rupiah(rabStats.total_value), sub: `${rabStats.applications_with_run ?? 0} permohonan telah dihitung RAB`, tone: 'emerald', icon: IconCalculator },
+          { label: 'Total SPK Konstruksi (WO)', value: num(Object.values(woStats.by_status || {}).reduce((a, b) => a + Number(b), 0)), unit: 'WO', sub: `Aktif: ${(woStats.by_status?.ISSUED ?? 0) + (woStats.by_status?.IN_PROGRESS ?? 0)} · Selesai: ${woStats.by_status?.COMPLETED ?? 0}`, tone: 'blue', icon: IconWrench },
+          { label: 'Evaluasi Kelayakan (KKF)', value: `${kkfStats.feasible ?? 0} Layak / ${kkfStats.not_feasible ?? 0} Tidak`, sub: `${kkfStats.extended_required ?? 0} butuh persetujuan khusus`, tone: 'purple', icon: IconZap },
+        ]
+      case 'pipeline':
+        return [
+          { label: 'Total Permohonan Masuk', value: num(sum(pipelineData, 'applications')), unit: 'Agenda', sub: 'Akumulasi seluruh ULP', tone: 'slate', icon: IconFileText },
+          { label: 'Survei Dilakukan', value: num(sum(pipelineData, 'with_survey')), unit: 'Lokasi', sub: 'Telah disurvei lapangan', tone: 'blue', icon: IconActivity },
+          { label: 'SPK Konstruksi (WO)', value: num(sum(pipelineData, 'wo_issued')), unit: 'WO', sub: 'Diterbitkan ke vendor', tone: 'amber', icon: IconWrench },
+          { label: 'BASTP Ditutup Resmi', value: num(sum(pipelineData, 'bastp_closed')), unit: 'BASTP', sub: 'Selesai tersambung 100%', tone: 'emerald', icon: IconCheckCircle },
+        ]
+      case 'sla': {
+        const s = slaData.summary || {}
+        return [
+          { label: 'Rata-rata Mohon → Survei', value: s.average_days_mohon_to_survey ?? 0, unit: 'Hari', tone: 'slate', icon: IconClock },
+          { label: 'Rata-rata Survei → Gambar', value: s.average_days_survey_to_drawing ?? 0, unit: 'Hari', tone: 'slate', icon: IconClock },
+          { label: 'Rata-rata Gambar → SPK', value: s.average_days_drawing_to_wo ?? 0, unit: 'Hari', tone: 'slate', icon: IconClock },
+          { label: 'Rata-rata SPK → Nyala', value: s.average_days_wo_to_nyala ?? 0, unit: 'Hari', tone: 'slate', icon: IconClock },
+          { label: 'Total Rata-rata Siklus', value: s.average_total_cycle_days ?? 0, unit: 'Hari', tone: 'blue', icon: IconActivity },
+          { label: 'Lewat Batas SLA', value: s.overdue_count ?? 0, unit: 'Pelanggan', sub: s.needs_note_count > 0 ? `${s.needs_note_count} belum diberi keterangan` : undefined, tone: 'rose', icon: IconAlertCircle },
+        ]
+      }
+      case 'costVariance':
+        return [
+          { label: 'Total Biaya RAB Terencana', value: rupiah(sum(safeCostList, 'rab_total')), sub: 'Estimasi biaya investasi', tone: 'emerald', icon: IconCalculator },
+          { label: 'Permohonan Berbiaya', value: num(safeCostList.length), unit: 'Agenda', sub: 'Telah dihitung RAB', tone: 'slate', icon: IconFileText },
+          { label: 'SPK Konstruksi Terbit', value: num(safeCostList.filter((r) => r.wo_number).length), unit: 'WO', sub: 'Dalam proses / selesai', tone: 'blue', icon: IconWrench },
+          { label: 'Realisasi BASTP Ditutup', value: num(safeCostList.filter((r) => r.bastp_number).length), unit: 'BASTP', sub: 'Pekerjaan diserahterimakan', tone: 'indigo', icon: IconCheckCircle },
+        ]
+      case 'vendorPerformance': {
+        const scored = safeVendorList.filter((v) => v.score != null)
+        return [
+          { label: 'Mitra / Vendor', value: num(safeVendorList.length), unit: 'Vendor', sub: 'Memiliki riwayat SPK', tone: 'slate', icon: IconUsers },
+          { label: 'Total SPK', value: num(sum(safeVendorList, 'total_wo')), unit: 'WO', sub: `Selesai: ${num(sum(safeVendorList, 'completed_wo'))} · Berjalan: ${num(sum(safeVendorList, 'in_progress_wo'))}`, tone: 'blue', icon: IconWrench },
+          { label: 'Rata-rata Skor', value: scored.length ? (scored.reduce((a, v) => a + Number(v.score), 0) / scored.length).toFixed(1) : '-', sub: `${scored.length} vendor bernilai`, tone: 'emerald', icon: IconCheckCircle },
+          { label: 'Tanpa Laporan > 7 Hari', value: num(sum(safeVendorList, 'stale_wo')), unit: 'SPK', sub: 'SPK berjalan tanpa progres', tone: 'rose', icon: IconAlertCircle },
+        ]
+      }
+      case 'criticalStock': {
+        const s = criticalStockData.summary || {}
+        return [
+          { label: 'Total Item KHS', value: num(s.total_items), unit: 'Item', tone: 'slate', icon: IconTruck },
+          { label: 'Stok Kritis / Habis', value: num(s.critical_items), unit: 'Item', tone: 'rose', icon: IconAlertCircle },
+          { label: 'Peringatan Stok Menipis', value: num(s.warning_items), unit: 'Item', tone: 'amber', icon: IconAlertCircle },
+          { label: 'Stok Aman / Tercukupi', value: num(s.safe_items), unit: 'Item', tone: 'emerald', icon: IconCheckCircle },
+        ]
+      }
+      case 'kkfFeasibility': {
+        const s = kkfData.summary || {}
+        return [
+          { label: 'Total Dihitung KKF', value: num(s.total_applications_with_kkf), unit: 'Permohonan', tone: 'slate', icon: IconZap },
+          { label: 'Layak Investasi', value: num(s.feasible_count), unit: 'Permohonan', tone: 'emerald', icon: IconCheckCircle },
+          { label: 'Tidak Layak', value: num(s.not_feasible_count), unit: 'Permohonan', tone: 'rose', icon: IconAlertCircle },
+          { label: 'PBP > 60 Bulan (Diperluas)', value: num(s.extended_required_count), unit: 'Permohonan', tone: 'purple', icon: IconZap },
+          { label: 'Total Capex RAB', value: rupiah(s.total_capex_rab), tone: 'emerald', icon: IconCalculator },
+          { label: 'Rata-rata Payback', value: s.average_payback_months ?? 0, unit: 'Bulan', tone: 'blue', icon: IconClock },
+        ]
+      }
+      case 'erpAnomalies': {
+        const s = anomaliesData.summary || {}
+        return [
+          { label: 'Anomali Seluruh Proses', value: num(s.process_anomalies_count), unit: 'Temuan', sub: `${s.process_stages_affected ?? 0} jenis anomali terdeteksi`, tone: 'amber', icon: IconAlertCircle },
+          { label: 'Prioritas Tinggi', value: num(s.process_high_count), unit: 'Temuan', sub: 'SPK tanpa progres, tanpa BASTP, dokumen karantina', tone: 'rose', icon: IconAlertCircle },
+          { label: 'SKU MIMS Belum Terpetakan', value: num(s.unmapped_skus_count), unit: 'Material', sub: `${(s.unmapped_skus_total_qty ?? 0).toLocaleString('id-ID')} unit tanpa KHS`, tone: 'purple', icon: IconTruck },
+          { label: 'Kegagalan Sinkronisasi MIMS', value: num(s.recent_sync_failures_count), unit: 'Insiden', sub: 'Penarikan stok gagal terbaru', tone: 'slate', icon: IconRefresh },
+        ]
+      }
+      default:
+        return []
+    }
+  })()
+
   const pageInfo = REPORT_PAGE_INFO[activeTab] || REPORT_PAGE_INFO.overview
   const CurrentReportIcon = REPORT_TAB_ICONS[activeTab] || IconChart
 
@@ -670,6 +768,9 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
+
+      {/* Kartu statistik: di bawah header, ukuran seragam */}
+      <StatGrid items={statItems} />
 
       {/* Filter Bar */}
       <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -781,80 +882,6 @@ export default function ReportsPage() {
             </div>
           ) : (
             <div className="space-y-5">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                      Total Permohonan
-                    </span>
-                    <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                      <IconFileText className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-2">
-                    {appStats.total ?? 0}
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500">
-                    <span>PB: {appStats.by_type?.PASANG_BARU ?? 0}</span>
-                    <span>·</span>
-                    <span>PD: {appStats.by_type?.PERUBAHAN_DAYA ?? 0}</span>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/10 dark:bg-emerald-950/10 rounded-2xl shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
-                      Total Nilai Investasi (RAB)
-                    </span>
-                    <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
-                      <IconCalculator className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
-                    Rp {Math.round(rabStats.total_value ?? 0).toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500/70 mt-2">
-                    {rabStats.applications_with_run ?? 0} permohonan telah dihitung RAB
-                  </div>
-                </div>
-
-                <div className="p-4 bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/10 dark:bg-blue-950/10 rounded-2xl shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
-                      Total SPK Konstruksi (WO)
-                    </span>
-                    <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
-                      <IconWrench className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">
-                    {Object.values(woStats.by_status || {}).reduce((a, b) => a + Number(b), 0)} WO
-                  </div>
-                  <div className="text-[11px] text-blue-600/70 dark:text-blue-500/70 mt-2">
-                    Aktif: {(woStats.by_status?.ISSUED ?? 0) + (woStats.by_status?.IN_PROGRESS ?? 0)} · Selesai: {woStats.by_status?.COMPLETED ?? 0}
-                  </div>
-                </div>
-
-                <div className="p-4 bg-white dark:bg-slate-900 border border-purple-200/80 dark:border-purple-900/60 bg-purple-50/10 dark:bg-purple-950/10 rounded-2xl shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
-                      Evaluasi Kelayakan (KKF)
-                    </span>
-                    <div className="rounded-lg p-1.5 bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400">
-                      <IconZap className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-2 flex items-baseline gap-2">
-                    <span className="text-emerald-600">{kkfStats.feasible ?? 0} Layak</span>
-                    <span className="text-xs text-slate-400">/</span>
-                    <span className="text-rose-600">{kkfStats.not_feasible ?? 0} Tidak</span>
-                  </div>
-                  <div className="text-[11px] text-amber-600 mt-2">
-                    {kkfStats.extended_required ?? 0} butuh persetujuan khusus
-                  </div>
-                </div>
-              </div>
-
               {/* Rincian Operasional & Distribusi */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
@@ -948,51 +975,6 @@ export default function ReportsPage() {
         <div className="space-y-4">
           {pipelineError && <Alert kind="error">{pipelineError}</Alert>}
 
-          {/* KPI Ringkasan Funnel Agregat */}
-          {pipelineData.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                  Total Permohonan Masuk
-                </span>
-                <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.applications) || 0), 0).toLocaleString('id-ID')} Agenda`}
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">Akumulasi seluruh ULP</p>
-              </div>
-
-              <div className="p-4 bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/10 dark:bg-blue-950/10 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
-                  Survei Dilakukan
-                </span>
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.with_survey) || 0), 0).toLocaleString('id-ID')} Lokasi`}
-                </div>
-                <p className="text-[11px] text-blue-600/70 dark:text-blue-500/70 mt-1">Telah disurvei lapangan</p>
-              </div>
-
-              <div className="p-4 bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/10 dark:bg-amber-950/10 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
-                  SPK Konstruksi (WO)
-                </span>
-                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.wo_issued) || 0), 0).toLocaleString('id-ID')} WO`}
-                </div>
-                <p className="text-[11px] text-amber-600/70 dark:text-amber-500/70 mt-1">Diterbitkan ke vendor</p>
-              </div>
-
-              <div className="p-4 bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/10 dark:bg-emerald-950/10 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
-                  BASTP Ditutup Resmi
-                </span>
-                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {`${pipelineData.reduce((acc, r) => acc + (Number(r.bastp_closed) || 0), 0).toLocaleString('id-ID')} BASTP`}
-                </div>
-                <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/70 mt-1">Selesai tersambung 100%</p>
-              </div>
-            </div>
-          )}
-
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             {loadingPipeline ? (
               <div className="py-20 text-center text-slate-500">
@@ -1075,47 +1057,6 @@ export default function ReportsPage() {
       {activeTab === 'sla' && (
         <div className="space-y-4">
           {slaError && <Alert kind="error">{slaError}</Alert>}
-
-          {/* SLA KPI Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Rata-rata Mohon → Survei</span>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {slaData.summary?.average_days_mohon_to_survey ?? 0} <span className="text-xs font-normal text-slate-500">Hari</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Rata-rata Survei → Gambar</span>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {slaData.summary?.average_days_survey_to_drawing ?? 0} <span className="text-xs font-normal text-slate-500">Hari</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Rata-rata Gambar → SPK</span>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {slaData.summary?.average_days_drawing_to_wo ?? 0} <span className="text-xs font-normal text-slate-500">Hari</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Rata-rata SPK → Nyala</span>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {slaData.summary?.average_days_wo_to_nyala ?? 0} <span className="text-xs font-normal text-slate-500">Hari</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Total Rata-rata Siklus</span>
-              <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                {slaData.summary?.average_total_cycle_days ?? 0} <span className="text-xs font-normal text-slate-500">Hari</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/40 bg-rose-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-rose-600 uppercase block">Lewat Batas SLA</span>
-              <div className="text-xl font-bold text-rose-600 mt-1">
-                {slaData.summary?.overdue_count ?? 0} <span className="text-xs font-normal text-rose-500">Pelanggan</span>
-              </div>
-              {slaData.summary?.needs_note_count > 0 && <div className="mt-1 text-[10px] font-semibold text-rose-600">{slaData.summary.needs_note_count} belum diberi keterangan</div>}
-            </div>
-          </div>
 
           {/* Filter Status SLA */}
           <div className="flex items-center gap-2">
@@ -1242,51 +1183,6 @@ export default function ReportsPage() {
       {activeTab === 'costVariance' && (
         <div className="space-y-4">
           {costError && <Alert kind="error">{costError}</Alert>}
-
-          {/* KPI Ringkasan Biaya */}
-          {safeCostList.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <div className="p-4 bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/10 dark:bg-emerald-950/10 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
-                  Total Biaya RAB Terencana
-                </span>
-                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  Rp {Math.round(safeCostList.reduce((acc, r) => acc + (Number(r.rab_total) || 0), 0)).toLocaleString('id-ID')}
-                </div>
-                <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/70 mt-1">Estimasi biaya investasi</p>
-              </div>
-
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                  Permohonan Berbiaya
-                </span>
-                <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                  {safeCostList.length.toLocaleString('id-ID')} <span className="text-xs font-normal text-slate-400">Agenda</span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">Telah dihitung RAB</p>
-              </div>
-
-              <div className="p-4 bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/10 dark:bg-blue-950/10 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
-                  SPK Konstruksi Terbit
-                </span>
-                <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                  {safeCostList.filter((r) => r.wo_number).length.toLocaleString('id-ID')} <span className="text-xs font-normal text-blue-400">WO</span>
-                </div>
-                <p className="text-[11px] text-blue-600/70 dark:text-blue-500/70 mt-1">Dalam proses / selesai</p>
-              </div>
-
-              <div className="p-4 bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/10 dark:bg-indigo-950/10 rounded-2xl shadow-xs">
-                <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block">
-                  Realisasi BASTP Ditutup
-                </span>
-                <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                  {safeCostList.filter((r) => r.bastp_number).length.toLocaleString('id-ID')} <span className="text-xs font-normal text-indigo-400">BASTP</span>
-                </div>
-                <p className="text-[11px] text-indigo-600/70 dark:text-indigo-500/70 mt-1">Pekerjaan diserahterimakan</p>
-              </div>
-            </div>
-          )}
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             {loadingCost ? (
@@ -1474,34 +1370,6 @@ export default function ReportsPage() {
         <div className="space-y-4">
           {criticalStockError && <Alert kind="error">{criticalStockError}</Alert>}
 
-          {/* Critical Stock KPI Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Total Item KHS</span>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {criticalStockData.summary?.total_items ?? 0} <span className="text-xs font-normal text-slate-500">Item</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/40 bg-rose-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-rose-600 uppercase block">Stok Kritis / Habis</span>
-              <div className="text-xl font-bold text-rose-600 mt-1">
-                {criticalStockData.summary?.critical_items ?? 0} <span className="text-xs font-normal text-rose-500">Item</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/40 bg-amber-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-amber-600 uppercase block">Peringatan Stok Menipis</span>
-              <div className="text-xl font-bold text-amber-600 mt-1">
-                {criticalStockData.summary?.warning_items ?? 0} <span className="text-xs font-normal text-amber-500">Item</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-emerald-600 uppercase block">Stok Aman / Tercukupi</span>
-              <div className="text-xl font-bold text-emerald-600 mt-1">
-                {criticalStockData.summary?.safe_items ?? 0} <span className="text-xs font-normal text-emerald-500">Item</span>
-              </div>
-            </div>
-          </div>
-
           <p className="text-[11px] text-slate-500">
             Stok minimum = rata-rata pemakaian {criticalStockData.summary?.usage_months ?? 3} bulan terakhir (pengeluaran material nyata dari MIMS dan penyerahan TUG 7 tanpa hitung ganda; bila belum ada, alokasi terkonfirmasi) atau safety stock ERP bila lebih tinggi.
             Kritis bila tersedia + kedatangan 1 bulan masih di bawah stok minimum; peringatan bila baru tercukupi oleh kedatangan atau kurang dari {reportSettings?.stock?.warning_factor ?? 1.5}× stok minimum.
@@ -1645,46 +1513,6 @@ export default function ReportsPage() {
         <div className="space-y-4">
           {kkfError && <Alert kind="error">{kkfError}</Alert>}
 
-          {/* KKF KPI Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Total Dihitung KKF</span>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {kkfData.summary?.total_applications_with_kkf ?? 0} <span className="text-xs font-normal text-slate-500">Permohonan</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-emerald-600 uppercase block">Layak Investasi</span>
-              <div className="text-xl font-bold text-emerald-600 mt-1">
-                {kkfData.summary?.feasible_count ?? 0} <span className="text-xs font-normal text-emerald-500">Permohonan</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/40 bg-rose-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-rose-600 uppercase block">Tidak Layak</span>
-              <div className="text-xl font-bold text-rose-600 mt-1">
-                {kkfData.summary?.not_feasible_count ?? 0} <span className="text-xs font-normal text-rose-500">Permohonan</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-900/40 bg-purple-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-purple-600 uppercase block">PBP &gt; 60 Bulan (Diperluas)</span>
-              <div className="text-xl font-bold text-purple-600 mt-1">
-                {kkfData.summary?.extended_required_count ?? 0} <span className="text-xs font-normal text-purple-500">Permohonan</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Total Capex RAB</span>
-              <div className="text-lg font-bold text-emerald-600 mt-1">
-                Rp {Math.round(kkfData.summary?.total_capex_rab || 0).toLocaleString('id-ID')}
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Rata-rata Payback</span>
-              <div className="text-xl font-bold text-blue-600 mt-1">
-                {kkfData.summary?.average_payback_months ?? 0} <span className="text-xs font-normal text-slate-500">Bulan</span>
-              </div>
-            </div>
-          </div>
-
           {/* Filter Status */}
           <div className="flex items-center gap-2">
             {['ALL', 'FEASIBLE', 'NOT_FEASIBLE', 'EXTENDED'].map((st) => (
@@ -1807,71 +1635,115 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* TAB 8: ERP ANOMALIES */}
+      {/* TAB 8: ANOMALI & REKONSILIASI (seluruh proses + MIMS) */}
       {activeTab === 'erpAnomalies' && (
         <div className="space-y-4">
           {anomaliesError && <Alert kind="error">{anomaliesError}</Alert>}
 
-          {/* ERP KPI Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/40 bg-amber-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-amber-600 uppercase block">SKU MIMS Belum Terpetakan</span>
-              <div className="text-xl font-bold text-amber-600 mt-1">
-                {anomaliesData.summary?.unmapped_skus_count ?? 0} <span className="text-xs font-normal text-amber-500">Material</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Total Kuantitas SKU Tanpa KHS</span>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {anomaliesData.summary?.unmapped_skus_total_qty?.toLocaleString('id-ID') ?? 0} <span className="text-xs font-normal text-slate-500">Unit</span>
-              </div>
-            </div>
-            <div className="p-3 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/40 bg-rose-50/20 rounded-xl shadow-xs">
-              <span className="text-[10px] font-bold text-rose-600 uppercase block">Kegagalan Sinkronisasi Tarik Stok</span>
-              <div className="text-xl font-bold text-rose-600 mt-1">
-                {anomaliesData.summary?.recent_sync_failures_count ?? 0} <span className="text-xs font-normal text-rose-500">Insiden</span>
-              </div>
-            </div>
+          {/* Subtab Switcher */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+            {[
+              ['PROCESS', `Anomali Seluruh Proses (${processRows.length})`],
+              ['UNMAPPED', `SKU MIMS Belum Dipetakan (${anomaliesData.unmapped_materials?.length || 0})`],
+              ['FAILURES', `Kegagalan Sinkronisasi MIMS (${anomaliesData.sync_failures?.length || 0})`],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setAnomalySubTab(id)
+                  setAnomalyPage(1)
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                  anomalySubTab === id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            {anomalySubTab === 'PROCESS' && (
+              <SearchSelect
+                variant="filter"
+                ariaLabel="Filter jenis anomali"
+                options={anomalyCategoryOptions}
+                value={anomalyCategory}
+                onChange={(v) => {
+                  setAnomalyCategory(v || 'ALL')
+                  setAnomalyPage(1)
+                }}
+                placeholder="Cari jenis anomali…"
+                className="w-64 ml-auto"
+              />
+            )}
           </div>
 
-          {/* Subtab Switcher */}
-          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-            <button
-              type="button"
-              onClick={() => {
-                setAnomalySubTab('UNMAPPED')
-                setAnomalyPage(1)
-              }}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
-                anomalySubTab === 'UNMAPPED'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              SKU Belum Dipetakan ({anomaliesData.unmapped_materials?.length || 0})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAnomalySubTab('FAILURES')
-                setAnomalyPage(1)
-              }}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
-                anomalySubTab === 'FAILURES'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              Log Kegagalan Sinkronisasi ({anomaliesData.sync_failures?.length || 0})
-            </button>
-          </div>
+          {anomalySubTab === 'PROCESS' && (
+            <p className="text-[11px] text-slate-500">
+              Batas macet: permohonan {anomaliesData.summary?.thresholds?.application_stalled_days ?? 30} hari tanpa perubahan status, survei aktif &gt; {anomaliesData.summary?.thresholds?.survey_open_days ?? 14} hari, KKO belum diputuskan &gt; {anomaliesData.summary?.thresholds?.kko_undecided_days ?? 7} hari,
+              SPK tanpa progres &gt; {anomaliesData.summary?.thresholds?.wo_no_progress_days ?? 14} hari, SPK selesai tanpa BASTP &gt; {anomaliesData.summary?.thresholds?.wo_without_bastp_days ?? 7} hari, BASTP tertahan &gt; {anomaliesData.summary?.thresholds?.bastp_open_days ?? 14} hari.
+              Tiap jenis menampilkan hingga 100 temuan terlama; jumlah penuhnya ada pada kartu dan filter. Data mengikuti unit Anda (ULP atau seluruh ULP di UP3).
+            </p>
+          )}
 
           {/* Table Container */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             {loadingAnomalies ? (
               <div className="py-20 text-center text-slate-500">
-                <Spinner size="lg" label="Memeriksa rekonsiliasi integrasi ERP MIMS..." />
+                <Spinner size="lg" label="Memeriksa anomali di seluruh proses..." />
               </div>
+            ) : anomalySubTab === 'PROCESS' ? (
+              filteredProcessRows.length === 0 ? (
+                <EmptyState
+                  icon={IconCheckCircle}
+                  title="Tidak ada anomali proses"
+                  description="Tidak ditemukan permohonan, survei, SPK, BASTP, material, atau dokumen yang tertahan pada unit dan periode ini."
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/60 font-semibold text-[11px] text-slate-600 dark:text-slate-400 border-b">
+                        <th className="py-3 px-3">Tahap</th>
+                        <th className="py-3 px-3">Jenis Anomali</th>
+                        <th className="py-3 px-3">Tingkat</th>
+                        <th className="py-3 px-3">No. Permohonan</th>
+                        <th className="py-3 px-3">ULP</th>
+                        <th className="py-3 px-3">Keterangan</th>
+                        <th className="py-3 px-3 text-right">Umur (hari)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+                      {filteredProcessRows
+                        .slice((anomalyPage - 1) * anomalyPerPage, anomalyPage * anomalyPerPage)
+                        .map((r, idx) => (
+                          <tr key={`${r.category}-${r.reference}-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">{r.stage}</td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">{r.category_label}</td>
+                            <td className="py-2.5 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  r.severity === 'HIGH'
+                                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                                    : r.severity === 'MEDIUM'
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                    : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                }`}
+                              >
+                                {r.severity === 'HIGH' ? 'Tinggi' : r.severity === 'MEDIUM' ? 'Sedang' : 'Rendah'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-slate-100">{r.reference}</td>
+                            <td className="py-2.5 px-3">{r.unit_name}</td>
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">{r.detail}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold">{r.age_days}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
             ) : anomalySubTab === 'UNMAPPED' ? (
               (anomaliesData.unmapped_materials || []).length === 0 ? (
                 <EmptyState
@@ -1969,17 +1841,9 @@ export default function ReportsPage() {
             )}
 
             <TableFooter
-              itemCount={
-                anomalySubTab === 'UNMAPPED'
-                  ? (anomaliesData.unmapped_materials || []).slice((anomalyPage - 1) * anomalyPerPage, anomalyPage * anomalyPerPage).length
-                  : (anomaliesData.sync_failures || []).slice((anomalyPage - 1) * anomalyPerPage, anomalyPage * anomalyPerPage).length
-              }
-              total={
-                anomalySubTab === 'UNMAPPED'
-                  ? (anomaliesData.unmapped_materials || []).length
-                  : (anomaliesData.sync_failures || []).length
-              }
-              entityLabel={anomalySubTab === 'UNMAPPED' ? 'SKU belum terpetakan' : 'kegagalan sinkronisasi'}
+              itemCount={anomalyActiveRows.slice((anomalyPage - 1) * anomalyPerPage, anomalyPage * anomalyPerPage).length}
+              total={anomalyActiveRows.length}
+              entityLabel={anomalySubTab === 'PROCESS' ? 'anomali proses' : anomalySubTab === 'UNMAPPED' ? 'SKU belum terpetakan' : 'kegagalan sinkronisasi'}
               page={anomalyPage}
               perPage={anomalyPerPage}
               onPage={setAnomalyPage}

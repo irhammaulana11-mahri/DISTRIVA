@@ -695,15 +695,128 @@ class ReportService
             ->select('w.code as warehouse_code', 'w.name as warehouse_name', 'r.status', 'r.message', 'r.started_at')
             ->get();
 
+        $process = $this->processAnomalies($units);
+        $byCategory = [];
+        foreach ($process['counts'] as $key => $n) {
+            $byCategory[] = ['category' => $key, 'label' => self::ANOMALY_LABELS[$key]['label'], 'stage' => self::ANOMALY_LABELS[$key]['stage'], 'count' => $n];
+        }
+
         return [
             'summary' => [
                 'unmapped_skus_count' => count($unmapped),
                 'unmapped_skus_total_qty' => (float) $unmapped->sum('stock_ready'),
                 'recent_sync_failures_count' => count($syncFailures),
+                'process_anomalies_count' => array_sum($process['counts']),
+                'process_high_count' => $process['high'],
+                'process_stages_affected' => count(array_filter($byCategory, fn ($c) => $c['count'] > 0)),
+                'by_category' => $byCategory,
+                'thresholds' => self::ANOMALY_THRESHOLDS,
             ],
+            'process_anomalies' => $process['rows'],
             'unmapped_materials' => $unmapped->all(),
             'sync_failures' => $syncFailures->all(),
         ];
+    }
+
+    /** Hari tanpa kemajuan sebelum sebuah langkah dinilai macet; dipakai laporan anomali dan ditampilkan di halamannya. */
+    public const ANOMALY_THRESHOLDS = ['application_stalled_days' => 30, 'survey_open_days' => 14, 'kko_undecided_days' => 7, 'wo_no_progress_days' => 14, 'wo_without_bastp_days' => 7, 'bastp_open_days' => 14];
+
+    /** Jenis anomali sepanjang proses permohonan, survei, KKO, SPK, BASTP, material, dan dokumen. */
+    public const ANOMALY_LABELS = [
+        'APP_STALLED' => ['label' => 'Permohonan macet', 'stage' => 'Permohonan'],
+        'SURVEY_OPEN' => ['label' => 'Survei aktif terlalu lama', 'stage' => 'Survei'],
+        'KKO_UNDECIDED' => ['label' => 'KKO belum diputuskan', 'stage' => 'KKO'],
+        'WO_NO_PROGRESS' => ['label' => 'SPK terbit tanpa laporan progres', 'stage' => 'SPK / Konstruksi'],
+        'WO_OVERDUE' => ['label' => 'SPK melewati target selesai', 'stage' => 'SPK / Konstruksi'],
+        'WO_NO_BASTP' => ['label' => 'SPK selesai tanpa BASTP', 'stage' => 'BASTP'],
+        'BASTP_OPEN' => ['label' => 'BASTP tertahan', 'stage' => 'BASTP'],
+        'MATERIAL_REQUEST' => ['label' => 'Permintaan material bermasalah', 'stage' => 'Material'],
+        'DOC_BLOCKED' => ['label' => 'Dokumen karantina / ditolak', 'stage' => 'Dokumen'],
+    ];
+
+    /**
+     * Anomali di seluruh proses, dibatasi ULP yang boleh dilihat peminta (sama dengan laporan lain). Tiap jenis dihitung penuh, barisnya dipangkas 100 teratas (paling lama dulu).
+     *
+     * @param  list<string>  $units
+     * @return array{rows:list<array<string,mixed>>,counts:array<string,int>,high:int}
+     */
+    private function processAnomalies(array $units): array
+    {
+        $counts = array_fill_keys(array_keys(self::ANOMALY_LABELS), 0);
+        if ($units === []) {
+            return ['rows' => [], 'counts' => $counts, 'high' => 0];
+        }
+        $rows = [];
+        $high = 0;
+        $t = self::ANOMALY_THRESHOLDS;
+        $now = now();
+        $ago = fn (int $days) => $now->copy()->subDays($days);
+        $age = fn ($at) => $at === null ? 0 : (int) Carbon::parse($at)->diffInDays($now, true);
+        $unitCols = ['u.code as unit_code', 'u.name as unit_name'];
+        $add = function (string $key, $list, callable $map) use (&$rows, &$counts, &$high) {
+            $mapped = collect($list)->map(fn ($r) => array_merge(['category' => $key, 'category_label' => self::ANOMALY_LABELS[$key]['label'], 'stage' => self::ANOMALY_LABELS[$key]['stage']], $map($r)))->values();
+            $counts[$key] = $mapped->count();
+            $high += $mapped->where('severity', 'HIGH')->count();
+            foreach ($mapped->take(100) as $r) {
+                $rows[] = $r;
+            }
+        };
+        $app = fn () => DB::table('applications as a')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')->whereIn('a.organizational_unit_id', $units);
+        $row = fn ($r, string $severity, string $detail, $since) => ['severity' => $severity, 'reference' => $r->application_number, 'unit_code' => $r->unit_code, 'unit_name' => $r->unit_name, 'detail' => $detail, 'since' => $since === null ? null : Carbon::parse($since)->toDateTimeString(), 'age_days' => $age($since)];
+
+        // Permohonan yang belum selesai tetapi tidak berubah status selama batas hari.
+        $stalled = $app()->leftJoin('application_status_histories as h', 'h.application_id', '=', 'a.id')
+            ->whereIn('a.current_status', ['APPROVED', 'PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS'])
+            ->groupBy('a.id', 'a.application_number', 'a.current_status', 'a.created_at', 'u.code', 'u.name')
+            ->havingRaw('coalesce(max(h.changed_at), a.created_at) < ?', [$ago($t['application_stalled_days'])])
+            ->selectRaw('a.application_number, a.current_status, coalesce(max(h.changed_at), a.created_at) as last_change, u.code as unit_code, u.name as unit_name')
+            ->orderBy('last_change')->get();
+        $add('APP_STALLED', $stalled, fn ($r) => $row($r, $age($r->last_change) > 90 ? 'HIGH' : 'MEDIUM', "Status {$r->current_status} tanpa perubahan {$age($r->last_change)} hari.", $r->last_change));
+
+        $surveys = DB::table('application_surveys as sv')->join('applications as a', 'a.id', '=', 'sv.application_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
+            ->whereIn('a.organizational_unit_id', $units)->where('sv.status', 'ACTIVE')->where('sv.created_at', '<', $ago($t['survey_open_days']))
+            ->orderBy('sv.created_at')->get(['a.application_number', 'sv.survey_number', 'sv.created_at as since', ...$unitCols]);
+        $add('SURVEY_OPEN', $surveys, fn ($r) => $row($r, 'MEDIUM', "Survei {$r->survey_number} masih aktif {$age($r->since)} hari.", $r->since));
+
+        $kko = DB::table('application_kko as k')->join('applications as a', 'a.id', '=', 'k.application_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
+            ->whereIn('a.organizational_unit_id', $units)->where(fn ($q) => $q->whereNull('k.decision')->orWhere('k.decision', ''))->where('k.created_at', '<', $ago($t['kko_undecided_days']))
+            ->orderBy('k.created_at')->get(['a.application_number', 'k.substation_code', 'k.created_at as since', ...$unitCols]);
+        $add('KKO_UNDECIDED', $kko, fn ($r) => $row($r, 'MEDIUM', 'KKO gardu '.($r->substation_code ?: '-')." dicatat {$age($r->since)} hari lalu dan belum diputuskan.", $r->since));
+
+        $wo = fn () => DB::table('work_orders as w')->join('applications as a', 'a.id', '=', 'w.application_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')->whereIn('a.organizational_unit_id', $units);
+        $noProgress = $wo()->whereIn('w.status', ['ISSUED', 'IN_PROGRESS'])->where('w.issued_at', '<', $ago($t['wo_no_progress_days']))
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('wo_progress as p')->whereColumn('p.work_order_id', 'w.id'))
+            ->orderBy('w.issued_at')->get(['a.application_number', 'w.wo_number', 'w.issued_at as since', ...$unitCols]);
+        $add('WO_NO_PROGRESS', $noProgress, fn ($r) => $row($r, 'HIGH', "SPK {$r->wo_number} terbit {$age($r->since)} hari lalu tanpa laporan progres.", $r->since));
+
+        $overdue = $wo()->whereIn('w.status', ['ISSUED', 'IN_PROGRESS'])->whereNotNull('w.target_date')->where('w.target_date', '<', $now->toDateString())
+            ->orderBy('w.target_date')->get(['a.application_number', 'w.wo_number', 'w.target_date as since', ...$unitCols]);
+        $add('WO_OVERDUE', $overdue, fn ($r) => $row($r, 'HIGH', "SPK {$r->wo_number} melewati target {$r->since} ({$age($r->since)} hari).", $r->since));
+
+        $noBastp = $wo()->where('w.status', 'COMPLETED')->where('w.completed_at', '<', $ago($t['wo_without_bastp_days']))
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('bastps as b')->whereColumn('b.work_order_id', 'w.id')->where('b.status', '!=', 'CANCELLED'))
+            ->orderBy('w.completed_at')->get(['a.application_number', 'w.wo_number', 'w.completed_at as since', ...$unitCols]);
+        $add('WO_NO_BASTP', $noBastp, fn ($r) => $row($r, 'HIGH', "SPK {$r->wo_number} selesai {$age($r->since)} hari lalu tetapi belum ada BASTP.", $r->since));
+
+        $bastp = DB::table('bastps as b')->join('applications as a', 'a.id', '=', 'b.application_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
+            ->whereIn('a.organizational_unit_id', $units)->whereIn('b.status', ['DRAFT', 'SUBMITTED', 'ACCEPTED', 'KONSTRUKSI_SIGNED'])->where('b.updated_at', '<', $ago($t['bastp_open_days']))
+            ->orderBy('b.updated_at')->get(['a.application_number', 'b.bastp_number', 'b.status', 'b.updated_at as since', ...$unitCols]);
+        $add('BASTP_OPEN', $bastp, fn ($r) => $row($r, 'MEDIUM', 'BASTP '.($r->bastp_number ?: '(draf)')." berstatus {$r->status} tanpa kemajuan {$age($r->since)} hari.", $r->since));
+
+        $mr = DB::table('material_requests as m')->join('applications as a', 'a.id', '=', 'm.application_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
+            ->whereIn('a.organizational_unit_id', $units)->where('m.status', '!=', 'CANCELLED')->where(fn ($q) => $q->where('m.needs_followup', true)->orWhere('m.oversent', true))
+            ->orderBy('m.updated_at')->get(['a.application_number', 'm.needs_followup', 'm.oversent', 'm.updated_at as since', ...$unitCols]);
+        $add('MATERIAL_REQUEST', $mr, fn ($r) => $row($r, $r->oversent ? 'HIGH' : 'MEDIUM', $r->oversent ? 'Material terkirim melebihi permintaan.' : 'Permintaan material perlu ditindaklanjuti.', $r->since));
+
+        $docs = DB::table('application_document_versions as v')->join('application_documents as d', 'd.id', '=', 'v.document_id')->join('applications as a', 'a.id', '=', 'd.application_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
+            ->whereIn('a.organizational_unit_id', $units)->whereIn('v.lifecycle_status', ['QUARANTINED', 'REJECTED'])
+            ->orderBy('v.uploaded_at')->get(['a.application_number', 'd.title', 'v.version_number', 'v.lifecycle_status', 'v.uploaded_at as since', ...$unitCols]);
+        $add('DOC_BLOCKED', $docs, fn ($r) => $row($r, $r->lifecycle_status === 'QUARANTINED' ? 'HIGH' : 'LOW', 'Dokumen '.($r->title ?: '-')." versi {$r->version_number} berstatus {$r->lifecycle_status}.", $r->since));
+
+        $rank = ['HIGH' => 0, 'MEDIUM' => 1, 'LOW' => 2];
+        usort($rows, fn ($x, $y) => [$rank[$x['severity']], -$x['age_days']] <=> [$rank[$y['severity']], -$y['age_days']]);
+
+        return ['rows' => $rows, 'counts' => $counts, 'high' => $high];
     }
 
     /** @param list<array<string,mixed>> $sections @return array<string,mixed> */

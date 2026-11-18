@@ -227,18 +227,31 @@ class ReportController extends Controller
         $res = $this->reports->erpAnomalies($units);
 
         if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
-            return $this->file($this->reports->doc('REKONSILIASI & ANOMALI SINKRONISASI ERP MIMS', [['Tanggal Cetak', now()->toDateString()]], [[
-                'columns' => ['SKU ERP', 'NAMA MATERIAL', 'SATUAN', 'STOK SIAP', 'KODE GUDANG', 'NAMA GUDANG', 'TANGGAL CUPLIKAN'],
-                'rows' => array_map(fn ($r) => [
-                    $r->material_no,
-                    $r->material_name ?? '-',
-                    $r->unit ?? '-',
-                    $r->stock_ready,
-                    $r->warehouse_code,
-                    $r->warehouse_name,
-                    $r->as_of,
-                ], $res['unmapped_materials']),
-            ]]), 'ANOMALI-SINKRONISASI-ERP');
+            return $this->file($this->reports->doc('ANOMALI & REKONSILIASI SELURUH PROSES', [['Tanggal Cetak', now()->toDateString()]], [
+                [
+                    'heading' => 'Anomali sepanjang proses',
+                    'columns' => ['TAHAP', 'JENIS', 'TINGKAT', 'REFERENSI', 'ULP', 'KETERANGAN', 'SEJAK', 'UMUR (HARI)'],
+                    'rows' => array_map(fn ($r) => [$r['stage'], $r['category_label'], $r['severity'], $r['reference'], $r['unit_name'], $r['detail'], $r['since'] ?? '-', $r['age_days']], $res['process_anomalies']),
+                ],
+                [
+                    'heading' => 'SKU MIMS belum terpetakan',
+                    'columns' => ['SKU ERP', 'NAMA MATERIAL', 'SATUAN', 'STOK SIAP', 'KODE GUDANG', 'NAMA GUDANG', 'TANGGAL CUPLIKAN'],
+                    'rows' => array_map(fn ($r) => [
+                        $r->material_no,
+                        $r->material_name ?? '-',
+                        $r->unit ?? '-',
+                        $r->stock_ready,
+                        $r->warehouse_code,
+                        $r->warehouse_name,
+                        $r->as_of,
+                    ], $res['unmapped_materials']),
+                ],
+                [
+                    'heading' => 'Kegagalan sinkronisasi tarik stok',
+                    'columns' => ['KODE GUDANG', 'NAMA GUDANG', 'STATUS', 'PESAN', 'WAKTU'],
+                    'rows' => array_map(fn ($r) => [$r->warehouse_code, $r->warehouse_name, $r->status, $r->message ?? '-', $r->started_at], $res['sync_failures']),
+                ],
+            ]), 'ANOMALI-SELURUH-PROSES');
         }
 
         return response()->json(['data' => $res]);
