@@ -142,6 +142,9 @@ describe('Impor Master dari Excel', () => {
     expect(box).toHaveTextContent('16.748.000')
     expect(box).toHaveTextContent('17.166.500')
     expect(screen.getByRole('button', { name: 'Buat buku harga DRAFT' })).toBeDisabled()        // MDU alone never creates a draft
+    await userEvent.click(screen.getByRole('button', { name: 'Buat draf dari buku berlaku' }))     // the shortcut to adjust MDU on a copy of the book in force
+    expect(await screen.findByText('Buat Draf dari Buku Berlaku')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nama buku harga')).toBeInTheDocument()
   })
 
   it('template: harga dan tarif ikut dibandingkan dan diterapkan terpisah dengan tanggal berlaku dari berkas', async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { masterExcelApi, adminApi, triggerFileDownload } from '../../services/api.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
@@ -7,6 +7,7 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
+import PriceBookCloneModal from './PriceBookCloneModal.jsx'
 import { IconUpload, IconDownload, IconRefresh, IconTrash, IconCheckCircle, IconAlertCircle, IconInfo } from '../../components/icons.jsx'
 
 const fmtSize = (b) => (b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
@@ -186,6 +187,9 @@ function BomSection({ imp, can, onApply, defaultValidFrom, workbook = false }) {
 
 function PriceSection({ imp, can, onApply, defaultValidFrom }) {
   const p = imp.report?.price
+  const navigate = useNavigate()
+  const { notify } = useNotifications()
+  const [cloneOpen, setCloneOpen] = useState(false)
   if (!p) return null
   return (
     <section className={card} aria-labelledby="mx-price">
@@ -224,6 +228,21 @@ function PriceSection({ imp, can, onApply, defaultValidFrom }) {
             </table>
           </div>
           {p.mdu_differences.count > p.mdu_differences.items.length && <p className="mt-1 text-[11px] text-slate-500">Menampilkan {p.mdu_differences.items.length} dari {p.mdu_differences.count.toLocaleString('id-ID')} barang.</p>}
+          {can && (
+            <div className="mt-3">
+              <Button type="button" variant="secondary" size="sm" onClick={() => setCloneOpen(true)}>Buat draf dari buku berlaku</Button>
+              <span className="ml-2 text-[11px] text-slate-500">Drafnya berisi salinan buku berlaku; nilai MDU diubah per barang di draf itu.</span>
+            </div>
+          )}
+          <PriceBookCloneModal
+            open={cloneOpen}
+            onClose={() => setCloneOpen(false)}
+            onCreated={(created) => {
+              setCloneOpen(false)
+              notify({ type: 'success', title: 'Draf buku harga dibuat', desc: 'Ubah nilai MDU per barang di halaman rincian draf, lalu minta persetujuan.', tag: 'Buku Harga' })
+              if (created?.id) navigate(`/master-data/harga/${created.id}`)
+            }}
+          />
         </div>
       )}
       {p.note && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{p.note}</p>}
