@@ -438,6 +438,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
 
         Route::get('/tariff-books', [TariffBookController::class, 'index']);
         Route::post('/tariff-books/import', [TariffBookController::class, 'import']);
+        Route::get('/excel-imports/template', [MasterExcelImportController::class, 'template']);
         Route::get('/excel-imports', [MasterExcelImportController::class, 'index']);
         Route::post('/excel-imports', [MasterExcelImportController::class, 'store']);
         Route::get('/excel-imports/{id}', [MasterExcelImportController::class, 'show'])->whereUuid('id');

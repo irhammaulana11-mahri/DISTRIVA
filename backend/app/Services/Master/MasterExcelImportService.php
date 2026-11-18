@@ -26,11 +26,11 @@ use ZipArchive;
  */
 class MasterExcelImportService
 {
-    public const KINDS = ['RAB_KKF', 'TARIF'];
+    public const KINDS = ['RAB_KKF', 'TARIF', 'DISTRIVA'];
 
     private const PRICE_FIELDS = ['status_material', 'harga_material', 'nilai_asuransi'];
 
-    public function __construct(private readonly BomService $bom, private readonly PriceBookService $prices, private readonly TariffBookService $tariffs) {}
+    public function __construct(private readonly BomService $bom, private readonly PriceBookService $prices, private readonly TariffBookService $tariffs, private readonly MasterWorkbookReader $workbook) {}
 
     public function dir(string $id): string
     {
@@ -123,7 +123,11 @@ class MasterExcelImportService
             $actor = User::query()->findOrFail($imp->uploaded_by);
             $src = $this->dir($id).'/source.xlsx';
             $map = $this->codeMap();
-            $report = $imp->kind === 'TARIF' ? $this->processTariff($src, $work, $imp->ulp_code) : $this->processRab($src, $work, $map, $actor);
+            $report = match ($imp->kind) {
+                'TARIF' => $this->processTariff($src, $work, $imp->ulp_code),
+                'DISTRIVA' => $this->processDistriva($src, $work, $actor),
+                default => $this->processRab($src, $work, $map, $actor),
+            };
             DB::table('master_excel_imports')->where('id', $id)->update(['status' => 'READY', 'report' => json_encode(['kind' => $imp->kind, 'generated_at' => now()->toIso8601String()] + $report, JSON_UNESCAPED_UNICODE), 'processed_at' => now(), 'updated_at' => now()]);
         } catch (Throwable $e) {
             DB::table('master_excel_imports')->where('id', $id)->update(['status' => 'FAILED', 'message' => Str::limit($e instanceof AssignmentRuleViolation ? $e->getMessage() : 'Pemrosesan gagal: '.class_basename($e), 400, '…'), 'updated_at' => now()]);
@@ -212,10 +216,80 @@ class MasterExcelImportService
     }
 
     /**
+     * The DISTRIVA master workbook (docs/85): read by the PHP reader (no Python), compared with the approved BOM by the same comparison, and every changed group must also calculate to the numbers Excel stored.
+     *
+     * @return array<string,mixed>
+     */
+    private function processDistriva(string $src, string $work, User $actor): array
+    {
+        $r = $this->workbook->read($src);
+        $report = ['meta' => $r['meta'], 'layout_problems' => array_slice($r['problems'], 0, 40), 'layout_problem_count' => count($r['problems'])];
+        if ($r['problems'] !== [] || $r['docs'] === []) {
+            return $report + ['bom' => ['groups' => []], 'blocked' => true];
+        }
+        $known = DB::table('khs_items')->pluck('id', 'code')->all();
+        foreach ($r['docs'] as $group => $doc) {
+            foreach ($doc['lines'] as &$l) {                       // a line whose code is a formula with exactly ONE KHS code in it keeps that code as its main code (as the Excel extractor does); a chain of several codes has none
+                if (($l['khs_code'] ?? null) === null && isset($l['B']) && preg_match_all('/"([^"]+)"/', (string) $l['B'], $m)) {
+                    $codes = array_values(array_unique(array_filter($m[1], fn ($lit) => isset($known[$lit]))));
+                    count($codes) === 1 && $l['khs_code'] = $codes[0];
+                }
+            }
+            unset($l);
+            file_put_contents($work.'/bom_'.$group.'.json', json_encode($doc, JSON_UNESCAPED_UNICODE));
+        }
+
+        return $report + ['bom' => $this->compareBom($work, [], $actor, false, $r['sim']), 'blocked' => false];
+    }
+
+    /**
+     * Compares what the Excel stored for each formula with what the engine calculates for the same inputs.
+     *
+     * @param  array{rows:list<array<string,mixed>>, error:?string}  $res
+     * @param  array<int,array<string,mixed>>  $expected  line => column => Excel's stored value
+     * @return array<string,mixed>
+     */
+    private function parity(array $res, array $expected, string $group): array
+    {
+        $by = collect($res['rows'])->keyBy('sequence');
+        $out = ['checked' => 0, 'no_stored_value' => 0, 'mismatch_count' => 0, 'mismatches' => []];
+        $names = ['H' => 'material', 'I' => 'install', 'J' => 'remove', 'K' => 'return'];
+        foreach ($expected as $seq => $cols) {
+            $line = $by[$seq] ?? null;
+            foreach ($cols as $col => $exp) {
+                if ($line === null) {
+                    continue;
+                }
+                if ($col === 'B') {
+                    $a = ($exp === null || $exp === '' || $exp === false) ? null : (is_numeric($exp) ? (string) (int) $exp : (string) $exp);
+                    $b = $line['khs_code'] === null || $line['khs_code'] === '' ? null : (string) $line['khs_code'];
+                    $same = $a === $b;
+                } else {
+                    if ($exp === null || $exp === '') {
+                        $out['no_stored_value']++;
+
+                        continue;
+                    }
+                    $a = is_numeric($exp) ? (float) $exp : null;
+                    $b = (float) $line[$names[$col]];
+                    $same = $a !== null && abs($a - $b) <= 1e-6 * max(1.0, abs($a), abs($b));
+                }
+                $out['checked']++;
+                if (! $same) {
+                    $out['mismatch_count']++;
+                    count($out['mismatches']) < 15 && $out['mismatches'][] = ['cell' => "{$group}!{$col}{$seq}", 'excel' => is_float($a ?? null) ? round($a, 6) : ($a ?? $exp), 'distriva' => is_float($b ?? null) ? round($b, 6) : $b];
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * @param  array<string,string>  $map
      * @return array<string,mixed>
      */
-    private function compareBom(string $work, array $map, User $actor): array
+    private function compareBom(string $work, array $map, User $actor, bool $translate = true, array $sim = []): array
     {
         $groups = [];
         foreach (glob($work.'/bom_*.json') ?: [] as $f) {
@@ -225,12 +299,12 @@ class MasterExcelImportService
             }
             $unknown = [];
             foreach ($doc['lines'] as &$l) {
-                if (($l['khs_code'] ?? null) !== null) {
+                if ($translate && ($l['khs_code'] ?? null) !== null) {
                     $c = (string) $l['khs_code'];
                     isset($map[$c]) || $unknown[$c] = true;
                     $l['khs_code'] = $map[$c] ?? $c;
                 }
-                if (isset($l['B']) && is_string($l['B'])) {       // KHS code literals inside the column-B formula IF(<condition>, <code>, …)
+                if ($translate && isset($l['B']) && is_string($l['B'])) {       // KHS code literals inside the column-B formula IF(<condition>, <code>, …)
                     $l['B'] = preg_replace_callback('/,\s*(\d+)\s*,(?=\s*(?:IF\(|""))/', function ($m) use ($map, &$unknown) {
                         isset($map[$m[1]]) || $unknown[$m[1]] = true;
 
@@ -272,6 +346,19 @@ class MasterExcelImportService
                 }
                 $dry['problems'] !== [] && $row['status'] = 'BLOCKED';
             }
+            if (isset($sim[$group]) && $row['status'] !== 'BLOCKED') {
+                $res = $this->bom->simulate($doc, $sim[$group]['typed'], $sim[$group]['params'], $actor);
+                if ($res['error'] !== null) {
+                    $row['problems'][] = 'Perhitungan uji gagal: '.$res['error'];
+                    $row['status'] !== 'UNCHANGED' && $row['status'] = 'BLOCKED';
+                } else {
+                    $row['parity'] = $this->parity($res, $sim[$group]['expected'], $group);
+                    if ($row['parity']['mismatch_count'] > 0) {
+                        $row['problems'][] = $row['parity']['mismatch_count'].' sel hasil hitung Excel berbeda dengan hitungan DISTRIVA (contoh: '.collect($row['parity']['mismatches'])->take(3)->map(fn ($m) => "{$m['cell']} Excel={$m['excel']} DISTRIVA={$m['distriva']}")->implode('; ').').';
+                        $row['status'] !== 'UNCHANGED' && $row['status'] = 'BLOCKED';
+                    }
+                }
+            }
             $groups[] = $row;
         }
         usort($groups, fn ($a, $b) => strcmp($a['group'], $b['group']));
@@ -303,11 +390,22 @@ class MasterExcelImportService
     {
         $k = ['khs' => ($l['khs_code'] ?? null) === null ? null : (string) $l['khs_code']];
         foreach (['B', 'H', 'I', 'J', 'K'] as $c) {
-            $v = isset($l[$c]) ? trim((string) $l[$c]) : '';
+            $v = isset($l[$c]) ? $this->normFormula((string) $l[$c]) : '';
             $k[$c] = $v === '' ? null : $v;
         }
 
         return $k;
+    }
+
+    /** Formula text without spaces outside quotes and without a leading "=": Excel rewrites spacing when it saves, which is not a change of the rule. */
+    private function normFormula(string $f): string
+    {
+        $parts = preg_split('/("(?:[^"]|"")*")/', ltrim(trim($f), '='), -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
+        foreach ($parts as $i => $part) {
+            $i % 2 === 0 && $parts[$i] = preg_replace('/\s+/', '', $part);
+        }
+
+        return implode('', $parts);
     }
 
     /** @param array<string,?string> $k */
@@ -513,6 +611,9 @@ class MasterExcelImportService
         $work = $this->dir($id).'/work';
         $validFrom = (string) $params['valid_from'];
         $source = 'Excel '.$imp->file_name.' (impor layar, sha256 '.substr($imp->sha256, 0, 12).')';
+        if (! empty($report['meta']['basis'])) {
+            $source = Str::limit($source.'; dasar: '.$report['meta']['basis'], 250, '…');
+        }
         $result = match ($dataset) {
             'BOM' => $this->applyBom($report, $work, $validFrom, $source, (array) ($params['groups'] ?? []), $actor),
             'PRICE' => $this->applyPrice($report, $work, $validFrom, (string) $params['name'], $source, $actor),

@@ -3,22 +3,26 @@
 namespace App\Http\Controllers\MasterData;
 
 use App\Exceptions\AdministrationDenied;
+use App\Exceptions\AssignmentRuleViolation;
 use App\Http\Controllers\Controller;
 use App\Services\Authorization\CatalogAuthorizer;
 use App\Services\Master\MasterExcelImportService;
+use App\Services\Master\MasterWorkbookExporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /** Excel master from the screen (docs/85): upload -> check (extract + compare) -> apply the differences as DRAFT. Grant (403/404) -> validation (422) -> rule (409). */
 class MasterExcelImportController extends Controller
 {
-    private const NEED = ['RAB_KKF' => ['bom.manage', 'prices.manage'], 'TARIF' => ['tariffs.manage']];
+    private const NEED = ['RAB_KKF' => ['bom.manage', 'prices.manage'], 'TARIF' => ['tariffs.manage'], 'DISTRIVA' => ['bom.manage']];
 
     private const DATASET_PERMISSION = ['BOM' => 'bom.manage', 'PRICE' => 'prices.manage', 'TARIFF' => 'tariffs.manage'];
 
-    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly MasterExcelImportService $imports) {}
+    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly MasterExcelImportService $imports, private readonly MasterWorkbookExporter $exporter) {}
 
     /** GET /master-data/excel-imports */
     public function index(Request $request): JsonResponse
@@ -44,6 +48,20 @@ class MasterExcelImportController extends Controller
         $this->imports->start($import['id']);
 
         return response()->json(['data' => $this->imports->show($import['id'])], 202);
+    }
+
+    /** GET /master-data/excel-imports/template — MASTER DISTRIVA.xlsx built from the approved data, for the parent unit to edit (docs/85) */
+    public function template(Request $request): BinaryFileResponse
+    {
+        $this->requireAny($request, self::NEED['DISTRIVA']);
+        $path = storage_path('app/master-excel/template-'.Str::uuid().'.xlsx');
+        $built = $this->exporter->build($path);
+        if ($built['groups'] === []) {
+            @unlink($path);
+            throw new AssignmentRuleViolation('Belum ada versi BOM yang disetujui beserta peta sel gambarnya: '.implode('; ', $built['skipped']).'.');
+        }
+
+        return response()->download($path, 'MASTER-DISTRIVA-'.now()->format('Ymd').'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
     }
 
     /** GET /master-data/excel-imports/{id} */

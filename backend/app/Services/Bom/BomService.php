@@ -142,6 +142,7 @@ class BomService
                     'description' => $p['description'], 'formulas' => json_encode((object) $p['formulas']), 'source_formulas' => json_encode((object) $p['source']),
                     'source_reference' => $p['source_reference'], 'created_at' => now(), 'updated_at' => now()], $chunk));
             }
+            $this->saveInputMap($id, $group, $doc);
             $this->event($id, 'CREATED', $actor, null, ['lines' => count($prepared), 'version_number' => $next]);
 
             return $id;
@@ -225,6 +226,54 @@ class BomService
             DB::table('bom_headers')->where('id', $headerId)->update(['status' => 'INACTIVE', 'valid_until' => $until, 'updated_at' => now()]);
             $this->event($headerId, 'RETIRED', $actor, $reason, ['valid_until' => $until]);
         });
+    }
+
+    /**
+     * Calculates a document exactly as the engine would after approval, without keeping anything: the version is imported inside a transaction that is rolled back.
+     * `typed` = GAMBAR cell => number (the drawing inputs typed in the workbook), `paramValues` = parameter name => value.
+     *
+     * @param  array<string,mixed>  $doc
+     * @param  array<string,float>  $typed
+     * @param  array<string,mixed>  $paramValues
+     * @return array{rows:list<array<string,mixed>>, error:?string}
+     */
+    public function simulate(array $doc, array $typed, array $paramValues, User $actor): array
+    {
+        DB::beginTransaction();
+        try {
+            $created = $this->import($doc, now()->toDateString(), null, false, $actor);
+            $cellMap = $this->cellMap((string) $doc['group'], (array) ($doc['inputs'] ?? []));
+            $inputs = [];
+            foreach ($typed as $cell => $v) {
+                if (isset($cellMap[$cell]) && preg_match('/^(PSG|BKR):(.+)$/', $cellMap[$cell], $m)) {
+                    $inputs[$m[2]][strtolower($m[1])] = (float) $v;
+                }
+            }
+
+            return ['rows' => (new BomCalculator)->calculate((string) $created['summary']['id'], $inputs, $paramValues), 'error' => null];
+        } catch (AssignmentRuleViolation|FormulaException $e) {
+            return ['rows' => [], 'error' => $e->getMessage()];
+        } finally {
+            DB::rollBack();
+        }
+    }
+
+    /** Keeps the drawing-sheet layout of the import (quantity cells and fixed list values) next to the version, for the master workbook. @param array<string,mixed> $doc */
+    public function saveInputMap(string $headerId, string $group, array $doc): void
+    {
+        $inputs = [];
+        foreach ((array) ($doc['inputs'] ?? []) as $in) {
+            if (is_array($in) && ($in['group'] ?? null) === $group && in_array($in['kind'] ?? null, ['PSG', 'BKR'], true) && preg_match('/^[A-Z]{1,3}\d+$/', (string) ($in['cell'] ?? ''))) {
+                $inputs[] = ['cell' => (string) $in['cell'], 'label' => mb_substr((string) ($in['label'] ?? ''), 0, 200), 'kind' => $in['kind']];
+            }
+        }
+        $constants = [];
+        foreach ((array) ($doc['constants'] ?? []) as $cell => $text) {
+            if (is_string($cell) && preg_match('/^[A-Z]{1,3}\d+$/', $cell) && is_string($text) && $text !== '' && mb_strlen($text) <= 100) {
+                $constants[$cell] = $text;
+            }
+        }
+        DB::table('bom_input_maps')->updateOrInsert(['bom_header_id' => $headerId], ['inputs' => json_encode($inputs, JSON_UNESCAPED_UNICODE), 'constants' => json_encode((object) $constants, JSON_UNESCAPED_UNICODE), 'created_at' => now()]);
     }
 
     /**
