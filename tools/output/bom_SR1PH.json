@@ -1,28 +1,21 @@
 {
  "group": "SR1PH",
- "source": "MASTER RAB & KKF.xlsx / sheet APP 1 PHASA (restrukturisasi pemilik 2026-11-09)",
+ "source": "MASTER RAB & KKF.xlsx / sheet APP 1 PHASA (revisi 2026-11-18: hanya SDES-1)",
  "inputs": [],
  "lines": [
   {
    "sequence": 11,
    "khs_code": null,
-   "description": "Pelanggan SDES-1 (dari gambar, rentang 450-5500 VA)",
-   "H": "(IF(GAMBAR!Z51=GAMBAR!$AD$3,GAMBAR!AA51,\"0\"))+(IF(GAMBAR!Z52=GAMBAR!$AD$3,GAMBAR!AA52,\"0\"))+(IF(GAMBAR!Z53=GAMBAR!$AD$3,GAMBAR!AA53,\"0\"))+(IF(GAMBAR!Z54=GAMBAR!$AD$3,GAMBAR!AA54,\"0\"))+(IF(GAMBAR!Z55=GAMBAR!$AD$3,GAMBAR!AA55,\"0\"))+(IF(GAMBAR!Z56=GAMBAR!$AD$3,GAMBAR!AA56,\"0\"))",
-   "source": "APP 1 PHASA!G11"
+   "description": "Pelanggan SDES-1 (dari gambar, baris 51 dan 52)",
+   "H": "GAMBAR!AA51+GAMBAR!AA52",
+   "source": "APP 1 PHASA!B11"
   },
   {
    "sequence": 12,
    "khs_code": null,
-   "description": "Pelanggan SDES-2 (diisi pada MTO)",
-   "H": "GAMBAR!AC51",
-   "source": "APP 1 PHASA!G12"
-  },
-  {
-   "sequence": 13,
-   "khs_code": null,
-   "description": "Total pelanggan SR 1 fasa (SDES-1 + SDES-2)",
-   "H": "H11+H12",
-   "source": "APP 1 PHASA!SUM(G11:G12)"
+   "description": "Total pelanggan SR 1 fasa (SUM(G11:G12) pada lembar)",
+   "H": "H11",
+   "source": "APP 1 PHASA!B12"
   },
   {
    "sequence": 19,
@@ -35,122 +28,118 @@
    "sequence": 20,
    "khs_code": "JTMR896",
    "description": "Pole Bracket 3-6\"",
-   "H": "H13",
+   "H": "H12",
    "source": "APP 1 PHASA!B20"
   },
   {
    "sequence": 21,
    "khs_code": "A332",
    "description": "Service wedge clamp 2/4 x 6/10 mm",
-   "H": "H13*2",
+   "H": "H12*2",
    "source": "APP 1 PHASA!B21"
   },
   {
    "sequence": 22,
    "khs_code": "JTMR943",
    "description": "Strainhook / ekor babi",
-   "H": "H13",
+   "H": "H12",
    "source": "APP 1 PHASA!B22"
   },
   {
    "sequence": 23,
    "khs_code": "JTMR806",
    "description": "Cable suport (508/U/2009)",
-   "H": "H13*3",
+   "H": "H12*3",
    "source": "APP 1 PHASA!B23"
   },
   {
    "sequence": 24,
    "khs_code": "JTMR944",
    "description": "Conn. press AL/AL 10-16 / 50-70 mm2 + Scoot + Cover",
-   "H": "H13*2",
+   "H": "H12*2",
    "source": "APP 1 PHASA!B24"
   },
   {
-   "sequence": 26,
+   "sequence": 27,
    "khs_code": "JTMR946",
    "description": "Bundl.Cond.3x50 + 1x35 mm - 50 cm (kumis)",
-   "H": "H13*2",
-   "source": "APP 1 PHASA!B26"
-  },
-  {
-   "sequence": 27,
-   "khs_code": "JTMR47",
-   "description": "Line Tap Connector (press) 35-70 / 35-70 mm + scoth",
-   "H": "H13*2",
+   "H": "H12*2",
    "source": "APP 1 PHASA!B27"
   },
   {
    "sequence": 28,
-   "khs_code": "3280068",
-   "description": "Line Tap Connector (press) 16-25 / 35-70 mm + heatshrink",
-   "H": "H13*2",
+   "khs_code": "JTMR47",
+   "description": "Line Tap Connector (press) 35-70 / 35-70 mm + scoth",
+   "H": "H12*2",
    "source": "APP 1 PHASA!B28"
   },
   {
-   "sequence": 30,
-   "khs_code": "JTMR951",
-   "description": "Jasa Kegiatan SDES-2",
-   "I": "H12",
-   "source": "APP 1 PHASA!B30"
+   "sequence": 29,
+   "khs_code": "3280068",
+   "description": "Line Tap Connector (press) 16-25 / 35-70 mm + heatshrink",
+   "H": "H12*2",
+   "source": "APP 1 PHASA!B29"
   },
   {
-   "sequence": 37,
+   "sequence": 34,
    "khs_code": "JTMR949",
    "description": "kWh Meter Electronic 1 Phs (Pasca/Prabayar)",
-   "H": "H13",
-   "source": "APP 1 PHASA!B37"
+   "H": "H12",
+   "source": "APP 1 PHASA!B34"
   },
   {
-   "sequence": 38,
+   "sequence": 35,
    "khs_code": "JTMR826",
    "description": "MCB 230 V - 2 A s/d 35 A - 1 Phasa",
-   "H": "H13",
-   "source": "APP 1 PHASA!B38"
+   "H": "H12",
+   "source": "APP 1 PHASA!B35"
+  },
+  {
+   "sequence": 36,
+   "khs_code": "JTMR938",
+   "description": "Twisted Cable 2 x 10 mm2 - Al",
+   "H": "H12*35",
+   "source": "APP 1 PHASA!B36"
   },
   {
    "sequence": 39,
-   "khs_code": "JTMR938",
-   "description": "Twisted Cable 2 x 10 mm2 - Al",
-   "H": "H13*30",
+   "khs_code": "JTMR947",
+   "description": "Segel Plastik",
+   "H": "H12",
    "source": "APP 1 PHASA!B39"
   },
   {
-   "sequence": 42,
-   "khs_code": "JTMR947",
-   "description": "Segel Plastik",
-   "H": "H13",
-   "source": "APP 1 PHASA!B42"
-  },
-  {
-   "sequence": 43,
+   "sequence": 40,
    "khs_code": "JTMR948",
    "description": "Paku Beton",
-   "H": "H13*2",
-   "source": "APP 1 PHASA!B43"
+   "H": "H12*2",
+   "source": "APP 1 PHASA!B40"
   }
  ],
  "input_values": {},
  "params": [
   {
+   "cell": "Z50",
+   "name": "PBPD:JENIS",
+   "type": "text",
+   "default": "PBPD",
+   "description": "Jenis pekerjaan (GAMBAR!Z50)"
+  },
+  {
+   "cell": "S55",
+   "name": "PBPD:PEMBAYARAN",
+   "type": "text",
+   "options": [
+    "TUNAI",
+    "PLN"
+   ],
+   "default": "TUNAI",
+   "description": "TUNAI = material dibeli vendor pelaksana; PLN (GAMBAR!S55)"
+  },
+  {
    "cell": "Z51",
    "name": "PBPD:RENTANG_1",
    "type": "text",
-   "options": [
-    "450-5500 VA",
-    "6,6-16,5 kVA",
-    "23 kVA",
-    "33 kVA",
-    "41,5 kVA",
-    "53 kVA",
-    "66 kVA",
-    "82,5 kVA",
-    "105 kVA",
-    "131 kVA",
-    "147 kVA",
-    "164 kVA",
-    "197 kVA"
-   ],
    "default": "450-5500 VA",
    "description": "Rentang daya baris 1 (GAMBAR!Z51)"
   },
@@ -162,25 +151,17 @@
    "description": "Jumlah pasang baru baris 1 (GAMBAR!AA51)"
   },
   {
+   "cell": "AB51",
+   "name": "PBPD:BKR_1",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 1 (GAMBAR!AB51)"
+  },
+  {
    "cell": "Z52",
    "name": "PBPD:RENTANG_2",
    "type": "text",
-   "options": [
-    "450-5500 VA",
-    "6,6-16,5 kVA",
-    "23 kVA",
-    "33 kVA",
-    "41,5 kVA",
-    "53 kVA",
-    "66 kVA",
-    "82,5 kVA",
-    "105 kVA",
-    "131 kVA",
-    "147 kVA",
-    "164 kVA",
-    "197 kVA"
-   ],
-   "default": "6,6-16,5 kVA",
+   "default": "7700 VA",
    "description": "Rentang daya baris 2 (GAMBAR!Z52)"
   },
   {
@@ -191,25 +172,17 @@
    "description": "Jumlah pasang baru baris 2 (GAMBAR!AA52)"
   },
   {
+   "cell": "AB52",
+   "name": "PBPD:BKR_2",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 2 (GAMBAR!AB52)"
+  },
+  {
    "cell": "Z53",
    "name": "PBPD:RENTANG_3",
    "type": "text",
-   "options": [
-    "450-5500 VA",
-    "6,6-16,5 kVA",
-    "23 kVA",
-    "33 kVA",
-    "41,5 kVA",
-    "53 kVA",
-    "66 kVA",
-    "82,5 kVA",
-    "105 kVA",
-    "131 kVA",
-    "147 kVA",
-    "164 kVA",
-    "197 kVA"
-   ],
-   "default": "41,5 kVA",
+   "default": "6600-41500 VA",
    "description": "Rentang daya baris 3 (GAMBAR!Z53)"
   },
   {
@@ -220,83 +193,59 @@
    "description": "Jumlah pasang baru baris 3 (GAMBAR!AA53)"
   },
   {
+   "cell": "AB53",
+   "name": "PBPD:BKR_3",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 3 (GAMBAR!AB53)"
+  },
+  {
    "cell": "Z54",
    "name": "PBPD:RENTANG_4",
    "type": "text",
-   "options": [
-    "450-5500 VA",
-    "6,6-16,5 kVA",
-    "23 kVA",
-    "33 kVA",
-    "41,5 kVA",
-    "53 kVA",
-    "66 kVA",
-    "82,5 kVA",
-    "105 kVA",
-    "131 kVA",
-    "147 kVA",
-    "164 kVA",
-    "197 kVA"
-   ],
-   "default": "105 kVA",
+   "default": "53000-197000 VA",
    "description": "Rentang daya baris 4 (GAMBAR!Z54)"
   },
   {
    "cell": "AA54",
    "name": "PBPD:PSG_4",
    "type": "number",
-   "default": 0,
+   "default": 1,
    "description": "Jumlah pasang baru baris 4 (GAMBAR!AA54)"
+  },
+  {
+   "cell": "AB54",
+   "name": "PBPD:BKR_4",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 4 (GAMBAR!AB54)"
   },
   {
    "cell": "Z55",
    "name": "PBPD:RENTANG_5",
    "type": "text",
-   "options": [
-    "450-5500 VA",
-    "6,6-16,5 kVA",
-    "23 kVA",
-    "33 kVA",
-    "41,5 kVA",
-    "53 kVA",
-    "66 kVA",
-    "82,5 kVA",
-    "105 kVA",
-    "131 kVA",
-    "147 kVA",
-    "164 kVA",
-    "197 kVA"
-   ],
-   "default": "23 kVA",
+   "default": ">197000 VA",
    "description": "Rentang daya baris 5 (GAMBAR!Z55)"
   },
   {
    "cell": "AA55",
    "name": "PBPD:PSG_5",
    "type": "number",
-   "default": 1,
+   "default": 0,
    "description": "Jumlah pasang baru baris 5 (GAMBAR!AA55)"
+  },
+  {
+   "cell": "AB55",
+   "name": "PBPD:BKR_5",
+   "type": "number",
+   "default": 0,
+   "description": "Jumlah bongkar/perubahan baris 5 (GAMBAR!AB55)"
   },
   {
    "cell": "Z56",
    "name": "PBPD:RENTANG_6",
    "type": "text",
-   "options": [
-    "450-5500 VA",
-    "6,6-16,5 kVA",
-    "23 kVA",
-    "33 kVA",
-    "41,5 kVA",
-    "53 kVA",
-    "66 kVA",
-    "82,5 kVA",
-    "105 kVA",
-    "131 kVA",
-    "147 kVA",
-    "164 kVA",
-    "197 kVA"
-   ],
-   "default": "33 kVA",
+   "default": ">30000000 VA",
    "description": "Rentang daya baris 6 (GAMBAR!Z56)"
   },
   {
@@ -307,15 +256,13 @@
    "description": "Jumlah pasang baru baris 6 (GAMBAR!AA56)"
   },
   {
-   "cell": "AC51",
-   "name": "SR1:SDES2",
+   "cell": "AB56",
+   "name": "PBPD:BKR_6",
    "type": "number",
    "default": 0,
-   "description": "Jumlah pelanggan SDES-2 (SR 1 fasa tarikan pelanggan ke pelanggan); diisi petugas pada MTO (APP 1 PHASA!G12)"
+   "description": "Jumlah bongkar/perubahan baris 6 (GAMBAR!AB56)"
   }
  ],
- "constants": {
-  "AD3": "450-5500 VA"
- },
+ "constants": {},
  "review": []
 }
