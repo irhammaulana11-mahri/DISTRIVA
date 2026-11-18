@@ -70,6 +70,17 @@ const TAB_ID_TO_SLUG = {
   erpAnomalies: 'erp-anomalies',
 }
 
+// Tab anomali per tahap proses; `stages` = nilai `stage` dari server. MIMS (stok ERP) berdiri sendiri.
+const ANOMALY_TABS = [
+  { id: 'ALL', label: 'Semua Tahap', stages: null },
+  { id: 'APP', label: 'Permohonan', stages: ['Permohonan'] },
+  { id: 'SURVEY', label: 'Survei & KKO', stages: ['Survei', 'KKO'] },
+  { id: 'WO', label: 'SPK & Konstruksi', stages: ['SPK / Konstruksi'] },
+  { id: 'BASTP', label: 'BASTP', stages: ['BASTP'] },
+  { id: 'MATERIAL', label: 'Material', stages: ['Material'] },
+  { id: 'DOC', label: 'Dokumen', stages: ['Dokumen'] },
+]
+
 const REPORT_PAGE_INFO = {
   overview: {
     title: 'Ringkasan Eksekutif & KPI Operasional',
@@ -255,7 +266,8 @@ export default function ReportsPage() {
   const [anomaliesData, setAnomaliesData] = useState({ summary: {}, unmapped_materials: [], sync_failures: [] })
   const [loadingAnomalies, setLoadingAnomalies] = useState(false)
   const [anomaliesError, setAnomaliesError] = useState('')
-  const [anomalySubTab, setAnomalySubTab] = useState('PROCESS') // PROCESS | UNMAPPED | FAILURES
+  const [anomalySubTab, setAnomalySubTab] = useState('ALL') // id ANOMALY_TABS atau 'MIMS'
+  const [mimsView, setMimsView] = useState('UNMAPPED') // UNMAPPED | FAILURES (di dalam tab MIMS)
   const [anomalyCategory, setAnomalyCategory] = useState('ALL')
   const [anomalyPage, setAnomalyPage] = useState(1)
   const [anomalyPerPage, setAnomalyPerPage] = useState(10)
@@ -613,19 +625,25 @@ export default function ReportsPage() {
   const num = (n) => Number(n || 0).toLocaleString('id-ID')
   const rupiah = (n) => `Rp ${Math.round(Number(n) || 0).toLocaleString('id-ID')}`
   const processRows = Array.isArray(anomaliesData?.process_anomalies) ? anomaliesData.process_anomalies : []
+  const isMimsTab = anomalySubTab === 'MIMS'
+  const anomalyGroup = ANOMALY_TABS.find((t) => t.id === anomalySubTab) || ANOMALY_TABS[0]
+  const inGroup = (stage) => !anomalyGroup.stages || anomalyGroup.stages.includes(stage)
+  const anomalyCategories = Array.isArray(anomaliesData?.summary?.by_category) ? anomaliesData.summary.by_category : []
+  const stageCount = (tab) => anomalyCategories.filter((c) => !tab.stages || tab.stages.includes(c.stage)).reduce((a, c) => a + (c.count || 0), 0)
   const anomalyCategoryOptions = useMemo(() => {
-    const cats = Array.isArray(anomaliesData?.summary?.by_category) ? anomaliesData.summary.by_category : []
+    const cats = anomalyCategories.filter((c) => inGroup(c.stage))
     return [
       { value: 'ALL', label: `Semua jenis (${cats.reduce((a, c) => a + (c.count || 0), 0)})` },
       ...cats.map((c) => ({ value: c.category, label: `${c.label} (${c.count})`, description: c.stage, search: c.stage })),
     ]
-  }, [anomaliesData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anomaliesData, anomalySubTab])
   const filteredProcessRows = useMemo(
-    () => (anomalyCategory === 'ALL' ? processRows : processRows.filter((r) => r.category === anomalyCategory)),
-    [processRows, anomalyCategory],
+    () => processRows.filter((r) => inGroup(r.stage) && (anomalyCategory === 'ALL' || r.category === anomalyCategory)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [processRows, anomalyCategory, anomalySubTab],
   )
-  const anomalyActiveRows =
-    anomalySubTab === 'PROCESS' ? filteredProcessRows : anomalySubTab === 'UNMAPPED' ? anomaliesData.unmapped_materials || [] : anomaliesData.sync_failures || []
+  const anomalyActiveRows = !isMimsTab ? filteredProcessRows : mimsView === 'UNMAPPED' ? anomaliesData.unmapped_materials || [] : anomaliesData.sync_failures || []
 
   const statItems = (() => {
     const sum = (rows, k) => (rows || []).reduce((acc, r) => acc + (Number(r[k]) || 0), 0)
@@ -1640,30 +1658,32 @@ export default function ReportsPage() {
         <div className="space-y-4">
           {anomaliesError && <Alert kind="error">{anomaliesError}</Alert>}
 
-          {/* Subtab Switcher */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-            {[
-              ['PROCESS', `Anomali Seluruh Proses (${processRows.length})`],
-              ['UNMAPPED', `SKU MIMS Belum Dipetakan (${anomaliesData.unmapped_materials?.length || 0})`],
-              ['FAILURES', `Kegagalan Sinkronisasi MIMS (${anomaliesData.sync_failures?.length || 0})`],
-            ].map(([id, label]) => (
+          {/* Tab per tahap proses + MIMS */}
+          <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+            {[...ANOMALY_TABS.map((t) => [t.id, t.label, stageCount(t)]), ['MIMS', 'MIMS (Stok ERP)', (anomaliesData.unmapped_materials?.length || 0) + (anomaliesData.sync_failures?.length || 0)]].map(([id, label, n]) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => {
                   setAnomalySubTab(id)
+                  setAnomalyCategory('ALL')
                   setAnomalyPage(1)
                 }}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 -mb-px transition cursor-pointer shrink-0 whitespace-nowrap ${
                   anomalySubTab === id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 {label}
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${n > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>{n}</span>
               </button>
             ))}
-            {anomalySubTab === 'PROCESS' && (
+          </div>
+
+          {!isMimsTab && anomalyCategoryOptions.length > 2 && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold text-slate-600 dark:text-slate-400">Jenis anomali:</span>
               <SearchSelect
                 variant="filter"
                 ariaLabel="Filter jenis anomali"
@@ -1674,12 +1694,37 @@ export default function ReportsPage() {
                   setAnomalyPage(1)
                 }}
                 placeholder="Cari jenis anomali…"
-                className="w-64 ml-auto"
+                className="w-72"
               />
-            )}
-          </div>
+            </div>
+          )}
 
-          {anomalySubTab === 'PROCESS' && (
+          {isMimsTab && (
+            <div className="flex items-center gap-2">
+              {[
+                ['UNMAPPED', `SKU Belum Dipetakan (${anomaliesData.unmapped_materials?.length || 0})`],
+                ['FAILURES', `Kegagalan Sinkronisasi (${anomaliesData.sync_failures?.length || 0})`],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setMimsView(id)
+                    setAnomalyPage(1)
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                    mimsView === id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!isMimsTab && (
             <p className="text-[11px] text-slate-500">
               Batas macet: permohonan {anomaliesData.summary?.thresholds?.application_stalled_days ?? 30} hari tanpa perubahan status, survei aktif &gt; {anomaliesData.summary?.thresholds?.survey_open_days ?? 14} hari, KKO belum diputuskan &gt; {anomaliesData.summary?.thresholds?.kko_undecided_days ?? 7} hari,
               SPK tanpa progres &gt; {anomaliesData.summary?.thresholds?.wo_no_progress_days ?? 14} hari, SPK selesai tanpa BASTP &gt; {anomaliesData.summary?.thresholds?.wo_without_bastp_days ?? 7} hari, BASTP tertahan &gt; {anomaliesData.summary?.thresholds?.bastp_open_days ?? 14} hari.
@@ -1693,7 +1738,7 @@ export default function ReportsPage() {
               <div className="py-20 text-center text-slate-500">
                 <Spinner size="lg" label="Memeriksa anomali di seluruh proses..." />
               </div>
-            ) : anomalySubTab === 'PROCESS' ? (
+            ) : !isMimsTab ? (
               filteredProcessRows.length === 0 ? (
                 <EmptyState
                   icon={IconCheckCircle}
@@ -1744,7 +1789,7 @@ export default function ReportsPage() {
                   </table>
                 </div>
               )
-            ) : anomalySubTab === 'UNMAPPED' ? (
+            ) : mimsView === 'UNMAPPED' ? (
               (anomaliesData.unmapped_materials || []).length === 0 ? (
                 <EmptyState
                   icon={IconCheckCircle}
@@ -1843,7 +1888,7 @@ export default function ReportsPage() {
             <TableFooter
               itemCount={anomalyActiveRows.slice((anomalyPage - 1) * anomalyPerPage, anomalyPage * anomalyPerPage).length}
               total={anomalyActiveRows.length}
-              entityLabel={anomalySubTab === 'PROCESS' ? 'anomali proses' : anomalySubTab === 'UNMAPPED' ? 'SKU belum terpetakan' : 'kegagalan sinkronisasi'}
+              entityLabel={!isMimsTab ? 'anomali proses' : mimsView === 'UNMAPPED' ? 'SKU belum terpetakan' : 'kegagalan sinkronisasi'}
               page={anomalyPage}
               perPage={anomalyPerPage}
               onPage={setAnomalyPage}

@@ -1433,7 +1433,19 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
         expect(screen.getByTestId('report-stat-cards')).toHaveTextContent(/Anomali Seluruh Proses/i)
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /SKU MIMS Belum Dipetakan/i }))
+      // Tab per tahap proses: SPK & Konstruksi hanya memuat temuan tahap itu
+      fireEvent.click(screen.getByRole('button', { name: /^SPK & Konstruksi/i }))
+      await waitFor(() => {
+        expect(screen.getByText('PBPD-0001')).toBeInTheDocument()
+        expect(screen.queryByText('PBPD-0002')).not.toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByRole('button', { name: /^Survei & KKO/i }))
+      await waitFor(() => {
+        expect(screen.getByText('PBPD-0002')).toBeInTheDocument()
+        expect(screen.queryByText('PBPD-0001')).not.toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: /^MIMS \(Stok ERP\)/i }))
       await waitFor(() => {
         expect(screen.getByText('000000000003110025')).toBeInTheDocument()
         expect(screen.getByText('POLE CONCRETE 9M 200DAN')).toBeInTheDocument()
@@ -1441,7 +1453,7 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       })
 
       // Switch to Failures subtab
-      const failuresSubtab = screen.getByRole('button', { name: /Kegagalan Sinkronisasi MIMS \(/i })
+      const failuresSubtab = screen.getByRole('button', { name: /^Kegagalan Sinkronisasi \(/i })
       fireEvent.click(failuresSubtab)
 
       await waitFor(() => {
