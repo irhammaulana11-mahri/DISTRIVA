@@ -83,7 +83,7 @@ class MasterExcelImportTest extends PostgresTestCase
     {
         $w = fn (string $name, string $body) => file_put_contents($this->tools.'/'.$name, "import sys, json, os\n".$body);
         $w('extract_khs_csv.py', "open(sys.argv[2],'w').write('code,name,unit,category\\n1,A,M,\\n2,B,M,\\n99,Item baru,M,\\n')\n");
-        $w('extract_price_csv.py', "open(sys.argv[2],'w').write('kode,nama,status_material,harga_material,nilai_asuransi,z1_pasang,z1_bongkar\\n1,A,HARGA,500,,110,60\\n2,B,PLN,,,200,100\\n99,Item baru,HARGA,5,,1,1\\n')\n");
+        $w('extract_price_csv.py', "open(sys.argv[2],'w').write('kode,nama,status_material,harga_material,nilai_asuransi,z1_pasang,z1_bongkar\\n1,A,HARGA,500,,110,60\\n2,B,PLN,,9,200,100\\n99,Item baru,HARGA,5,,1,1\\n')\n");
         $w('extract_bom_json.py', "doc={'group':'SUTM','source':'x','inputs':[],'lines':[{'sequence':1,'khs_code':'1','description':'a','H':'3','I':'0','J':'0','K':'0','source':'SUTM!B11'}]}\njson.dump(doc, open(os.path.join(sys.argv[2],'bom_SUTM.json'),'w'))\n");
         $w('extract_tariff_csv.py', "ulp = sys.argv[sys.argv.index('--ulp')+1] if '--ulp' in sys.argv else ''\nopen(sys.argv[2],'w').write('tarif,daya_va,harga_rata2,jam_nyala,ujl,ulp\\nB1,450,535,140,80,'+ulp+'\\n')\n");
     }
@@ -145,6 +145,7 @@ class MasterExcelImportTest extends PostgresTestCase
         $p = $r['report']['price'];
         $this->assertSame(['CHANGED', 1, 1, 1], [$p['status'], $p['changed_rows'], $p['unchanged_rows'], $p['new_codes']['count']]);          // code 99 is new: reported, not guessed
         $this->assertSame(1, $r['report']['new_khs']['count']);
+        $this->assertEquals([1, 7, 9], [$p['mdu_differences']['count'], $p['mdu_differences']['items'][0]['current'], $p['mdu_differences']['items'][0]['excel']]);   // MDU 7 -> 9: reported only
 
         $this->as($this->engineer)->postJson("/api/master-data/excel-imports/{$up['id']}/apply", ['dataset' => 'PRICE', 'valid_from' => '2026-12-01', 'name' => 'Buku harga baru'])->assertCreated();
         $book = DB::table('price_books')->where('name', 'Buku harga baru')->first();

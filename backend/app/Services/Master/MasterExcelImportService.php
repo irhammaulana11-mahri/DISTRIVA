@@ -592,6 +592,7 @@ class MasterExcelImportService
         $added = 0;
         $unchanged = 0;
         $samples = [];
+        $mdu = [];
         foreach ($rows as $r) {
             $code = $map[$r['kode']] ?? null;
             if ($code === null) {
@@ -606,6 +607,10 @@ class MasterExcelImportService
             }
             $it = $cur['items'][$code];
             $diff = [];
+            $exMdu = $this->num($r['nilai_asuransi'] ?? null);                          // MDU is never overwritten from Excel: only reported, decided by hand on the draft book
+            if ($exMdu !== null && $exMdu > 0 && ($it['insured'] === null || abs($exMdu - $it['insured']) >= 0.5)) {
+                $mdu[] = ['code' => $code, 'name' => $it['name'], 'current' => $it['insured'], 'excel' => $exMdu];
+            }
             foreach ($cur['zones_used'] as $z) {
                 foreach (['pasang' => 0, 'bongkar' => 1] as $label => $i) {
                     $ex = $this->num($r["z{$z}_{$label}"] ?? null);
@@ -645,7 +650,8 @@ class MasterExcelImportService
 
         return ['status' => $changed === [] ? 'UNCHANGED' : 'CHANGED', 'excel_rows' => count($rows), 'current_rows' => count($cur['items']), 'changed_rows' => count($changed), 'unchanged_rows' => $unchanged, 'added_in_excel' => $added,
             'new_codes' => ['count' => count($newCodes), 'items' => array_slice($newCodes, 0, 15)], 'samples' => $samples, 'book' => $cur['name'], 'problems' => [],
-            'note' => 'Status PLN/HARGA, nilai MDU, dan zona UP3 dari buku yang berlaku dipertahankan; hanya harga jasa/material yang berbeda di Excel yang diubah.'];
+            'mdu_differences' => ['count' => count($mdu), 'items' => array_slice($mdu, 0, 30)],
+            'note' => 'Status PLN/HARGA, nilai MDU, dan zona UP3 dari buku yang berlaku dipertahankan; hanya harga jasa/material yang berbeda di Excel yang diubah. Selisih nilai MDU hanya dilaporkan.'];
     }
 
     /** @return array{name:string,contract:?string,items:array<string,array<string,mixed>>,zones_used:list<int>,zones:array<string,int>}|null */

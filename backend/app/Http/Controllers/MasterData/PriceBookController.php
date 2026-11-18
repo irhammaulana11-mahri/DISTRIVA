@@ -5,8 +5,8 @@ namespace App\Http\Controllers\MasterData;
 use App\Exceptions\AdministrationDenied;
 use App\Http\Controllers\Controller;
 use App\Services\Authorization\CatalogAuthorizer;
-use App\Services\Prices\PriceBookService;
 use App\Services\Notifications\InAppNotifier;
+use App\Services\Prices\PriceBookService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -96,6 +96,17 @@ class PriceBookController extends Controller
         $this->books->setZone($book, $data['up3_unit_id'], (int) $data['zone'], $data['reason'], $actor);
 
         return response()->json(['message' => 'Zona ditetapkan.']);
+    }
+
+    /** MDU / insured value of one item of a DRAFT book (null clears it). */
+    public function setInsured(Request $request, string $book, string $code): JsonResponse
+    {
+        $actor = $request->user();
+        $this->authorizer->authorize($actor, 'prices.manage');
+        $data = Validator::make($request->all(), ['insured_value' => ['present', 'nullable', 'numeric', 'min:0', 'max:100000000000'], 'reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->books->setInsuredValue($book, $code, $data['insured_value'] === null ? null : round((float) $data['insured_value'], 2), $data['reason'], $actor);
+
+        return response()->json(['message' => 'Nilai MDU diperbarui.', 'data' => ['khs_code' => $code, 'insured_value' => $data['insured_value'] === null ? null : round((float) $data['insured_value'], 2)]]);
     }
 
     public function approve(Request $request): JsonResponse

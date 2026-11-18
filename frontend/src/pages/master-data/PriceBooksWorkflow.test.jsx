@@ -17,6 +17,7 @@ vi.mock('../../services/api.js', () => ({
     items: vi.fn(),
     import: vi.fn(),
     setZone: vi.fn(),
+    setInsured: vi.fn(),
     approve: vi.fn(),
     retire: vi.fn(),
   },
@@ -277,6 +278,27 @@ describe('Buku Harga Kontrak Workflow (Tahap 5A - docs/67)', () => {
     // Apply button must be disabled
     const applyBtn = screen.getByRole('button', { name: /Terapkan & Buat Draf/i })
     expect(applyBtn).toBeDisabled()
+  })
+
+  it('changes the MDU value of one item of a DRAFT book with a mandatory reason', async () => {
+    priceBookApi.setInsured.mockResolvedValueOnce({ message: 'Nilai MDU diperbarui.' })
+    renderDetailPage()
+    await userEvent.click(await screen.findByRole('button', { name: /Item KHS & Tarif Jasa/i }))
+    expect(await screen.findByText('Nilai MDU')).toBeInTheDocument()
+
+    await userEvent.click(screen.getAllByRole('button', { name: /^Ubah nilai MDU/ })[0])
+    expect(await screen.findByText(/Perubahan hanya berlaku pada draf ini/)).toBeInTheDocument()
+    const value = screen.getByLabelText('Nilai MDU (Rp)')
+    await userEvent.clear(value)
+    await userEvent.type(value, '1500000')
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan Nilai MDU' }))
+    expect(await screen.findByText('Alasan wajib diisi.')).toBeInTheDocument()                  // no reason, nothing sent
+    expect(priceBookApi.setInsured).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByLabelText(/Alasan/), 'Selaras Excel revisi')
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan Nilai MDU' }))
+    await waitFor(() => expect(priceBookApi.setInsured).toHaveBeenCalledTimes(1))
+    expect(priceBookApi.setInsured.mock.calls[0][2]).toEqual({ insured_value: 1500000, reason: 'Selaras Excel revisi' })
   })
 
   it('4. displays detail page, items table with formatted prices, and assigns UP3 zone', async () => {

@@ -163,6 +163,26 @@ class PriceBookService
     }
 
     /**
+     * Sets (or clears, null) the MDU / insured value of ONE item of a DRAFT book. The reason is required and the before/after values are kept in the book's history;
+     * an approved book never changes (database trigger), a new book is made through an import.
+     */
+    public function setInsuredValue(string $bookId, string $khsCode, ?float $value, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($bookId, $khsCode, $value, $reason, $actor): void {
+            $book = DB::table('price_books')->where('id', $bookId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $this->requireDraft($book, 'diubah');
+            $item = DB::table('price_book_items as p')->join('khs_items as k', 'k.id', '=', 'p.khs_item_id')->where('p.price_book_id', $bookId)->where('k.code', $khsCode)
+                ->first(['p.id', 'p.insured_value']) ?? throw new AdministrationDenied('Kode KHS tidak ada pada buku harga ini.', 404);
+            $before = $item->insured_value === null ? null : (float) $item->insured_value;
+            if ($before === $value) {
+                throw new AssignmentRuleViolation('Nilai MDU tidak berubah.');
+            }
+            DB::table('price_book_items')->where('id', $item->id)->update(['insured_value' => $value, 'updated_at' => now()]);
+            $this->event($bookId, 'MDU_SET', $actor, $reason, ['khs_code' => $khsCode, 'before' => $before, 'after' => $value]);
+        });
+    }
+
+    /**
      * @param  list<string>  $ids
      * @return array{approved:int, auto_closed:int}
      */

@@ -152,6 +152,40 @@ class PriceBookTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_insured_value_of_one_item_of_a_draft_book_is_changed_with_a_reason_and_leaves_a_history(): void
+    {
+        $this->khs([1, 2]);
+        $csv = "kode,nama,status_material,harga_material,nilai_asuransi,z2_pasang,z2_bongkar\n1,A,PLN,,\"1.000,00\",10,5\n2,B,HARGA,100,,10,5\n";
+        $this->upload($csv)->assertCreated();
+        $book = (string) DB::table('price_books')->value('id');
+        $url = fn (string $code) => "/api/master-data/price-books/{$book}/items/{$code}/insured";
+        $value = fn (string $code) => DB::table('price_book_items as p')->join('khs_items as k', 'k.id', '=', 'p.khs_item_id')->where('k.code', $code)->value('p.insured_value');
+
+        $this->as($this->engineer)->patchJson($url('JTMR1'), ['insured_value' => 2500, 'reason' => 'x'])->assertNotFound();                          // the book has codes 1 and 2 as the test catalogue names them
+        $codes = DB::table('khs_items')->orderBy('code')->pluck('code')->all();
+        $c1 = $codes[0];
+        $this->as($this->viewer)->patchJson($url($c1), ['insured_value' => 2500, 'reason' => 'x'])->assertForbidden();                           // viewer: no prices.manage
+        $this->as($this->engineer)->patchJson($url($c1), ['insured_value' => 2500])->assertUnprocessable();                                      // reason is required
+        $this->as($this->engineer)->patchJson($url($c1), ['insured_value' => -5, 'reason' => 'x'])->assertUnprocessable();
+        $this->as($this->engineer)->patchJson($url($c1), ['reason' => 'x'])->assertUnprocessable();                                               // the value must be sent (null clears it)
+
+        $before = (float) $value($c1);
+        $this->as($this->engineer)->patchJson($url($c1), ['insured_value' => 2500.5, 'reason' => 'Selaras Excel revisi'])->assertOk()->assertJsonPath('data.insured_value', 2500.5);
+        $this->assertEquals(2500.5, $value($c1));
+        $event = DB::table('price_book_events')->where('price_book_id', $book)->where('event_type', 'MDU_SET')->first();
+        $this->assertSame('Selaras Excel revisi', $event->reason);
+        $this->assertEquals([$before, 2500.5], [json_decode($event->details, true)['before'], json_decode($event->details, true)['after']]);
+        $this->as($this->engineer)->patchJson($url($c1), ['insured_value' => 2500.5, 'reason' => 'sama'])->assertStatus(409);                       // no change is not recorded
+        $this->as($this->engineer)->patchJson($url($c1), ['insured_value' => null, 'reason' => 'dikosongkan'])->assertOk();
+        $this->assertNull($value($c1));
+
+        $this->zone($book)->assertOk();
+        $this->approve($book)->assertOk();
+        $this->as($this->engineer)->patchJson($url($c1), ['insured_value' => 1, 'reason' => 'terlambat'])->assertStatus(409);                       // an approved book is immutable
+        $this->assertNull($value($c1));
+    }
+
+    #[Test]
     public function a_zone_needs_an_up3_and_a_zone_the_book_has_prices_for(): void
     {
         $this->khs([1, 2]);

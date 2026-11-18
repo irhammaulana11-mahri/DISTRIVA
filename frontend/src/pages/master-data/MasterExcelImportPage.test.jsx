@@ -128,6 +128,22 @@ describe('Impor Master dari Excel', () => {
     expect(masterExcelApi.apply.mock.calls[0][1]).toMatchObject({ dataset: 'BOM', valid_from: '2026-12-01', groups: ['SUTM'] })
   })
 
+  it('harga: selisih nilai MDU hanya ditampilkan, tidak ditimpa', async () => {
+    const full = { ...distriva, report: { ...distriva.report,
+      price: { status: 'UNCHANGED', excel_rows: 504, current_rows: 523, changed_rows: 0, unchanged_rows: 504, added_in_excel: 0, new_codes: { count: 0, items: [] }, book: 'Kontrak jasa', samples: [], problems: [],
+        mdu_differences: { count: 1, items: [{ code: 'A496', name: 'Lemari APP 80A', current: 16748000, excel: 17166500 }] } } } }
+    masterExcelApi.list.mockResolvedValue({ data: [{ ...full, report: null }], can: CAN, limits: { max_mb: 60 } })
+    masterExcelApi.get.mockResolvedValue({ data: full })
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
+    const box = await screen.findByTestId('mdu-differences')
+    expect(box).toHaveTextContent(/berbeda dari buku yang berlaku pada 1 barang/)
+    expect(box).toHaveTextContent('Lemari APP 80A')
+    expect(box).toHaveTextContent('16.748.000')
+    expect(box).toHaveTextContent('17.166.500')
+    expect(screen.getByRole('button', { name: 'Buat buku harga DRAFT' })).toBeDisabled()        // MDU alone never creates a draft
+  })
+
   it('template: harga dan tarif ikut dibandingkan dan diterapkan terpisah dengan tanggal berlaku dari berkas', async () => {
     const full = { ...distriva, report: { ...distriva.report,
       price: { status: 'CHANGED', excel_rows: 504, current_rows: 504, changed_rows: 2, unchanged_rows: 502, added_in_excel: 0, new_codes: { count: 0, items: [] }, book: 'Kontrak jasa', samples: [], problems: [] },

@@ -7,6 +7,7 @@ import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
+import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import {
@@ -60,6 +61,11 @@ export default function PriceBookDetailPage() {
   const [zoneReason, setZoneReason] = useState('')
   const [zoneSaving, setZoneSaving] = useState(false)
   const [zoneError, setZoneError] = useState('')
+  const [mduTarget, setMduTarget] = useState(null)
+  const [mduValue, setMduValue] = useState('')
+  const [mduReason, setMduReason] = useState('')
+  const [mduSaving, setMduSaving] = useState(false)
+  const [mduError, setMduError] = useState('')
 
   // Items tab state
   const [items, setItems] = useState([])
@@ -136,6 +142,47 @@ export default function PriceBookDetailPage() {
       loadItems()
     }
   }, [activeTab, loadItems])
+
+  // Change the MDU / insured value of one item of a DRAFT book (PATCH /items/{code}/insured); empty = clear it
+  const openMdu = (item) => {
+    setMduTarget(item)
+    setMduValue(item.insured_value === null || item.insured_value === undefined ? '' : String(item.insured_value))
+    setMduReason('')
+    setMduError('')
+  }
+
+  const handleMduSubmit = async (e) => {
+    e.preventDefault()
+    if (!mduReason.trim()) {
+      setMduError('Alasan wajib diisi.')
+      return
+    }
+    const trimmed = String(mduValue).trim()
+    if (trimmed !== '' && (Number.isNaN(Number(trimmed)) || Number(trimmed) < 0)) {
+      setMduError('Nilai MDU harus angka 0 atau lebih (kosongkan untuk menghapus nilai).')
+      return
+    }
+    setMduSaving(true)
+    setMduError('')
+    try {
+      await priceBookApi.setInsured(id, mduTarget.khs_code, {
+        insured_value: trimmed === '' ? null : Number(trimmed),
+        reason: mduReason.trim(),
+      })
+      notify({
+        type: 'success',
+        title: 'Nilai MDU Diperbarui',
+        desc: `Nilai MDU ${mduTarget.khs_code} pada draf buku harga berhasil diubah.`,
+        tag: 'Buku Harga',
+      })
+      setMduTarget(null)
+      loadItems()
+    } catch (err) {
+      setMduError(err?.message || 'Gagal mengubah nilai MDU.')
+    } finally {
+      setMduSaving(false)
+    }
+  }
 
   // Handle Zone setting submit (PUT /zones)
   const handleSetZoneSubmit = async (e) => {
@@ -554,6 +601,7 @@ export default function PriceBookDetailPage() {
                       <th className="p-3 min-w-[200px]">Nama Item KHS</th>
                       <th className="p-3">Status Material</th>
                       <th className="p-3 text-right">Harga Material</th>
+                      <th className="p-3 text-right">Nilai MDU</th>
                       {availableZones.map((z) => (
                         <th key={z} className="p-3 text-center border-l border-slate-200 dark:border-slate-700">
                           Zona {z} (Pasang / Bongkar)
@@ -585,6 +633,22 @@ export default function PriceBookDetailPage() {
                           </td>
                           <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
                             {isPln ? '-' : formatRupiah(i.material_price)}
+                          </td>
+                          <td className="p-3 text-right font-mono text-slate-800 dark:text-slate-200">
+                            <div className="flex items-center justify-end gap-2">
+                              <span>{i.insured_value === null || i.insured_value === undefined ? '-' : formatRupiah(i.insured_value)}</span>
+                              {isDraft && canManage && (
+                                <button
+                                  type="button"
+                                  onClick={() => openMdu(i)}
+                                  className="px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-semibold font-sans text-slate-600 dark:text-slate-300 cursor-pointer"
+                                  title={`Ubah nilai MDU ${i.khs_code}`}
+                                  aria-label={`Ubah nilai MDU ${i.khs_code}`}
+                                >
+                                  Ubah
+                                </button>
+                              )}
+                            </div>
                           </td>
 
                           {availableZones.map((z) => {
@@ -783,6 +847,49 @@ export default function PriceBookDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Change MDU value of one item (DRAFT book only) */}
+      <Modal open={Boolean(mduTarget)} onClose={() => setMduTarget(null)} title="Ubah Nilai MDU" size="max-w-md">
+        <form onSubmit={handleMduSubmit} className="space-y-4 text-xs" noValidate>
+          {mduError && <Alert kind="error">{mduError}</Alert>}
+          <p className="text-slate-600 dark:text-slate-300">
+            <span className="font-mono font-bold">{mduTarget?.khs_code}</span> · {mduTarget?.name}
+            <br />
+            Perubahan hanya berlaku pada draf ini dan tercatat di riwayat buku harga bersama nilai sebelum dan sesudahnya.
+          </p>
+          <div>
+            <label htmlFor="mdu-value" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">Nilai MDU (Rp)</label>
+            <input
+              id="mdu-value"
+              inputMode="decimal"
+              value={mduValue}
+              onChange={(e) => setMduValue(e.target.value)}
+              placeholder="Kosongkan untuk menghapus nilai"
+              disabled={mduSaving}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring font-mono"
+            />
+          </div>
+          <div>
+            <label htmlFor="mdu-reason" className="block font-semibold mb-1 text-slate-800 dark:text-slate-200">
+              Alasan <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              id="mdu-reason"
+              rows={3}
+              maxLength={1000}
+              value={mduReason}
+              onChange={(e) => setMduReason(e.target.value)}
+              disabled={mduSaving}
+              placeholder="Contoh: Selaras dengan Excel revisi 18 Nov 2026..."
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="secondary" onClick={() => setMduTarget(null)} disabled={mduSaving}>Batal</Button>
+            <Button type="submit" disabled={mduSaving}>{mduSaving ? <Spinner size={14} label="Menyimpan..." /> : 'Simpan Nilai MDU'}</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Approve / Retire Reason Dialog */}
       {actionDialog && (

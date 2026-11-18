@@ -456,6 +456,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/price-books/{book}', [PriceBookController::class, 'show'])->whereUuid('book');
         Route::get('/price-books/{book}/items', [PriceBookController::class, 'items'])->whereUuid('book');
         Route::put('/price-books/{book}/zones', [PriceBookController::class, 'setZone'])->whereUuid('book');
+        Route::patch('/price-books/{book}/items/{code}/insured', [PriceBookController::class, 'setInsured'])->whereUuid('book')->where('code', '[A-Za-z0-9._-]{1,30}');
         Route::post('/price-books/{book}/retire', [PriceBookController::class, 'retire'])->whereUuid('book');
 
         Route::get('/bom', [BomController::class, 'index']);

@@ -211,6 +211,21 @@ function PriceSection({ imp, can, onApply, defaultValidFrom }) {
           </table>
         </div>
       )}
+      {p.mdu_differences?.count > 0 && (
+        <div className="mt-3" data-testid="mdu-differences">
+          <Alert variant="warning">{`Nilai MDU di Excel berbeda dari buku yang berlaku pada ${p.mdu_differences.count.toLocaleString('id-ID')} barang. Nilai MDU tidak ditimpa dari Excel; bila perlu diubah, ubah per barang di draf buku harga (tombol Ubah pada kolom Nilai MDU).`}</Alert>
+          <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            <table className="w-full min-w-120 text-left text-xs">
+              <caption className="sr-only">Selisih nilai MDU</caption>
+              <thead className="bg-slate-50 dark:bg-slate-850 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800"><tr><th scope="col" className="px-3 py-2">Material</th><th scope="col" className="px-3 py-2 text-right">Berlaku</th><th scope="col" className="px-3 py-2 text-right">Excel</th></tr></thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {p.mdu_differences.items.map((m) => <tr key={m.code}><td className="px-3 py-2"><span className="font-semibold">{m.name}</span><span className="block font-mono text-[10px] text-slate-400">{m.code}</span></td><td className="px-3 py-2 text-right font-mono">{m.current === null || m.current === undefined ? '-' : m.current.toLocaleString('id-ID')}</td><td className="px-3 py-2 text-right font-mono font-semibold">{m.excel.toLocaleString('id-ID')}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+          {p.mdu_differences.count > p.mdu_differences.items.length && <p className="mt-1 text-[11px] text-slate-500">Menampilkan {p.mdu_differences.items.length} dari {p.mdu_differences.count.toLocaleString('id-ID')} barang.</p>}
+        </div>
+      )}
       {p.note && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{p.note}</p>}
       <Problems items={p.problems} />
       <ApplyBar dataset="PRICE" label="Buat buku harga DRAFT" defaultValidFrom={defaultValidFrom} needName defaultName={`Buku harga ${today()}`} disabled={!can || p.status !== 'CHANGED'} applied={imp.applied?.PRICE} onApply={onApply} />
