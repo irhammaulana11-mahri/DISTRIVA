@@ -174,7 +174,7 @@ class ReportService
             ->orderByDesc('b.created_at')
             ->get());
 
-        // Service SLA of network extension (14/24/100 working days from payment): where it applies it replaces the general rule below.
+        // Service SLA of network extension (4/14/24/100 working days from payment): where it applies it replaces the general rule below.
         $service = [];
         foreach (array_chunk($appIds, 5000) as $part) {
             $service += app(ServiceSlaService::class)->compute($part);

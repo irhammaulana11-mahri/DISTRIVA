@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Service SLA of network extension (owner, Nov 2026): 14 working days (LV poles only), 24 (MV line / transformer), 100 (cubicle), from the payment date. The category follows the construction
+ * Service SLA of network extension (owner, Nov 2026): 4 working days (MTO without extension: only APP / SR), 14 (LV poles only), 24 (MV line / transformer), 100 (cubicle), from the payment date. The category follows the construction
  * groups of the application's MTO (a proposal member uses the representative's MTO; the longest SLA wins); the days come from `sla_configurations` (kind SERVICE). Nothing is stored per application
  * except the explanations of a delay: status and deadline are always computed. An application not yet paid has not started the clock; a paid one without a known payment date falls back to the date its
  * status turned Bayar and then to its request date (`start_basis` says which).
@@ -136,6 +136,9 @@ class ServiceSlaService
                     $out[$owner] = $cat;
                 }
             }
+        }
+        foreach ($chosen as $owner => $p) {                                        // an MTO without any extension group (only APP / SR): the shortest service SLA
+            isset($out[$owner]) || $out[$owner] = 'LAYANAN_TANPA_PERLUASAN';
         }
 
         return $out;

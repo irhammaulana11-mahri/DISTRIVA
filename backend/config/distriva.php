@@ -122,6 +122,7 @@ return [
      */
     'service_sla' => [
         'categories' => [
+            'LAYANAN_TANPA_PERLUASAN' => ['label' => 'Layanan: tanpa perluasan jaringan', 'days' => 4],
             'LAYANAN_JTR' => ['label' => 'Layanan: tambah tiang JTR saja', 'days' => 14],
             'LAYANAN_JTM_TRAFO' => ['label' => 'Layanan: tambah JTM / trafo', 'days' => 24],
             'LAYANAN_KUBIKEL' => ['label' => 'Layanan: tambah kubikel', 'days' => 100],

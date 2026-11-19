@@ -111,13 +111,13 @@ class ServiceSlaTest extends PostgresTestCase
     public function the_owner_days_are_seeded_per_category_and_longest_category_of_the_mto_wins(): void
     {
         $days = DB::table('sla_configurations')->where('kind', 'SERVICE')->orderBy('working_days')->pluck('working_days', 'task_type')->all();
-        $this->assertSame(['LAYANAN_JTR' => 14, 'LAYANAN_JTM_TRAFO' => 24, 'LAYANAN_KUBIKEL' => 100], $days);
+        $this->assertSame(['LAYANAN_TANPA_PERLUASAN' => 4, 'LAYANAN_JTR' => 14, 'LAYANAN_JTM_TRAFO' => 24, 'LAYANAN_KUBIKEL' => 100], $days);
 
         $this->assertSame(['LAYANAN_JTR', 14], [$this->sla($this->application(['SUTR']))->json('data.category'), $this->sla($this->application(['SUTR']))->json('data.working_days')]);
         $this->assertSame(24, $this->sla($this->application(['SUTR', 'GTT_UMUM']))->json('data.working_days'));
         $this->assertSame(24, $this->sla($this->application(['SUTM']))->json('data.working_days'));
         $this->assertSame(100, $this->sla($this->application(['SUTR', 'SUTM', 'KUBIKEL']))->json('data.working_days'));
-        $this->assertNull($this->sla($this->application(['PBPD_6_41', 'SR1PH']))->json('data'));     // no extension category: no service SLA
+        $this->assertSame(['LAYANAN_TANPA_PERLUASAN', 4], [$this->sla($this->application(['PBPD_6_41', 'SR1PH']))->json('data.category'), $this->sla($this->application(['PBPD_6_41', 'SR1PH']))->json('data.working_days')]);   // MTO without extension: the 4-day SLA
         $this->assertNull($this->sla($this->application([]))->json('data'));                          // no MTO yet
         $this->assertSame(24, $this->sla($this->application(['SUTM'], mto: 'DRAFT'))->json('data.working_days'));   // a draft MTO already shows the expected category
     }
@@ -197,7 +197,7 @@ class ServiceSlaTest extends PostgresTestCase
 
         $fine = $this->application(['SUTR'], 'PAID', '2026-11-12');
         $this->as($this->teknik)->postJson("/api/applications/{$fine}/service-sla/notes", ['note' => 'x'])->assertCreated();   // a note may be written before the deadline too
-        $none = $this->application(['SR1PH']);
+        $none = $this->application([]);                                                                    // no MTO yet: no category, no service SLA
         $this->as($this->teknik)->postJson("/api/applications/{$none}/service-sla/notes", ['note' => 'x'])->assertStatus(409);
     }
 
