@@ -761,6 +761,12 @@ export const eisSyncApi = {
   run: (id) => request(`/eis-sync/runs/${id}`),
 }
 
+export const whatsappSettingsApi = {
+  show: () => request('/settings/whatsapp'),
+  save: (body) => request('/settings/whatsapp', { method: 'PUT', body }),
+  test: (body) => request('/settings/whatsapp/test', { method: 'POST', body }),
+}
+
 export const surveyApi = {
   access: () => request('/surveys/access'),
   list: (params = {}) => request(`/surveys${qs(params)}`),

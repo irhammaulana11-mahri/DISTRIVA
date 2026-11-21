@@ -45,6 +45,7 @@ use App\Http\Controllers\ServiceSlaController;
 use App\Http\Controllers\SubstationController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\WhatsAppSettingsController;
 use App\Http\Controllers\WorkOrderController;
 use App\Http\Middleware\EnsureActiveAccount;
 use Illuminate\Support\Facades\Route;
@@ -320,6 +321,11 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::get('/rab-runs/{run}/documents/{type}', [OutputDocumentController::class, 'rab'])->whereUuid('run')->middleware('throttle:admin');
     Route::get('/kkf-runs/{run}/documents/{type}', [OutputDocumentController::class, 'kkf'])->whereUuid('run')->middleware('throttle:admin');
     // Backup / restore (docs/64): SYS_ADMIN only (MFA). Restore needs a verified backup, typed confirmation and the actor's password.
+    Route::prefix('settings/whatsapp')->middleware('throttle:admin')->group(function () {
+        Route::get('/', [WhatsAppSettingsController::class, 'show']);
+        Route::put('/', [WhatsAppSettingsController::class, 'save']);
+        Route::post('/test', [WhatsAppSettingsController::class, 'test']);
+    });
     Route::prefix('backups')->middleware('throttle:admin')->group(function () {
         Route::get('/access', [BackupController::class, 'access']);
         Route::get('/status', [BackupController::class, 'status']);

@@ -8,6 +8,7 @@ use App\Services\Notifications\MailChannel;
 use App\Services\Notifications\NotificationDispatcher;
 use App\Services\Notifications\WhatsApp\HttpWhatsAppDriver;
 use App\Services\Notifications\WhatsApp\WhatsAppDriver;
+use App\Services\Notifications\WhatsApp\WhatsAppSettings;
 use App\Services\Notifications\WhatsAppChannel;
 use App\Support\DestructiveDatabaseGuard;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -28,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(VendorScopeAuthorizer::class, DenyUnverifiedVendorScopeAuthorizer::class);
 
         $this->app->bind(WhatsAppDriver::class, function ($app): WhatsAppDriver {
+            $app->make(WhatsAppSettings::class)->applyToConfig();
             $name = (string) config('distriva_notifications.whatsapp.driver');
             $class = config("distriva_notifications.whatsapp.drivers.{$name}");
 

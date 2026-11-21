@@ -72,6 +72,7 @@ import SurveyRequestsPage from './pages/surveys/SurveyRequestsPage.jsx'
 import DrawingDetailPage from './pages/drawings/DrawingDetailPage.jsx'
 import MtoDetailPage from './pages/mto/MtoDetailPage.jsx'
 import BackupPage from './pages/backup/BackupPage.jsx'
+import WhatsAppSettingsPage from './pages/settings/WhatsAppSettingsPage.jsx'
 
 // UX gate only: the server enforces authentication on every request.
 function RequireAuth({ children }) {
@@ -194,6 +195,7 @@ export default function App() {
         <Route path="survei/:id" element={<RequireCapability capability="surveys.view"><SurveyDetailPage /></RequireCapability>} />
         <Route path="gambar/:id" element={<RequireCapability capability="drawings.view"><DrawingDetailPage /></RequireCapability>} />
         <Route path="mto/:id" element={<RequireCapability capability="mto.view"><MtoDetailPage /></RequireCapability>} />
+        <Route path="pengaturan/whatsapp" element={<WhatsAppSettingsPage />} />
         <Route path="sistem/backup" element={<RequireCapability capability="backups.view"><BackupPage /></RequireCapability>} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

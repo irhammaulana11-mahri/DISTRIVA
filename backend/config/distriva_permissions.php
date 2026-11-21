@@ -265,6 +265,13 @@ return [
         'backups.restore' => ['SYS_ADMIN'],
     ],
 
+    /*
+     * System settings kept in the application (menu Pengaturan): the WhatsApp gateway (URL, API token, body template). Holds a secret: SYS_ADMIN only, which needs MFA.
+     */
+    'system_settings' => [
+        'whatsapp.settings.manage' => ['SYS_ADMIN'],
+    ],
+
     // who may raise the extended-approval requirement at which moment (SYS_ADMIN at both)
     'drawing_escalation' => ['SUBMITTED' => ['MANAGER_ULP', 'SYS_ADMIN'], 'UP3_REVIEW' => ['PERENCANAAN', 'KONSTRUKSI', 'SYS_ADMIN']],
     // step -> [key, stage the version must be in, steps that must all be APPROVED to advance (normal / extended), next [status, stage] (normal / extended)]

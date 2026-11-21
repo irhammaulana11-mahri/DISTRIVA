@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Notifications\WhatsApp\WhatsAppSettings;
 use Illuminate\Console\Command;
 
 /**
@@ -16,6 +17,8 @@ class NotifyCheck extends Command
 
     public function handle(): int
     {
+        app(WhatsAppSettings::class)->applyToConfig();   // the settings saved in the menu Pengaturan replace .env
+
         $channels = (array) config('distriva_notifications.channels');
         $this->line('Kanal aktif (DISTRIVA_NOTIFY_CHANNELS): '.($channels === [] ? '(kosong)' : implode(', ', $channels)));
 

@@ -29,6 +29,7 @@ import {
   IconFileText,
   IconDocument,
   IconDatabase,
+  IconMail,
   IconChart,
   IconZap,
   IconCalendar,
@@ -129,6 +130,7 @@ const adminNav = [
 // 6. Pengaturan & Sistem (MFA, Backup)
 const settingsNav = [
   { to: '/mfa', label: 'Keamanan MFA', capability: 'mfa.manage', sysAdminOnly: true, icon: IconShield },
+  { to: '/pengaturan/whatsapp', label: 'WhatsApp', capability: 'whatsapp.settings.manage', sysAdminOnly: true, icon: IconMail },
   { to: '/sistem/backup', label: 'Backup & Pemulihan Sistem', capability: 'backups.view', icon: IconDatabase },
 ]
 
@@ -184,6 +186,7 @@ const titles = {
   '/admin/units/baru': 'Administrasi / Unit Organisasi / Tambah',
   '/master-data/vendors': 'Administrasi / Mitra & Vendor',
   '/reports': 'Laporan & Monitoring / Pusat Analitika Eksekutif',
+  '/pengaturan/whatsapp': 'Pengaturan / WhatsApp',
   '/sistem/backup': 'Pengaturan / Backup & Pemulihan Sistem',
 }
 

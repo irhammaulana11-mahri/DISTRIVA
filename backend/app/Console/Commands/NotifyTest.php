@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\Notifications\Message;
 use App\Services\Notifications\NotificationDispatcher;
 use App\Services\Notifications\Recipient;
+use App\Services\Notifications\WhatsApp\WhatsAppSettings;
 use Illuminate\Console\Command;
 
 class NotifyTest extends Command
@@ -15,6 +16,8 @@ class NotifyTest extends Command
 
     public function handle(NotificationDispatcher $dispatcher): int
     {
+        app(WhatsAppSettings::class)->applyToConfig();   // the settings saved in the menu Pengaturan replace .env
+
         $this->line('Kanal terkonfigurasi : '.implode(', ', (array) config('distriva_notifications.channels')));
         $this->line('Mailer               : '.config('mail.default'));
         $this->line('Driver WhatsApp      : '.config('distriva_notifications.whatsapp.driver'));
