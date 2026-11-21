@@ -17,6 +17,12 @@ describe('ServiceSlaBadge', () => {
     expect(slaBadgeText({ ...base, status: 'MET' })).toBe('SLA TMP terpenuhi')
   })
 
+  it('kategori tanpa perluasan (4 hari kerja) memakai teks yang sama dari data server', () => {
+    const tanpaPerluasan = { ...base, category_label: 'Layanan: tanpa perluasan jaringan', working_days: 4, working_days_left: 2 }
+    expect(slaBadgeText({ ...tanpaPerluasan, status: 'ON_TRACK' })).toMatch(/SLA TMP 4 hari kerja: sisa 2 hari kerja/)
+    expect(slaBadgeText({ ...tanpaPerluasan, status: 'NOT_STARTED' })).toBe('SLA TMP 4 hari kerja mulai setelah bayar')
+  })
+
   it('menampilkan sisa waktu dan diam bila permohonan tak punya SLA layanan atau galat', async () => {
     serviceSlaApi.forApplication.mockResolvedValueOnce({ data: { ...base, status: 'DUE_SOON' } })
     const { unmount } = render(<ServiceSlaBadge applicationId="a-1" />)
