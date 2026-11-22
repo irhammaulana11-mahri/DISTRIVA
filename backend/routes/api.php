@@ -223,6 +223,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/reports/sla', [ReportController::class, 'sla']);
         Route::get('/reports/cost-variance', [ReportController::class, 'costVariance']);
         Route::get('/reports/vendor-performance', [ReportController::class, 'vendorPerformance']);
+        Route::get('/reports/customer-growth', [ReportController::class, 'customerGrowth']);
         Route::get('/reports/critical-stock', [ReportController::class, 'criticalStock']);
         Route::get('/reports/kkf-feasibility', [ReportController::class, 'kkfFeasibility']);
         Route::get('/reports/erp-anomalies', [ReportController::class, 'erpAnomalies']);

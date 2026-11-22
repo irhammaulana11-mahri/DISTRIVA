@@ -7,6 +7,7 @@ use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Authorization\CatalogAuthorizer;
 use App\Services\Authorization\ScopedUnitOptions;
 use App\Services\Output\DocumentDownload;
+use App\Services\Reports\CustomerGrowthService;
 use App\Services\Reports\ReportService;
 use App\Services\Reports\ReportSettings;
 use Illuminate\Http\JsonResponse;
@@ -154,6 +155,29 @@ class ReportController extends Controller
         }
 
         return response()->json(['data' => $rows]);
+    }
+
+    /** GET /reports/customer-growth: analisis penambahan pelanggan dan daya per bulan dan tahun (realisasi sambung), per UP3/ULP; `?format=xlsx|pdf` untuk ekspor. */
+    public function customerGrowth(Request $request, CustomerGrowthService $growth): JsonResponse|Response
+    {
+        [$units, $from, $to] = $this->filters($request);
+        $d = $growth->trend($units, $from, $to);
+        if (in_array($request->query('format'), DocumentDownload::FORMATS, true)) {
+            $num = fn ($v) => $v === null ? '' : $v;
+
+            return $this->file($this->reports->doc('ANALISIS PENAMBAHAN PELANGGAN DAN DAYA', [['Periode', ($from ?? 'awal').' s.d. '.($to ?? 'sekarang')], ['Dasar', 'Permohonan tersambung (PEREMAJAAN)'], ['Tanggal Cetak', now()->toDateString()]], [
+                ['heading' => 'PER TAHUN', 'columns' => ['TAHUN', 'BULAN TERCAKUP', 'PB (PELANGGAN BARU)', 'DAYA PB (kVA)', 'RATA-RATA kVA/PB', 'PD NAIK (kVA)', 'PD TURUN (kVA)', 'PD NETO (kVA)', 'PERTUMBUHAN PB (%)', 'PERTUMBUHAN DAYA PB (%)'],
+                    'rows' => array_map(fn ($y) => [$y['year'], $y['months'], $y['pb_count'], $y['pb_kva'], $num($y['avg_kva_per_pb']), $y['pd_up_kva'], $y['pd_down_kva'], $y['pd_net_kva'], $num($y['yoy_pct']), $num($y['yoy_kva_pct'])], $d['yearly'])],
+                ['heading' => 'PER BULAN', 'columns' => ['BULAN', 'PB', 'DAYA PB (kVA)', 'PD NAIK', 'PD TURUN', 'PD SAMA', 'PD NETO (kVA)', 'PERMOHONAN PB MASUK', 'PERMOHONAN PD MASUK', 'BATAL', 'RESTITUSI', 'MoM (%)', 'YoY (%)', 'KETERANGAN'],
+                    'rows' => array_map(fn ($m) => [$m['month'], $m['pb_count'], $m['pb_kva'], $m['pd_up_count'], $m['pd_down_count'], $m['pd_same_count'], $m['pd_net_kva'], $m['requests_pb'], $m['requests_pd'], $m['cancelled'], $m['refunded'], $num($m['mom_pct']), $num($m['yoy_pct']), $m['partial'] ? 'bulan berjalan (belum lengkap)' : ''], $d['monthly'])],
+                ['heading' => 'PER KELOMPOK TARIF (PB)', 'columns' => ['KELOMPOK', 'PB', 'PORSI (%)', 'DAYA (kVA)', 'PORSI DAYA (%)', 'RATA-RATA kVA'],
+                    'rows' => array_map(fn ($g) => [$g['group'], $g['count'], $g['share_pct'], $g['kva'], $g['kva_share_pct'], $num($g['avg_kva'])], $d['by_tariff']['groups'])],
+                ['heading' => 'PER ULP', 'columns' => ['KODE', 'ULP', 'UP3', 'PB', 'DAYA PB (kVA)', 'PD NETO (kVA)', 'RATA-RATA kVA/PB', 'BASIS PELANGGAN AKTIF (DIL)', 'BASIS DAYA (kVA)', 'PB TERHADAP BASIS (%)'],
+                    'rows' => array_map(fn ($u) => [$u['unit_code'], $u['unit_name'], $u['up3_name'], $u['pb_count'], $u['pb_kva'], $u['pd_net_kva'], $num($u['avg_kva_per_pb']), $u['base_customers'], $u['base_kva'], $num($u['pb_vs_base_pct'])], $d['by_unit'])],
+            ]), 'ANALISIS-PELANGGAN-DAYA');
+        }
+
+        return response()->json(['data' => $d]);
     }
 
     public function dashboardSummary(Request $request): JsonResponse
