@@ -5,6 +5,7 @@ namespace App\Services\Substations;
 use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
+use App\Services\Authorization\ApplicationAuthorizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -20,10 +21,33 @@ class FeederService
         return array_values(array_unique(array_merge($scope['units'], DB::table('organizational_units')->whereIn('id', $scope['units'])->whereNotNull('parent_id')->pluck('parent_id')->all())));
     }
 
+    /**
+     * Marks a scope as ULP-only when the actor holds no assignment above a ULP. The scope itself cannot tell: for a UP3 assignment `units` lists the ULPs below it, never the UP3,
+     * so a UP3 actor and a ULP actor look alike there. A scope without the mark keeps the wider rule (owners and their parents).
+     *
+     * @param  array{unrestricted: bool, units: list<string>}  $scope
+     * @return array{unrestricted: bool, units: list<string>, ulp_only: bool}
+     */
+    public function withLevel(array $scope, User $actor): array
+    {
+        $upper = ! $scope['unrestricted'] && app(ApplicationAuthorizer::class)->effectiveAssignments($actor)
+            ->contains(fn ($a) => $a->role?->name !== 'VENDOR' && $a->organizationalUnit !== null && $a->organizationalUnit->unit_type !== 'ULP');
+
+        return $scope + ['ulp_only' => ! $scope['unrestricted'] && ! $upper];
+    }
+
     /** @param array{unrestricted: bool, units: list<string>} $scope */
     private function visible($q, array $scope): void
     {
         if ($scope['unrestricted']) {
+            return;
+        }
+        if (($scope['ulp_only'] ?? false) === true) {
+            // Role ULP: hanya melihat penyulang yang ada di ULP tersebut (melayani atau dimiliki ULP)
+            $q->where(fn ($w) => $w->whereIn('f.owner_unit_id', $scope['units'])
+                ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('substations as s')->whereColumn('s.feeder_id', 'f.id')->whereIn('s.organizational_unit_id', $scope['units']))
+            );
+
             return;
         }
         $owners = $this->ownerUnits($scope);
@@ -38,15 +62,27 @@ class FeederService
         $this->visible($q, $scope);
         if (! empty($f['q'])) {
             $like = '%'.mb_strtolower(trim((string) $f['q'])).'%';
-            $q->where(fn ($w) => $w->whereRaw('lower(f.code) like ?', [$like])->orWhereRaw('lower(coalesce(f.name, \'\')) like ?', [$like])->orWhereRaw('lower(coalesce(f.gi_name, \'\')) like ?', [$like]));
+            $q->where(fn ($w) => $w->whereRaw('lower(f.code) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(f.name, \'\')) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(f.gi_code, \'\')) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(f.gi_name, \'\')) like ?', [$like]));
         }
         foreach (['owner_unit_id' => 'f.owner_unit_id', 'gi_code' => 'f.gi_code', 'status' => 'f.status'] as $k => $col) {
             ! empty($f[$k]) && $q->where($col, $f[$k]);
         }
-        if (! empty($f['serves_unit_id'])) {
-            $q->whereExists(fn ($e) => $e->select(DB::raw(1))->from('substations as s')->whereColumn('s.feeder_id', 'f.id')->where('s.organizational_unit_id', $f['serves_unit_id']));
+        if (! empty($f['up3_id'])) {
+            $ulpIds = DB::table('organizational_units')->where('parent_id', $f['up3_id'])->pluck('id')->all();
+            $targetUnits = array_merge([$f['up3_id']], $ulpIds);
+            $q->where(fn ($w) => $w->whereIn('f.owner_unit_id', $targetUnits)
+                ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('substations as s')->whereColumn('s.feeder_id', 'f.id')->whereIn('s.organizational_unit_id', $targetUnits))
+            );
         }
-        $page = $q->orderBy('f.code')->paginate(max(1, min((int) ($f['per_page'] ?? 25), 100)));
+        if (! empty($f['serves_unit_id'])) {
+            $q->where(fn ($w) => $w->where('f.owner_unit_id', $f['serves_unit_id'])
+                ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('substations as s')->whereColumn('s.feeder_id', 'f.id')->where('s.organizational_unit_id', $f['serves_unit_id']))
+            );
+        }
+        $page = $q->orderBy('f.code')->paginate(max(1, min((int) ($f['per_page'] ?? 25), 1000)));
 
         $ids = collect($page->items())->pluck('id')->all();
         $served = $ids === [] ? collect() : DB::table('substations as s')->join('organizational_units as u', 'u.id', '=', 's.organizational_unit_id')->whereIn('s.feeder_id', $ids)->groupBy('s.feeder_id', 'u.id', 'u.code', 'u.name')

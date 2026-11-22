@@ -8,8 +8,8 @@ use App\Services\MfaService;
 use App\Services\Substations\FeederService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 /** Master penyulang (docs/81). Grant (403/404) -> validation (422) -> rule (409). SYS_ADMIN writes need MFA. */
 class FeederController extends Controller
@@ -19,9 +19,16 @@ class FeederController extends Controller
     /** GET /master-data/feeders */
     public function index(Request $request): JsonResponse
     {
-        $scope = $this->authorizer->authorizeScope($request->user(), 'feeders.view');
-        $f = Validator::make($request->query(), ['q' => ['nullable', 'string', 'max:100'], 'owner_unit_id' => ['nullable', 'uuid'], 'serves_unit_id' => ['nullable', 'uuid'], 'gi_code' => ['nullable', 'string', 'max:40'],
-            'status' => ['nullable', 'in:AKTIF,NONAKTIF'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']])->validate();
+        $scope = $this->feeders->withLevel($this->authorizer->authorizeScope($request->user(), 'feeders.view'), $request->user());
+        $f = Validator::make($request->query(), [
+            'q' => ['nullable', 'string', 'max:100'],
+            'owner_unit_id' => ['nullable', 'uuid'],
+            'serves_unit_id' => ['nullable', 'uuid'],
+            'up3_id' => ['nullable', 'uuid'],
+            'gi_code' => ['nullable', 'string', 'max:40'],
+            'status' => ['nullable', 'in:AKTIF,NONAKTIF'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ])->validate();
 
         return response()->json($this->feeders->search($f, $scope));
     }
@@ -29,7 +36,7 @@ class FeederController extends Controller
     /** GET /master-data/feeders/{id} */
     public function show(Request $request, string $id): JsonResponse
     {
-        $scope = $this->authorizer->authorizeScope($request->user(), 'feeders.view');
+        $scope = $this->feeders->withLevel($this->authorizer->authorizeScope($request->user(), 'feeders.view'), $request->user());
 
         return response()->json(['data' => $this->feeders->show($id, $scope)]);
     }
@@ -58,7 +65,7 @@ class FeederController extends Controller
     /** @return array{unrestricted: bool, units: list<string>} */
     private function write(Request $request): array
     {
-        $scope = $this->authorizer->authorizeScope($request->user(), 'feeders.manage');
+        $scope = $this->feeders->withLevel($this->authorizer->authorizeScope($request->user(), 'feeders.manage'), $request->user());
         if ($scope['unrestricted'] && ! app(MfaService::class)->satisfied($request->user())) {
             throw new AdministrationDenied('Aksi tulis SYS_ADMIN memerlukan verifikasi MFA.', 403);
         }

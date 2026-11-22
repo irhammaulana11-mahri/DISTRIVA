@@ -10,6 +10,7 @@ use App\Services\Substations\SubstationService;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\KkoPermissionSeeder;
 use Database\Seeders\SubstationPermissionSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
@@ -209,7 +210,7 @@ class SubstationTest extends PostgresTestCase
         $this->as($this->teknik)->postJson($url, ['measured_on' => now()->toDateString(), 'loading_pct' => 10])->assertCreated()->assertJsonPath('data.result', 'unchanged');
         $this->assertSame(1, DB::table('substation_readings')->count());
         $this->assertSame('FRESH', $this->as($this->teknik)->getJson("/api/master-data/substations/{$id}")->json('data.substation.reading_status'));
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('substation_readings')->update(['loading_pct' => 1]);                                                       // append-only
     }
 
@@ -348,6 +349,20 @@ class SubstationTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_ulp_actor_sees_only_the_feeders_of_its_ulp_while_a_up3_actor_also_sees_the_ones_its_up3_owns(): void
+    {
+        $this->load([$this->row('HD0001')]);                                                                                  // KLWNG: a gardu in ULP A
+        $up3Owned = $this->as($this->planning)->postJson('/api/master-data/feeders', ['code' => 'UP3-ONLY', 'owner_unit_id' => $this->ulpA->parent_id, 'reason' => 'Milik UP3'])->assertCreated()->json('data.feeder.id');
+
+        $this->as($this->planning)->getJson("/api/master-data/feeders/{$up3Owned}")->assertOk();                              // UP3 actor: owner scope
+        $codes = fn (User $u) => collect($this->as($u)->getJson('/api/master-data/feeders?per_page=100')->assertOk()->json('data'))->pluck('code')->all();
+        $this->assertContains('UP3-ONLY', $codes($this->planning));
+        $this->assertContains('KLWNG', $codes($this->teknik));                                                                // ULP actor: a gardu of its ULP is on it
+        $this->assertNotContains('UP3-ONLY', $codes($this->teknik));
+        $this->as($this->teknik)->getJson("/api/master-data/feeders/{$up3Owned}")->assertNotFound();
+    }
+
+    #[Test]
     public function a_feeder_is_changed_with_a_reason_inside_the_scope_and_its_history_is_kept(): void
     {
         $this->load([$this->row('HD0001')]);
@@ -363,7 +378,7 @@ class SubstationTest extends PostgresTestCase
         $this->assertSame('Dikelola ULP', $h[0]['reason']);
         $this->as($this->planning)->postJson('/api/master-data/feeders', ['code' => 'klwng', 'owner_unit_id' => $this->ulpA->parent_id, 'reason' => 'ganda'])->assertStatus(409);
         $this->as($this->planning)->postJson('/api/master-data/feeders', ['code' => 'new-1', 'owner_unit_id' => $this->ulpA->parent_id, 'reason' => 'Penyulang baru'])->assertCreated()->assertJsonPath('data.feeder.code', 'NEW-1');
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('distribution_feeder_changes')->delete();                                                                  // append-only
     }
 
@@ -452,7 +467,7 @@ class SubstationTest extends PostgresTestCase
         $this->as($this->planning)->patchJson($url, ['status' => 'NONAKTIF', 'reason' => 'Dibongkar'])->assertOk();
         $h = $this->as($this->teknik)->getJson($url)->json('data.history');
         $this->assertSame(['Dibongkar', 'Koreksi sesuai papan nama'], array_column($h, 'reason'));                                          // newest first
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('substation_changes')->delete();                                                                                       // append-only
     }
 

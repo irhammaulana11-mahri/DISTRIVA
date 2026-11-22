@@ -59,7 +59,13 @@ class SubstationService
         $this->limit($q, $scope);
         if (! empty($f['q'])) {
             $like = '%'.mb_strtolower(trim((string) $f['q'])).'%';
-            $q->where(fn ($w) => $w->whereRaw('lower(s.code) like ?', [$like])->orWhereRaw('lower(coalesce(s.name, \'\')) like ?', [$like])->orWhereRaw('lower(coalesce(s.location_code, \'\')) like ?', [$like])->orWhereRaw('lower(coalesce(s.kelurahan, \'\')) like ?', [$like])->orWhereRaw('lower(coalesce(s.gadis_number, \'\')) like ?', [$like]));
+            $q->where(fn ($w) => $w->whereRaw('lower(s.code) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(s.name, \'\')) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(s.location_code, \'\')) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(s.kelurahan, \'\')) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(s.kecamatan, \'\')) like ?', [$like])
+                ->orWhereRaw('lower(coalesce(s.gadis_number, \'\')) like ?', [$like])
+                ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('substation_transformers as t')->whereColumn('t.substation_id', 's.id')->whereRaw('lower(coalesce(t.brand, \'\')) like ?', [$like])));
         }
         foreach (['organizational_unit_id', 'feeder_id', 'feeder_code', 'type_code', 'usage', 'ownership', 'status'] as $k) {
             if (! empty($f[$k])) {

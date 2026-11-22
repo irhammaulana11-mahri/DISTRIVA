@@ -154,7 +154,7 @@ class ConnectionService
         $scope['unrestricted'] || $q->whereIn('c.organizational_unit_id', $scope['units']);
         if (! empty($f['q'])) {
             $t = trim((string) $f['q']);
-            ctype_digit($t) ? $q->where('c.idpel', 'like', $t.'%') : $q->where(fn ($w) => $w->whereRaw('lower(coalesce(cu.name, c.name, \'\')) like ?', ['%'.mb_strtolower($t).'%'])->orWhere('c.meter_number', $t));
+            ctype_digit($t) ? $q->where('c.idpel', 'like', $t.'%') : $q->where(fn ($w) => $w->whereRaw('lower(coalesce(cu.name, c.name, \'\')) like ?', ['%'.mb_strtolower($t).'%'])->orWhere('c.meter_number', $t)->orWhereRaw('lower(coalesce(c.tariff_code, \'\')) like ?', ['%'.mb_strtolower($t).'%']));
         }
         foreach (['organizational_unit_id' => 'c.organizational_unit_id', 'substation_id' => 'c.substation_id', 'tariff_code' => 'c.tariff_code', 'status' => 'c.status', 'service_type' => 'c.service_type', 'feeder_id' => 's.feeder_id'] as $k => $col) {
             ! empty($f[$k]) && $q->where($col, $f[$k]);
