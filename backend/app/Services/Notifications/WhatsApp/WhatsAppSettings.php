@@ -83,6 +83,10 @@ class WhatsAppSettings
             $token = filled($env) ? Crypt::encryptString((string) $env) : null;       // the first save keeps working with the token that .env already holds
         }
         $values = collect(self::FIELDS)->mapWithKeys(fn ($f) => [$f => $f === 'timeout' ? (int) $d[$f] : (string) ($d[$f] ?? '')])->all();
+        // The request trims spaces at the end of every input, which would turn the prefix "Bearer " into "Bearer" and the header into "Bearer<token>" (HTTP 401): a word prefix gets its space back.
+        if ($values['auth_prefix'] !== '' && ctype_alnum(substr($values['auth_prefix'], -1))) {
+            $values['auth_prefix'] .= ' ';
+        }
         if ($values['driver'] === 'http') {
             $this->assertUsable($values, $token !== null);
         }

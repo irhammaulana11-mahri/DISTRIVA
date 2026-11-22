@@ -103,6 +103,15 @@ class WhatsAppSettingsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_word_prefix_keeps_its_space_so_the_bearer_header_is_well_formed(): void
+    {
+        $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload(['auth_prefix' => 'Bearer ']))->assertOk()->assertJsonPath('data.auth_prefix', 'Bearer ');   // the request trims "Bearer " to "Bearer"
+        Http::fake(['wa.example.test/*' => Http::response(['status' => true], 200)]);
+        $this->as($this->admin)->postJson('/api/settings/whatsapp/test', ['phone' => '081234567890'])->assertOk();
+        Http::assertSent(fn ($req) => $req->hasHeader('Authorization', 'Bearer RAHASIA-TOKEN-123'));
+    }
+
+    #[Test]
     public function an_http_address_is_accepted_too(): void
     {
         $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload(['url' => 'http://127.0.0.1:3000/send']))->assertOk()->assertJsonPath('data.url', 'http://127.0.0.1:3000/send');
