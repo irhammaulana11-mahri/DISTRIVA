@@ -68,6 +68,12 @@ return [
      * The temporary default keeps the files inside storage/ until the media drive path is set (DISTRIVA_BACKUP_ROOT).
      */
     // EIS sync started from DISTRIVA (docs/82 §19.15): runs tools/eis_sync (Python) in a detached process; the EIS account and the schedule are kept in eis_sync_settings.
+    // Data gangguan dari Google Sheet (docs/86): satu unduhan CSV per tab, singkat, jadi dijalankan di proses terpisah yang pendek (inline di tes).
+    'outage' => [
+        'run_inline' => (bool) env('DISTRIVA_OUTAGE_SYNC_INLINE', false),
+        'timeout_seconds' => (int) env('DISTRIVA_OUTAGE_SYNC_TIMEOUT', 120),
+        'max_bytes' => (int) env('DISTRIVA_OUTAGE_SYNC_MAX_MB', 30) * 1024 * 1024,
+    ],
     'eis_sync' => [
         // The tool has its own venv (python-dotenv, requests, playwright, pandas…): it is used when present, otherwise the system python3. DISTRIVA_EIS_PYTHON overrides both.
         'python' => env('DISTRIVA_EIS_PYTHON') ?: (is_file($venv = base_path('../tools/eis_sync/.venv/bin/python')) ? $venv : 'python3'),

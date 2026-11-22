@@ -33,6 +33,8 @@ use App\Http\Controllers\MfaController;
 use App\Http\Controllers\MtoController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OtpController;
+use App\Http\Controllers\OutageAnalysisController;
+use App\Http\Controllers\OutageSyncController;
 use App\Http\Controllers\OutputDocumentController;
 use App\Http\Controllers\PlanningAccessController;
 use App\Http\Controllers\PoleWorkOrderController;
@@ -224,6 +226,9 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/reports/cost-variance', [ReportController::class, 'costVariance']);
         Route::get('/reports/vendor-performance', [ReportController::class, 'vendorPerformance']);
         Route::get('/reports/customer-growth', [ReportController::class, 'customerGrowth']);
+        Route::get('/outages/analysis', [OutageAnalysisController::class, 'index']);
+        Route::get('/outages/analysis/feeders/{feeder}', [OutageAnalysisController::class, 'feeder'])->whereUuid('feeder');
+        Route::get('/outages/forecast', [OutageAnalysisController::class, 'forecast']);
         Route::get('/reports/critical-stock', [ReportController::class, 'criticalStock']);
         Route::get('/reports/kkf-feasibility', [ReportController::class, 'kkfFeasibility']);
         Route::get('/reports/erp-anomalies', [ReportController::class, 'erpAnomalies']);
@@ -322,6 +327,13 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::get('/rab-runs/{run}/documents/{type}', [OutputDocumentController::class, 'rab'])->whereUuid('run')->middleware('throttle:admin');
     Route::get('/kkf-runs/{run}/documents/{type}', [OutputDocumentController::class, 'kkf'])->whereUuid('run')->middleware('throttle:admin');
     // Backup / restore (docs/64): SYS_ADMIN only (MFA). Restore needs a verified backup, typed confirmation and the actor's password.
+    Route::prefix('outages/sync')->middleware('throttle:admin')->group(function () {
+        Route::get('/', [OutageSyncController::class, 'show']);
+        Route::put('/settings', [OutageSyncController::class, 'save']);
+        Route::post('/runs', [OutageSyncController::class, 'start']);
+        Route::get('/runs/{run}', [OutageSyncController::class, 'showRun'])->whereUuid('run');
+        Route::post('/aliases', [OutageSyncController::class, 'alias']);
+    });
     Route::prefix('settings/whatsapp')->middleware('throttle:admin')->group(function () {
         Route::get('/', [WhatsAppSettingsController::class, 'show']);
         Route::put('/', [WhatsAppSettingsController::class, 'save']);
