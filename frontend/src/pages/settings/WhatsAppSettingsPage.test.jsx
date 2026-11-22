@@ -12,7 +12,7 @@ vi.mock('../../features/notifications/NotificationContext.jsx', () => ({ useNoti
 
 const SETTINGS = {
   source: 'ENV', driver: 'http', url: 'https://wa.example.test/send', method: 'POST', auth_header: 'Authorization', auth_prefix: '', has_token: true,
-  body_format: 'json', body: '{"target":"{phone}","message":"{message}"}', success_path: 'status', success_value: 'true', timeout: 10, default_country_code: '62',
+  body_format: 'json', session_id: 'sesi-123', body: '{"target":"{phone}","message":"{message}"}', success_path: 'status', success_value: 'true', timeout: 10, default_country_code: '62',
   updated_at: null, updated_by_email: null,
 }
 
@@ -35,6 +35,8 @@ describe('Pengaturan WhatsApp', () => {
     const sent = whatsappSettingsApi.save.mock.calls[0][0]
     expect(sent.token).toBeUndefined()
     expect(sent.url).toBe('https://wa.example.test/send')
+    expect(sent.session_id).toBe('sesi-123')
+    expect(screen.getByLabelText('Session ID gateway')).toHaveValue('sesi-123')
     expect(await screen.findByText(/Memakai pengaturan dari halaman ini/i)).toBeInTheDocument()
   })
 

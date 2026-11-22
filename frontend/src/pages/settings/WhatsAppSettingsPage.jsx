@@ -22,7 +22,7 @@ const EVENT_LABEL = {
   TEST_SENT: 'Uji kirim berhasil',
   TEST_FAILED: 'Uji kirim gagal',
 }
-const BODY_EXAMPLE = '{"target":"{phone}","message":"{message}"}'
+const BODY_EXAMPLE = '{"session_id":"{session_id}","to":"{phone}","type":"text","message":"{message}"}'
 
 function Row({ label, hint, error, children, htmlFor }) {
   return (
@@ -68,6 +68,7 @@ export default function WhatsAppSettingsPage() {
       auth_prefix: s.auth_prefix || '',
       body_format: s.body_format || 'form',
       body: s.body || '',
+      session_id: s.session_id || '',
       success_path: s.success_path || '',
       success_value: s.success_value || 'true',
       timeout: s.timeout || 10,
@@ -447,10 +448,19 @@ export default function WhatsAppSettingsPage() {
               </Row>
 
               <Row
+                label="Session ID gateway"
+                htmlFor="wa-session"
+                error={err('session_id')}
+                hint="Disimpan di sini, lalu dipakai di isi permintaan lewat {session_id}. Kosongkan bila gateway tidak memakai sesi."
+              >
+                <input id="wa-session" value={form.session_id} onChange={set('session_id')} className={INPUT} autoComplete="off" />
+              </Row>
+
+              <Row
                 label="Isi permintaan (JSON)"
                 htmlFor="wa-body"
                 error={err('body')}
-                hint="Harus memuat {phone} (62812…) atau {phone_local} (0812…) dan {message}."
+                hint="Harus memuat {phone} (62812…) atau {phone_local} (0812…) dan {message}. Boleh memuat {session_id}."
               >
                 <textarea
                   id="wa-body"

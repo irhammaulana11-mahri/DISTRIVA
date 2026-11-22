@@ -31,7 +31,7 @@ class WhatsAppSettingsController extends Controller
             'driver' => ['required', Rule::in(['null', 'log', 'http'])], 'url' => ['nullable', 'string', 'max:500'], 'method' => ['required', Rule::in(['POST', 'GET'])],
             'auth_header' => ['required', 'string', 'max:60', 'regex:/^[A-Za-z0-9\-_]+$/'], 'auth_prefix' => ['nullable', 'string', 'max:30'],
             'token' => ['nullable', 'string', 'max:500'], 'clear_token' => ['sometimes', 'boolean'], 'body_format' => ['required', Rule::in(['form', 'json'])],
-            'body' => ['nullable', 'string', 'max:2000'], 'success_path' => ['nullable', 'string', 'max:100'], 'success_value' => ['required', 'string', 'max:60'],
+            'body' => ['nullable', 'string', 'max:2000'], 'session_id' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9._\-]*$/'], 'success_path' => ['nullable', 'string', 'max:100'], 'success_value' => ['required', 'string', 'max:60'],
             'timeout' => ['required', 'integer', 'between:1,60'], 'default_country_code' => ['required', 'regex:/^[0-9]{1,4}$/'],
         ])->validate();
 

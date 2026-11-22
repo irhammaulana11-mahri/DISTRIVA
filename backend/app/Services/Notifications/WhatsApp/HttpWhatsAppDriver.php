@@ -11,7 +11,7 @@ use RuntimeException;
  * so the exact API is supplied by configuration instead of being hard-coded):
  *
  *  - request: POST/GET to `url` with an auth header and a body built from a JSON template whose string
- *    values may contain {phone} (62812…), {phone_local} (0812…) and {message};
+ *    values may contain {phone} (62812…), {phone_local} (0812…), {message} and {session_id} (the gateway's session, its own setting);
  *  - success: HTTP 2xx and, if `success_path` is set, that JSON path equals `success_value`.
  *
  * Secrets (token, URL) and the response body are never put in exception messages or logs: gateways often
@@ -38,7 +38,7 @@ class HttpWhatsAppDriver implements ChecksConfiguration, WhatsAppDriver
         }
 
         $local = '0'.substr($phone, strlen((string) config('distriva_notifications.whatsapp.default_country_code')));
-        $body = $this->fill($this->template(), ['{phone}' => $phone, '{phone_local}' => $local, '{message}' => $text]);
+        $body = $this->fill($this->template(), ['{phone}' => $phone, '{phone_local}' => $local, '{message}' => $text, '{session_id}' => trim((string) ($this->config['session_id'] ?? ''))]);
 
         $request = Http::timeout((int) ($this->config['timeout'] ?? 10))
             ->withHeaders([(string) ($this->config['auth_header'] ?? 'Authorization') => (string) ($this->config['auth_prefix'] ?? '').$this->token()])

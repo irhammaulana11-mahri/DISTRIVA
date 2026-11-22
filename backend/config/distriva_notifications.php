@@ -34,6 +34,7 @@ return [
             'token' => env('DISTRIVA_WHATSAPP_TOKEN'),
             'body_format' => env('DISTRIVA_WHATSAPP_BODY_FORMAT', 'form'), // form | json
             // JSON template; placeholders {phone} (62812…), {phone_local} (0812…), {message}
+            'session_id' => env('DISTRIVA_WHATSAPP_SESSION_ID'),           // gateway session, available as {session_id} in the body template
             'body' => env('DISTRIVA_WHATSAPP_BODY'),                       // e.g. {"target":"{phone}","message":"{message}"}
             'success_path' => env('DISTRIVA_WHATSAPP_SUCCESS_PATH'),       // optional JSON path, e.g. "status"
             'success_value' => env('DISTRIVA_WHATSAPP_SUCCESS_VALUE', 'true'),

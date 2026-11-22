@@ -112,6 +112,19 @@ class WhatsAppSettingsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_session_id_has_its_own_field_and_fills_the_session_id_placeholder_of_the_body(): void
+    {
+        $body = '{"session_id":"{session_id}","to":"{phone}","type":"text","message":"{message}"}';
+        $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload(['body' => $body, 'session_id' => '']))->assertStatus(409);        // the template needs it
+        $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload(['body' => $body, 'session_id' => 'sesi bad!']))->assertStatus(422);
+        $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload(['body' => $body, 'session_id' => 'sesi-123']))->assertOk()->assertJsonPath('data.session_id', 'sesi-123');
+
+        Http::fake(['wa.example.test/*' => Http::response(['status' => true], 200)]);
+        $this->as($this->admin)->postJson('/api/settings/whatsapp/test', ['phone' => '081234567890'])->assertOk();
+        Http::assertSent(fn ($req) => $req['session_id'] === 'sesi-123' && $req['to'] === '6281234567890' && $req['type'] === 'text');
+    }
+
+    #[Test]
     public function an_http_address_is_accepted_too(): void
     {
         $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload(['url' => 'http://127.0.0.1:3000/send']))->assertOk()->assertJsonPath('data.url', 'http://127.0.0.1:3000/send');

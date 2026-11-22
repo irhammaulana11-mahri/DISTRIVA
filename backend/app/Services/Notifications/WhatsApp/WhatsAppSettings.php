@@ -18,7 +18,7 @@ use Throwable;
 class WhatsAppSettings
 {
     /** The fields that are plain values (token apart). */
-    private const FIELDS = ['driver', 'url', 'method', 'auth_header', 'auth_prefix', 'body_format', 'body', 'success_path', 'success_value', 'timeout', 'default_country_code'];
+    private const FIELDS = ['driver', 'url', 'method', 'auth_header', 'auth_prefix', 'body_format', 'body', 'success_path', 'success_value', 'timeout', 'default_country_code', 'session_id'];
 
     public function row(): ?object
     {
@@ -41,7 +41,7 @@ class WhatsAppSettings
             'distriva_notifications.whatsapp.default_country_code' => $r->default_country_code,
             'distriva_notifications.whatsapp.http' => [
                 'url' => $r->url, 'method' => $r->method, 'auth_header' => $r->auth_header, 'auth_prefix' => $r->auth_prefix, 'token' => $this->token($r),
-                'body_format' => $r->body_format, 'body' => $r->body, 'success_path' => $r->success_path, 'success_value' => $r->success_value, 'timeout' => (int) $r->timeout,
+                'body_format' => $r->body_format, 'body' => $r->body, 'session_id' => $r->session_id, 'success_path' => $r->success_path, 'success_value' => $r->success_value, 'timeout' => (int) $r->timeout,
             ],
         ]);
     }
@@ -55,7 +55,7 @@ class WhatsAppSettings
 
             return ['source' => 'ENV', 'driver' => (string) config('distriva_notifications.whatsapp.driver'), 'url' => (string) ($c['url'] ?? ''), 'method' => (string) ($c['method'] ?? 'POST'),
                 'auth_header' => (string) ($c['auth_header'] ?? 'Authorization'), 'auth_prefix' => (string) ($c['auth_prefix'] ?? ''), 'has_token' => filled($c['token'] ?? null),
-                'body_format' => (string) ($c['body_format'] ?? 'form'), 'body' => (string) ($c['body'] ?? ''), 'success_path' => (string) ($c['success_path'] ?? ''),
+                'body_format' => (string) ($c['body_format'] ?? 'form'), 'body' => (string) ($c['body'] ?? ''), 'session_id' => (string) ($c['session_id'] ?? ''), 'success_path' => (string) ($c['success_path'] ?? ''),
                 'success_value' => (string) ($c['success_value'] ?? 'true'), 'timeout' => (int) ($c['timeout'] ?? 10), 'default_country_code' => (string) config('distriva_notifications.whatsapp.default_country_code'),
                 'updated_at' => null, 'updated_by_email' => null];
         }
@@ -90,7 +90,7 @@ class WhatsAppSettings
         if ($values['driver'] === 'http') {
             $this->assertUsable($values, $token !== null);
         }
-        foreach (['url', 'success_path'] as $f) {
+        foreach (['url', 'success_path', 'session_id'] as $f) {
             $values[$f] = $values[$f] === '' ? null : $values[$f];
         }
         $values['body'] = $values['body'] === '' ? null : $values['body'];
@@ -157,6 +157,9 @@ class WhatsAppSettings
             throw new AssignmentRuleViolation('Isi permintaan harus berupa JSON objek, mis. {"target":"{phone}","message":"{message}"}.');
         }
         $flat = json_encode($tpl);
+        if (str_contains((string) $flat, '{session_id}') && trim((string) ($v['session_id'] ?? '')) === '') {
+            throw new AssignmentRuleViolation('Isi permintaan memakai {session_id}; isi kolom Session ID.');
+        }
         foreach (['{phone}', '{message}'] as $needed) {
             if (! str_contains((string) $flat, $needed) && ! ($needed === '{phone}' && str_contains((string) $flat, '{phone_local}'))) {
                 throw new AssignmentRuleViolation("Isi permintaan harus memuat {$needed}.");
