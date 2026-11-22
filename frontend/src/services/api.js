@@ -669,6 +669,18 @@ export const reportsApi = {
     q.append('format', 'xlsx')
     return downloadBlob(`/reports/vendor-performance?${q.toString()}`)
   },
+  customerGrowth: (params = {}) => {
+    const q = new URLSearchParams()
+    for (const k of ['from', 'to', 'up3_id', 'unit_id']) if (params[k]) q.append(k, params[k])
+    const s = q.toString()
+    return request(`/reports/customer-growth${s ? '?' + s : ''}`)
+  },
+  downloadCustomerGrowthXlsx: (params = {}) => {
+    const q = new URLSearchParams()
+    for (const k of ['from', 'to', 'up3_id', 'unit_id']) if (params[k]) q.append(k, params[k])
+    q.append('format', 'xlsx')
+    return downloadBlob(`/reports/customer-growth?${q.toString()}`)
+  },
   criticalStock: (params = {}) => {
     const q = new URLSearchParams()
     if (params.up3_id) q.append('up3_id', params.up3_id)

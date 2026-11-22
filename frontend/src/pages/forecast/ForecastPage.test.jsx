@@ -128,7 +128,7 @@ describe('Forecast Beban Gardu', () => {
   })
 })
 
-describe('Forecast permintaan (pelanggan, VA, material)', () => {
+describe('Forecast permintaan (material; pelanggan dan daya pindah ke Analisis Pelanggan & Daya)', () => {
   const demandRun = { id: 'd-1', kind: 'DEMAND', status: 'SUCCEEDED', started_at: '2026-11-14T08:00:00Z', review_status: 'DRAFT', counts: {} }
   const demandDetail = {
     id: 'd-1', kind: 'DEMAND', status: 'SUCCEEDED', started_by_name: 'Planner', data_cutoff: '2026-10-01', assumptions: 'Material adalah pemakaian aktual, bukan kebutuhan pengadaan.',
@@ -180,15 +180,6 @@ describe('Forecast permintaan (pelanggan, VA, material)', () => {
     await userEvent.click(tableBtn)
     expect(screen.getByText(/Kebutuhan Kumulatif/i)).toBeInTheDocument()
     expect(screen.getByText(/Estimasi Sisa Stok/i)).toBeInTheDocument()
-  })
-
-  it('tab Pelanggan & daya memilih jenis yang diprakirakan', async () => {
-    forecastApi.series.mockResolvedValue({ data: [serie({ kind: 'CUSTOMERS_ADDED', item_code: null, item_label: null })], meta: { current_page: 1, last_page: 1, total: 1 } })
-    renderPage()
-    await userEvent.click(screen.getByRole('tab', { name: 'Pelanggan & daya (VA)' }))
-    expect(await screen.findByText('Pelanggan baru (permohonan PB)', { selector: 'h3' })).toBeInTheDocument()
-    await userEvent.selectOptions(screen.getByLabelText('Yang diprakirakan'), 'VA_ADDED')
-    await waitFor(() => expect(forecastApi.series).toHaveBeenLastCalledWith('d-1', expect.objectContaining({ kind: 'VA_ADDED' })))
   })
 
   it('riwayat yang kurang dijelaskan dengan cakupan data dan cara menambahnya, tanpa angka prakiraan', async () => {

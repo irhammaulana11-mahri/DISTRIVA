@@ -160,7 +160,6 @@ function useRuns(kind) {
 
 const TABS = [
   { key: 'gardu', label: 'Beban gardu', hint: 'Trafo mana yang akan penuh' },
-  { key: 'customers', label: 'Pelanggan & daya (VA)', hint: 'Sambungan baru per ULP' },
   { key: 'material', label: 'Material', hint: 'Pemakaian gudang 12 bulan' },
   { key: 'derived', label: 'Kebutuhan material PLN', hint: 'Trafo, tiang, dan bahan turunan' },
 ]
@@ -194,7 +193,7 @@ export default function ForecastPage() {
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Forecast Beban Gardu &amp; Kebutuhan</h1>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-                Prakiraan 1–5 tahun untuk beban trafo, 12 bulan untuk pelanggan, daya, dan material. Angka berupa nilai tengah (p50) dengan rentang p10–p90; gunakan bersama survei lapangan.
+                Prakiraan 1–5 tahun untuk beban trafo dan 12 bulan untuk material. Prakiraan pelanggan dan daya ada di menu Analisis Pelanggan & Daya. Angka berupa nilai tengah (p50) dengan rentang p10–p90; gunakan bersama survei lapangan.
               </p>
             </div>
           </div>
@@ -239,7 +238,7 @@ export default function ForecastPage() {
         ) : (
           <DemandForecast
             key={tab}
-            kinds={tab === 'customers' ? ['CUSTOMERS_ADDED', 'VA_ADDED'] : ['MATERIAL_ISSUE']}
+            kinds={['MATERIAL_ISSUE']}
             onSelectMaterial={setSelectedMaterialForDrawer}
           />
         )}
@@ -327,7 +326,7 @@ const KIND_LABEL = { CUSTOMERS_ADDED: 'Pelanggan baru (permohonan PB)', VA_ADDED
 const KIND_UNIT = { CUSTOMERS_ADDED: 'pelanggan', VA_ADDED: 'kVA', MATERIAL_ISSUE: '' }
 const num = (v) => (v == null ? '-' : Number(v).toLocaleString('id-ID', { maximumFractionDigits: v >= 100 ? 0 : 1 }))
 
-function DemandForecast({ kinds, onSelectMaterial }) {
+export function DemandForecast({ kinds, onSelectMaterial }) {
   const { can, isSysAdmin } = useAccess()
   const hook = useRuns('DEMAND')
   const { runs, runId, running, selected } = hook

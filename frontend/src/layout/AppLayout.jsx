@@ -111,6 +111,7 @@ const reportsNav = [
   { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
+  { to: '/analisis-pelanggan', label: 'Analisis Pelanggan & Daya', anyOf: ['reports.view', 'forecast.view'], icon: IconUsers },
   { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconActivity },
   { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconClock },
   { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB/SPK)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconCalculator },
@@ -157,6 +158,7 @@ const titles = {
   '/mfa': 'Pengaturan / Autentikasi Dua Faktor (MFA)',
   '/tugas': 'Operasional / Tugas & SLA',
   '/forecast': 'Laporan & Monitoring / Forecasting',
+  '/analisis-pelanggan': 'Laporan & Monitoring / Analisis Pelanggan & Daya',
   '/permohonan': 'Operasional / Permohonan (PB/PD)',
   '/permohonan/sinkronisasi-eis': 'Operasional / Sinkronisasi EIS',
   '/survei': 'Operasional / Usulan Survei',
@@ -252,6 +254,7 @@ const getSectionForPath = (path) => {
   if (
     path.startsWith('/rkm') ||
     path.startsWith('/forecast') ||
+    path.startsWith('/analisis-pelanggan') ||
     path.startsWith('/reports')
   ) {
     return 'reports'
