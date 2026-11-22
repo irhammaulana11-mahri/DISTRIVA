@@ -7,6 +7,7 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
 import KrLinesEditor, { toApiLines, validateLines } from './KrLinesEditor.jsx'
+import SearchSelect from '../../components/SearchSelect.jsx'
 
 const BACK = '/master-data/pole-contracts'
 
@@ -115,10 +116,14 @@ export function PoleContractCreatePage() {
                   </label>
                   <label className="block">
                     <span className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">UP3 pemilik KR (opsional)</span>
-                    <select value={createUp3} onChange={(e) => setCreateUp3(e.target.value)} className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800">
-                      <option value="">— tidak dicatat —</option>
-                      {options.up3.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-                    </select>
+                    <SearchSelect
+                      ariaLabel="UP3 pemilik KR"
+                      variant="form"
+                      options={[{ value: '', label: '— tidak dicatat —' }, ...options.up3.map((x) => ({ value: x.id, label: x.name }))]}
+                      value={createUp3}
+                      onChange={setCreateUp3}
+                      placeholder="Cari UP3…"
+                    />
                   </label>
                 </div>
 
@@ -295,10 +300,14 @@ export function PoleContractEditPage() {
                   </label>
                   <label className="block">
                     <span className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">UP3 pemilik KR (opsional)</span>
-                    <select value={updateUp3} onChange={(e) => setUpdateUp3(e.target.value)} className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800">
-                      <option value="">— tidak dicatat —</option>
-                      {options.up3.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-                    </select>
+                    <SearchSelect
+                      ariaLabel="UP3 pemilik KR"
+                      variant="form"
+                      options={[{ value: '', label: '— tidak dicatat —' }, ...options.up3.map((x) => ({ value: x.id, label: x.name }))]}
+                      value={updateUp3}
+                      onChange={setUpdateUp3}
+                      placeholder="Cari UP3…"
+                    />
                   </label>
                 </div>
 

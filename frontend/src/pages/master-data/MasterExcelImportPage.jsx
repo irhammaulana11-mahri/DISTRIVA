@@ -9,6 +9,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import PriceBookCloneModal from './PriceBookCloneModal.jsx'
 import { IconUpload, IconDownload, IconRefresh, IconTrash, IconCheckCircle, IconAlertCircle, IconInfo } from '../../components/icons.jsx'
+import UnitPicker from '../../components/UnitPicker.jsx'
 
 const fmtSize = (b) => (b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
 const fmtWhen = (iso) => {
@@ -72,11 +73,18 @@ function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploa
             className="block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100" />
           {kind === 'TARIF' && (
             <div>
-              <label htmlFor="mx-ulp" className="block text-[11px] font-medium text-slate-500">Jam nyala dalam berkas ini berasal dari ULP</label>
-              <select id="mx-ulp" value={ulp} onChange={(e) => setUlp(e.target.value)} className={`${input} w-full`}>
-                <option value="">Semua ULP (berlaku umum)</option>
-                {units.map((u) => <option key={u.id} value={u.code}>{u.code} · {u.name}</option>)}
-              </select>
+              <span className="block text-[11px] font-medium text-slate-500">Jam nyala dalam berkas ini berasal dari ULP (kosongkan = berlaku umum)</span>
+              <UnitPicker
+                permission="tariffs.manage"
+                level="ulp"
+                clearable
+                value={units.find((u) => u.code === ulp)?.id || ''}
+                onChange={(id, unit) => setUlp(unit?.code || '')}
+                units={units}
+                up3AriaLabel="UP3 asal jam nyala"
+                unitAriaLabel="ULP asal jam nyala"
+                className="mt-1"
+              />
             </div>
           )}
           {kind === 'TARIF' && coverage.length > 0 && (

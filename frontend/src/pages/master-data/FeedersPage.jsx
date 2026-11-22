@@ -6,6 +6,7 @@ import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { useDebounce } from '../../utils/useDebounce.js'
 import Button from '../../components/Button.jsx'
+import UnitPicker from '../../components/UnitPicker.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import Drawer from '../../components/Drawer.jsx'
@@ -254,20 +255,15 @@ function FeederFormModal({ isOpen, onClose, feeder, units, onSaved }) {
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Unit Pemilik <span className="text-rose-500">*</span>
             </label>
-            <select
-              required
-              aria-label="Unit Pemilik"
+            <UnitPicker
+              permission="feeders.manage"
+              level="any"
               value={form.owner_unit_id}
-              onChange={setVal('owner_unit_id')}
-              className={`${inputCls} w-full`}
-            >
-              <option value="">Pilih Unit Organisasi</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.code} - {u.name} ({u.unit_type})
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, owner_unit_id: v }))}
+              units={units}
+              up3AriaLabel="Unit Pemilik UP3"
+              unitAriaLabel="Unit Pemilik ULP"
+            />
             <p className="text-[11px] text-slate-500 mt-1">
               Penyulang dimiliki satu unit pengelola (UP3 atau ULP).
             </p>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { warehousesApi, adminApi } from '../../services/api.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
+import UnitPicker from '../../components/UnitPicker.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
@@ -279,19 +280,15 @@ export default function WarehouseCreatePage() {
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Unit Organisasi Pemilik *
                 </label>
-                <select
-                  required
+                <UnitPicker
+                  permission="warehouses.manage"
+                  level="any"
                   value={createUnitId}
-                  onChange={(e) => setCreateUnitId(e.target.value)}
-                  className="block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-                >
-                  <option value="">-- Pilih Unit Organisasi --</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.code} - {u.name} ({u.unit_type})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCreateUnitId}
+                  units={units}
+                  up3AriaLabel="Unit Pemilik UP3"
+                  unitAriaLabel="Unit Pemilik ULP"
+                />
               </div>
             </form>
           ) : (

@@ -114,6 +114,7 @@ describe('Gudang & Posisi Stok Master Data Workflow', () => {
     adminApi.units.mockResolvedValue({
       data: [{ id: 'unit-1', code: 'UP3-01', name: 'UP3 Banten', unit_type: 'UP3' }],
     })
+    unitScopeApi.get.mockResolvedValue(null)                       // tanpa cakupan dari server: halaman memakai daftar unit umum
     warehousesApi.list.mockResolvedValue({ data: mockWarehouses })
     warehousesApi.position.mockResolvedValue(mockPosition)
   })
@@ -162,7 +163,8 @@ describe('Gudang & Posisi Stok Master Data Workflow', () => {
     const nameInput = screen.getByPlaceholderText(/Contoh: Gudang Induk/i)
     fireEvent.change(codeInput, { target: { value: 'GD-ULP2' } })
     fireEvent.change(nameInput, { target: { value: 'Gudang ULP Sentosa' } })
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'unit-1')
+    await userEvent.click(screen.getByRole('combobox', { name: 'Unit Pemilik UP3' }))
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Banten/ }))
 
     warehousesApi.create.mockResolvedValue({ data: { id: 'wh-3', code: 'GD-ULP2', name: 'Gudang ULP Sentosa' } })
     await userEvent.click(screen.getByRole('button', { name: /Simpan Gudang/i }))

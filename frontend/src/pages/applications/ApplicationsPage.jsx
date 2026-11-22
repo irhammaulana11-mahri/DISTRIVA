@@ -6,6 +6,7 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Spinner from '../../components/Spinner.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
+import UnitPicker from '../../components/UnitPicker.jsx'
 import StatusBadge, { formatStatusLabel } from '../../components/StatusBadge.jsx'
 import { useDebounce } from '../../utils/useDebounce.js'
 import TableFooter from '../../components/TableFooter.jsx'
@@ -1211,17 +1212,16 @@ export function ApplicationCreateDrawer({ open, asPage = false, createUnits = []
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Unit Layanan Pelanggan (ULP) <span className="text-rose-500">*</span>
             </label>
-            <select
-              value={unitId}
-              onChange={(e) => setUnitId(e.target.value)}
+            <UnitPicker
+              permission="applications.create"
+              level="ulp"
               required
-              className="block w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring cursor-pointer"
-            >
-              <option value="">Pilih Unit ULP</option>
-              {createUnits.map((u) => (
-                <option key={u.id} value={u.id}>{u.code} - {u.name}</option>
-              ))}
-            </select>
+              value={unitId}
+              onChange={setUnitId}
+              units={createUnits}
+              up3AriaLabel="UP3"
+              unitAriaLabel="Unit ULP"
+            />
             {fieldErrors.organizational_unit_id && (
               <p className="mt-1 text-xs text-rose-500">{fieldErrors.organizational_unit_id[0]}</p>
             )}

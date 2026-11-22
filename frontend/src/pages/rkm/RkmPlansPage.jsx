@@ -18,6 +18,7 @@ import {
   IconFileText,
 } from '../../components/icons.jsx'
 import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
+import SearchSelect from '../../components/SearchSelect.jsx'
 
 export default function RkmPlansPage() {
   const { can } = useAccess()
@@ -298,18 +299,14 @@ export default function RkmPlansPage() {
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Unit UP3 Induk *
             </label>
-            <select
+            <SearchSelect
+              ariaLabel="Unit UP3 Induk"
               required
+              options={up3Units.map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` }))}
               value={up3UnitId}
-              onChange={(e) => setUp3UnitId(e.target.value)}
-              className={`${filterSelectCls} w-full`}
-            >
-              {up3Units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.code} - {u.name}
-                </option>
-              ))}
-            </select>
+              onChange={setUp3UnitId}
+              placeholder="Cari UP3…"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

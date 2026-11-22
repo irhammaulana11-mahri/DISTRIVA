@@ -381,7 +381,8 @@ describe('Buku Harga Kontrak Workflow (Tahap 5A - docs/67)', () => {
     })
     const unitSelect = screen.getByRole('combobox', { name: 'Pilih Unit UP3' })
     const zoneSelect = screen.getByRole('combobox', { name: 'Pilih Zona Tarif' })
-    await userEvent.selectOptions(unitSelect, 'unit-surabaya-uuid')
+    await userEvent.click(unitSelect)
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Surabaya Barat/ }))
     await userEvent.selectOptions(zoneSelect, '3')
 
     const reasonInput = screen.getByPlaceholderText(/Jelaskan dasar surat penetapan/i)

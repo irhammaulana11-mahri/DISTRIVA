@@ -437,9 +437,9 @@ describe('admin UI', () => {
     renderAt('/admin/users/a1')
 
     await screen.findByRole('option', { name: 'TEKNIK' }) // options load asynchronously
-    await screen.findByRole('option', { name: /ULP-1 — ULP Satu/ })
     await userEvent.selectOptions(screen.getByLabelText('Role'), '5')
-    await userEvent.selectOptions(screen.getByLabelText('Unit'), 'u9')
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Unit ULP' }))
+    await userEvent.click(await screen.findByRole('option', { name: /ULP-1 - ULP Satu/ }))
     await userEvent.type(screen.getByLabelText('Berlaku mulai'), '2026-11-06')
     await userEvent.type(screen.getByLabelText('Alasan', { selector: '#assign_reason' }), 'Mutasi')
     await userEvent.click(screen.getByRole('button', { name: 'Tambah penugasan' }))
@@ -618,12 +618,12 @@ describe('admin UI', () => {
 
     async function fillNewUser() {
       await screen.findByRole('option', { name: 'TEKNIK' })
-      await screen.findByRole('option', { name: /ULP-1 — ULP Satu/ })
       await userEvent.type(screen.getByLabelText('Nama lengkap'), 'Siti Aminah')
       await userEvent.type(screen.getByLabelText('Email'), 'siti@example.com')
       await userEvent.type(screen.getByLabelText('Nomor WhatsApp (opsional)'), '0812-3456-7890')
       await userEvent.selectOptions(screen.getByLabelText('Role'), '5')
-      await userEvent.selectOptions(screen.getByLabelText('Unit'), 'u9')
+      await userEvent.click(await screen.findByRole('combobox', { name: 'Unit ULP' }))
+      await userEvent.click(await screen.findByRole('option', { name: /ULP-1 - ULP Satu/ }))
       await userEvent.type(screen.getByLabelText('Berlaku mulai'), '2026-11-06')
       await userEvent.type(screen.getByLabelText('Dokumen penugasan'), 'SK-1')
       await userEvent.type(screen.getByLabelText('Alasan'), 'Pegawai baru')

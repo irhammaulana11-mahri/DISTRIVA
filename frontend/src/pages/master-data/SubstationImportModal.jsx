@@ -5,6 +5,7 @@ import Alert from '../../components/Alert.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
 import { IconUpload, IconCheck, IconDownload } from '../../components/icons.jsx'
 import { downloadCsv, SUBSTATION_MASTER_TEMPLATE } from '../../utils/csvTemplates.js'
+import UnitPicker from '../../components/UnitPicker.jsx'
 
 const ACTION_LABEL = { NEW: 'Baru', CHANGED: 'Berubah', UNCHANGED: 'Tetap', REJECT: 'Ditolak' }
 const ACTION_CLS = {
@@ -180,21 +181,17 @@ export default function SubstationImportModal({ open, asPage = false, onClose, u
             </label>
             <label className="block font-semibold">
               Unit bawaan (untuk baris tanpa ULP_CODE dan tanpa SSOTNUMG)
-              <select
-                aria-label="Unit bawaan"
+              <UnitPicker
+                permission="substations.import"
+                level="ulp"
+                clearable
                 value={unitId}
-                onChange={(e) => setUnitId(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-              >
-                <option value="">— tidak ada (baris tanpa unit ditolak) —</option>
-                {units
-                  .filter((u) => u.unit_type === 'ULP')
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.code} - {u.name}
-                    </option>
-                  ))}
-              </select>
+                onChange={setUnitId}
+                units={units}
+                up3AriaLabel="Unit bawaan UP3"
+                unitAriaLabel="Unit bawaan"
+                className="mt-1"
+              />
             </label>
             <label className="inline-flex items-start gap-2 font-semibold">
               <input aria-label="Daftar lengkap" type="checkbox" checked={full} onChange={(e) => setFull(e.target.checked)} className="mt-0.5" />

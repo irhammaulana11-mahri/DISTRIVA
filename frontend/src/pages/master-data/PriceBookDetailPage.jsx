@@ -25,6 +25,7 @@ import {
   IconX,
 } from '../../components/icons.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import SearchSelect from '../../components/SearchSelect.jsx'
 
 // Indonesian currency formatter without client-side rounding
 function formatRupiah(val) {
@@ -791,20 +792,14 @@ export default function PriceBookDetailPage() {
                 {loadingUnits ? (
                   <div className="py-2 text-slate-400">Memuat daftar unit UP3...</div>
                 ) : (
-                  <select
-                    aria-label="Pilih Unit UP3"
+                  <SearchSelect
+                    ariaLabel="Pilih Unit UP3"
                     required
+                    options={[{ value: '', label: '-- Pilih Unit Kerja UP3 --' }, ...up3Units.map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` }))]}
                     value={selectedUnitId}
-                    onChange={(e) => setSelectedUnitId(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus-ring"
-                  >
-                    <option value="">-- Pilih Unit Kerja UP3 --</option>
-                    {up3Units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.code} - {u.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedUnitId}
+                    placeholder="Cari UP3…"
+                  />
                 )}
               </div>
 

@@ -13,6 +13,7 @@ import { describeDelivery } from '../../features/admin/delivery.js'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
 import { IconArrowLeft, IconUser, IconKey, IconShield } from '../../components/icons.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import UnitPicker from '../../components/UnitPicker.jsx'
 
 const STATUSES = [
   ['ACTIVE', 'Aktif'],
@@ -385,11 +386,16 @@ function AssignForm({ userId, onDone }) {
         </div>
 
         <div>
-          <label htmlFor="organizational_unit_id" className="block text-sm font-medium text-slate-700">Unit</label>
-          <select id="organizational_unit_id" value={form.organizational_unit_id} onChange={set('organizational_unit_id')} className={select}>
-            <option value="">Pilih unit</option>
-            {units.map((u) => <option key={u.id} value={u.id}>{u.code} — {u.name}</option>)}
-          </select>
+          <span className="block text-sm font-medium text-slate-700">Unit</span>
+          <UnitPicker
+            permission="role_assignments.assign"
+            level="any"
+            value={form.organizational_unit_id}
+            onChange={(v) => setForm((f) => ({ ...f, organizational_unit_id: v }))}
+            units={units}
+            up3AriaLabel="Unit UP3"
+            unitAriaLabel="Unit ULP"
+          />
           {errors.organizational_unit_id && <p className="mt-1 text-sm text-red-600">{errors.organizational_unit_id}</p>}
         </div>
 

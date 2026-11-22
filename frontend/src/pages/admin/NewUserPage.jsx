@@ -7,6 +7,7 @@ import Alert from '../../components/Alert.jsx'
 import Card from '../../components/Card.jsx'
 import { IconArrowLeft, IconUsers, IconShield } from '../../components/icons.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import UnitPicker from '../../components/UnitPicker.jsx'
 
 const empty = {
   name: '',
@@ -199,16 +200,16 @@ export default function NewUserPage() {
           </div>
 
           <div>
-            <label htmlFor="organizational_unit_id" className="block text-sm font-medium text-slate-700">Unit</label>
-            <select
-              id="organizational_unit_id"
+            <span className="block text-sm font-medium text-slate-700">Unit</span>
+<UnitPicker
+              permission="role_assignments.assign"
+              level="any"
               value={form.organizational_unit_id}
-              onChange={set('organizational_unit_id')}
-              className={selectStyle}
-            >
-              <option value="">Pilih unit</option>
-              {units.map((u) => <option key={u.id} value={u.id}>{u.code} — {u.name}</option>)}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, organizational_unit_id: v }))}
+              units={units}
+              up3AriaLabel="Unit UP3"
+              unitAriaLabel="Unit ULP"
+            />
             {errors.organizational_unit_id && <p className="mt-1 text-sm text-red-600">{errors.organizational_unit_id}</p>}
           </div>
 
