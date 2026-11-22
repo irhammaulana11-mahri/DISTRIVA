@@ -127,14 +127,14 @@ describe('SPK / WO per No. Agenda', () => {
   it('filter "Perlu dibuat" menyaring agenda yang masih bisa dibuatkan WO, dan tidak ada untuk vendor', async () => {
     const view = mount({ 'wo.view': true, 'wo.create': true })
     await screen.findByText('5145320260001')
-    fireEvent.click(screen.getByRole('button', { name: /Perlu dibuat/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Perlu dibuat/i }))
     expect(screen.queryByText('5145320260001')).not.toBeInTheDocument()
     expect(screen.getByText('PB-002')).toBeInTheDocument()
     view.unmount()
 
     mount({ 'vendor.portal': true })
     await screen.findByText('5145320260001')
-    expect(screen.queryByRole('button', { name: /Perlu dibuat/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Perlu dibuat/i })).not.toBeInTheDocument()
   })
 
   it('pencarian mencakup nomor surat tiang dan vendor', async () => {
@@ -163,7 +163,7 @@ describe('SPK / WO per No. Agenda', () => {
     expect(within(row).getByText('Outbox: Diserahkan sebagian')).toBeInTheDocument()      // kelengkapan penyerahan
     expect(within(row).getByText('Siap serah')).toBeInTheDocument()                     // ada material baru teralokasi
     expect(within(row).getByText('Perlu tindak lanjut')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Outbox perlu tindak lanjut/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Outbox perlu tindak lanjut/i }))
     expect(screen.getByText('5145320260001')).toBeInTheDocument()
     expect(screen.queryByText('PB-002')).not.toBeInTheDocument()
   })
@@ -172,7 +172,7 @@ describe('SPK / WO per No. Agenda', () => {
     mount({ 'wo.view': true, 'material_requests.view': true }, '/work-orders?filter=followup')
     expect(await screen.findByText('5145320260001')).toBeInTheDocument()
     expect(screen.queryByText('PB-002')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Outbox perlu tindak lanjut/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('tab', { name: /Outbox perlu tindak lanjut/i })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('halaman agenda: tab Permintaan Material memuat Outbox agenda itu, dapat dibuka langsung lewat ?tab=material', async () => {

@@ -154,7 +154,7 @@ export default function KkfParametersPage() {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={loadSets}
               icon={IconRefresh}
               aria-label="Segarkan data parameter KKF"
@@ -162,14 +162,14 @@ export default function KkfParametersPage() {
               Segarkan
             </Button>
             {canManage && (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
+                icon={IconPlus}
                 onClick={() => navigate('/master-data/kkf-parameters/baru')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
-                <IconPlus className="h-4 w-4" />
-                <span>Buat Draf Parameter</span>
-              </button>
+                Buat Draf Parameter
+              </Button>
             )}
           </div>
         </div>
@@ -233,30 +233,29 @@ export default function KkfParametersPage() {
       {error && <Alert kind="error">{error}</Alert>}
 
       {/* Filter Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex space-x-2 overflow-x-auto pb-2">
-          {[
-            { id: 'ALL', label: 'Semua Status' },
-            { id: 'DRAFT', label: 'Draf (Menunggu Persetujuan)' },
-            { id: 'APPROVED', label: 'Disetujui (Aktif)' },
-            { id: 'INACTIVE', label: 'Nonaktif' },
-            { id: 'DISCARDED', label: 'Dibatalkan' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setStatusFilter(tab.id)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-xl whitespace-nowrap transition cursor-pointer ${
-                statusFilter === tab.id
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+      <div role="tablist" aria-label="Status Parameter KKF" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+        {[
+          { id: 'ALL', label: 'Semua Status' },
+          { id: 'DRAFT', label: 'Draf (Menunggu Persetujuan)' },
+          { id: 'APPROVED', label: 'Disetujui (Aktif)' },
+          { id: 'INACTIVE', label: 'Nonaktif' },
+          { id: 'DISCARDED', label: 'Dibatalkan' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === tab.id}
+            onClick={() => setStatusFilter(tab.id)}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+              statusFilter === tab.id
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Main Table Card */}

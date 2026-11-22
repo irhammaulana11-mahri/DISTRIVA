@@ -441,14 +441,14 @@ export default function RkmVersionDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('proposals')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
             activeTab === 'proposals'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           Usulan ULP ({version.proposals?.length || 0})
@@ -456,10 +456,10 @@ export default function RkmVersionDetailPage() {
         <button
           type="button"
           onClick={() => setActiveTab('requirements')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
             activeTab === 'requirements'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           Panel Kebutuhan Bersih (UP3)
@@ -467,10 +467,10 @@ export default function RkmVersionDetailPage() {
         <button
           type="button"
           onClick={() => setActiveTab('audit')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
             activeTab === 'audit'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           Riwayat Keputusan & Penyesuaian
@@ -478,10 +478,10 @@ export default function RkmVersionDetailPage() {
         <button
           type="button"
           onClick={() => setActiveTab('reports')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
             activeTab === 'reports'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           Laporan RKM

@@ -7,6 +7,8 @@ import Drawer from './Drawer.jsx'
  */
 export default function PanelShell({ asPage = false, onClose, onBack, ...drawerProps }) {
   if (!asPage) return <Drawer onClose={onClose} {...drawerProps} />
+  const isDrawerOpen = Boolean(drawerProps.open ?? drawerProps.isOpen ?? true)
+  if (!isDrawerOpen) return null
   const { title, subtitle, eyebrow, children, footer } = drawerProps
   return (
     <div className="space-y-4">

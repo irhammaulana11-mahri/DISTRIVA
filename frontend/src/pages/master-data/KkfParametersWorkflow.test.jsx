@@ -187,7 +187,7 @@ describe('Parameter KKF Workflow (docs/68)', () => {
     })
 
     // Click 'Draf' tab specifically
-    const draftTab = screen.getByRole('button', { name: 'Draf (Menunggu Persetujuan)' })
+    const draftTab = screen.getByRole('tab', { name: 'Draf (Menunggu Persetujuan)' })
     await user.click(draftTab)
 
     expect(kkfParametersApi.list).toHaveBeenCalledWith({ status: 'DRAFT' })

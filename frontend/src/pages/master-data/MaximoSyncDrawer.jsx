@@ -52,7 +52,7 @@ function SummaryText({ run }) {
  * Sinkronisasi Maximo dari DISTRIVA: WO inspeksi gardu (INST1) yang selesai ditarik dari Maximo lalu dimuat sebagai pembacaan gardu
  * (beban dan tegangan per jurusan). Pengaturan akun dan jadwal harian, tombol sinkron manual, log sesi berjalan, dan riwayat sesi.
  */
-export default function MaximoSyncDrawer({ open, onClose, onSynced }) {
+export default function MaximoSyncDrawer({ open = true, asPage = false, onClose, onSynced }) {
   const [settings, setSettings] = useState(null)
   const [form, setForm] = useState(null)
   const [runs, setRuns] = useState({ rows: [], meta: null })
@@ -190,7 +190,16 @@ export default function MaximoSyncDrawer({ open, onClose, onSynced }) {
   const lastRun = runs.rows[0] || null
 
   return (
-    <PanelShell open={open} onClose={onClose} onBack={onClose} title="Sinkronisasi Maximo" subtitle="Tarik WO inspeksi gardu dari Maximo menjadi pembacaan beban dan tegangan per jurusan" size="max-w-3xl" width="max-w-3xl">
+    <PanelShell
+      open={open}
+      asPage={asPage}
+      onClose={onClose}
+      onBack={onClose}
+      title="Sinkronisasi Maximo"
+      subtitle="Tarik WO inspeksi gardu dari Maximo menjadi pembacaan beban dan tegangan per jurusan"
+      size={asPage ? 'max-w-6xl' : 'max-w-3xl'}
+      width={asPage ? 'max-w-6xl' : 'max-w-3xl'}
+    >
       {!form ? (
         <div className="py-16 text-center text-xs text-slate-500">
           <IconRefresh size={24} className="animate-spin mx-auto text-blue-600 mb-2" />

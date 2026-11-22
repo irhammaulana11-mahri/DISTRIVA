@@ -143,10 +143,20 @@ export default function StockSyncHistory({ warehouses, onViewSnapshot, onTotal, 
       {!state.configured && (
         <Alert kind="warning">Penarikan MIMS otomatis belum dikonfigurasi di server (URL basis dan token MIMS belum disetel pada environment server).</Alert>
       )}
-      <div role="tablist" aria-label="Jenis data MIMS" className="flex flex-wrap gap-1.5">
+      <div role="tablist" aria-label="Jenis data MIMS" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
         {KINDS.map((k) => (
-          <button key={k.key} type="button" role="tab" aria-selected={kind === k.key} onClick={() => pickKind(k.key)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${kind === k.key ? 'bg-blue-600 text-white shadow-2xs' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+          <button
+            key={k.key}
+            type="button"
+            role="tab"
+            aria-selected={kind === k.key}
+            onClick={() => pickKind(k.key)}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px cursor-pointer transition whitespace-nowrap ${
+              kind === k.key
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
             {k.label}
           </button>
         ))}

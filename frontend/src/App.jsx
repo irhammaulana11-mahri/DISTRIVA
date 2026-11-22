@@ -61,7 +61,7 @@ import { ConstructionImportPage, KkfParameterCreatePage, KkfParameterEditPage } 
 import { KhsDraftEditPage, KhsImportPage } from './pages/master-data/KhsPages.jsx'
 import { MaterialEditPage, MaterialImportPage } from './pages/master-data/MaterialPages.jsx'
 import { CategoryCreatePage, CategoryEditPage, UomCreatePage, UomEditPage } from './pages/master-data/CategoryPages.jsx'
-import { SubstationDetailPage, SubstationEditPage, SubstationMeasurementDetailPage } from './pages/master-data/SubstationPages.jsx'
+import { SubstationDetailPage, SubstationEditPage, SubstationMeasurementDetailPage, MaximoSyncPage } from './pages/master-data/SubstationPages.jsx'
 import { UnitCreatePage, UnitEditPage } from './pages/admin/UnitPages.jsx'
 import { BomImportPage, PriceBookImportPage, SubstationImportPage, SubstationReadingsImportPage, TariffBookImportPage } from './pages/master-data/ImportPages.jsx'
 import { ApplicationCreatePage, ApplicationDetailPage, ApplicationImportPage, EisSyncPage } from './pages/applications/ApplicationPages.jsx'
@@ -98,6 +98,12 @@ function RequireCapability({ capability, anyOf, children }) {
   if (loading) return <Spinner />
   const allowed = anyOf ? anyOf.some((c) => Boolean(can[c])) : Boolean(can[capability])
   return allowed ? children : <NotFoundPage />
+}
+
+function RequireSysAdmin({ children }) {
+  const { loading, isSysAdmin } = useAccess()
+  if (loading) return <Spinner />
+  return isSysAdmin ? children : <ForbiddenPage capability="whatsapp.settings.manage" />
 }
 
 export default function App() {
@@ -153,6 +159,7 @@ export default function App() {
         <Route path="master-data/substations/:id/ubah" element={<RequireCapability capability="substations.manage"><SubstationEditPage /></RequireCapability>} />
         <Route path="master-data/substation-measurements" element={<RequireCapability capability="substations.view"><SubstationMeasurementsPage /></RequireCapability>} />
         <Route path="master-data/substation-measurements/impor" element={<RequireCapability capability="substations.reading"><SubstationReadingsImportPage /></RequireCapability>} />
+        <Route path="master-data/substation-measurements/sinkronisasi-maximo" element={<RequireCapability capability="substations.sync"><MaximoSyncPage /></RequireCapability>} />
         <Route path="master-data/substation-measurements/:id" element={<RequireCapability capability="substations.view"><SubstationMeasurementDetailPage /></RequireCapability>} />
         <Route path="master-data/feeders" element={<RequireCapability capability="feeders.view"><FeedersPage /></RequireCapability>} />
         <Route path="master-data/customers" element={<RequireCapability capability="customers.view"><CustomersPage /></RequireCapability>} />
@@ -195,7 +202,7 @@ export default function App() {
         <Route path="survei/:id" element={<RequireCapability capability="surveys.view"><SurveyDetailPage /></RequireCapability>} />
         <Route path="gambar/:id" element={<RequireCapability capability="drawings.view"><DrawingDetailPage /></RequireCapability>} />
         <Route path="mto/:id" element={<RequireCapability capability="mto.view"><MtoDetailPage /></RequireCapability>} />
-        <Route path="pengaturan/whatsapp" element={<WhatsAppSettingsPage />} />
+        <Route path="pengaturan/whatsapp" element={<RequireSysAdmin><WhatsAppSettingsPage /></RequireSysAdmin>} />
         <Route path="sistem/backup" element={<RequireCapability capability="backups.view"><BackupPage /></RequireCapability>} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

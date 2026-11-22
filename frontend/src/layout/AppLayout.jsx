@@ -40,6 +40,7 @@ import {
   IconClock,
   IconAlertCircle,
   IconRefresh,
+  IconBrandWhatsapp,
 } from '../components/icons.jsx'
 import { MODULE_DOMAINS } from '../features/modules/moduleRegistry.js'
 import { resolveMenuProfiles, visibleForProfiles } from '../features/dashboard/profiles.js'
@@ -66,22 +67,19 @@ const nav = [
   { to: '/', label: 'Dashboard', icon: IconHome, end: true },
 ]
 
-// 2. Pelayanan & Operasional Jaringan (PB/PD, Tugas & SLA, Survei, Usulan, Pengukuran, SPK)
+// 2. Pelayanan & Operasional Jaringan (PB/PD, Tugas & SLA, Survei, Usulan, Pengukuran, SPK, Gudang)
 const operationsNav = [
-  { to: '/permohonan', label: 'Permohonan Pelanggan (PB/PD)', capability: 'applications.view', icon: IconFileText },
+  { to: '/permohonan', label: 'Permohonan (PB/PD)', capability: 'applications.view', icon: IconFileText },
   { to: '/tugas', label: 'Tugas & SLA', capability: 'tasks.view', icon: IconClipboard },
   { to: '/survei', label: 'Usulan Survei', capability: 'surveys.view', icon: IconClipboard },
   { to: '/usulan', label: 'Usulan Perluasan', capability: 'proposals.view', icon: IconUsers },
   { to: '/master-data/substation-measurements', label: 'Pengukuran Gardu', capability: 'substations.view', icon: IconActivity },
-  { to: '/work-orders', label: 'Surat Perintah Kerja (SPK / WO)', anyOf: ['wo.view', 'pole_wo.view', 'vendor.portal'], icon: IconWrench },
-]
-
-// 3. Perencanaan & Logistik (RKM, Forecast Beban Gardu, Gudang & Stok Material)
-const planningNav = [
-  { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
-  { to: '/forecast', label: 'Forecast Beban Gardu', capability: 'forecast.view', icon: IconChart },
+  { to: '/work-orders', label: 'SPK & Work Order', anyOf: ['wo.view', 'pole_wo.view', 'vendor.portal'], icon: IconWrench },
   { to: '/master-data/warehouses', label: 'Gudang & Stok Material', capability: 'master_data.view', profiles: ['konstruksi', 'executive', 'mulp'], icon: IconBuilding },
 ]
+
+// 3. Perencanaan & Logistik (kosong karena dipindah ke Laporan & Operasional)
+const planningNav = []
 
 // 3. Master Data (Dikelompokkan secara logis & disaring kewenangan)
 const masterDataNav = [
@@ -96,7 +94,7 @@ const masterDataNav = [
 
   // Material & Logistik
   { to: '/master-data/materials', label: 'Katalog Material ERP', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconTag, group: 'Material & Logistik' },
-  { to: '/master-data/mapping', label: 'Pemetaan Material (SKU↔KHS)', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconTag, group: 'Material & Logistik' },
+  { to: '/master-data/mapping', label: 'Pemetaan SKU↔KHS', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconTag, group: 'Material & Logistik' },
   { to: '/master-data/categories', label: 'Kategori & Satuan', capability: 'master_data.view', profiles: ['perencanaan', 'konstruksi', 'executive', 'mulp'], icon: IconFolder, group: 'Material & Logistik' },
 
   // Keuangan & Tarif
@@ -108,30 +106,32 @@ const masterDataNav = [
   { to: '/master-data/excel-import', label: 'Impor dari Excel', anyOf: ['bom.manage', 'prices.manage', 'tariffs.manage'], profiles: ['perencanaan'], icon: IconUpload, group: 'Keuangan & Tarif' },
 ]
 
-// 4. Laporan & Monitoring (Terbagi ke sub-halaman sesuai peran & kewenangan)
+// 4. Laporan & Monitoring (RKM, Forecasting, serta sub-halaman analitika)
 const reportsNav = [
-  { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif & KPI', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
+  { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
+  { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
+  { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
   { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconActivity },
   { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconClock },
-  { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB vs SPK)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconCalculator },
+  { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB/SPK)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconCalculator },
   { to: '/reports/critical-stock', tabId: 'criticalStock', label: 'Stok Kritis & Material', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'konstruksi', 'admin'], icon: IconTruck },
   { to: '/reports/vendor-performance', tabId: 'vendorPerformance', label: 'Rapor Kinerja Vendor', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'admin'], icon: IconClipboard },
   { to: '/reports/kkf-feasibility', tabId: 'kkfFeasibility', label: 'Analisis Kelayakan KKF', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconZap },
-  { to: '/reports/erp-anomalies', tabId: 'erpAnomalies', label: 'Anomali & Rekonsiliasi ERP', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconAlertCircle },
+  { to: '/reports/erp-anomalies', tabId: 'erpAnomalies', label: 'Anomali & Rekonsiliasi', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconAlertCircle },
 ]
 
 // 5. Administrasi (Pengguna, Unit, Mitra)
 const adminNav = [
   { to: '/admin/users', label: 'Pengguna', capability: 'users.view', icon: IconUsers },
-  { to: '/admin/units', label: 'Unit organisasi', capability: 'organizational_units.view', icon: IconBuilding },
+  { to: '/admin/units', label: 'Unit Organisasi', capability: 'organizational_units.view', icon: IconBuilding },
   { to: '/master-data/vendors', label: 'Mitra & Vendor', capability: 'vendors.manage', icon: IconTruck },
 ]
 
 // 6. Pengaturan & Sistem (MFA, Backup)
 const settingsNav = [
   { to: '/mfa', label: 'Keamanan MFA', capability: 'mfa.manage', sysAdminOnly: true, icon: IconShield },
-  { to: '/pengaturan/whatsapp', label: 'WhatsApp', capability: 'whatsapp.settings.manage', sysAdminOnly: true, icon: IconMail },
-  { to: '/sistem/backup', label: 'Backup & Pemulihan Sistem', capability: 'backups.view', icon: IconDatabase },
+  { to: '/pengaturan/whatsapp', label: 'Pengaturan WhatsApp', capability: 'whatsapp.settings.manage', sysAdminOnly: true, icon: IconBrandWhatsapp },
+  { to: '/sistem/backup', label: 'Backup & Pemulihan', capability: 'backups.view', icon: IconDatabase },
 ]
 
 const REPORT_TITLES = {
@@ -156,22 +156,23 @@ const titles = {
   '/ubah-password': 'Profil & Keamanan Akun / Ubah Password',
   '/mfa': 'Pengaturan / Autentikasi Dua Faktor (MFA)',
   '/tugas': 'Operasional / Tugas & SLA',
-  '/forecast': 'Perencanaan / Forecast Beban Gardu',
+  '/forecast': 'Laporan & Monitoring / Forecasting',
   '/permohonan': 'Operasional / Permohonan (PB/PD)',
   '/permohonan/sinkronisasi-eis': 'Operasional / Sinkronisasi EIS',
   '/survei': 'Operasional / Usulan Survei',
   '/usulan': 'Operasional / Usulan Perluasan',
   '/work-orders': 'Operasional / Surat Perintah Kerja (SPK / WO)',
-  '/rkm': 'Perencanaan & Logistik / RKM Distribusi',
-  '/master-data/warehouses': 'Perencanaan & Logistik / Gudang & Stok Material',
-  '/master-data/warehouses/tarik-mims': 'Perencanaan & Logistik / Tarik Stok MIMS',
+  '/rkm': 'Laporan & Monitoring / RKM Distribusi',
+  '/master-data/warehouses': 'Operasional / Gudang & Stok Material',
+  '/master-data/warehouses/tarik-mims': 'Operasional / Tarik Stok MIMS',
   '/master-data/substations': 'Master Data / Master Gardu',
   '/master-data/substation-measurements': 'Operasional / Pengukuran Gardu',
+  '/master-data/substation-measurements/sinkronisasi-maximo': 'Operasional / Pengukuran Gardu / Sinkronisasi Maximo',
   '/master-data/feeders': 'Master Data / Master Penyulang',
   '/master-data/customers': 'Master Data / Master Pelanggan',
   '/master-data/materials': 'Master Data / Katalog Material ERP',
   '/master-data/khs': 'Master Data / Katalog Harga Satuan (KHS)',
-  '/master-data/mapping': 'Master Data / Pemetaan Material (SKU↔KHS)',
+  '/master-data/mapping': 'Master Data / Pemetaan SKU↔KHS',
   '/master-data/constructions': 'Master Data / Standar Konstruksi',
   '/master-data/bom': 'Master Data / Bill of Materials (BOM)',
   '/master-data/harga': 'Master Data / Buku Harga Kontrak',
@@ -186,7 +187,7 @@ const titles = {
   '/admin/units/baru': 'Administrasi / Unit Organisasi / Tambah',
   '/master-data/vendors': 'Administrasi / Mitra & Vendor',
   '/reports': 'Laporan & Monitoring / Pusat Analitika Eksekutif',
-  '/pengaturan/whatsapp': 'Pengaturan / WhatsApp',
+  '/pengaturan/whatsapp': 'Pengaturan / Pengaturan WhatsApp',
   '/sistem/backup': 'Pengaturan / Backup & Pemulihan Sistem',
 }
 
@@ -209,7 +210,7 @@ const titleFor = (path, search = '') => {
   if (path.startsWith('/permohonan/')) return 'Operasional / Permohonan (PB/PD) / Detail Permohonan'
   if (path.startsWith('/tugas/')) return 'Operasional / Tugas & SLA / Detail Tugas'
   if (path.startsWith('/usulan/')) return 'Operasional / Usulan Perluasan / Detail'
-  if (path.startsWith('/master-data/warehouses/')) return 'Perencanaan & Logistik / Gudang / Detail & Impor Stok'
+  if (path.startsWith('/master-data/warehouses/')) return 'Operasional / Gudang / Detail & Impor Stok'
   if (path.startsWith('/master-data/materials/impor')) return 'Master Data / Katalog Material ERP / Impor'
   if (path.startsWith('/master-data/materials/')) return 'Master Data / Katalog Material ERP / Ubah'
   if (path.startsWith('/master-data/khs/impor')) return 'Master Data / Katalog Harga Satuan (KHS) / Impor'
@@ -230,12 +231,13 @@ const titleFor = (path, search = '') => {
   if (path.startsWith('/master-data/substations/')) return 'Master Data / Master Gardu / Detail'
   if (path.startsWith('/master-data/feeders/impor')) return 'Master Data / Master Penyulang / Impor'
   if (path.startsWith('/master-data/customers/impor')) return 'Master Data / Master Pelanggan / Impor'
+  if (path === '/master-data/substation-measurements/sinkronisasi-maximo') return 'Operasional / Pengukuran Gardu / Sinkronisasi Maximo'
   if (path.startsWith('/master-data/substation-measurements/')) return 'Operasional / Pengukuran Gardu / Detail'
   if (path.startsWith('/master-data/kkf-parameters/')) return 'Master Data / Detail Parameter KKF'
-  if (path.startsWith('/rkm/versions/')) return 'Perencanaan & Logistik / RKM / Detail Versi'
+  if (path.startsWith('/rkm/versions/')) return 'Laporan & Monitoring / RKM / Detail Versi'
   if (path.startsWith('/survei/')) return 'Operasional / Usulan Survei / Detail'
   if (path.startsWith('/gambar/')) return 'Operasional / Detail Gambar Teknik'
-  if (path.startsWith('/mto/')) return 'Perencanaan & Logistik / Detail MTO'
+  if (path.startsWith('/mto/')) return 'Operasional / Detail MTO'
   if (path.startsWith('/modul/')) {
     const slug = path.replace('/modul/', '')
     const mod = MODULE_DOMAINS.find((m) => m.slug === slug)
@@ -250,16 +252,13 @@ const getSectionForPath = (path) => {
   if (
     path.startsWith('/rkm') ||
     path.startsWith('/forecast') ||
-    path.startsWith('/master-data/warehouses')
+    path.startsWith('/reports')
   ) {
-    return 'planning'
+    return 'reports'
   }
-  if (path.startsWith('/master-data/substation-measurements')) {
-    return 'operations'
-  }
-  if (path.startsWith('/master-data')) return 'masterData'
-  if (path.startsWith('/reports')) return 'reports'
   if (
+    path.startsWith('/master-data/warehouses') ||
+    path.startsWith('/master-data/substation-measurements') ||
     path.startsWith('/permohonan') ||
     path.startsWith('/tugas') ||
     path.startsWith('/survei') ||
@@ -272,6 +271,7 @@ const getSectionForPath = (path) => {
   ) {
     return 'operations'
   }
+  if (path.startsWith('/master-data')) return 'masterData'
   if (path.startsWith('/sistem') || path === '/mfa') return 'settings'
   if (path.startsWith('/modul')) return 'modules'
   if (path === '/') return 'main'
@@ -451,7 +451,11 @@ export default function AppLayout() {
 
   const accessibleSettingsItems = mustChangePassword
     ? []
-    : settingsNav.filter((n) => (n.sysAdminOnly ? Boolean(isSysAdmin || mfaState?.required) : can[n.capability]))
+    : settingsNav.filter((n) => {
+        if (n.to === '/mfa') return Boolean(isSysAdmin || mfaState?.required)
+        if (n.sysAdminOnly) return Boolean(isSysAdmin)
+        return Boolean(can[n.capability])
+      })
 
   const isLinkActive = (item) => {
     if (item.to.includes('?')) {

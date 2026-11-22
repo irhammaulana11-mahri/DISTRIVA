@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { SubstationDetailPage, SubstationEditPage, SubstationMeasurementDetailPage } from './SubstationPages.jsx'
-import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
+import { SubstationDetailPage, SubstationEditPage, SubstationMeasurementDetailPage, MaximoSyncPage } from './SubstationPages.jsx'
+import { substationsApi, feedersApi, adminApi, maximoSyncApi } from '../../services/api.js'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 
@@ -19,6 +19,13 @@ vi.mock('../../services/api.js', () => ({
   },
   adminApi: {
     units: vi.fn(),
+  },
+  maximoSyncApi: {
+    show: vi.fn(),
+    runs: vi.fn(),
+    save: vi.fn(),
+    start: vi.fn(),
+    run: vi.fn(),
   },
 }))
 
@@ -121,5 +128,45 @@ describe('SubstationPages — Dedicated Drawer Pages (PanelShell asPage)', () =>
     expect(screen.getByText('← Kembali')).toBeInTheDocument()
     expect(screen.getByTestId('reading-form')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Simpan pembacaan/i })).toBeInTheDocument()
+  })
+
+  it('4. MaximoSyncPage merender drawer page sinkronisasi maximo dalam PanelShell asPage dengan tombol kembali', async () => {
+    maximoSyncApi.show.mockResolvedValue({
+      data: {
+        settings: {
+          maximo_url: 'http://10.99.10.41',
+          maximo_username: 'mx.admin',
+          has_password: true,
+          work_type: 'INST1',
+          lookback_days: 3,
+          auto_enabled: false,
+          auto_time: '19:30',
+        },
+        runs: [],
+      },
+    })
+    maximoSyncApi.runs.mockResolvedValue({
+      data: [],
+      meta: { current_page: 1, per_page: 10, total: 0, last_page: 1 },
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/master-data/substation-measurements/sinkronisasi-maximo']}>
+        <AccessContext.Provider value={{ can: { 'substations.sync': true }, isSysAdmin: false }}>
+          <NotificationProvider>
+            <Routes>
+              <Route
+                path="/master-data/substation-measurements/sinkronisasi-maximo"
+                element={<MaximoSyncPage />}
+              />
+            </Routes>
+          </NotificationProvider>
+        </AccessContext.Provider>
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Tarik WO Inspeksi dari Maximo')).toBeInTheDocument()
+    expect(screen.getByText('← Kembali')).toBeInTheDocument()
+    expect(screen.getByText('mx.admin')).toBeInTheDocument()
   })
 })

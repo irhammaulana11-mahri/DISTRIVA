@@ -81,11 +81,8 @@ export default function ProfilePage({ defaultTab = 'profile' }) {
       {/* Standard Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            DISTRIVA / PROFIL & KEAMANAN AKUN
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-0.5">
-            Profil & Keamanan Akun
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Profil &amp; Keamanan Akun
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
             Kelola data identitas pengguna, status keaktifan akun, dan pengaturan kredensial kata sandi login.

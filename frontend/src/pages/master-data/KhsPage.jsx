@@ -187,7 +187,7 @@ export default function KhsPage() {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={loadKhs}
               icon={IconRefresh}
               aria-label="Segarkan data KHS"
@@ -197,21 +197,21 @@ export default function KhsPage() {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={() => downloadCsv(KHS_CATALOG_TEMPLATE.filename, KHS_CATALOG_TEMPLATE.headers)}
               icon={IconDownload}
               aria-label="Unduh format template CSV KHS"
             >
               Template CSV
             </Button>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="md"
+              icon={IconUpload}
               onClick={() => navigate('/master-data/khs/impor')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
             >
-              <IconUpload className="h-4 w-4" />
-              <span>Impor KHS (CSV)</span>
-            </button>
+              Impor KHS (CSV)
+            </Button>
           </div>
         </div>
       </div>

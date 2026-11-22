@@ -164,7 +164,7 @@ export default function PoleContractsPage() {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={loadContracts}
               icon={IconRefresh}
               aria-label="Segarkan data kontrak tiang"
@@ -172,14 +172,14 @@ export default function PoleContractsPage() {
               Segarkan
             </Button>
             {canManage && (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
+                icon={IconPlus}
                 onClick={() => navigate('/master-data/pole-contracts/baru')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
-                <IconPlus className="h-4 w-4" />
-                <span>Tambah Kontrak Rinci</span>
-              </button>
+                Tambah Kontrak Rinci
+              </Button>
             )}
           </div>
         </div>

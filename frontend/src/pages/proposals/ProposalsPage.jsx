@@ -125,7 +125,7 @@ export default function ProposalsPage() {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={loadProposals}
               icon={IconRefresh}
               aria-label="Segarkan"
@@ -137,12 +137,11 @@ export default function ProposalsPage() {
               <Button
                 type="button"
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={() => setCreateModalOpen(true)}
                 aria-label="Buat Usulan Baru (Usulan Perluasan)"
-                className="bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center gap-1.5 shadow-xs"
               >
-                <IconPlus size={14} />
+                <IconPlus size={16} />
                 <span>Buat Usulan Perluasan</span>
               </Button>
             )}

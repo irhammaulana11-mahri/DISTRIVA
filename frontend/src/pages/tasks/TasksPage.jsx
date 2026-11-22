@@ -193,13 +193,6 @@ export default function TasksPage() {
               <IconClipboard className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Operasional</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Tugas &amp; SLA Layanan</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Tugas &amp; SLA Layanan
@@ -217,7 +210,7 @@ export default function TasksPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={load}
               aria-label="Muat ulang"
@@ -227,7 +220,7 @@ export default function TasksPage() {
             {canAssign && (
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 icon={IconPlus}
                 onClick={() => setCreating(true)}
               >
@@ -274,8 +267,8 @@ export default function TasksPage() {
       )}
 
       {/* Navigasi Tab */}
-      <div className="border-b border-slate-200 dark:border-slate-700">
-        <div role="tablist" aria-label="Tampilan tugas" className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="border-b border-slate-200 dark:border-slate-800">
+        <div role="tablist" aria-label="Tampilan tugas" className="flex items-center gap-1 overflow-x-auto">
           {tabs.map((t) => {
             const isActive = current.key === t.key
             let badge = null
@@ -297,10 +290,10 @@ export default function TasksPage() {
                   setTab(t.key)
                   setPage(1)
                 }}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-t-lg px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
+                className={`flex items-center gap-2 whitespace-nowrap px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
                   isActive
-                    ? 'border-brand-600 bg-white dark:bg-slate-900 text-brand-700 dark:text-brand-300 shadow-2xs'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'
+                    ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 {t.label}

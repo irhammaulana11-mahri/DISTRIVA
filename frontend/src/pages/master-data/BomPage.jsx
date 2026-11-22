@@ -265,13 +265,6 @@ export default function BomPage() {
               <IconLayers className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Master Data</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">BOM Distribusi</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Bill of Materials (BOM) Distribusi
@@ -289,7 +282,7 @@ export default function BomPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={loadBoms}
               aria-label="Segarkan"
@@ -297,14 +290,14 @@ export default function BomPage() {
               Segarkan
             </Button>
             {canManage && (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
+                icon={IconUpload}
                 onClick={() => navigate('/master-data/bom/impor')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
-                <IconUpload size={14} />
-                <span>Impor BOM (JSON)</span>
-              </button>
+                Impor BOM (JSON)
+              </Button>
             )}
           </div>
         </div>
@@ -500,36 +493,48 @@ export default function BomPage() {
         </div>
       )}
 
+      {/* Group Tabs */}
+      <div role="tablist" aria-label="Kelompok BOM Distribusi" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={selectedGroup === ''}
+          onClick={() => { setSelectedGroup(''); setPage(1); }}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            selectedGroup === ''
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Semua Kelompok ({BOM_GROUPS.length})
+        </button>
+        {BOM_GROUPS.map((g) => {
+          const isActive = selectedGroup === g.code
+          return (
+            <button
+              key={g.code}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => { setSelectedGroup(g.code); setPage(1); }}
+              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              {g.name}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Main Standardized Table Card */}
       <div className="w-full rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
         {/* Integrated Filter Bar */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 lg:pb-0">
-            <button
-              type="button"
-              onClick={() => { setSelectedGroup(''); setPage(1); }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                selectedGroup === ''
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              Semua Kelompok ({BOM_GROUPS.length})
-            </button>
-            {BOM_GROUPS.map((g) => (
-              <button
-                key={g.code}
-                type="button"
-                onClick={() => { setSelectedGroup(g.code); setPage(1); }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                  selectedGroup === g.code
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                {g.name}
-              </button>
-            ))}
+        <div className="p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Menampilkan <span className="font-semibold text-slate-700 dark:text-slate-200">{boms.length}</span> versi formula
           </div>
 
           <div className="flex items-center gap-2 shrink-0">

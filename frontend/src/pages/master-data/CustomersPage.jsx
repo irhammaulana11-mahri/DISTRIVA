@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { connectionsApi, substationsApi, feedersApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import { useDebounce } from '../../utils/useDebounce.js'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -10,6 +11,7 @@ import Drawer from '../../components/Drawer.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import FeederSearchSelect from '../../components/FeederSearchSelect.jsx'
 import DilSyncDrawer from './DilSyncDrawer.jsx'
 import {
   IconSearch,
@@ -452,7 +454,7 @@ export default function CustomersPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(25)
   const [q, setQ] = useState('')
-  const [query, setQuery] = useState('')
+  const debouncedQ = useDebounce(q, 350)
   const [up3Id, setUp3Id] = useState('')
   const [unitId, setUnitId] = useState('')
   const [feederId, setFeederId] = useState(searchParams.get('feeder_id') || '')
@@ -489,7 +491,7 @@ export default function CustomersPage() {
     setError('')
     try {
       const res = await connectionsApi.list({
-        q: query || undefined,
+        q: debouncedQ.trim() || undefined,
         organizational_unit_id: unitId || undefined,
         feeder_id: feederId || undefined,
         substation_id: substationId || undefined,
@@ -509,7 +511,7 @@ export default function CustomersPage() {
       setLoading(false)
     }
   }, [
-    query,
+    debouncedQ,
     unitId,
     feederId,
     substationId,
@@ -539,7 +541,7 @@ export default function CustomersPage() {
       unlinkedCount,
     }
   }, [rows, meta, summary])
-  const filtered = Boolean(query || unitId || feederId || substationId || tariffCode || status || serviceType || unlinkedOnly)
+  const filtered = Boolean(q || unitId || feederId || substationId || tariffCode || status || serviceType || unlinkedOnly)
   const scopeNote = filtered ? 'sesuai filter' : 'seluruh data'
 
   return (
@@ -552,13 +554,6 @@ export default function CustomersPage() {
               <IconUsers className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Master Data</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Pelanggan</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Master Pelanggan (IDPEL)
@@ -576,7 +571,7 @@ export default function CustomersPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={loadCustomers}
               aria-label="Segarkan"
@@ -584,7 +579,7 @@ export default function CustomersPage() {
               Segarkan
             </Button>
             {canImport && (
-              <Button size="sm" icon={IconUpload} onClick={() => setSyncOpen(true)} aria-label="Sinkron DIL">
+              <Button size="md" icon={IconUpload} onClick={() => setSyncOpen(true)} aria-label="Sinkron DIL">
                 Sinkron DIL
               </Button>
             )}
@@ -651,22 +646,18 @@ export default function CustomersPage() {
 
       {/* Filter Bar */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
-        <form
-          className="flex flex-wrap items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setQuery(q.trim())
-          }}
-        >
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               aria-label="Cari pelanggan"
-              placeholder="Awalan IDPEL, nama, no. meter…"
+              placeholder="Cari IDPEL, nama, no. meter, atau tarif…"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className={`${filterControlCls} pl-8 w-56`}
+              onChange={(e) => {
+                setPage(1)
+                setQ(e.target.value)
+              }}
+              className={`${filterControlCls} pl-8 w-64`}
             />
           </div>
 
@@ -685,29 +676,17 @@ export default function CustomersPage() {
             unitAriaLabel="Unit ULP"
           />
 
-          <select
-            aria-label="Penyulang"
+          <FeederSearchSelect
+            permission="customers.view"
+            up3Id={up3Id}
+            unitId={unitId}
             value={feederId}
-            onChange={(e) => {
+            onChange={(newFeeder) => {
               setPage(1)
-              setFeederId(e.target.value)
+              setFeederId(newFeeder)
             }}
-            className={filterSelectCls}
-          >
-            <option value="">Semua penyulang</option>
-            {feeders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.code} {f.name ? `(${f.name})` : ''}
-              </option>
-            ))}
-          </select>
-
-          <input
-            aria-label="Tarif"
-            placeholder="Tarif (misal: R1)"
-            value={tariffCode}
-            onChange={(e) => setTariffCode(e.target.value)}
-            className={`${filterControlCls} w-24`}
+            onFeedersLoaded={setFeeders}
+            feedersList={feeders}
           />
 
           <select
@@ -771,11 +750,7 @@ export default function CustomersPage() {
             />
             Belum tertaut gardu
           </label>
-
-          <Button type="submit" variant="secondary" size="sm">
-            Cari
-          </Button>
-        </form>
+        </div>
       </div>
 
       {error && (

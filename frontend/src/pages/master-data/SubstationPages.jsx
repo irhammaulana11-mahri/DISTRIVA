@@ -6,6 +6,7 @@ import Spinner from '../../components/Spinner.jsx'
 import Alert from '../../components/Alert.jsx'
 import { SubstationDetailDrawer, SubstationEditDrawer } from './SubstationsPage.jsx'
 import { SubstationMeasurementDrawer } from './SubstationMeasurementsPage.jsx'
+import MaximoSyncDrawer from './MaximoSyncDrawer.jsx'
 
 /**
  * Drawer Page untuk Detail Lengkap Master Gardu.
@@ -96,3 +97,20 @@ export function SubstationMeasurementDetailPage() {
     />
   )
 }
+
+/**
+ * Drawer Page untuk Sinkronisasi Maximo.
+ * Menjalankan penarikan WO inspeksi Maximo dan formulir pengaturan akun dalam PanelShell asPage.
+ */
+export function MaximoSyncPage() {
+  const navigate = useNavigate()
+  return (
+    <MaximoSyncDrawer
+      open
+      asPage
+      onClose={() => navigate('/master-data/substation-measurements')}
+      onSynced={() => {}}
+    />
+  )
+}
+

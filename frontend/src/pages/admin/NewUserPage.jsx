@@ -95,13 +95,6 @@ export default function NewUserPage() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
-              <span>DISTRIVA</span>
-              <span className="opacity-40">/</span>
-              <span>ADMINISTRASI</span>
-              <span className="opacity-40">/</span>
-              <span className="text-white">TAMBAH PENGGUNA</span>
-            </div>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
                 <IconUsers size={24} />

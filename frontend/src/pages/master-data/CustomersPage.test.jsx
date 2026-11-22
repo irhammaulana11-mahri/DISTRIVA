@@ -187,10 +187,8 @@ describe('Master Pelanggan Page (docs/81)', () => {
     await user.click(screen.getByRole('option', { name: /ULP Mojokerto Kota/i }))
 
     const feederSelect = screen.getByRole('combobox', { name: /Penyulang/i })
-    await user.selectOptions(feederSelect, 'f-1')
-
-    const tariffInput = screen.getByRole('textbox', { name: /Tarif/i })
-    await user.type(tariffInput, 'R1')
+    await user.click(feederSelect)
+    await user.click(await screen.findByRole('option', { name: /WTGLH/i }))
 
     const statusSelect = screen.getByRole('combobox', { name: /Status Pelanggan/i })
     await user.selectOptions(statusSelect, 'AKTIF')
@@ -201,16 +199,12 @@ describe('Master Pelanggan Page (docs/81)', () => {
     const unlinkedCheckbox = screen.getByRole('checkbox', { name: /Belum tertaut ke gardu/i })
     await user.click(unlinkedCheckbox)
 
-    const searchBtn = screen.getByRole('button', { name: /Cari/i })
-    await user.click(searchBtn)
-
     await waitFor(() => {
       expect(connectionsApi.list).toHaveBeenCalledWith(
         expect.objectContaining({
           q: '51453',
           organizational_unit_id: 'u-ulp-1',
           feeder_id: 'f-1',
-          tariff_code: 'R1',
           status: 'AKTIF',
           service_type: 'PRABAYAR',
           linked: 0,

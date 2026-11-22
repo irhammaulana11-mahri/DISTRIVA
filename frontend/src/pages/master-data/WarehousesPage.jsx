@@ -269,14 +269,7 @@ export default function WarehousesPage() {
               <IconBuilding className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Operasional</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Gudang &amp; Stok</span>
-              </nav>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Gudang, Cuplikan Stok &amp; Sinkronisasi
                 </h1>
@@ -295,32 +288,33 @@ export default function WarehousesPage() {
               <>
                 <Button
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   icon={IconSettings}
                   onClick={() => setMimsSettingsOpen(true)}
                 >
                   Pengaturan Tarik
                 </Button>
-                <Link
-                  to="/master-data/warehouses/tarik-mims"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-2xs"
+                <Button
+                  variant="secondary"
+                  size="md"
+                  icon={IconRefresh}
+                  onClick={() => navigate('/master-data/warehouses/tarik-mims')}
                   title="Buka Halaman Tarik MIMS"
                 >
-                  <IconRefresh size={14} />
-                  <span>Halaman Tarik MIMS</span>
-                </Link>
+                  Halaman Tarik MIMS
+                </Button>
               </>
             )}
             {canManage && (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
+                icon={IconPlus}
                 aria-label="Tambah Gudang / Impor Gudang ERP"
                 onClick={() => navigate('/master-data/warehouses/baru')}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
-                <IconPlus size={16} />
-                <span>Tambah Gudang</span>
-              </button>
+                Tambah Gudang
+              </Button>
             )}
           </div>
         </div>
@@ -382,80 +376,78 @@ export default function WarehousesPage() {
       </dl>
 
       {/* Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('warehouses')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'warehouses'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            Daftar Gudang ({warehouses.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('position')
-              if (positionWarehouseIds.length === 0 && warehouses.length > 0) {
-                setPositionWarehouseIds(warehouses.map((w) => w.id))
-              }
-            }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'position'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            Posisi Stok Terkonsolidasi
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('sync-runs')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'sync-runs'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            Riwayat Sinkronisasi
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('mims-issues')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'mims-issues'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            Pengeluaran MIMS
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('mims-receipts')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'mims-receipts'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            Penerimaan MIMS
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('mims-reservations')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'mims-reservations'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            Reservasi MIMS
-          </button>
-        </div>
+      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveTab('warehouses')}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'warehouses'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Daftar Gudang ({warehouses.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('position')
+            if (positionWarehouseIds.length === 0 && warehouses.length > 0) {
+              setPositionWarehouseIds(warehouses.map((w) => w.id))
+            }
+          }}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'position'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Posisi Stok Terkonsolidasi
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('mims-issues')}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'mims-issues'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Pengeluaran MIMS
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('mims-receipts')}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'mims-receipts'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Penerimaan MIMS
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('mims-reservations')}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'mims-reservations'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Reservasi MIMS
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('sync-runs')}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'sync-runs'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Riwayat Sinkronisasi
+        </button>
       </div>
 
       {error && <Alert kind="error">{error}</Alert>}

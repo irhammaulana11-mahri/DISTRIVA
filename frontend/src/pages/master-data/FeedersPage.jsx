@@ -4,6 +4,7 @@ import { feedersApi, substationsApi, adminApi } from '../../services/api.js'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import { useDebounce } from '../../utils/useDebounce.js'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -725,10 +726,9 @@ export default function FeedersPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(25)
   const [q, setQ] = useState('')
-  const [query, setQuery] = useState('')
+  const debouncedQ = useDebounce(q, 350)
   const [ownerUnitId, setOwnerUnitId] = useState('')
   const [servesUnitId, setServesUnitId] = useState('')
-  const [giCode, setGiCode] = useState('')
   const [status, setStatus] = useState('')
 
   // Reference units
@@ -751,10 +751,9 @@ export default function FeedersPage() {
     setError('')
     try {
       const res = await feedersApi.list({
-        q: query || undefined,
+        q: debouncedQ.trim() || undefined,
         owner_unit_id: ownerUnitId || undefined,
         serves_unit_id: servesUnitId || undefined,
-        gi_code: giCode ? giCode.trim() : undefined,
         status: status || undefined,
         page,
         per_page: perPage,
@@ -766,7 +765,7 @@ export default function FeedersPage() {
     } finally {
       setLoading(false)
     }
-  }, [query, ownerUnitId, servesUnitId, giCode, status, page, perPage])
+  }, [debouncedQ, ownerUnitId, servesUnitId, status, page, perPage])
 
   useEffect(() => {
     loadFeeders()
@@ -800,13 +799,6 @@ export default function FeedersPage() {
               <IconLayers className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Master Data</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Penyulang</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Master Penyulang
@@ -824,7 +816,7 @@ export default function FeedersPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={loadFeeders}
               aria-label="Segarkan"
@@ -835,7 +827,7 @@ export default function FeedersPage() {
               <Button
                 icon={IconPlus}
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={() => setCreateModalOpen(true)}
               >
                 Tambah Penyulang
@@ -902,22 +894,18 @@ export default function FeedersPage() {
 
       {/* Filter Bar */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
-        <form
-          className="flex flex-wrap items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setQuery(q.trim())
-          }}
-        >
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               aria-label="Cari penyulang"
-              placeholder="Kode, nama, GI…"
+              placeholder="Cari kode, nama, GI…"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className={`${filterControlCls} pl-8 w-48`}
+              onChange={(e) => {
+                setPage(1)
+                setQ(e.target.value)
+              }}
+              className={`${filterControlCls} pl-8 w-56 sm:w-64`}
             />
           </div>
 
@@ -934,14 +922,6 @@ export default function FeedersPage() {
             unitAriaLabel="Unit"
           />
 
-          <input
-            aria-label="GI"
-            placeholder="Kode GI…"
-            value={giCode}
-            onChange={(e) => setGiCode(e.target.value)}
-            className={`${filterControlCls} w-28`}
-          />
-
           <select
             aria-label="Status"
             value={status}
@@ -955,11 +935,7 @@ export default function FeedersPage() {
             <option value="AKTIF">AKTIF</option>
             <option value="NONAKTIF">NONAKTIF</option>
           </select>
-
-          <Button type="submit" variant="secondary" size="sm">
-            Cari
-          </Button>
-        </form>
+        </div>
       </div>
 
       {error && (

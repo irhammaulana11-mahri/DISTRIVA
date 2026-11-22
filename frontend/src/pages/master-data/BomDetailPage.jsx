@@ -412,36 +412,42 @@ export default function BomDetailPage() {
 
       {/* Tabs */}
       <div className="border-b border-slate-200 dark:border-slate-800">
-        <nav className="flex space-x-6">
+        <nav role="tablist" aria-label="Tampilan BOM" className="flex items-center gap-1 overflow-x-auto">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'lines'}
             onClick={() => setActiveTab('lines')}
-            className={`py-3 px-1 text-xs sm:text-sm font-semibold border-b-2 cursor-pointer transition ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px cursor-pointer transition whitespace-nowrap ${
               activeTab === 'lines'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             Daftar Baris & Rumus Workbook ({bom.lines_count ?? lines.length})
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'params'}
             onClick={() => setActiveTab('params')}
-            className={`py-3 px-1 text-xs sm:text-sm font-semibold border-b-2 cursor-pointer transition ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px cursor-pointer transition whitespace-nowrap ${
               activeTab === 'params'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             Parameter BOM ({Array.isArray(bom.parameters) ? bom.parameters.length : 0})
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'events'}
             onClick={() => setActiveTab('events')}
-            className={`py-3 px-1 text-xs sm:text-sm font-semibold border-b-2 cursor-pointer transition ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px cursor-pointer transition whitespace-nowrap ${
               activeTab === 'events'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             Riwayat Audit ({Array.isArray(bom.events) ? bom.events.length : 0})

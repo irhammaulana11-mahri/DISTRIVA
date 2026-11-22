@@ -258,14 +258,7 @@ export default function ApplicationsPage() {
               <IconFileText className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Operasional</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Permohonan Pelanggan (PB/PD)</span>
-              </nav>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Permohonan Pelanggan (PB/PD)
                 </h1>
@@ -283,7 +276,7 @@ export default function ApplicationsPage() {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={loadApplications}
               icon={IconRefresh}
               aria-label="Segarkan"
@@ -291,44 +284,47 @@ export default function ApplicationsPage() {
               Segarkan
             </Button>
             {can['eis_sync.manage'] && (
-              <button
+              <Button
                 type="button"
-                aria-label="Sinkronisasi EIS"
+                variant="secondary"
+                size="md"
+                icon={IconRefresh}
                 onClick={() => navigate('/permohonan/sinkronisasi-eis')}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 dark:border-blue-800/80 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+                aria-label="Sinkronisasi EIS"
               >
-                <IconRefresh size={14} />
-                <span>Sinkronisasi EIS</span>
-              </button>
+                Sinkronisasi EIS
+              </Button>
             )}
             {can['applications.import'] && (
-              <button
+              <Button
                 type="button"
-                aria-label="Impor Berkas EIS"
+                variant="secondary"
+                size="md"
+                icon={IconUpload}
                 onClick={() => navigate('/permohonan/impor')}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+                aria-label="Impor Berkas EIS"
               >
-                <IconUpload size={14} />
-                <span>Impor Berkas</span>
-              </button>
+                Impor Berkas
+              </Button>
             )}
             {can['applications.create'] && (
-              <button
+              <Button
                 type="button"
-                aria-label="Permohonan Baru"
+                variant="primary"
+                size="md"
+                icon={IconPlus}
                 onClick={() => navigate('/permohonan/baru')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
+                aria-label="Permohonan Baru"
               >
-                <IconPlus size={14} />
-                <span>Permohonan Baru</span>
-              </button>
+                Permohonan Baru
+              </Button>
             )}
           </div>
         </div>
       </div>
 
       <div role="tablist" aria-label="Tampilan PB/PD" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
-        {[['permohonan', 'Permohonan'], ...(can['eis_sync.manage'] ? [['eis', 'Riwayat Sinkronisasi EIS']] : []), ['attention', 'Pelanggan Perlu Perhatian']].map(([id, label]) => (
+        {[['permohonan', 'Permohonan'], ['attention', 'Pelanggan Perlu Perhatian'], ...(can['eis_sync.manage'] ? [['eis', 'Riwayat Sinkronisasi EIS']] : [])].map(([id, label]) => (
           <button
             key={id}
             type="button"

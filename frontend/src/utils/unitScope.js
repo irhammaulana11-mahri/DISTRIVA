@@ -25,6 +25,7 @@ export function resolveUnitScope(info, up3Filter = '', unitFilter = '') {
     up3Options: [...(up3Locked ? [] : [{ value: '', label: 'Semua UP3' }]), ...up3Units.map((u) => ({ value: u.id, label: unitLabel(u) }))],
     ulpLocked,
     ulpValue,
+    ulpChoices,
     ulpOptions: [...(ulpLocked ? [] : [{ value: '', label: 'Semua ULP' }]), ...ulpChoices.map((u) => ({ value: u.id, label: unitLabel(u) }))],
   }
 }

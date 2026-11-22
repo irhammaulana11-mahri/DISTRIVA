@@ -78,14 +78,14 @@ export default function SearchSelect({ options, value, onChange, placeholder = '
           onChange={(e) => { setQ(e.target.value); setOpen(true) }}
           onKeyDown={onKeyDown}
           className={variant === 'filter'
-            ? `block w-full ${filterControlCls} ${clearable && selected ? 'pr-16' : 'pr-9'} disabled:opacity-60`
+            ? `block w-full ${filterControlCls} text-xs placeholder:text-xs ${clearable && selected ? 'pr-14' : 'pr-7'} disabled:opacity-60`
             : `block w-full pl-3 ${clearable && selected ? 'pr-16' : 'pr-9'} py-2 text-base sm:text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-60 transition`}
         />
-        <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1 text-slate-400">
+        <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-0.5 text-slate-400">
           {clearable && selected && !disabled && (
-            <button type="button" aria-label="Kosongkan pilihan" onClick={() => { onChange(''); setQ('') }} className="p-0.5 rounded hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"><IconX size={14} /></button>
+            <button type="button" aria-label="Kosongkan pilihan" onClick={() => { onChange(''); setQ('') }} className="p-0.5 rounded hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"><IconX size={12} /></button>
           )}
-          <IconChevronDown size={16} className={`pointer-events-none transition-transform ${open ? 'rotate-180' : ''}`} />
+          <IconChevronDown size={14} className={`pointer-events-none transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
@@ -103,14 +103,14 @@ export default function SearchSelect({ options, value, onChange, placeholder = '
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => choose(o)}
               onMouseEnter={() => setActive(i)}
-              className={`px-3 py-2 cursor-pointer flex items-start gap-2 ${i === active ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`}
+              className={`${variant === 'filter' ? 'px-2.5 py-1.5' : 'px-3 py-2'} cursor-pointer flex items-start gap-2 ${i === active ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{o.label}</span>
+                  <span className={`${variant === 'filter' ? 'text-xs' : 'text-sm'} font-medium text-slate-900 dark:text-slate-100`}>{o.label}</span>
                   {o.badge}
                 </div>
-                {o.description && <div className="text-[11px] text-slate-500 mt-0.5 truncate">{o.description}</div>}
+                {o.description && <div className={`${variant === 'filter' ? 'text-[10px]' : 'text-[11px]'} text-slate-500 mt-0.5 truncate`}>{o.description}</div>}
               </div>
               {o.value === value && <IconCheck size={14} className="mt-1 text-blue-600 shrink-0" />}
             </li>

@@ -3,6 +3,7 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import { useDebounce } from '../../utils/useDebounce.js'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -12,7 +13,9 @@ import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import SubstationAnalysis, { FlagChips } from './SubstationAnalysis.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import FeederSearchSelect from '../../components/FeederSearchSelect.jsx'
 import MaximoSyncDrawer from './MaximoSyncDrawer.jsx'
+import SubstationSyncHistory from './SubstationSyncHistory.jsx'
 import { readingTime } from '../../utils/readingTime.js'
 import {
   IconSearch,
@@ -183,14 +186,14 @@ export function SubstationMeasurementDrawer({ id, asPage = true, canReading, can
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <div role="tablist" aria-label="Tampilan Gardu" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('analysis')}
-              className={`px-3 py-1.5 rounded-lg font-semibold cursor-pointer ${
+              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
                 activeTab === 'analysis'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Analisis Gardu
@@ -198,10 +201,10 @@ export function SubstationMeasurementDrawer({ id, asPage = true, canReading, can
             <button
               type="button"
               onClick={() => setActiveTab('readings')}
-              className={`px-3 py-1.5 rounded-lg font-semibold cursor-pointer ${
+              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
                 activeTab === 'readings'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Riwayat Pembacaan ({data.readings?.length ?? 0})
@@ -392,6 +395,16 @@ export default function SubstationMeasurementsPage() {
   const canViewFeeders = Boolean(can?.['feeders.view'])
 
   const [searchParams, setSearchParams] = useSearchParams()
+  const [tab, setTab] = useState(searchParams.get('tab') || 'measurements')
+  const handleTabChange = (t) => {
+    setTab(t)
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev)
+      if (t === 'measurements') p.delete('tab')
+      else p.set('tab', t)
+      return p
+    })
+  }
   const [rows, setRows] = useState([])
   const [meta, setMeta] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -401,7 +414,7 @@ export default function SubstationMeasurementsPage() {
 
   // Filters
   const [q, setQ] = useState(searchParams.get('q') || '')
-  const [query, setQuery] = useState(searchParams.get('q') || '')
+  const debouncedQ = useDebounce(q, 350)
   const [up3Id, setUp3Id] = useState('')
   const [unitId, setUnitId] = useState('')
   const [feederId, setFeederId] = useState(searchParams.get('feeder_id') || '')
@@ -475,7 +488,7 @@ export default function SubstationMeasurementsPage() {
       }
 
       const params = {
-        q: query || undefined,
+        q: debouncedQ.trim() || undefined,
         organizational_unit_id: unitId || undefined,
         feeder_id: feederId || undefined,
         reading_status: readingStatus || undefined,
@@ -496,7 +509,7 @@ export default function SubstationMeasurementsPage() {
       setLoading(false)
     }
   }, [
-    query,
+    debouncedQ,
     unitId,
     feederId,
     readingStatus,
@@ -551,14 +564,7 @@ export default function SubstationMeasurementsPage() {
               <IconActivity className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Operasional</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Pengukuran Gardu</span>
-              </nav>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Pengukuran Gardu
                 </h1>
@@ -572,16 +578,21 @@ export default function SubstationMeasurementsPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={load} icon={IconRefresh} aria-label="Segarkan">
+            <Button variant="secondary" size="md" onClick={load} icon={IconRefresh} aria-label="Segarkan">
               Segarkan
             </Button>
             {canMaximoSync && (
-              <Button size="sm" variant="secondary" icon={IconActivity} onClick={() => setMaximoOpen(true)}>
+              <Button
+                size="md"
+                variant="secondary"
+                icon={IconActivity}
+                onClick={() => navigate('/master-data/substation-measurements/sinkronisasi-maximo')}
+              >
                 Sinkronisasi Maximo
               </Button>
             )}
             {canSync && (
-              <Button size="sm" icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
+              <Button size="md" icon={IconUpload} onClick={() => navigate('/master-data/substation-measurements/impor')}>
                 Impor Pengukuran
               </Button>
             )}
@@ -589,7 +600,49 @@ export default function SubstationMeasurementsPage() {
         </div>
       </div>
 
-      {/* Ringkasan Kondisi Data di Atas Tabel */}
+      {/* Tab Navigasi Horizontal */}
+      <div
+        role="tablist"
+        aria-label="Navigasi Pengukuran Gardu"
+        className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'measurements'}
+          onClick={() => handleTabChange('measurements')}
+          className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+            tab === 'measurements'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Pengukuran Gardu
+        </button>
+        {canMaximoSync && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'sync'}
+            onClick={() => handleTabChange('sync')}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+              tab === 'sync'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            Riwayat Sinkronisasi
+          </button>
+        )}
+      </div>
+
+      {tab === 'sync' && canMaximoSync ? (
+        <SubstationSyncHistory
+          onOpenSync={() => navigate('/master-data/substation-measurements/sinkronisasi-maximo')}
+        />
+      ) : (
+        <>
+          {/* Ringkasan Kondisi Data di Atas Tabel */}
       <div
         className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-3"
         data-testid="data-condition-summary"
@@ -663,21 +716,17 @@ export default function SubstationMeasurementsPage() {
       </dl>
 
       {/* Filter Bar */}
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          setPage(1)
-          setQuery(q.trim())
-        }}
-      >
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             aria-label="Cari gardu"
             placeholder="Kode, nama, kelurahan…"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setPage(1)
+              setQ(e.target.value)
+            }}
             className={`${filterControlCls} pl-8 w-48 sm:w-56`}
           />
         </div>
@@ -698,22 +747,18 @@ export default function SubstationMeasurementsPage() {
         />
 
         {canViewFeeders && (
-          <select
-            aria-label="Penyulang"
+          <FeederSearchSelect
+            permission="substations.view"
+            up3Id={up3Id}
+            unitId={unitId}
             value={feederId}
-            onChange={(e) => {
+            onChange={(newFeeder) => {
               setPage(1)
-              setFeederId(e.target.value)
+              setFeederId(newFeeder)
             }}
-            className={filterSelectCls}
-          >
-            <option value="">Semua penyulang</option>
-            {feedersList.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.code} {f.name ? `(${f.name})` : ''}
-              </option>
-            ))}
-          </select>
+            onFeedersLoaded={setFeedersList}
+            feedersList={feedersList}
+          />
         )}
 
         <select
@@ -786,11 +831,7 @@ export default function SubstationMeasurementsPage() {
           <option value="PHASE_UNBALANCED">Fasa tidak seimbang</option>
           <option value="END_DROP">Drop tegangan tinggi</option>
         </select>
-
-        <Button type="submit" variant="secondary" size="sm">
-          Cari
-        </Button>
-      </form>
+      </div>
 
       {error && <Alert kind="error">{error}</Alert>}
 
@@ -934,8 +975,19 @@ export default function SubstationMeasurementsPage() {
           perPageOptions={[10, 25, 50, 100]}
         />
       </div>
+      </>
+      )}
 
-      {canMaximoSync && <MaximoSyncDrawer open={maximoOpen} onClose={() => setMaximoOpen(false)} onSynced={() => { load(); loadSummary() }} />}
+      {canMaximoSync && maximoOpen && (
+        <MaximoSyncDrawer
+          open={maximoOpen}
+          onClose={() => setMaximoOpen(false)}
+          onSynced={() => {
+            load()
+            loadSummary()
+          }}
+        />
+      )}
     </div>
   )
 }

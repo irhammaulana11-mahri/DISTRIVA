@@ -328,13 +328,6 @@ export default function CategoriesPage() {
               <IconFolder className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Master Data</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Kategori &amp; Satuan Pengukuran</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Kategori &amp; Satuan Pengukuran
@@ -352,7 +345,7 @@ export default function CategoriesPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={loadData}
               aria-label="Segarkan"
@@ -361,24 +354,24 @@ export default function CategoriesPage() {
             </Button>
             {tab === 'categories' ? (
               canManage && (
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="md"
+                  icon={IconPlus}
                   onClick={() => navigate('/master-data/categories/baru')}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
                 >
-                  <IconPlus size={14} />
-                  <span>Tambah Kategori</span>
-                </button>
+                  Tambah Kategori
+                </Button>
               )
             ) : (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
+                icon={IconPlus}
                 onClick={() => navigate('/master-data/categories/satuan/baru')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
-                <IconPlus size={14} />
-                <span>Tambah Satuan</span>
-              </button>
+                Tambah Satuan
+              </Button>
             )}
           </div>
         </div>

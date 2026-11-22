@@ -349,13 +349,6 @@ export default function UnitsPage() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
-              <span>DISTRIVA</span>
-              <span className="opacity-40">/</span>
-              <span>ADMINISTRASI</span>
-              <span className="opacity-40">/</span>
-              <span className="text-white">UNIT ORGANISASI</span>
-            </div>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
                 <IconBuilding size={24} />
@@ -377,26 +370,28 @@ export default function UnitsPage() {
               <span>Scope: <strong className="text-white font-semibold">user_role_assignments</strong></span>
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
+              icon={IconRefresh}
+              loading={state.loading}
               onClick={reloadAll}
-              disabled={state.loading}
-              title="Segarkan data unit"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3 py-1.5 text-xs font-semibold transition border border-white/15 cursor-pointer disabled:opacity-50"
+              aria-label="Segarkan data unit"
             >
-              <IconRefresh size={15} className={state.loading ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">Segarkan</span>
-            </button>
+              Segarkan
+            </Button>
 
             {access.canCreate && (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                icon={IconPlus}
                 onClick={() => navigate('/admin/units/baru')}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold px-3 py-1.5 text-xs shadow-md transition cursor-pointer"
               >
-                <IconPlus size={16} />
-                <span>Tambah Unit</span>
-              </button>
+                Tambah Unit
+              </Button>
             )}
           </div>
         </div>

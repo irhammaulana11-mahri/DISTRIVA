@@ -3,6 +3,7 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { substationsApi, feedersApi, adminApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import { useDebounce } from '../../utils/useDebounce.js'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -11,6 +12,7 @@ import PanelShell from '../../components/PanelShell.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import FeederSearchSelect from '../../components/FeederSearchSelect.jsx'
 import {
   IconUpload,
   IconSearch,
@@ -642,16 +644,10 @@ export default function SubstationsPage() {
 
   // Filters
   const [q, setQ] = useState(searchParams.get('q') || '')
-  const [query, setQuery] = useState(searchParams.get('q') || '')
+  const debouncedQ = useDebounce(q, 350)
   const [up3Id, setUp3Id] = useState('')
   const [unitId, setUnitId] = useState('')
   const [feederId, setFeederId] = useState(searchParams.get('feeder_id') || '')
-  const [brand, setBrand] = useState('')
-  const [yearFrom, setYearFrom] = useState('')
-  const [yearTo, setYearTo] = useState('')
-  const [capacityMin, setCapacityMin] = useState('')
-  const [capacityMax, setCapacityMax] = useState('')
-  const [kecamatan, setKecamatan] = useState('')
   const [ownership, setOwnership] = useState('')
   const [status, setStatus] = useState('')
   const [hasCoordinates, setHasCoordinates] = useState(false) // if true -> has_coordinates = 0
@@ -708,15 +704,9 @@ export default function SubstationsPage() {
     setError('')
     try {
       const params = {
-        q: query || undefined,
+        q: debouncedQ.trim() || undefined,
         organizational_unit_id: unitId || undefined,
         feeder_id: feederId || undefined,
-        brand: brand || undefined,
-        year_from: yearFrom || undefined,
-        year_to: yearTo || undefined,
-        capacity_min: capacityMin || undefined,
-        capacity_max: capacityMax || undefined,
-        kecamatan: kecamatan || undefined,
         ownership: ownership || undefined,
         status: status || undefined,
         has_coordinates: hasCoordinates ? 0 : undefined,
@@ -735,15 +725,9 @@ export default function SubstationsPage() {
       setLoading(false)
     }
   }, [
-    query,
+    debouncedQ,
     unitId,
     feederId,
-    brand,
-    yearFrom,
-    yearTo,
-    capacityMin,
-    capacityMax,
-    kecamatan,
     ownership,
     status,
     hasCoordinates,
@@ -793,14 +777,7 @@ export default function SubstationsPage() {
               <IconZap className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Master Data</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Master Gardu</span>
-              </nav>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Master Gardu
                 </h1>
@@ -817,7 +794,7 @@ export default function SubstationsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={load}
               aria-label="Segarkan"
@@ -825,7 +802,7 @@ export default function SubstationsPage() {
               Segarkan
             </Button>
             {canImport && (
-              <Button icon={IconUpload} size="sm" onClick={() => navigate('/master-data/substations/impor')}>
+              <Button icon={IconUpload} size="md" onClick={() => navigate('/master-data/substations/impor')}>
                 Impor Gardu
               </Button>
             )}
@@ -890,22 +867,18 @@ export default function SubstationsPage() {
 
       {/* Filter Bar */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
-        <form
-          className="flex flex-wrap items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setQuery(q.trim())
-          }}
-        >
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-56 max-w-sm">
             <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               aria-label="Cari gardu"
-              placeholder="Kode, nama, lokasi…"
+              placeholder="Cari kode, nama, lokasi, merk trafo, kecamatan…"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className={`${filterControlCls} pl-8 w-48 sm:w-56`}
+              onChange={(e) => {
+                setPage(1)
+                setQ(e.target.value)
+              }}
+              className={`${filterControlCls} pl-8 w-full`}
             />
           </div>
 
@@ -925,97 +898,19 @@ export default function SubstationsPage() {
           />
 
           {canViewFeeders && (
-            <select
-              aria-label="Penyulang"
+            <FeederSearchSelect
+              permission="substations.view"
+              up3Id={up3Id}
+              unitId={unitId}
               value={feederId}
-              onChange={(e) => {
+              onChange={(newFeeder) => {
                 setPage(1)
-                setFeederId(e.target.value)
+                setFeederId(newFeeder)
               }}
-              className={filterSelectCls}
-            >
-              <option value="">Semua penyulang</option>
-              {feedersList.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.code} {f.name ? `(${f.name})` : ''}
-                </option>
-              ))}
-            </select>
+              onFeedersLoaded={setFeedersList}
+              feedersList={feedersList}
+            />
           )}
-
-          <input
-            aria-label="Merk Trafo"
-            placeholder="Merk trafo…"
-            value={brand}
-            onChange={(e) => {
-              setPage(1)
-              setBrand(e.target.value)
-            }}
-            className={`${filterControlCls} w-28`}
-          />
-
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              aria-label="Tahun Dari"
-              placeholder="Thn dari"
-              value={yearFrom}
-              onChange={(e) => {
-                setPage(1)
-                setYearFrom(e.target.value)
-              }}
-              className={`${filterControlCls} w-20`}
-            />
-            <span className="text-slate-400">-</span>
-            <input
-              type="number"
-              aria-label="Tahun Sampai"
-              placeholder="Thn s/d"
-              value={yearTo}
-              onChange={(e) => {
-                setPage(1)
-                setYearTo(e.target.value)
-              }}
-              className={`${filterControlCls} w-20`}
-            />
-          </div>
-
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              aria-label="Kapasitas Min"
-              placeholder="kVA min"
-              value={capacityMin}
-              onChange={(e) => {
-                setPage(1)
-                setCapacityMin(e.target.value)
-              }}
-              className={`${filterControlCls} w-20`}
-            />
-            <span className="text-slate-400">-</span>
-            <input
-              type="number"
-              aria-label="Kapasitas Maks"
-              placeholder="kVA maks"
-              value={capacityMax}
-              onChange={(e) => {
-                setPage(1)
-                setCapacityMax(e.target.value)
-              }}
-              className={`${filterControlCls} w-20`}
-            />
-          </div>
-
-          <input
-            aria-label="Kecamatan"
-            placeholder="Kecamatan…"
-            value={kecamatan}
-            onChange={(e) => {
-              setPage(1)
-              setKecamatan(e.target.value)
-            }}
-            className={`${filterControlCls} w-28`}
-          />
 
           <select
             aria-label="Kepemilikan"
@@ -1070,11 +965,7 @@ export default function SubstationsPage() {
             />
             Perlu ditinjau
           </label>
-
-          <Button type="submit" variant="secondary" size="sm">
-            Cari
-          </Button>
-        </form>
+        </div>
       </div>
 
       {error && <Alert kind="error">{error}</Alert>}

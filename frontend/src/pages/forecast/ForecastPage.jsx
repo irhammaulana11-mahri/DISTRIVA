@@ -28,7 +28,7 @@ import {
   IconArrowRight,
   IconEye,
 } from '../../components/icons.jsx'
-import { filterSelectCls } from '../../components/filterStyles.js'
+import { filterControlCls, filterSelectCls, filterSearchCls } from '../../components/filterStyles.js'
 
 /**
  * Forecast beban gardu (docs/11; deep learning, keputusan pemilik Nov 2026): satu jaringan saraf bersama memprakirakan beban kVA gardu terhadap kapasitas trafo pada 1, 3, dan 5 tahun ke depan,
@@ -169,6 +169,20 @@ export default function ForecastPage() {
   const [tab, setTab] = useState('gardu')
   const [selectedMaterialForDrawer, setSelectedMaterialForDrawer] = useState(null)
   const active = TABS.find((t) => t.key === tab)
+  if (selectedMaterialForDrawer) {
+    return (
+      <MaterialStockDetailDrawer
+        isOpen={true}
+        asPage={true}
+        onClose={() => setSelectedMaterialForDrawer(null)}
+        onBack={() => setSelectedMaterialForDrawer(null)}
+        materialSummary={selectedMaterialForDrawer}
+        initialTab="forecast"
+        forecastData={selectedMaterialForDrawer?.forecast}
+      />
+    )
+  }
+
   return (
     <div className="space-y-5">
       <header className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-4 sm:p-5 shadow-xs">
@@ -192,8 +206,8 @@ export default function ForecastPage() {
         <SchedulePanel />
       </header>
 
-      <nav aria-label="Jenis forecast">
-        <div role="tablist" aria-label="Jenis forecast" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <nav aria-label="Jenis forecast" className="border-b border-slate-200 dark:border-slate-800">
+        <div role="tablist" aria-label="Jenis forecast" className="flex items-center gap-1 overflow-x-auto">
           {TABS.map((t) => {
             const isActive = tab === t.key
             return (
@@ -204,14 +218,13 @@ export default function ForecastPage() {
                 aria-selected={isActive}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className={`rounded-xl border px-3.5 py-2.5 text-left transition cursor-pointer focus-ring ${
+                className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
                   isActive
-                    ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/50 dark:hover:bg-slate-800'
+                    ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
-                <span className="block text-sm font-semibold leading-tight">{t.label}</span>
-                <span className={`mt-0.5 hidden text-[11px] sm:block ${isActive ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'}`}>{t.hint}</span>
+                {t.label}
               </button>
             )
           })}
@@ -231,15 +244,6 @@ export default function ForecastPage() {
           />
         )}
       </div>
-
-      {/* Drawer Detail Stok Material, Histori Mutasi & Proyeksi Kebutuhan (Forecasting) */}
-      <MaterialStockDetailDrawer
-        isOpen={Boolean(selectedMaterialForDrawer)}
-        onClose={() => setSelectedMaterialForDrawer(null)}
-        materialSummary={selectedMaterialForDrawer}
-        initialTab="forecast"
-        forecastData={selectedMaterialForDrawer?.forecast}
-      />
     </div>
   )
 }
@@ -435,16 +439,16 @@ function DemandView({ run, kinds, onSelectMaterial }) {
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-xs">
         {kinds.length > 1 && (
           <div>
-            <label htmlFor="dm-kind" className="block text-[11px] font-medium text-slate-500">Yang diprakirakan</label>
-            <select id="dm-kind" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-base sm:text-sm focus-ring">
+            <label htmlFor="dm-kind" className="block text-[11px] font-medium text-slate-500 mb-1">Yang diprakirakan</label>
+            <select id="dm-kind" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className={filterSelectCls}>
               {kinds.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
             </select>
           </div>
         )}
         {material && (
           <div className="flex-1 min-w-48">
-            <label htmlFor="dm-search" className="block text-[11px] font-medium text-slate-500">Cari material</label>
-            <input id="dm-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Nomor atau nama material" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-base sm:text-sm focus-ring" />
+            <label htmlFor="dm-search" className="block text-[11px] font-medium text-slate-500 mb-1">Cari material</label>
+            <input id="dm-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Nomor atau nama material" className={`w-full ${filterControlCls}`} />
           </div>
         )}
       </div>
@@ -982,7 +986,7 @@ function RunView({ run, canReview, onReview }) {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconDownload}
               onClick={handleExportCsv}
               disabled={state.rows.length === 0}
@@ -997,7 +1001,7 @@ function RunView({ run, canReview, onReview }) {
               <button
                 type="button"
                 onClick={() => { setViewMode('cards'); try { localStorage.setItem('fc-view', 'cards') } catch { /* diabaikan */ } }}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   viewMode === 'cards'
                     ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -1008,7 +1012,7 @@ function RunView({ run, canReview, onReview }) {
               <button
                 type="button"
                 onClick={() => { setViewMode('table'); try { localStorage.setItem('fc-view', 'table') } catch { /* diabaikan */ } }}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   viewMode === 'table'
                     ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -1030,8 +1034,8 @@ function RunView({ run, canReview, onReview }) {
                 Cari Gardu
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                  <IconSearch className="h-4 w-4" />
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <IconSearch size={14} />
                 </div>
                 <input
                   id="fc-search"
@@ -1039,7 +1043,7 @@ function RunView({ run, canReview, onReview }) {
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                   placeholder="Kode, nama gardu, atau penyulang"
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus-ring"
+                  className={`w-full ${filterSearchCls}`}
                 />
               </div>
             </div>
@@ -1053,7 +1057,7 @@ function RunView({ run, canReview, onReview }) {
                 id="fc-risk"
                 value={risk}
                 onChange={(e) => { setRisk(e.target.value); setPage(1) }}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus-ring"
+                className={`w-full ${filterSelectCls}`}
               >
                 <option value="">Semua Tingkat Risiko</option>
                 {Object.entries(RISK).map(([k, v]) => (
@@ -1072,7 +1076,7 @@ function RunView({ run, canReview, onReview }) {
                   id="fc-unit"
                   value={unit}
                   onChange={(e) => { setUnit(e.target.value); setPage(1) }}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus-ring"
+                  className={`w-full ${filterSelectCls}`}
                 >
                   <option value="">Semua Unit Layanan (ULP)</option>
                   {run.summary.map((s) => (
@@ -1238,7 +1242,14 @@ function SubstationRow({ row }) {
           </div>
           <div className="min-w-0">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight break-words">
-              {row.code} · {row.name || ''}
+              <button
+                type="button"
+                onClick={() => navigate(`/master-data/substations/${row.substation_id}/analysis`)}
+                className="hover:text-blue-600 dark:hover:text-blue-400 text-left cursor-pointer"
+                title="Buka drawer page kondisi & analisis gardu"
+              >
+                {row.code} · {row.name || ''}
+              </button>
             </h3>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
               <span className="font-semibold text-slate-700 dark:text-slate-300">{row.unit_name}</span>
@@ -1403,7 +1414,16 @@ function SubstationTable({ rows }) {
             return (
               <tr key={row.substation_id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                 <td className="px-4 py-3">
-                  <div className="font-bold text-slate-900 dark:text-slate-100">{row.code} · {row.name || ''}</div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/master-data/substations/${row.substation_id}/analysis`)}
+                      className="hover:text-blue-600 dark:hover:text-blue-400 text-left cursor-pointer"
+                      title="Buka drawer page kondisi & analisis gardu"
+                    >
+                      {row.code} · {row.name || ''}
+                    </button>
+                  </div>
                   <div className="text-slate-500 dark:text-slate-400 mt-0.5">
                     {row.unit_name} {row.feeder_code ? `· Penyulang ${row.feeder_code}` : ''}
                   </div>

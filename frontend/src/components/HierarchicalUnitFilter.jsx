@@ -17,6 +17,7 @@ export default function HierarchicalUnitFilter({
   disabled = false,
   showLabels = false,
   className = 'w-44',
+  ulpClassName = 'w-52',
 }) {
   const info = useScopedUnits(permission)
   const s = useUnitScope(info, up3Id, unitId)
@@ -45,7 +46,7 @@ export default function HierarchicalUnitFilter({
           disabled={disabled || s.ulpLocked}
           onChange={(v) => onUnitChange?.(v)}
           placeholder="Cari ULP…"
-          className={className}
+          className={ulpClassName}
         />
       </div>
     </>

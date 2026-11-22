@@ -94,17 +94,17 @@ describe('BOM Workflow (Docs 61 & 66)', () => {
       expect(screen.getByText('Bill of Materials (BOM) Distribusi')).toBeInTheDocument()
 
       // 10 Group Filter Buttons (SR1PH joined the nine on 2026-11-09)
-      expect(screen.getByRole('button', { name: /Semua Kelompok \(10\)/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^SUTM$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^MVTIC$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^SUTR$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^SKTM$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^APP 1 Phasa$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^KUBIKEL$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^GTT Umum$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^GTT Khusus$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^APP Pengukuran Langsung$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^APP Pengukuran Tak Langsung$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Semua Kelompok \(10\)/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^SUTM$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^MVTIC$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^SUTR$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^SKTM$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^APP 1 Phasa$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^KUBIKEL$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^GTT Umum$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^GTT Khusus$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^APP Pengukuran Langsung$/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /^APP Pengukuran Tak Langsung$/i })).toBeInTheDocument()
 
       // Draft Banner
       await waitFor(() => {
@@ -119,7 +119,7 @@ describe('BOM Workflow (Docs 61 & 66)', () => {
 
       // Clicking group filter triggers reload with group parameter
       const user = userEvent.setup()
-      await user.click(screen.getByRole('button', { name: /^APP Pengukuran Langsung$/i }))
+      await user.click(screen.getByRole('tab', { name: /^APP Pengukuran Langsung$/i }))
       expect(bomApi.list).toHaveBeenCalledWith({ group: 'PBPD_6_41' })
     })
 
@@ -303,7 +303,7 @@ describe('BOM Workflow (Docs 61 & 66)', () => {
 
       // Switch to Parameters Tab
       const user = userEvent.setup()
-      await user.click(screen.getByRole('button', { name: /Parameter BOM/i }))
+      await user.click(screen.getByRole('tab', { name: /Parameter BOM/i }))
 
       // Shows typed parameter info
       expect(screen.getByText('PBPD:JENIS')).toBeInTheDocument()

@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SubstationReadingsImportPage } from './ImportPages.jsx'
-import { SubstationMeasurementDetailPage } from './SubstationPages.jsx'
+import { SubstationMeasurementDetailPage, MaximoSyncPage } from './SubstationPages.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import SubstationMeasurementsPage, { SubstationMeasurementDrawer } from './SubstationMeasurementsPage.jsx'
@@ -152,6 +152,7 @@ function renderPage(
         <MemoryRouter initialEntries={initialEntries}>
           <Routes>
             <Route path="/master-data/substation-measurements/impor" element={<SubstationReadingsImportPage />} />
+            <Route path="/master-data/substation-measurements/sinkronisasi-maximo" element={<MaximoSyncPage />} />
             <Route path="/master-data/substation-measurements/:id" element={<SubstationMeasurementDetailPage />} />
             <Route path="*" element={<SubstationMeasurementsPage />} />
           </Routes>
@@ -570,4 +571,32 @@ describe('Pengukuran Gardu — SubstationMeasurementsPage (docs/80 §15)', () =>
     expect(body.measured_on).toBeUndefined()
   })
 
+  it('11. tab Riwayat Sinkronisasi menampilkan data riwayat sinkronisasi gardu dan log teknis', async () => {
+    maximoSyncApi.show.mockResolvedValue({
+      data: {
+        settings: { maximo_url: 'http://m', maximo_username: 'mx_user', has_password: true, work_type: 'INST1', lookback_days: 3, auto_enabled: true, auto_time: '20:00' },
+        runs: [{ id: 'r1', trigger: 'AUTO', status: 'OK', since: '2026-11-14', created_at: '2026-11-17T12:00:00Z', summary: { listed: 10, chosen: 5, fetched: 5, failed: 0, load: { readings_stored: 8 } } }],
+      },
+    })
+    maximoSyncApi.runs.mockResolvedValue({
+      data: [{ id: 'r1', trigger: 'AUTO', status: 'OK', since: '2026-11-14', created_at: '2026-11-17T12:00:00Z', summary: { listed: 10, chosen: 5, fetched: 5, failed: 0, load: { readings_stored: 8 } } }],
+      meta: { current_page: 1, per_page: 10, total: 1, last_page: 1 },
+    })
+    maximoSyncApi.run.mockResolvedValue({
+      data: { id: 'r1', log: 'Pemuatan berhasil: 8 pembacaan gardu tersimpan' },
+    })
+
+    renderPage({ 'substations.view': true, 'substations.sync': true })
+    const syncTab = await screen.findByRole('tab', { name: 'Riwayat Sinkronisasi' })
+    await userEvent.click(syncTab)
+
+    expect(await screen.findByTestId('substation-sync-history')).toBeInTheDocument()
+    expect(screen.getByText('mx_user')).toBeInTheDocument()
+    expect(screen.getByText('Pukul 20:00 WIB')).toBeInTheDocument()
+    expect(screen.getByTestId('substation-sync-row')).toBeInTheDocument()
+    expect(screen.getByTestId('run-summary')).toHaveTextContent('5/5 WO · 8 pembacaan baru')
+
+    await userEvent.click(screen.getByRole('button', { name: /Lihat log/i }))
+    expect(await screen.findByText(/8 pembacaan gardu tersimpan/i)).toBeInTheDocument()
+  })
 })

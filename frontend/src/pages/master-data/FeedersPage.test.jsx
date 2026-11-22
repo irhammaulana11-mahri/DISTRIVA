@@ -181,14 +181,8 @@ describe('Master Penyulang Page (docs/81)', () => {
     await user.click(servesSelect)
     await user.click(screen.getByRole('option', { name: /ULP Ploso/i }))
 
-    const giInput = screen.getByRole('textbox', { name: /GI/i })
-    await user.type(giInput, 'GI-MJK')
-
     const statusSelect = screen.getByRole('combobox', { name: /Status/i })
     await user.selectOptions(statusSelect, 'AKTIF')
-
-    const searchBtn = screen.getByRole('button', { name: /Cari/i })
-    await user.click(searchBtn)
 
     await waitFor(() => {
       expect(feedersApi.list).toHaveBeenCalledWith(
@@ -196,7 +190,6 @@ describe('Master Penyulang Page (docs/81)', () => {
           q: 'Wates',
           owner_unit_id: 'u-up3-1',
           serves_unit_id: 'u-ulp-1',
-          gi_code: 'GI-MJK',
           status: 'AKTIF',
         })
       )

@@ -732,17 +732,6 @@ export default function ReportsPage() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-lg">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-1.5">
-            <nav className="flex items-center gap-1.5 text-xs text-indigo-300">
-              <span className="hover:text-white transition">DISTRIVA</span>
-              <span>/</span>
-              <span className="hover:text-white transition">Laporan & Monitoring</span>
-              {pageInfo?.crumb && (
-                <>
-                  <span>/</span>
-                  <span className="text-white font-medium">{pageInfo.crumb}</span>
-                </>
-              )}
-            </nav>
             <div className="flex flex-wrap items-center gap-2 pt-0.5">
               <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
                 <CurrentReportIcon className="h-6 w-6 text-blue-400" />
@@ -762,13 +751,13 @@ export default function ReportsPage() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             {(activeTab === 'vendorPerformance' || activeTab === 'criticalStock') && reportSettings && (
-              <Button variant="secondary" size="sm" onClick={() => setSettingsOpen(true)}>
+              <Button variant="secondary" size="md" onClick={() => setSettingsOpen(true)}>
                 Pengaturan
               </Button>
             )}
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconDownload}
               loading={downloading}
               onClick={handleDownloadXlsx}
@@ -777,7 +766,7 @@ export default function ReportsPage() {
             </Button>
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={refreshCurrentTab}
             >
@@ -863,18 +852,19 @@ export default function ReportsPage() {
 
       {/* Tabs Nav (Hanya ditampilkan pada mode all-in-one / fallback testing; saat diakses mandiri dari sub-halaman sidebar, tab redundan disembunyikan) */}
       {showTabs && (
-        <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+        <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
           {visibleTabs.map((t) => {
             const TabIcon = REPORT_TAB_ICONS[t.id] || IconChart
+            const isActive = activeTab === t.id
             return (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setActiveTab(t.id)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  activeTab === t.id
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800'
+                className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer shrink-0 whitespace-nowrap ${
+                  isActive
+                    ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 <TabIcon className="h-3.5 w-3.5" />

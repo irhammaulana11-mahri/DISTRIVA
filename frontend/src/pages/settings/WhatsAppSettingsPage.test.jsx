@@ -47,6 +47,7 @@ describe('Pengaturan WhatsApp', () => {
     await waitFor(() => expect(whatsappSettingsApi.save).toHaveBeenCalled())
     expect(whatsappSettingsApi.save.mock.calls[0][0].token).toBe('TOKEN-BARU')
 
+    await userEvent.click(screen.getByRole('tab', { name: /Uji Kirim Pesan/i }))
     await userEvent.type(screen.getByLabelText('Nomor tujuan'), '081234567890')
     await userEvent.click(screen.getByRole('button', { name: /Kirim pesan uji/i }))
     expect(await screen.findByText(/Pesan uji dikirim/i)).toBeInTheDocument()

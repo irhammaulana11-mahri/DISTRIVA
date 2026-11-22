@@ -195,13 +195,6 @@ export default function ConstructionsPage() {
               <IconLayers className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Master Data</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Standar Konstruksi &amp; BOM</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Standar Konstruksi Distribusi &amp; BOM
@@ -219,21 +212,21 @@ export default function ConstructionsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={loadConstructions}
               aria-label="Segarkan"
             >
               Segarkan
             </Button>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="md"
+              icon={IconUpload}
               onClick={() => navigate('/master-data/constructions/impor')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
             >
-              <IconUpload size={14} />
-              <span>Impor Standar (CSV)</span>
-            </button>
+              Impor Standar (CSV)
+            </Button>
           </div>
         </div>
       </div>
@@ -294,21 +287,26 @@ export default function ConstructionsPage() {
       </dl>
 
       {/* Group Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {CONSTRUCTION_GROUPS.map((g) => (
-          <button
-            key={g.code}
-            type="button"
-            onClick={() => { setGroup(g.code); setPage(1) }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-              group === g.code
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            {g.label}
-          </button>
-        ))}
+      <div role="tablist" aria-label="Kelompok Standar Konstruksi" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+        {CONSTRUCTION_GROUPS.map((g) => {
+          const isActive = group === g.code
+          return (
+            <button
+              key={g.code}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => { setGroup(g.code); setPage(1) }}
+              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              {g.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Main Card */}
@@ -916,13 +914,15 @@ export function ConstructionImportDrawer({ asPage = false, onClose, onSuccess })
     >
       <div className="space-y-5 text-sm">
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800">
+        <div role="tablist" aria-label="Tab Impor Standar Konstruksi" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
           <button
             type="button"
+            role="tab"
+            aria-selected={tab === 'types'}
             onClick={() => { setTab('types'); setFile(null); setResult(null); setError('') }}
-            className={`pb-2.5 px-4 text-xs font-semibold border-b-2 transition cursor-pointer ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
               tab === 'types'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
@@ -930,10 +930,12 @@ export function ConstructionImportDrawer({ asPage = false, onClose, onSuccess })
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={tab === 'bom'}
             onClick={() => { setTab('bom'); setFile(null); setResult(null); setError('') }}
-            className={`pb-2.5 px-4 text-xs font-semibold border-b-2 transition cursor-pointer ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap ${
               tab === 'bom'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >

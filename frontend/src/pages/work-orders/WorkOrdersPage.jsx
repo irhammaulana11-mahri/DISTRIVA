@@ -148,16 +148,16 @@ export default function WorkOrdersPage() {
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
+            icon={IconRefresh}
             onClick={load}
-            title="Muat Ulang"
-            aria-label="Muat Ulang"
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition cursor-pointer shadow-2xs"
+            aria-label="Segarkan"
           >
-            <IconRefresh size={14} />
-            <span>Segarkan</span>
-          </button>
+            Segarkan
+          </Button>
         </div>
       </div>
 
@@ -216,22 +216,45 @@ export default function WorkOrdersPage() {
         </div>
       </dl>
 
+      {/* Tabs */}
+      <div role="tablist" aria-label="Status Surat Perintah Kerja" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+        {visibleFilters.map(({ key, label }) => {
+          const count = countOf(key)
+          const active = filter === key
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => { setFilter(key); setPage(1) }}
+              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
+                active
+                  ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <span>{label}</span>
+              {count > 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  active
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          <div className="flex items-center gap-1 flex-wrap">
-            {visibleFilters.map(({ key, label }) => {
-              const count = countOf(key)
-              const active = filter === key
-              return (
-                <button key={key} type="button" onClick={() => { setFilter(key); setPage(1) }} aria-pressed={active}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${active ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-700'}`}>
-                  {label}
-                  {count > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>{count}</span>}
-                </button>
-              )
-            })}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Menampilkan <span className="font-semibold text-slate-700 dark:text-slate-200">{filtered.length}</span> agenda
           </div>
-          <div className="relative lg:ml-auto lg:w-80">
+          <div className="relative w-full sm:w-80">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><IconSearch size={14} /></span>
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Cari No. Agenda, pelanggan, nomor WO / surat, vendor..." aria-label="Cari"
               className={`${filterSearchCls} w-full`} />

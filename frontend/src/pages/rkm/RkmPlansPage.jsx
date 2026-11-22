@@ -118,13 +118,6 @@ export default function RkmPlansPage() {
               <IconCalendar className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Perencanaan</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">RKM Distribusi</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Rencana Kerja &amp; Material (RKM)
@@ -142,7 +135,7 @@ export default function RkmPlansPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={loadPlans}
               aria-label="Segarkan"
@@ -152,7 +145,7 @@ export default function RkmPlansPage() {
             {canPlan && (
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 icon={IconPlus}
                 onClick={() => {
                   setCreateModalOpen(true)

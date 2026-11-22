@@ -320,7 +320,7 @@ describe('admin UI', () => {
     mockApi({ 'GET /me': { user }, 'GET /admin/access': adminAccess })
     renderAt('/')
     expect(await screen.findByRole('link', { name: 'Pengguna' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Unit organisasi' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Unit Organisasi' })).toBeInTheDocument()
   })
 
   it('opens master-data action pages only for the capability the server asks for, not for read access alone', async () => {

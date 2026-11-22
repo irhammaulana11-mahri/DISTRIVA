@@ -183,7 +183,7 @@ export default function SurveyRequestsPage() {
             <Button
               type="button"
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={load}
               icon={IconRefresh}
               aria-label="Segarkan"
@@ -194,7 +194,7 @@ export default function SurveyRequestsPage() {
               <Button
                 type="button"
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={() => setPickMode('any')}
                 icon={IconPlus}
                 title="Pilih satu pelanggan untuk survei perorangan, atau beberapa untuk satu survei kolektif"

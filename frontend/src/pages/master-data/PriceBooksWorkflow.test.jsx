@@ -174,7 +174,7 @@ describe('Buku Harga Kontrak Workflow (Tahap 5A - docs/67)', () => {
     expect(screen.getByText('1 UP3')).toBeInTheDocument()
 
     // Filter by APPROVED
-    const approvedTab = screen.getByRole('button', { name: /Disetujui \(Aktif\)/i })
+    const approvedTab = screen.getByRole('tab', { name: /Disetujui \(Aktif\)/i })
     await userEvent.click(approvedTab)
 
     expect(priceBookApi.list).toHaveBeenCalledWith({ status: 'APPROVED' })

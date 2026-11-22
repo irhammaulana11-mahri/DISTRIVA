@@ -392,11 +392,11 @@ describe('Gudang ERP, Pemetaan SKU↔KHS, Outbox & Laporan Workflow (docs/79, do
       warehousesApi.forgetMimsToken.mockResolvedValue({ message: 'ok' })
       warehousesApi.syncStock.mockResolvedValue({ data: [{ warehouse_id: 'w-1', warehouse_code: 'GDG-UP3', warehouse_name: 'Gudang', status: 'OK', message: 'ok', snapshot_id: 's1', total: 5, mapped: 5 }] })
       
-      // Verifikasi di WarehousesPage: button "Tarik Stok dari MIMS" sudah dihapus, tersedia link Halaman Tarik MIMS
+      // Verifikasi di WarehousesPage: button "Tarik Stok dari MIMS" sudah dihapus, tersedia tombol Halaman Tarik MIMS (menuju halaman penarikan)
       renderWithProviders(<WarehousesPage />, { can: { 'stock.import': true, 'master_data.view': true } })
       await screen.findByText('GDG-UP3')
       expect(screen.queryByRole('button', { name: /^Tarik Stok dari MIMS$/i })).not.toBeInTheDocument()
-      expect(screen.getByRole('link', { name: /Halaman Tarik MIMS/i })).toHaveAttribute('href', '/master-data/warehouses/tarik-mims')
+      expect(screen.getByRole('button', { name: /Halaman Tarik MIMS/i })).toBeInTheDocument()
 
       // Eksekusi penarikan pada halaman MimsStockPullPage
       renderWithProviders(<MimsStockPullPage asPage={false} onClose={vi.fn()} />, { can: { 'stock.import': true, 'master_data.view': true } })

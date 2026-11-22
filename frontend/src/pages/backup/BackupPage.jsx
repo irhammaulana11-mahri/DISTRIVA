@@ -28,13 +28,6 @@ export default function BackupPage() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider uppercase text-blue-300">
-              <span>DISTRIVA</span>
-              <span className="opacity-40">/</span>
-              <span>PENGATURAN</span>
-              <span className="opacity-40">/</span>
-              <span className="text-white">BACKUP &amp; PEMULIHAN SISTEM</span>
-            </div>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/20 shadow-inner">
                 <IconDatabase size={24} />
@@ -60,9 +53,9 @@ export default function BackupPage() {
               type="button"
               onClick={reloadSummary}
               title="Segarkan Ringkasan"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-3 py-1.5 text-xs font-semibold transition border border-white/15 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white px-4 py-2 text-xs sm:text-sm font-semibold transition border border-white/15 cursor-pointer"
             >
-              <IconRefresh size={15} />
+              <IconRefresh size={16} />
               <span className="hidden sm:inline">Segarkan</span>
             </button>
           </div>
@@ -72,7 +65,7 @@ export default function BackupPage() {
       {/* Tabs Navigation */}
       <div className="border-b border-slate-200 dark:border-slate-800">
         <nav
-          className="flex space-x-2 sm:space-x-4 overflow-x-auto"
+          className="flex items-center gap-1 overflow-x-auto"
           role="tablist"
           aria-label="Tab navigasi backup dan pemulihan"
         >
@@ -87,10 +80,10 @@ export default function BackupPage() {
                 aria-selected={isActive}
                 aria-controls={`panel-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-3 px-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer shrink-0 ${
+                className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer shrink-0 whitespace-nowrap ${
                   isActive
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'
+                    ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 <Icon size={16} />

@@ -135,36 +135,21 @@ describe('Master Gardu — SubstationsPage (docs/80 §15)', () => {
     expect(screen.queryByText('Teg. ujung (V)')).not.toBeInTheDocument()
   })
 
-  it('2. filter baru (merk, tahun, kapasitas, kecamatan, tanpa koordinat, perlu ditinjau) dan sort/dir dikirim ke server', async () => {
+  it('2. filter baru (pencarian tunggal universal, tanpa koordinat, perlu ditinjau) dan sort/dir dikirim ke server', async () => {
     renderPage()
     await screen.findAllByTestId('substation-row')
 
-    // Filter merk
-    await userEvent.type(screen.getByPlaceholderText('Merk trafo…'), 'TRAFINDO')
-    // Filter tahun
-    await userEvent.type(screen.getByPlaceholderText('Thn dari'), '2015')
-    await userEvent.type(screen.getByPlaceholderText('Thn s/d'), '2020')
-    // Filter kapasitas
-    await userEvent.type(screen.getByPlaceholderText('kVA min'), '100')
-    await userEvent.type(screen.getByPlaceholderText('kVA maks'), '250')
-    // Filter kecamatan
-    await userEvent.type(screen.getByPlaceholderText('Kecamatan…'), 'Diwek')
+    // Pencarian tunggal universal (kode, nama, lokasi, merk trafo, kecamatan)
+    await userEvent.type(screen.getByPlaceholderText('Cari kode, nama, lokasi, merk trafo, kecamatan…'), 'TRAFINDO')
     // Filter tanpa koordinat
     await userEvent.click(screen.getByLabelText('Tanpa koordinat'))
     // Filter perlu ditinjau
     await userEvent.click(screen.getByLabelText('Perlu ditinjau'))
 
-    await userEvent.click(screen.getByRole('button', { name: 'Cari' }))
-
     await waitFor(() => {
       expect(substationsApi.list).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          brand: 'TRAFINDO',
-          year_from: '2015',
-          year_to: '2020',
-          capacity_min: '100',
-          capacity_max: '250',
-          kecamatan: 'Diwek',
+          q: 'TRAFINDO',
           has_coordinates: 0,
           needs_review: 1,
         })

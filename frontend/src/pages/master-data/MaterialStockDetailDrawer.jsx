@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import Drawer from '../../components/Drawer.jsx'
+import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import Alert from '../../components/Alert.jsx'
@@ -28,7 +28,9 @@ import {
  */
 export default function MaterialStockDetailDrawer({
   isOpen,
+  asPage = false,
   onClose,
+  onBack,
   materialSummary,
   warehouseIds = [],
   warehouses = [],
@@ -263,10 +265,13 @@ export default function MaterialStockDetailDrawer({
   const realUnit = mat.unit || (materialSummary?.unit && materialSummary?.unit !== ulpName ? materialSummary?.unit : null) || '-'
 
   return (
-    <Drawer
+    <PanelShell
+      asPage={asPage}
       isOpen={isOpen}
       onClose={onClose}
+      onBack={onBack || onClose}
       size="max-w-4xl"
+      width="max-w-4xl"
       title={
         <div className="flex items-center gap-2.5 flex-wrap">
           <span className="font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded text-sm font-bold border border-blue-200 dark:border-blue-900">
@@ -1584,6 +1589,6 @@ export default function MaterialStockDetailDrawer({
           </div>
         )}
       </div>
-    </Drawer>
+    </PanelShell>
   )
 }

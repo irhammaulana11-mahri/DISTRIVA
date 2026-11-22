@@ -126,7 +126,7 @@ describe('TariffBooks Master Data Workflow', () => {
     expect(screen.queryByRole('button', { name: /Nonaktifkan/ })).not.toBeInTheDocument()
 
     // Filter by DRAFT
-    const draftTab = screen.getByRole('button', { name: 'Draf (Menunggu Persetujuan)' })
+    const draftTab = screen.getByRole('tab', { name: 'Draf (Menunggu Persetujuan)' })
     await userEvent.click(draftTab)
     expect(tariffBooksApi.list).toHaveBeenCalledWith({ status: 'DRAFT' })
 

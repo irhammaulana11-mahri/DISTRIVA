@@ -350,13 +350,6 @@ export default function KhsMaterialMapPage() {
               <IconClipboard className="h-6 w-6" />
             </div>
             <div>
-              <nav className="text-xs text-slate-500 mb-1">
-                <span>DISTRIVA</span>
-                <span className="mx-1.5">/</span>
-                <span>Master Data</span>
-                <span className="mx-1.5">/</span>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Pemetaan Material (SKU↔KHS)</span>
-              </nav>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                   Meja Kerja Pemetaan Material ERP ke KHS
@@ -374,7 +367,7 @@ export default function KhsMaterialMapPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               icon={IconRefresh}
               onClick={() => {
                 loadCoverage()
@@ -385,14 +378,14 @@ export default function KhsMaterialMapPage() {
               Segarkan
             </Button>
             {canManage && (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
+                icon={IconUpload}
                 onClick={() => navigate('/master-data/mapping/impor')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-3 py-1.5 text-xs shadow-xs transition focus-ring cursor-pointer"
               >
-                <IconUpload size={14} />
-                <span>Impor CSV Pemetaan</span>
-              </button>
+                Impor CSV Pemetaan
+              </Button>
             )}
           </div>
         </div>
