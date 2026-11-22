@@ -464,10 +464,10 @@ export default function WhatsAppSettingsPage() {
               >
                 <textarea
                   id="wa-body"
-                  rows={3}
+                  rows={8}
                   value={form.body}
                   onChange={set('body')}
-                  className={`${INPUT} font-mono text-xs`}
+                  className={`${INPUT} font-mono text-xs min-h-[160px] leading-relaxed`}
                   placeholder={BODY_EXAMPLE}
                 />
               </Row>

@@ -128,9 +128,9 @@ const adminNav = [
   { to: '/master-data/vendors', label: 'Mitra & Vendor', capability: 'vendors.manage', icon: IconTruck },
 ]
 
-// 6. Pengaturan & Sistem (MFA, Backup)
+// 6. Pengaturan & Sistem (MFA, WhatsApp, Backup)
 const settingsNav = [
-  { to: '/mfa', label: 'Keamanan MFA', capability: 'mfa.manage', sysAdminOnly: true, icon: IconShield },
+  { to: '/pengaturan/mfa', label: 'Keamanan MFA', capability: 'mfa.manage', sysAdminOnly: true, icon: IconShield },
   { to: '/pengaturan/whatsapp', label: 'Pengaturan WhatsApp', capability: 'whatsapp.settings.manage', sysAdminOnly: true, icon: IconBrandWhatsapp },
   { to: '/sistem/backup', label: 'Backup & Pemulihan', capability: 'backups.view', icon: IconDatabase },
 ]
@@ -189,6 +189,7 @@ const titles = {
   '/admin/units/baru': 'Administrasi / Unit Organisasi / Tambah',
   '/master-data/vendors': 'Administrasi / Mitra & Vendor',
   '/reports': 'Laporan & Monitoring / Pusat Analitika Eksekutif',
+  '/pengaturan/mfa': 'Pengaturan / Keamanan MFA',
   '/pengaturan/whatsapp': 'Pengaturan / Pengaturan WhatsApp',
   '/sistem/backup': 'Pengaturan / Backup & Pemulihan Sistem',
 }
@@ -275,7 +276,7 @@ const getSectionForPath = (path) => {
     return 'operations'
   }
   if (path.startsWith('/master-data')) return 'masterData'
-  if (path.startsWith('/sistem') || path === '/mfa') return 'settings'
+  if (path.startsWith('/sistem') || path.startsWith('/pengaturan') || path === '/mfa') return 'settings'
   if (path.startsWith('/modul')) return 'modules'
   if (path === '/') return 'main'
   return null
@@ -455,7 +456,7 @@ export default function AppLayout() {
   const accessibleSettingsItems = mustChangePassword
     ? []
     : settingsNav.filter((n) => {
-        if (n.to === '/mfa') return Boolean(isSysAdmin || mfaState?.required)
+        if (n.to === '/pengaturan/mfa' || n.to === '/mfa') return Boolean(isSysAdmin || mfaState?.required)
         if (n.sysAdminOnly) return Boolean(isSysAdmin)
         return Boolean(can[n.capability])
       })
