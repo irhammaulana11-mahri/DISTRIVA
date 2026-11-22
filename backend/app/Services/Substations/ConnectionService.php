@@ -159,6 +159,7 @@ class ConnectionService
         foreach (['organizational_unit_id' => 'c.organizational_unit_id', 'substation_id' => 'c.substation_id', 'tariff_code' => 'c.tariff_code', 'status' => 'c.status', 'service_type' => 'c.service_type', 'feeder_id' => 's.feeder_id'] as $k => $col) {
             ! empty($f[$k]) && $q->where($col, $f[$k]);
         }
+        ! empty($f['up3_id']) && $q->whereIn('c.organizational_unit_id', DB::table('organizational_units')->where('id', $f['up3_id'])->orWhere('parent_id', $f['up3_id'])->select('id'));      // a UP3 = its ULPs (and itself)
         if (isset($f['linked'])) {
             $f['linked'] ? $q->whereNotNull('c.substation_id') : $q->whereNull('c.substation_id');
         }

@@ -20,7 +20,7 @@ class ConnectionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'customers.view');
-        $f = Validator::make($request->query(), ['q' => ['nullable', 'string', 'max:100'], 'organizational_unit_id' => ['nullable', 'uuid'], 'substation_id' => ['nullable', 'uuid'], 'feeder_id' => ['nullable', 'uuid'],
+        $f = Validator::make($request->query(), ['q' => ['nullable', 'string', 'max:100'], 'organizational_unit_id' => ['nullable', 'uuid'], 'up3_id' => ['nullable', 'uuid'], 'substation_id' => ['nullable', 'uuid'], 'feeder_id' => ['nullable', 'uuid'],
             'tariff_code' => ['nullable', 'string', 'max:10'], 'status' => ['nullable', 'in:AKTIF,BONGKAR,HAPUS,PROSES'], 'service_type' => ['nullable', 'in:PASKABAYAR,PRABAYAR'], 'linked' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100']])->validate();
 

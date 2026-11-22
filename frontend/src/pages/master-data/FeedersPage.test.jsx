@@ -162,7 +162,7 @@ describe('Master Penyulang Page (docs/81)', () => {
     expect(screen.getAllByText(/GI-JOM/).length).toBeGreaterThan(0)
   })
 
-  it('2. mengirim parameter filter (q, owner_unit_id, serves_unit_id, gi_code, status) ke server', async () => {
+  it('2. mengirim parameter filter (q, up3_id, serves_unit_id, status) ke server', async () => {
     const user = userEvent.setup()
     renderPage()
 
@@ -188,7 +188,7 @@ describe('Master Penyulang Page (docs/81)', () => {
       expect(feedersApi.list).toHaveBeenCalledWith(
         expect.objectContaining({
           q: 'Wates',
-          owner_unit_id: 'u-up3-1',
+          up3_id: 'u-up3-1',
           serves_unit_id: 'u-ulp-1',
           status: 'AKTIF',
         })

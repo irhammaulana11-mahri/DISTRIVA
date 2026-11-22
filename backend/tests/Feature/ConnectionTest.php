@@ -101,6 +101,20 @@ class ConnectionTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_up3_filter_narrows_customers_and_gardu_to_the_ulps_of_that_up3(): void
+    {
+        $this->loadGardu([$this->gardu('HD0001', 'GD514530001')]);
+        $this->send($this->planning, [$this->item('514530000001', 'GD514530001')]);
+        $upA = (string) $this->ulpA->parent_id;
+        $upB = (string) $this->ulpB->parent_id;
+
+        $this->as($this->planning)->getJson("/api/master-data/customer-connections?up3_id={$upA}")->assertOk()->assertJsonPath('meta.total', 1);
+        $this->as($this->planning)->getJson("/api/master-data/customer-connections?up3_id={$upB}")->assertOk()->assertJsonPath('meta.total', 0);      // another UP3: nothing (the filter used to be ignored)
+        $this->as($this->planning)->getJson("/api/master-data/substations?up3_id={$upA}")->assertOk()->assertJsonCount(1, 'data');
+        $this->as($this->planning)->getJson("/api/master-data/substations?up3_id={$upB}")->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    #[Test]
     public function the_dil_is_loaded_by_idpel_linked_to_the_gardu_by_the_gadis_number_and_is_idempotent(): void
     {
         $this->loadGardu([$this->gardu('HD0001', 'GD514530001')]);

@@ -213,6 +213,30 @@ describe('Master Pelanggan Page (docs/81)', () => {
     })
   })
 
+  it('3b. memilih UP3 saja (ULP tetap Semua) mengirim up3_id ke server dan menyempitkan pilihan ULP', async () => {
+    adminApi.units.mockResolvedValue({
+      data: [
+        { id: 'u-up3-1', code: 'UP3-MJO', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        { id: 'u-up3-2', code: 'UP3-SBY', name: 'UP3 Surabaya', unit_type: 'UP3' },
+        { id: 'u-ulp-1', code: 'ULP-MJO', name: 'ULP Mojokerto Kota', unit_type: 'ULP', parent_id: 'u-up3-1' },
+        { id: 'u-ulp-2', code: 'ULP-SBY', name: 'ULP Surabaya Selatan', unit_type: 'ULP', parent_id: 'u-up3-2' },
+      ],
+    })
+    const user = userEvent.setup()
+    renderPage()
+    await waitFor(() => expect(screen.getByText('514530761001')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('combobox', { name: /Filter Unit UP3/i }))
+    await user.click(await screen.findByRole('option', { name: /UP3 Mojokerto/i }))
+
+    await waitFor(() => {
+      expect(connectionsApi.list).toHaveBeenCalledWith(expect.objectContaining({ up3_id: 'u-up3-1', organizational_unit_id: undefined }))
+    })
+    await user.click(screen.getByRole('combobox', { name: /Unit ULP/i }))
+    expect(screen.getByRole('option', { name: /ULP Mojokerto Kota/i })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /ULP Surabaya Selatan/i })).not.toBeInTheDocument()
+  })
+
   it('4. membuka detail pelanggan dalam drawer: semua isian, status gardu ref, dan permohonan terkait', async () => {
     const user = userEvent.setup()
     renderPage({ can: { 'customers.view': true, 'customers.manage': true } })

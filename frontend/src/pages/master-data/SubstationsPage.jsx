@@ -705,6 +705,7 @@ export default function SubstationsPage() {
     try {
       const params = {
         q: debouncedQ.trim() || undefined,
+        up3_id: up3Id || undefined,
         organizational_unit_id: unitId || undefined,
         feeder_id: feederId || undefined,
         ownership: ownership || undefined,
@@ -726,6 +727,7 @@ export default function SubstationsPage() {
     }
   }, [
     debouncedQ,
+    up3Id,
     unitId,
     feederId,
     ownership,

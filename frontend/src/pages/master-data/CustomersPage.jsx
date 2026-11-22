@@ -492,6 +492,7 @@ export default function CustomersPage() {
     try {
       const res = await connectionsApi.list({
         q: debouncedQ.trim() || undefined,
+        up3_id: up3Id || undefined,
         organizational_unit_id: unitId || undefined,
         feeder_id: feederId || undefined,
         substation_id: substationId || undefined,
@@ -512,6 +513,7 @@ export default function CustomersPage() {
     }
   }, [
     debouncedQ,
+    up3Id,
     unitId,
     feederId,
     substationId,
@@ -541,7 +543,7 @@ export default function CustomersPage() {
       unlinkedCount,
     }
   }, [rows, meta, summary])
-  const filtered = Boolean(q || unitId || feederId || substationId || tariffCode || status || serviceType || unlinkedOnly)
+  const filtered = Boolean(q || up3Id || unitId || feederId || substationId || tariffCode || status || serviceType || unlinkedOnly)
   const scopeNote = filtered ? 'sesuai filter' : 'seluruh data'
 
   return (

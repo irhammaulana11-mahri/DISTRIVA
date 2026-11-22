@@ -752,7 +752,7 @@ export default function FeedersPage() {
     try {
       const res = await feedersApi.list({
         q: debouncedQ.trim() || undefined,
-        owner_unit_id: ownerUnitId || undefined,
+        up3_id: ownerUnitId || undefined,
         serves_unit_id: servesUnitId || undefined,
         status: status || undefined,
         page,

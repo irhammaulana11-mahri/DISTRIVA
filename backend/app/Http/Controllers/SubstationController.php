@@ -20,7 +20,7 @@ class SubstationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'substations.view');
-        $f = Validator::make($request->query(), ['q' => ['nullable', 'string', 'max:100'], 'organizational_unit_id' => ['nullable', 'uuid'], 'feeder_id' => ['nullable', 'uuid'], 'feeder_code' => ['nullable', 'string', 'max:40'],
+        $f = Validator::make($request->query(), ['q' => ['nullable', 'string', 'max:100'], 'organizational_unit_id' => ['nullable', 'uuid'], 'up3_id' => ['nullable', 'uuid'], 'feeder_id' => ['nullable', 'uuid'], 'feeder_code' => ['nullable', 'string', 'max:40'],
             'type_code' => ['nullable', 'string', 'max:20'], 'usage' => ['nullable', 'in:UMUM,KHUSUS,CAMPURAN'], 'ownership' => ['nullable', 'in:PLN,PELANGGAN'], 'status' => ['nullable', 'in:AKTIF,NONAKTIF'],
             'needs_review' => ['nullable', 'boolean'], 'pickable' => ['nullable', 'boolean'], 'reading_status' => ['nullable', 'in:FRESH,STALE,NONE'], 'alert' => ['nullable', 'in:BASE_LOW,END_LOW,PHASE_UNBALANCED,END_DROP'], 'kecamatan' => ['nullable', 'string', 'max:100'], 'brand' => ['nullable', 'string', 'max:100'],
             'capacity_min' => ['nullable', 'numeric', 'min:0'], 'capacity_max' => ['nullable', 'numeric', 'min:0'], 'year_from' => ['nullable', 'integer', 'min:1900', 'max:2100'], 'year_to' => ['nullable', 'integer', 'min:1900', 'max:2100'],

@@ -72,6 +72,7 @@ class SubstationService
                 $q->where("s.{$k}", $f[$k]);
             }
         }
+        ! empty($f['up3_id']) && $q->whereIn('s.organizational_unit_id', DB::table('organizational_units')->where('id', $f['up3_id'])->orWhere('parent_id', $f['up3_id'])->select('id'));      // a UP3 = its ULPs (and itself)
         ! empty($f['kecamatan']) && $q->whereRaw('lower(coalesce(s.kecamatan, \'\')) like ?', ['%'.mb_strtolower(trim((string) $f['kecamatan'])).'%']);
         isset($f['capacity_min']) && $q->where('s.capacity_kva', '>=', $f['capacity_min']);
         isset($f['capacity_max']) && $q->where('s.capacity_kva', '<=', $f['capacity_max']);

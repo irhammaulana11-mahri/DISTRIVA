@@ -489,6 +489,7 @@ export default function SubstationMeasurementsPage() {
 
       const params = {
         q: debouncedQ.trim() || undefined,
+        up3_id: up3Id || undefined,
         organizational_unit_id: unitId || undefined,
         feeder_id: feederId || undefined,
         reading_status: readingStatus || undefined,
@@ -510,6 +511,7 @@ export default function SubstationMeasurementsPage() {
     }
   }, [
     debouncedQ,
+    up3Id,
     unitId,
     feederId,
     readingStatus,
