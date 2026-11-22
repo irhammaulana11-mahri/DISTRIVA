@@ -324,7 +324,7 @@ export const rabRunsApi = {
 }
 
 export const warehousesApi = {
-  list: () => request('/master-data/warehouses'),
+  list: (params = {}) => request(`/master-data/warehouses${qs(params)}`),
   create: (body) => request('/master-data/warehouses', { method: 'POST', body }),
   importErp: (body) => request('/master-data/warehouses/import', { method: 'POST', body }),
   snapshots: (warehouseId) => request(`/master-data/warehouses/${warehouseId}/stock-snapshots`),
@@ -448,7 +448,7 @@ export const khsMaterialMapApi = {
 }
 
 export const poleContractsApi = {
-  list: () => request('/master-data/pole-contracts'),
+  list: (params = {}) => request(`/master-data/pole-contracts${qs(params)}`),
   create: (body) => request('/master-data/pole-contracts', { method: 'POST', body }),
   get: (id) => request(`/master-data/pole-contracts/${id}`),
   update: (id, body) => request(`/master-data/pole-contracts/${id}`, { method: 'PUT', body }),

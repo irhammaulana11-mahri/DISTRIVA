@@ -4,6 +4,7 @@ import { surveyApi, proposalsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
@@ -71,6 +72,8 @@ export default function SurveyRequestsPage() {
   const [kind, setKind] = useState('')
   const [outcome, setOutcome] = useState('')
   const [status, setStatus] = useState('')
+  const [up3Id, setUp3Id] = useState('')
+  const [unitId, setUnitId] = useState('')
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
   const [pickMode, setPickMode] = useState(mulaiParam && canStart ? 'individual' : null) // 'any' (satu tombol) | 'individual' (dari drawer ?mulai=) | 'collective'
@@ -118,6 +121,8 @@ export default function SurveyRequestsPage() {
         kind: kind || undefined,
         outcome: outcome || undefined,
         status: status || undefined,
+        up3_id: up3Id || undefined,
+        unit_id: unitId || undefined,
         page,
         per_page: perPage,
       })
@@ -125,7 +130,7 @@ export default function SurveyRequestsPage() {
     } catch (err) {
       setState({ loading: false, error: err?.message || 'Gagal memuat daftar usulan survei.', rows: [], meta: null })
     }
-  }, [debouncedSearch, kind, outcome, status, page, perPage])
+  }, [debouncedSearch, kind, outcome, status, up3Id, unitId, page, perPage])
 
   useEffect(() => {
     const t = setTimeout(load, search ? 300 : 0)
@@ -281,6 +286,14 @@ export default function SurveyRequestsPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <HierarchicalUnitFilter
+            permission="surveys.view"
+            up3Id={up3Id}
+            onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+            unitId={unitId}
+            onUnitChange={(v) => { setUnitId(v); setPage(1) }}
+            unitAriaLabel="Filter Unit ULP"
+          />
           <select aria-label="Jenis survei" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1) }} className={filterSelectCls}>
             <option value="">Semua jenis</option>
             <option value="INDIVIDUAL">Perorangan</option>

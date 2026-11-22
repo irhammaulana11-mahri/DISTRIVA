@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Authorization\UnitFilter;
 use App\Services\Notifications\WorkflowNotifier;
 use App\Services\Surveys\SurveyService;
 use Illuminate\Http\JsonResponse;
@@ -46,7 +47,7 @@ class SurveyController extends Controller
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'surveys.view');
         $request->validate(['q' => ['nullable', 'string', 'max:100'], 'kind' => ['nullable', Rule::in(['INDIVIDUAL', 'COLLECTIVE'])], 'outcome' => ['nullable', Rule::in(['PENDING', 'EXTENSION', 'NO_EXTENSION'])],
-            'status' => ['nullable', Rule::in(['ACTIVE', 'ACCEPTED', 'CANCELLED'])], 'unit_id' => ['nullable', 'uuid'], 'per_page' => ['nullable', 'integer']]);
+            'status' => ['nullable', Rule::in(['ACTIVE', 'ACCEPTED', 'CANCELLED'])], 'unit_id' => ['nullable', 'uuid'], 'up3_id' => ['nullable', 'uuid'], 'per_page' => ['nullable', 'integer']]);
         $prop = "(select p.id from proposals p where p.representative_application_id = a.id and p.status in ('OPEN','COMPLETED_NO_EXTENSION') order by p.created_at desc limit 1)";
         $members = "(select count(*) from proposal_applications pa where pa.proposal_id = {$prop} and (pa.released_at is null or (select p3.status from proposals p3 where p3.id = pa.proposal_id) = 'COMPLETED_NO_EXTENSION'))";
         $outcome = "(select case when s.status = 'ACCEPTED' and sv.requires_network_extension is true then 'EXTENSION' when s.status = 'ACCEPTED' and sv.requires_network_extension is false then 'NO_EXTENSION' else 'PENDING' end
@@ -56,9 +57,7 @@ class SurveyController extends Controller
         if (! $scope['unrestricted']) {
             $q->whereIn('a.organizational_unit_id', $scope['units']);
         }
-        if ($request->filled('unit_id')) {
-            $q->where('a.organizational_unit_id', $request->query('unit_id'));
-        }
+        UnitFilter::apply($q, $request, 'a.organizational_unit_id');
         if ($request->filled('status')) {
             $q->where('s.status', $request->query('status'));
         }

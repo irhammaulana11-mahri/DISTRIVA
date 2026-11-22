@@ -7,6 +7,7 @@ use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Authorization\CatalogAuthorizer;
+use App\Services\Authorization\UnitFilter;
 use App\Services\Notifications\InAppNotifier;
 use App\Services\Notifications\WorkflowNotifier;
 use App\Services\Tasks\TaskService;
@@ -28,8 +29,13 @@ class TaskController extends Controller
     public function index(Request $request): JsonResponse
     {
         $d = $request->validate(['mine' => ['nullable', 'boolean'], 'status' => ['nullable', 'in:'.implode(',', [...TaskService::OPEN, 'COMPLETED', 'CANCELLED', 'OPEN'])], 'task_type' => ['nullable', 'string', 'max:30'],
-            'overdue' => ['nullable', 'boolean'], 'application_id' => ['nullable', 'uuid'], 'per_page' => ['nullable', 'integer', 'between:1,100']]);
+            'overdue' => ['nullable', 'boolean'], 'application_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'between:1,100']] + UnitFilter::rules());
         $q = $this->base($request->user());
+        UnitFilter::apply($q, $request, 'a.organizational_unit_id');
+        if (! empty($d['search'])) {
+            $term = '%'.str_replace(['%', '_'], ['\\%', '\\_'], trim($d['search'])).'%';
+            $q->where(fn ($w) => $w->where('t.title', 'ilike', $term)->orWhere('a.application_number', 'ilike', $term)->orWhere('au.name', 'ilike', $term));
+        }
         if ($request->boolean('mine')) {
             $q->where('t.assignee_id', $request->user()->getKey());
         }

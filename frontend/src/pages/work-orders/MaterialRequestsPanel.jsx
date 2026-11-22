@@ -3,6 +3,7 @@ import { materialRequestsApi, triggerFileDownload } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Alert from '../../components/Alert.jsx'
 import HandoverForm from './HandoverForm.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -31,6 +32,8 @@ export default function MaterialRequestsPanel({ applicationId }) {
   // Filter & List State
   const [statusFilter, setStatusFilter] = useState('')
   const [followupFilter, setFollowupFilter] = useState(false)
+  const [up3Id, setUp3Id] = useState('')
+  const [unitId, setUnitId] = useState('')
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -62,6 +65,8 @@ export default function MaterialRequestsPanel({ applicationId }) {
     try {
       const res = await materialRequestsApi.list({
         status: statusFilter || undefined,
+        up3_id: up3Id || undefined,
+        unit_id: unitId || undefined,
         followup: followupFilter || undefined,
         application_id: applicationId || undefined,
         page,
@@ -74,7 +79,7 @@ export default function MaterialRequestsPanel({ applicationId }) {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, followupFilter, applicationId, page, perPage])
+  }, [statusFilter, followupFilter, up3Id, unitId, applicationId, page, perPage])
 
   useEffect(() => {
     loadRequests()
@@ -220,6 +225,16 @@ export default function MaterialRequestsPanel({ applicationId }) {
       <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
+            {!applicationId && (
+              <HierarchicalUnitFilter
+                permission="material_requests.view"
+                up3Id={up3Id}
+                onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+                unitId={unitId}
+                onUnitChange={(v) => { setUnitId(v); setPage(1) }}
+                unitAriaLabel="Filter Unit ULP"
+              />
+            )}
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Status:

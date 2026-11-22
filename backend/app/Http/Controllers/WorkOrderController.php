@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Authorization\UnitFilter;
 use App\Services\Inventory\AllocationService;
 use App\Services\Notifications\WorkflowNotifier;
 use App\Services\WorkOrders\PoleWorkOrderService;
@@ -147,6 +148,8 @@ class WorkOrderController extends Controller
                 $q->whereIn('a.organizational_unit_id', $scope['units']);
             }
         }
+        $request->validate(UnitFilter::rules());
+        UnitFilter::apply($q, $request, 'a.organizational_unit_id');
 
         $rows = $q->leftJoin('vendor_companies as v', 'v.id', '=', 'w.vendor_company_id')
             ->get(['w.id', 'w.wo_number', 'w.status', 'w.version_number', 'w.vendor_company_id', 'a.application_number', 'w.created_at', 'w.issued_at', 'w.completed_at', 'w.target_date', 'v.code as vendor_code', 'v.name as vendor_name']);
@@ -162,6 +165,7 @@ class WorkOrderController extends Controller
     public function byAgenda(Request $request): JsonResponse
     {
         $actor = $request->user();
+        $request->validate(UnitFilter::rules());
         $company = $this->vendorCompany($actor);
         $netScope = $poleScope = $createNet = $createPole = $mrScope = null;
         if ($company === null) {
@@ -227,8 +231,9 @@ class WorkOrderController extends Controller
         }
         $agenda = "(select e.reference_number from application_external_references e where e.application_id = a.id and e.reference_type = 'AGENDA' and e.is_active order by e.created_at desc limit 1)";
         $apps = DB::table('applications as a')->leftJoin('customers as cu', 'cu.id', '=', 'a.customer_id')->join('organizational_units as o', 'o.id', '=', 'a.organizational_unit_id')
-            ->whereIn('a.id', $ids)->orderByDesc('a.created_at')
-            ->get(['a.id', 'a.application_number', 'a.current_status', 'a.application_type', 'cu.name as customer_name', 'o.name as unit_name', DB::raw("{$agenda} as agenda_number")]);
+            ->whereIn('a.id', $ids)->orderByDesc('a.created_at');
+        UnitFilter::apply($apps, $request, 'a.organizational_unit_id');
+        $apps = $apps->get(['a.id', 'a.application_number', 'a.current_status', 'a.application_type', 'cu.name as customer_name', 'o.name as unit_name', DB::raw("{$agenda} as agenda_number")]);
 
         return response()->json(['data' => $apps->map(function ($a) use ($network, $stats, $poles, $netCreatable, $poleCreatable, $requests) {
             $n = $network[$a->id] ?? null;

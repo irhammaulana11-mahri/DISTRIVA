@@ -4,6 +4,7 @@ import { proposalsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -45,6 +46,8 @@ export default function ProposalsPage() {
   // Search & Filter State
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [up3Id, setUp3Id] = useState('')
+  const [unitId, setUnitId] = useState('')
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
 
@@ -56,7 +59,7 @@ export default function ProposalsPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await proposalsApi.list({ issued: 1 })
+      const res = await proposalsApi.list({ issued: 1, up3_id: up3Id || undefined, unit_id: unitId || undefined })
       setProposals(res?.data || [])
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Gagal memuat daftar usulan.')
@@ -64,7 +67,7 @@ export default function ProposalsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [up3Id, unitId])
 
   useEffect(() => {
     loadProposals()
@@ -222,6 +225,17 @@ export default function ProposalsPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nomor usulan, judul, permohonan utama, atau ULP..."
             className={`${filterSearchCls} w-full`}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <HierarchicalUnitFilter
+            permission="proposals.view"
+            up3Id={up3Id}
+            onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+            unitId={unitId}
+            onUnitChange={(v) => { setUnitId(v); setPage(1) }}
+            unitAriaLabel="Filter Unit ULP"
           />
         </div>
 

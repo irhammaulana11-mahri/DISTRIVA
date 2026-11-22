@@ -8,9 +8,10 @@ import { NotificationProvider } from '../../features/notifications/NotificationC
 import ProposalsPage from './ProposalsPage.jsx'
 import ProposalDetailPage from './ProposalDetailPage.jsx'
 import ApplicationsPage, { ApplicationDetailDrawer } from '../applications/ApplicationsPage.jsx'
-import { proposalsApi, applicationApi, surveyApi, drawingApi, documentApi, allocationsApi } from '../../services/api.js'
+import { proposalsApi, applicationApi, surveyApi, drawingApi, documentApi, allocationsApi, unitScopeApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
+  unitScopeApi: { get: vi.fn() },
   proposalsApi: {
     selectable: vi.fn(),
     list: vi.fn(),
@@ -270,6 +271,26 @@ describe('Proposals Workflow - Usulan Banyak Pelanggan 3 Fasa (docs/62 §37, doc
       payback: { text: '2 Tahun 4 Bulan' },
     },
   }
+
+  it('filter UP3 dan ULP di daftar usulan mengirim up3_id dan unit_id ke server', async () => {
+    unitScopeApi.get.mockResolvedValue({
+      scope: 'GLOBAL',
+      up3_units: [{ id: 'up3-1', code: 'UP3-A', name: 'UP3 Satu' }, { id: 'up3-2', code: 'UP3-B', name: 'UP3 Dua' }],
+      ulp_units: [{ id: 'ulp-1', code: 'ULP-A', name: 'ULP Satu', parent_id: 'up3-1' }, { id: 'ulp-2', code: 'ULP-B', name: 'ULP Dua', parent_id: 'up3-2' }],
+    })
+    proposalsApi.list.mockResolvedValue({ data: mockProposalsList })
+    renderWithProviders(<ProposalsPage />, { can: { 'proposals.view': true } })
+    await screen.findByText('USL/U-51543/202611/0001')
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit UP3' }))
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Dua/ }))
+    await waitFor(() => expect(proposalsApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ issued: 1, up3_id: 'up3-2' })))
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit ULP' }))
+    expect(screen.queryByRole('option', { name: /ULP Satu/ })).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('option', { name: /ULP Dua/ }))
+    await waitFor(() => expect(proposalsApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-2', unit_id: 'ulp-2' })))
+  })
 
   it('1. tabel pilihan tidak menampilkan data pelanggan sebelum tombol Buat Usulan diklik', async () => {
     proposalsApi.list.mockResolvedValue({ data: mockProposalsList })

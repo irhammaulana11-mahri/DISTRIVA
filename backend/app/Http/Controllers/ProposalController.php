@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Authorization\UnitFilter;
+use App\Services\Notifications\WorkflowNotifier;
 use App\Services\Proposals\ProposalService;
+use App\Services\Surveys\SurveyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +16,7 @@ use Illuminate\Support\Facades\Validator;
 /** Usulan with several customers (docs/62 §37). Violations -> 409, authorization -> 403/404 (bootstrap/app.php). */
 class ProposalController extends Controller
 {
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ProposalService $proposals, private readonly \App\Services\Notifications\WorkflowNotifier $flow) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ProposalService $proposals, private readonly WorkflowNotifier $flow) {}
 
     /** GET /proposals/selectable?q= — the searchable customer table of "create proposal": applications (any power or tariff; mohon, disetujui, bayar, cetak PK) of the actor's ULP not yet in a live proposal. */
     public function selectable(Request $request): JsonResponse
@@ -49,7 +52,7 @@ class ProposalController extends Controller
         [$id, $surveyId] = DB::transaction(function () use ($d, $actor): array {
             $proposalId = $this->proposals->create($d['application_ids'], $d['title'] ?? null, $actor, true);
 
-            return [$proposalId, app(\App\Services\Surveys\SurveyService::class)->assign($d['application_ids'][0], null, null, $actor)];
+            return [$proposalId, app(SurveyService::class)->assign($d['application_ids'][0], null, null, $actor)];
         });
 
         return response()->json(['data' => ['id' => $id, 'survey_id' => $surveyId, 'survey_number' => DB::table('application_surveys')->where('id', $surveyId)->value('survey_number')]], 201);
@@ -74,6 +77,8 @@ class ProposalController extends Controller
         if (! $scope['unrestricted']) {
             $q->whereIn('p.ulp_unit_id', $scope['units']);
         }
+        $request->validate(UnitFilter::rules());
+        UnitFilter::apply($q, $request, 'p.ulp_unit_id');
         if ($request->filled('issued')) {           // issued=1: usulan with a number (the "Usulan Perluasan" list); issued=0: collective survey requests still waiting for their result
             $request->boolean('issued') ? $q->whereNotNull('p.proposal_number') : $q->whereNull('p.proposal_number');
         }

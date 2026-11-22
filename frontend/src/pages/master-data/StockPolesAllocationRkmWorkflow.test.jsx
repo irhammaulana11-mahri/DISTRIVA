@@ -18,10 +18,12 @@ import {
   poleContractsApi,
   allocationsApi,
   rkmApi,
+  unitScopeApi,
 } from '../../services/api.js'
 
 // Mock APIs
 vi.mock('../../services/api.js', () => ({
+  unitScopeApi: { get: vi.fn() },
   adminApi: {
     units: vi.fn(),
   },
@@ -114,6 +116,25 @@ describe('Gudang & Posisi Stok Master Data Workflow', () => {
     })
     warehousesApi.list.mockResolvedValue({ data: mockWarehouses })
     warehousesApi.position.mockResolvedValue(mockPosition)
+  })
+
+  it('filter UP3 dan ULP gudang mengirim up3_id dan unit_id ke server', async () => {
+    unitScopeApi.get.mockResolvedValue({
+      scope: 'GLOBAL',
+      up3_units: [{ id: 'up3-1', code: 'UP3-A', name: 'UP3 Satu' }, { id: 'up3-2', code: 'UP3-B', name: 'UP3 Dua' }],
+      ulp_units: [{ id: 'ulp-1', code: 'ULP-A', name: 'ULP Satu', parent_id: 'up3-1' }, { id: 'ulp-2', code: 'ULP-B', name: 'ULP Dua', parent_id: 'up3-2' }],
+    })
+    renderWithContext(<WarehousesPage />, { can: { 'master_data.view': true } })
+    await screen.findByText('Gudang Induk UP3')
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit UP3' }))
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Satu/ }))
+    await waitFor(() => expect(warehousesApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1' })))
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit ULP' }))
+    expect(screen.queryByRole('option', { name: /ULP Dua/ })).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('option', { name: /ULP Satu/ }))
+    await waitFor(() => expect(warehousesApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1', unit_id: 'ulp-1' })))
   })
 
   it('1. lists warehouses and respects warehouses.manage permission for creation', async () => {
@@ -233,6 +254,16 @@ describe('Kontrak Rinci Tiang Master Data Workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     poleContractsApi.list.mockResolvedValue({ data: mockContracts })
+  })
+
+  it('filter UP3 kontrak rinci mengirim up3_id ke server dan memakai pilihan UP3 dari server', async () => {
+    poleContractsApi.list.mockResolvedValue({ data: mockContracts, options: { vendors: [], up3: [{ id: 'up3-1', name: 'UP3 Satu' }, { id: 'up3-2', name: 'UP3 Dua' }] } })
+    renderWithContext(<PoleContractsPage />, { can: { 'master_data.view': true } })
+    await screen.findByText('KR/2026/001')
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit UP3' }))
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Dua/ }))
+    await waitFor(() => expect(poleContractsApi.list).toHaveBeenLastCalledWith({ up3_id: 'up3-2' }))
   })
 
   it('1. lists pole contracts and respects poles.manage permissions', async () => {

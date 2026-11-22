@@ -5,6 +5,7 @@ import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { downloadCsv, STOCK_SNAPSHOT_TEMPLATE } from '../../utils/csvTemplates.js'
 import Button from '../../components/Button.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import Modal from '../../components/Modal.jsx'
@@ -49,6 +50,8 @@ export default function WarehousesPage() {
 
   // Pagination states
   const [whPage, setWhPage] = useState(1)
+  const [up3Id, setUp3Id] = useState('')
+  const [unitId, setUnitId] = useState('')
   const [whPerPage, setWhPerPage] = useState(10)
   const [posPage, setPosPage] = useState(1)
   const [posPerPage, setPosPerPage] = useState(10)
@@ -98,14 +101,14 @@ export default function WarehousesPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await warehousesApi.list()
+      const res = await warehousesApi.list({ up3_id: up3Id || undefined, unit_id: unitId || undefined })
       setWarehouses(res?.data || [])
     } catch (err) {
       setError(err?.message || 'Gagal memuat daftar gudang.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [up3Id, unitId])
 
 
   useEffect(() => {
@@ -459,6 +462,15 @@ export default function WarehousesPage() {
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
               Daftar Gudang ERP Terdaftar ({warehouses.length})
             </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <HierarchicalUnitFilter
+                permission="master_data.view"
+                up3Id={up3Id}
+                onUp3Change={(v) => { setUp3Id(v); setWhPage(1) }}
+                unitId={unitId}
+                onUnitChange={(v) => { setUnitId(v); setWhPage(1) }}
+                unitAriaLabel="Filter Unit ULP"
+              />
             <Button
               variant="secondary"
               size="sm"
@@ -469,6 +481,7 @@ export default function WarehousesPage() {
             >
               Segarkan
             </Button>
+            </div>
           </div>
           {loading ? (
             <div className="py-20 text-center text-slate-500">

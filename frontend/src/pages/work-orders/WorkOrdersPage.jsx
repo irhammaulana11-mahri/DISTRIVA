@@ -5,6 +5,7 @@ import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Drawer from '../../components/Drawer.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -62,6 +63,8 @@ export default function WorkOrdersPage() {
   const [params] = useSearchParams()
   const [filter, setFilter] = useState(() => (params.get('filter') === 'followup' ? 'FOLLOWUP' : 'ALL'))
   const [search, setSearch] = useState('')
+  const [up3Id, setUp3Id] = useState('')
+  const [unitId, setUnitId] = useState('')
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
   const [selectedId, setSelectedId] = useState(null)
@@ -82,14 +85,14 @@ export default function WorkOrdersPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await workOrdersApi.byAgenda()
+      const res = await workOrdersApi.byAgenda({ up3_id: up3Id || undefined, unit_id: unitId || undefined })
       setRows(res?.data || [])
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Gagal memuat daftar SPK / WO.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [up3Id, unitId])
 
   useEffect(() => { load() }, [load])
 
@@ -254,6 +257,18 @@ export default function WorkOrdersPage() {
           <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             Menampilkan <span className="font-semibold text-slate-700 dark:text-slate-200">{filtered.length}</span> agenda
           </div>
+          {!isVendor && (
+            <div className="flex flex-wrap items-center gap-2">
+              <HierarchicalUnitFilter
+                permission="wo.view"
+                up3Id={up3Id}
+                onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+                unitId={unitId}
+                onUnitChange={(v) => { setUnitId(v); setPage(1) }}
+                unitAriaLabel="Filter Unit ULP"
+              />
+            </div>
+          )}
           <div className="relative w-full sm:w-80">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><IconSearch size={14} /></span>
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Cari No. Agenda, pelanggan, nomor WO / surat, vendor..." aria-label="Cari"

@@ -5,12 +5,13 @@ import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import WorkOrdersPage from './WorkOrdersPage.jsx'
 import WorkOrderAgendaPage from './WorkOrderAgendaPage.jsx'
-import { workOrdersApi, applicationApi } from '../../services/api.js'
+import { workOrdersApi, applicationApi, unitScopeApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   workOrdersApi: { byAgenda: vi.fn(), create: vi.fn(), get: vi.fn() },
   applicationApi: { get: vi.fn() },
   bastpApi: { listForWorkOrder: vi.fn(), create: vi.fn() },
+  unitScopeApi: { get: vi.fn() },
 }))
 vi.mock('./PoleWorkOrderDetailPage.jsx', () => ({ default: ({ woId, embedded }) => <div>{`detail wo tiang ${woId}${embedded ? ' (tab)' : ''}`}</div> }))
 vi.mock('./MaterialRequestsPanel.jsx', () => ({
@@ -56,6 +57,26 @@ describe('SPK / WO per No. Agenda', () => {
     applicationApi.get.mockResolvedValue({ data: { id: 'a1', application_number: 'PB-001' } })
     workOrdersApi.byAgenda.mockImplementation((params) => Promise.resolve({ data: params?.application_id ? [netRow, newRow].filter((r) => r.application_id === params.application_id) : [netRow, newRow] }))
     workOrdersApi.get.mockResolvedValue({ data: { id: 'w1', tasks: [{ id: 't1', title: 'Pemasangan Tiang Beton', unit: 'Btg', volume: 4, verified_percent: 40 }], materials: Array.from({ length: 8 }, (_, i) => ({ khs_code: `K${i}`, khs_name: `Material ${i}`, unit: 'bh', quantity: i + 1 })) } })
+  })
+
+  it('filter UP3 dan ULP mengirim up3_id dan unit_id ke daftar SPK', async () => {
+    unitScopeApi.get.mockResolvedValue({
+      scope: 'GLOBAL',
+      up3_units: [{ id: 'up3-1', code: 'UP3-A', name: 'UP3 Satu' }, { id: 'up3-2', code: 'UP3-B', name: 'UP3 Dua' }],
+      ulp_units: [{ id: 'ulp-1', code: 'ULP-A', name: 'ULP Satu', parent_id: 'up3-1' }, { id: 'ulp-2', code: 'ULP-B', name: 'ULP Dua', parent_id: 'up3-2' }],
+    })
+    mount({ 'wo.view': true, 'pole_wo.view': true })
+    await screen.findByText('5145320260001')
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Filter Unit UP3' }))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Filter Unit UP3' }))
+    fireEvent.click(await screen.findByRole('option', { name: /UP3 Satu/ }))
+    await waitFor(() => expect(workOrdersApi.byAgenda).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1' })))
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Filter Unit ULP' }))
+    expect(screen.queryByRole('option', { name: /ULP Dua/ })).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('option', { name: /ULP Satu/ }))
+    await waitFor(() => expect(workOrdersApi.byAgenda).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1', unit_id: 'ulp-1' })))
   })
 
   it('satu baris per agenda memuat WO jaringan dan WO tiang beserta status, vendor, progres, dan revisi', async () => {

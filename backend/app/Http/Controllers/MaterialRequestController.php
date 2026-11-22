@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Authorization\UnitFilter;
 use App\Services\Output\XlsxRenderer;
 use App\Services\WorkOrders\MaterialOutbox;
 use App\Services\WorkOrders\MaterialRequestService;
@@ -26,6 +27,8 @@ class MaterialRequestController extends Controller
         if (! $scope['unrestricted']) {
             $q->whereIn('a.organizational_unit_id', $scope['units']);
         }
+        $request->validate(UnitFilter::rules());
+        UnitFilter::apply($q, $request, 'a.organizational_unit_id');
         isset($d['status']) && $q->where('r.status', $d['status']);
         $request->boolean('followup') && $q->where('r.needs_followup', true);
         isset($d['application_id']) && $q->where('r.application_id', $d['application_id']);

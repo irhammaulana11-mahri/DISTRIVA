@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Authorization\UnitFilter;
 use App\Services\Documents\DocumentService;
 use App\Services\Notifications\WorkflowNotifier;
 use App\Services\WorkOrders\PoleWorkOrderService;
@@ -184,6 +185,13 @@ class PoleWorkOrderController extends Controller
             if (! $scope['unrestricted']) {
                 $q->whereExists(fn ($s) => $s->select(DB::raw(1))->from('pole_wo_lines as pl')->join('applications as pa', 'pa.id', '=', 'pl.application_id')->whereColumn('pl.pole_work_order_id', 'w.id')->whereIn('pa.organizational_unit_id', $scope['units']));
             }
+        }
+        $request->validate(UnitFilter::rules());
+        if ($request->filled('unit_id') || $request->filled('up3_id')) {
+            $q->whereExists(function ($s) use ($request) {
+                $s->select(DB::raw(1))->from('pole_wo_lines as fl')->join('applications as fa', 'fa.id', '=', 'fl.application_id')->whereColumn('fl.pole_work_order_id', 'w.id');
+                UnitFilter::apply($s, $request, 'fa.organizational_unit_id');
+            });
         }
         $rows = $q->get(['w.id', 'w.letter_number', 'w.letter_date', 'w.status', 'w.vendor_company_id', 'v.name as vendor_name', 'w.created_at']);
         $count = DB::table('pole_wo_lines')->whereIn('pole_work_order_id', $rows->pluck('id'))->selectRaw('pole_work_order_id, count(distinct application_id) apps, sum(quantity) poles')->groupBy('pole_work_order_id')->get()->keyBy('pole_work_order_id');

@@ -4,6 +4,7 @@ import { poleContractsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
+import SearchSelect from '../../components/SearchSelect.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 
@@ -37,6 +38,8 @@ export default function PoleContractsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [up3Id, setUp3Id] = useState('')
+  const [up3Options, setUp3Options] = useState([])
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
 
@@ -61,14 +64,15 @@ export default function PoleContractsPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await poleContractsApi.list()
+      const res = await poleContractsApi.list({ up3_id: up3Id || undefined })
       setContracts(res?.data || [])
+      setUp3Options(res?.options?.up3 || [])
     } catch (err) {
       setError(err?.message || 'Gagal memuat daftar Kontrak Rinci tiang.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [up3Id])
 
   useEffect(() => {
     loadContracts()
@@ -255,6 +259,15 @@ export default function PoleContractsPage() {
               className={`${filterSearchCls} w-full`}
             />
           </div>
+          <SearchSelect
+            variant="filter"
+            ariaLabel="Filter Unit UP3"
+            options={[{ value: '', label: 'Semua UP3' }, ...up3Options.map((u) => ({ value: u.id, label: u.name }))]}
+            value={up3Id}
+            onChange={(v) => { setUp3Id(v); setPage(1) }}
+            placeholder="Cari UP3…"
+            className="w-48"
+          />
           <span className="text-xs text-slate-500 font-mono">
             {filtered.length} Kontrak Rinci
           </span>

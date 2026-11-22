@@ -10,6 +10,7 @@ import Button from '../../components/Button.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import Modal from '../../components/Modal.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import SearchSelect from '../../components/SearchSelect.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
@@ -99,6 +100,8 @@ export default function TasksPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [statusFilter, setStatusFilter] = useState('')
+  const [up3Id, setUp3Id] = useState('')
+  const [unitId, setUnitId] = useState('')
 
   const [state, setState] = useState({ loading: true, error: '', rows: [], meta: null })
   const [summary, setSummary] = useState(null)
@@ -137,6 +140,8 @@ export default function TasksPage() {
       if (debouncedSearch.trim()) {
         params.search = debouncedSearch.trim()
       }
+      if (up3Id) params.up3_id = up3Id
+      if (unitId) params.unit_id = unitId
 
       const [list, sum] = await Promise.all([
         tasksApi.list(params),
@@ -147,7 +152,7 @@ export default function TasksPage() {
     } catch (err) {
       setState({ loading: false, error: err?.message || 'Gagal memuat tugas.', rows: [], meta: null })
     }
-  }, [current, page, perPage, debouncedSearch, statusFilter])
+  }, [current, page, perPage, debouncedSearch, statusFilter, up3Id, unitId])
 
   useEffect(() => { load() }, [load])
 
@@ -336,6 +341,16 @@ export default function TasksPage() {
                 }}
                 placeholder="Cari judul tugas, no. permohonan, atau petugas…"
                 className={`${filterSearchCls} w-full`}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <HierarchicalUnitFilter
+                permission="tasks.view"
+                up3Id={up3Id}
+                onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+                unitId={unitId}
+                onUnitChange={(v) => { setUnitId(v); setPage(1) }}
+                unitAriaLabel="Filter Unit ULP"
               />
             </div>
             {current.key === 'all' && (

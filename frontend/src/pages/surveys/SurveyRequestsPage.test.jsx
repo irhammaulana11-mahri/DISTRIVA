@@ -7,7 +7,7 @@ import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import SurveyRequestsPage, { surveyActionLabel } from './SurveyRequestsPage.jsx'
 import { ApplicationDetailDrawer } from '../applications/ApplicationsPage.jsx'
-import { surveyApi, proposalsApi, applicationApi, drawingApi, documentApi } from '../../services/api.js'
+import { surveyApi, proposalsApi, applicationApi, drawingApi, documentApi, unitScopeApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   surveyApi: { list: vi.fn(), create: vi.fn(), listForApplication: vi.fn(), access: vi.fn(), get: vi.fn() },
@@ -15,6 +15,7 @@ vi.mock('../../services/api.js', () => ({
   applicationApi: { get: vi.fn(), list: vi.fn(), access: vi.fn() },
   drawingApi: { forApplication: vi.fn() },
   documentApi: { listForApplication: vi.fn() },
+  unitScopeApi: { get: vi.fn() },
   triggerFileDownload: vi.fn(),
 }))
 
@@ -58,6 +59,25 @@ describe('Usulan Survei', () => {
     vi.clearAllMocks()
     surveyApi.list.mockResolvedValue({ data: rows, meta: { current_page: 1, per_page: 10, total: 3, last_page: 1 } })
     proposalsApi.selectable.mockResolvedValue({ data: [], meta: { total: 0, current_page: 1, last_page: 1 } })
+    unitScopeApi.get.mockResolvedValue({
+      scope: 'GLOBAL',
+      up3_units: [{ id: 'up3-1', code: 'UP3-A', name: 'UP3 Satu' }, { id: 'up3-2', code: 'UP3-B', name: 'UP3 Dua' }],
+      ulp_units: [{ id: 'ulp-1', code: 'ULP-A', name: 'ULP Satu', parent_id: 'up3-1' }, { id: 'ulp-2', code: 'ULP-B', name: 'ULP Dua', parent_id: 'up3-2' }],
+    })
+  })
+
+  it('filter UP3 dan ULP mengirim up3_id dan unit_id ke server dan ULP menyempit ke UP3 terpilih', async () => {
+    renderWith(<SurveyRequestsPage />, { can: { 'surveys.view': true } })
+    await screen.findByText('SRV-PBPD-1-1')
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit UP3' }))
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Satu/ }))
+    await waitFor(() => expect(surveyApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1' })))
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit ULP' }))
+    expect(screen.queryByRole('option', { name: /ULP Dua/ })).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('option', { name: /ULP Satu/ }))
+    await waitFor(() => expect(surveyApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1', unit_id: 'ulp-1' })))
   })
 
   it('menampilkan jenis, hasil survei, dan nomor usulan hanya bila terbit', async () => {

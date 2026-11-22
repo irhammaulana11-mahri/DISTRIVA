@@ -7,6 +7,7 @@ use App\Exceptions\AssignmentRuleViolation;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Authorization\CatalogAuthorizer;
+use App\Services\Authorization\UnitFilter;
 use App\Services\Inventory\KhsMaterialMapService;
 use App\Services\Inventory\MimsPullRunService;
 use App\Services\Inventory\MimsStockSyncService;
@@ -31,8 +32,10 @@ class InventoryController extends Controller
     public function warehouses(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
-        $rows = DB::table('warehouses as w')->join('organizational_units as u', 'u.id', '=', 'w.organizational_unit_id')->orderBy('w.code')
-            ->get(['w.id', 'w.code', 'w.name', 'w.is_active', 'w.plant', 'w.stor_loc', 'w.kind', 'w.erp_unit_code', 'u.id as unit_id', 'u.code as unit_code', 'u.name as unit_name']);
+        $request->validate(UnitFilter::rules());
+        $q = DB::table('warehouses as w')->join('organizational_units as u', 'u.id', '=', 'w.organizational_unit_id')->orderBy('w.code');
+        UnitFilter::apply($q, $request, 'w.organizational_unit_id');
+        $rows = $q->get(['w.id', 'w.code', 'w.name', 'w.is_active', 'w.plant', 'w.stor_loc', 'w.kind', 'w.erp_unit_code', 'u.id as unit_id', 'u.code as unit_code', 'u.name as unit_name']);
 
         return response()->json(['data' => $rows->map(fn ($w) => ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'is_active' => (bool) $w->is_active, 'plant' => $w->plant, 'stor_loc' => $w->stor_loc, 'kind' => $w->kind, 'erp_unit_code' => $w->erp_unit_code, 'unit' => ['id' => $w->unit_id, 'code' => $w->unit_code, 'name' => $w->unit_name]])->all()]);
     }
@@ -1152,7 +1155,10 @@ class InventoryController extends Controller
     {
         $this->authorizer->authorize($request->user(), 'master_data.view');
 
-        return response()->json(['data' => DB::table('pole_contracts')->orderBy('kr_number')->get()->map(fn ($c) => $this->contract($c))->all(),
+        $request->validate(['up3_id' => ['nullable', 'uuid']]);
+        $contracts = DB::table('pole_contracts')->orderBy('kr_number')->when($request->filled('up3_id'), fn ($q) => $q->where('up3_unit_id', $request->query('up3_id')))->get();
+
+        return response()->json(['data' => $contracts->map(fn ($c) => $this->contract($c))->all(),
             'options' => ['vendors' => DB::table('vendor_companies')->where('status', 'ACTIVE')->where('work_scope', '<>', 'JARINGAN')->orderBy('name')->get(['id', 'code', 'name'])->map(fn ($v) => (array) $v)->all(),
                 'up3' => DB::table('organizational_units')->where('unit_type', 'UP3')->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(fn ($u) => (array) $u)->all()]]);
     }

@@ -6,13 +6,14 @@ import { AuthContext } from '../../features/auth/AuthContext.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import TasksPage, { taskActions, formatDue } from './TasksPage.jsx'
-import { tasksApi, slaApi, serviceSlaApi } from '../../services/api.js'
+import { tasksApi, slaApi, serviceSlaApi, unitScopeApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   tasksApi: { list: vi.fn(), summary: vi.fn(), step: vi.fn(), assignees: vi.fn(), create: vi.fn() },
   slaApi: { configurations: vi.fn(), holidays: vi.fn(), update: vi.fn(), addHoliday: vi.fn(), removeHoliday: vi.fn() },
   serviceSlaApi: { list: vi.fn(), summary: vi.fn(), forApplication: vi.fn(), addNote: vi.fn() },
   applicationApi: { list: vi.fn() },
+  unitScopeApi: { get: vi.fn() },
   notificationsApi: { list: vi.fn().mockResolvedValue({ data: [] }), markRead: vi.fn(), markAllRead: vi.fn() },
 }))
 
@@ -65,6 +66,25 @@ describe('Halaman Tugas & SLA', () => {
     tasksApi.step.mockResolvedValue({ message: 'Tugas dimulai.' })
     slaApi.configurations.mockResolvedValue({ data: [{ task_type: 'SURVEI', label: 'Survei lapangan', working_days: 3, is_active: true }], can: { manage: false, assign: false } })
     slaApi.holidays.mockResolvedValue({ data: [] })
+    unitScopeApi.get.mockResolvedValue({
+      scope: 'GLOBAL',
+      up3_units: [{ id: 'up3-1', code: 'UP3-A', name: 'UP3 Satu' }, { id: 'up3-2', code: 'UP3-B', name: 'UP3 Dua' }],
+      ulp_units: [{ id: 'ulp-1', code: 'ULP-A', name: 'ULP Satu', parent_id: 'up3-1' }, { id: 'ulp-2', code: 'ULP-B', name: 'ULP Dua', parent_id: 'up3-2' }],
+    })
+  })
+
+  it('filter UP3 dan ULP mengirim up3_id dan unit_id ke server dan ULP menyempit ke UP3 terpilih', async () => {
+    renderPage()
+    await screen.findByText('Survei lokasi pelanggan')
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit UP3' }))
+    await userEvent.click(await screen.findByRole('option', { name: /UP3 Satu/ }))
+    await vi.waitFor(() => expect(tasksApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1' })))
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter Unit ULP' }))
+    expect(screen.queryByRole('option', { name: /ULP Dua/ })).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('option', { name: /ULP Satu/ }))
+    await vi.waitFor(() => expect(tasksApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ up3_id: 'up3-1', unit_id: 'ulp-1' })))
   })
 
   it('menampilkan tugas dengan penanda terlambat dan memulainya', async () => {

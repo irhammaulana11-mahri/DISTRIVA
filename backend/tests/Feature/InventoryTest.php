@@ -76,6 +76,28 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function warehouses_and_pole_contracts_are_narrowed_by_the_up3_and_ulp_filter(): void
+    {
+        $ulp = $this->makeUnit('ULP', $this->up3);
+        $otherUp3 = $this->makeUnit('UP3');
+        $this->warehouse();                                                                                                // gd-1 at the UP3
+        $this->as($this->konstruksi)->postJson('/api/master-data/warehouses', ['code' => 'gd-2', 'name' => 'Gudang 2', 'organizational_unit_id' => $ulp->getKey()])->assertCreated();
+        $this->as($this->konstruksi)->postJson('/api/master-data/warehouses', ['code' => 'gd-3', 'name' => 'Gudang 3', 'organizational_unit_id' => $otherUp3->getKey()])->assertCreated();
+        $codes = fn (string $q) => collect($this->as($this->konstruksi)->getJson("/api/master-data/warehouses?{$q}")->assertOk()->json('data'))->pluck('code')->sort()->values()->all();
+
+        $this->assertSame(['GD-1', 'GD-2'], $codes('up3_id='.$this->up3->getKey()));                                       // the UP3 and the ULPs below it
+        $this->assertSame(['GD-2'], $codes('unit_id='.$ulp->getKey()));
+        $this->assertSame(['GD-3'], $codes('up3_id='.$otherUp3->getKey()));
+
+        foreach ([[$this->up3, 'KR-1'], [$otherUp3, 'KR-2']] as [$up3, $kr]) {
+            DB::table('pole_contracts')->insert(['id' => (string) Str::uuid(), 'kr_number' => $kr, 'qty_tm' => 1, 'qty_tr' => 1, 'status' => 'ACTIVE', 'created_by' => $this->perencanaan->getKey(), 'up3_unit_id' => $up3->getKey(), 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $contracts = fn (string $q) => collect($this->as($this->perencanaan)->getJson("/api/master-data/pole-contracts?{$q}")->assertOk()->json('data'))->pluck('kr_number')->all();
+        $this->assertSame(['KR-2'], $contracts('up3_id='.$otherUp3->getKey()));
+        $this->assertCount(2, $contracts(''));
+    }
+
+    #[Test]
     public function warehouses_and_stock_import_belong_to_the_konstruksi_gudang_role_and_the_kr_to_perencanaan(): void
     {
         $this->as($this->perencanaan)->postJson('/api/master-data/warehouses', ['code' => 'X', 'name' => 'X', 'organizational_unit_id' => $this->up3->getKey()])->assertForbidden();   // poles are Perencanaan's, stock is Konstruksi's

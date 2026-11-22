@@ -102,6 +102,19 @@ class TaskTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_task_list_is_narrowed_by_the_up3_and_ulp_filter(): void
+    {
+        $this->task($this->application())->assertCreated();
+        $other = $this->makeUnit('UP3');
+        $count = fn (string $query) => $this->as($this->sysAdmin)->getJson("/api/tasks?{$query}")->assertOk()->json('meta.total');
+
+        $this->assertSame([1, 0], [$count('unit_id='.$this->ulpA->getKey()), $count('unit_id='.$this->ulpB->getKey())]);
+        $this->assertSame([1, 0], [$count('up3_id='.$this->up3->getKey()), $count('up3_id='.$other->getKey())]);
+        $this->as($this->sysAdmin)->getJson('/api/tasks?up3_id=bukan-uuid')->assertStatus(422);
+        $this->assertSame([1, 0], [$count('search=lokasi%20pelanggan'), $count('search=tidak-ada-sama-sekali')]);                      // the search box of the page filters by title, application number or assignee
+    }
+
+    #[Test]
     public function the_task_keys_are_granted_to_the_intended_roles_only(): void
     {
         $holders = fn (string $key) => DB::table('role_has_permissions as rp')->join('roles as r', 'r.id', '=', 'rp.role_id')->join('permissions as p', 'p.id', '=', 'rp.permission_id')->where('p.name', $key)->orderBy('r.name')->pluck('r.name')->all();
