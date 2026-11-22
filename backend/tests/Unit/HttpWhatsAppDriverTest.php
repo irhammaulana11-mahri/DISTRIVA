@@ -125,6 +125,21 @@ class HttpWhatsAppDriverTest extends TestCase
     }
 
     #[Test]
+    public function a_refusal_shows_the_short_reason_of_the_gateway_without_numbers_or_the_message(): void
+    {
+        Http::fake(['*' => Http::response(['success' => false, 'error' => 'Session abc-1 not found for 6281234567890 "rahasia"'], 404)]);
+        try {
+            $this->driver()->send('6281234567890', 'isi pesan rahasia');
+            $this->fail('A 404 must fail.');
+        } catch (GatewayFailure $e) {
+            $this->assertStringContainsString('HTTP 404', $e->getMessage());
+            $this->assertStringContainsString("Alasan gateway: 'Session abc-1 not found for # ?rahasia?'", $e->getMessage());
+            $this->assertStringNotContainsString('6281234567890', $e->getMessage());
+            $this->assertStringNotContainsString('isi pesan', $e->getMessage());
+        }
+    }
+
+    #[Test]
     public function an_incomplete_configuration_is_reported_and_the_channel_is_skipped(): void
     {
         foreach ([['url' => ''], ['token' => ''], ['body' => ''], ['body' => 'not json'], ['body' => '{}']] as $bad) {

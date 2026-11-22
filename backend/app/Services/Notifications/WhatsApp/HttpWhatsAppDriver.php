@@ -50,7 +50,7 @@ class HttpWhatsAppDriver implements ChecksConfiguration, WhatsAppDriver
             : $request->send('POST', $url, [($this->config['body_format'] ?? 'form') === 'json' ? 'json' : 'form_params' => $body]);
 
         if (! $response->successful()) {
-            throw new GatewayFailure('WhatsApp gateway answered HTTP '.$response->status().'.');
+            throw new GatewayFailure('WhatsApp gateway answered HTTP '.$response->status().'.'.$this->reason($response->json()));
         }
 
         $path = (string) ($this->config['success_path'] ?? '');
@@ -98,6 +98,30 @@ class HttpWhatsAppDriver implements ChecksConfiguration, WhatsAppDriver
         $keys = implode(', ', array_slice(array_map(fn ($k) => preg_replace('/[^A-Za-z0-9_.\-]/', '?', (string) $k), array_keys($json)), 0, 15));
 
         return "WhatsApp gateway reported failure: HTTP {$status}, '{$path}' is {$found} (expected '{$expected}'); top-level keys: [{$keys}].";
+    }
+
+    /**
+     * The gateway's own reason for a refusal (top-level `error` or `message`), reduced to a short [A-Za-z0-9 _.-] text with long digit runs hidden (phone numbers): enough to tell
+     * "session not found" from "invalid token", never the message text or any other value.
+     */
+    private function reason(mixed $json): string
+    {
+        if (! is_array($json)) {
+            return '';
+        }
+        foreach (['error', 'message'] as $key) {
+            $v = $json[$key] ?? null;
+            if (is_array($v)) {
+                $v = $v['message'] ?? null;
+            }
+            if (is_string($v) && trim($v) !== '') {
+                $clean = preg_replace('/\d{6,}/', '#', mb_substr(preg_replace('/[^A-Za-z0-9 _.\-]/', '?', $v) ?? '', 0, 80)) ?? '';
+
+                return " Alasan gateway: '".trim($clean)."'.";
+            }
+        }
+
+        return '';
     }
 
     private function url(): string
