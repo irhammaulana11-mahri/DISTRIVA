@@ -12,7 +12,6 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import {
-  IconUpload,
   IconCheck,
   IconLayers,
   IconEye,
@@ -289,16 +288,6 @@ export default function BomPage() {
             >
               Segarkan
             </Button>
-            {canManage && (
-              <Button
-                variant="primary"
-                size="md"
-                icon={IconUpload}
-                onClick={() => navigate('/master-data/bom/impor')}
-              >
-                Impor BOM (JSON)
-              </Button>
-            )}
           </div>
         </div>
       </div>
@@ -563,7 +552,7 @@ export default function BomPage() {
           <EmptyState
             icon={IconLayers}
             title="Belum ada versi BOM"
-            description="Belum ada versi BOM yang terdaftar. Gunakan tombol &quot;Impor BOM&quot; untuk mengunggah workbook formula per kelompok."
+            description="Belum ada versi BOM yang terdaftar. Gunakan menu &quot;Impor dari Excel&quot; untuk mengunggah workbook formula per kelompok."
           />
         ) : (
           <>

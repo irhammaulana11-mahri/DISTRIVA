@@ -199,14 +199,21 @@ describe('BOM Workflow (Docs 61 & 66)', () => {
       })
     })
 
-    it('hides import button if user lacks bom.manage', async () => {
+    it('has no BOM import button for anyone: BOM is imported from the "Impor dari Excel" menu', async () => {
       bomApi.list.mockResolvedValue({ data: mockBoms })
 
-      renderWithAccess(<BomPage />, { can: { 'bom.manage': false } })
+      renderWithAccess(<BomPage />, { can: { 'bom.manage': true } })
 
-      await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /Impor BOM/i })).not.toBeInTheDocument()
-      })
+      await waitFor(() => expect(screen.getAllByText(/PBPD_6_41|SUTM|SUTR/).length).toBeGreaterThan(0))
+      expect(screen.queryByRole('button', { name: /Impor BOM/i })).not.toBeInTheDocument()
+    })
+
+    it('points an empty list to the "Impor dari Excel" menu', async () => {
+      bomApi.list.mockResolvedValue({ data: [] })
+
+      renderWithAccess(<BomPage />, { can: { 'bom.manage': true } })
+
+      expect(await screen.findByText(/Gunakan menu "Impor dari Excel"/i)).toBeInTheDocument()
     })
   })
 
