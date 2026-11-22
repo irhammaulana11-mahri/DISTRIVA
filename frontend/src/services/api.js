@@ -779,6 +779,18 @@ export const whatsappSettingsApi = {
   test: (body) => request('/settings/whatsapp/test', { method: 'POST', body }),
 }
 
+export const outageApi = {
+  sync: () => request('/outages/sync'),
+  saveSettings: (body) => request('/outages/sync/settings', { method: 'PUT', body }),
+  start: () => request('/outages/sync/runs', { method: 'POST' }),
+  run: (id) => request(`/outages/sync/runs/${id}`),
+  alias: (body) => request('/outages/sync/aliases', { method: 'POST', body }),
+  analysis: (params = {}) => request(`/outages/analysis${qs(params)}`),
+  feeder: (id, params = {}) => request(`/outages/analysis/feeders/${id}${qs(params)}`),
+  forecast: (params = {}) => request(`/outages/forecast${qs(params)}`),
+  downloadAnalysisXlsx: (params = {}) => downloadBlob(`/outages/analysis${qs({ ...params, format: 'xlsx' })}`),
+}
+
 export const surveyApi = {
   access: () => request('/surveys/access'),
   list: (params = {}) => request(`/surveys${qs(params)}`),

@@ -103,7 +103,7 @@ const filterSelectCls = `block w-full ${sharedSelectCls}`
 /** Satu filter dengan label kecil di atasnya; lebar mengikuti sel grid. */
 function FilterField({ label, children }) {
   return (
-    <div className="min-w-0 [&_input[role=combobox]]:h-10 [&_input[role=combobox]]:text-xs [&_input[role=combobox]]:sm:text-sm">
+    <div className="min-w-0">
       <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</div>
       {children}
     </div>

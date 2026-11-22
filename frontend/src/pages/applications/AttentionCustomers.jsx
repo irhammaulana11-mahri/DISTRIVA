@@ -11,7 +11,12 @@ import { resolveUnitScope } from '../../utils/unitScope.js'
 import TableFooter from '../../components/TableFooter.jsx'
 import { IconEye, IconRefresh, IconSearch, IconX } from '../../components/icons.jsx'
 
-const toggleCls = (on) => `inline-flex items-center gap-2 px-3 h-10 text-xs font-semibold rounded-xl border cursor-pointer transition ${on ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-700 dark:text-blue-300' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`
+const toggleCls = (on) =>
+  `inline-flex items-center gap-2 px-2.5 h-8 text-xs font-medium rounded-lg border cursor-pointer transition ${
+    on
+      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-700 dark:text-blue-300'
+      : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+  }`
 
 /**
  * Tab "Pelanggan Perlu Perhatian": semua permohonan berstatus Bayar / Cetak PK, hari layanan (HPL) terlama di atas.

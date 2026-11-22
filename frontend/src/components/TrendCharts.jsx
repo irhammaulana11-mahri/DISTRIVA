@@ -208,3 +208,138 @@ export function RankedBars({ items, color = 'var(--viz-s1)', ariaLabel }) {
     </ul>
   )
 }
+
+/**
+ * Kolom bertumpuk beberapa seri (kategoris, urutan tetap): series [{ key, label, color }], data [{ key, label, values: { [seriesKey]: number }, partial?, lines? }].
+ * Segmen dipisah celah 2px; legenda selalu tampil; sorot satu kolom untuk rincian tiap seri.
+ */
+export function StackedColumns({ data, series, height = 220, format = fmtInt, ariaLabel, unit = '' }) {
+  const [ref, width] = useWidth()
+  const [hover, setHover] = useState(null)
+  const m = { l: 46, r: 8, t: 12, b: 26 }
+  const iw = Math.max(80, width - m.l - m.r)
+  const ih = height - m.t - m.b
+  const n = data.length
+  const total = (d) => series.reduce((a, s) => a + (d.values[s.key] || 0), 0)
+  const top = niceMax(Math.max(0, ...data.map(total)))
+  const ticks = [0, 1, 2, 3, 4].map((i) => (top * i) / 4)
+  const band = n > 0 ? iw / n : iw
+  const bw = Math.max(2, Math.min(band - 2, 22))
+  const every = Math.max(1, Math.ceil(46 / Math.max(band, 1)))
+  const y = (v) => m.t + ih - (v / top) * ih
+  if (n === 0) return <p className="py-8 text-center text-sm text-slate-500">Belum ada data pada rentang ini.</p>
+  return (
+    <div ref={ref} className="viz-root relative w-full" onMouseLeave={() => setHover(null)}>
+      <VizStyles />
+      <div className="mb-1 flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
+        {series.map((s) => <span key={s.key} className="inline-flex items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />{s.label}</span>)}
+      </div>
+      <svg width={width} height={height} role="img" aria-label={ariaLabel}>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={m.l} x2={m.l + iw} y1={y(t)} y2={y(t)} stroke={t === 0 ? 'var(--viz-axis)' : 'var(--viz-grid)'} strokeWidth={1} />
+            <text x={m.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="var(--viz-muted)">{format(t)}</text>
+          </g>
+        ))}
+        {data.map((d, i) => {
+          const cx = m.l + band * i + band / 2
+          let acc = 0
+          const dim = hover && hover.i !== i ? 0.55 : 1
+          return (
+            <g key={d.key}>
+              {series.map((s, si) => {
+                const v = d.values[s.key] || 0
+                const y0 = y(acc)
+                const y1 = y(acc + v)
+                acc += v
+                const h = Math.max(0, y0 - y1 - (v > 0 && si > 0 ? 2 : 0))
+                const last = si === series.length - 1 || series.slice(si + 1).every((x) => !(d.values[x.key] > 0))
+                if (v <= 0 || h <= 0) return null
+                return last
+                  ? <path key={s.key} d={barPath(cx - bw / 2, y1, bw, h, 4)} fill={s.color} fillOpacity={d.partial ? 0.35 : dim} />
+                  : <rect key={s.key} x={cx - bw / 2} y={y1} width={bw} height={h} fill={s.color} fillOpacity={d.partial ? 0.35 : dim} />
+              })}
+              {i % every === 0 && <text x={cx} y={height - 8} textAnchor="middle" fontSize="11" fill="var(--viz-muted)">{d.label}</text>}
+              <rect x={m.l + band * i} y={m.t} width={band} height={ih} fill="transparent" tabIndex={0} aria-label={`${d.label}: ${series.map((s) => `${s.label} ${format(d.values[s.key] || 0)}`).join(', ')}${unit ? ` ${unit}` : ''}`}
+                onMouseMove={() => setHover({ i, x: Math.min(cx + 10, width - 180), y: m.t })} onFocus={() => setHover({ i, x: Math.min(cx + 10, width - 180), y: m.t })} onBlur={() => setHover(null)} />
+            </g>
+          )
+        })}
+      </svg>
+      <Tooltip box={hover}>
+        {hover && (
+          <div className="space-y-0.5">
+            <div className="font-semibold text-slate-900 dark:text-slate-100">{data[hover.i].label}{data[hover.i].partial ? ' (belum lengkap)' : ''}</div>
+            {series.map((s) => <div key={s.key} className="text-slate-700 dark:text-slate-300"><span aria-hidden className="mr-1.5 inline-block h-2 w-2 rounded-sm" style={{ background: s.color }} />{s.label}: {format(data[hover.i].values[s.key] || 0)}{unit ? ` ${unit}` : ''}</div>)}
+            <div className="text-slate-500 dark:text-slate-400">Total: {format(total(data[hover.i]))}{unit ? ` ${unit}` : ''}</div>
+            {(data[hover.i].lines || []).map((l) => <div key={l} className="text-slate-500 dark:text-slate-400">{l}</div>)}
+          </div>
+        )}
+      </Tooltip>
+    </div>
+  )
+}
+
+/**
+ * Garis riwayat dan prakiraan dengan pita p10-p90: history [{ month, value }], forecast [{ month, p10, p50, p90 }]. Riwayat garis penuh, prakiraan putus-putus dengan pita;
+ * sorot satu bulan untuk nilainya. Satu sumbu.
+ */
+export function ForecastLine({ history, forecast, height = 220, format = fmtInt, ariaLabel, unit = '' }) {
+  const [ref, width] = useWidth()
+  const [hover, setHover] = useState(null)
+  const m = { l: 52, r: 10, t: 12, b: 26 }
+  const iw = Math.max(80, width - m.l - m.r)
+  const ih = height - m.t - m.b
+  const pts = [...history.map((h) => ({ month: h.month, p50: h.value, hist: true })), ...forecast.map((f) => ({ month: f.month, p10: f.p10, p50: f.p50, p90: f.p90, hist: false }))]
+  const n = pts.length
+  if (n === 0) return <p className="py-8 text-center text-sm text-slate-500">Belum ada data.</p>
+  const top = niceMax(Math.max(0, ...pts.map((p) => p.p90 ?? p.p50 ?? 0)))
+  const ticks = [0, 1, 2, 3, 4].map((i) => (top * i) / 4)
+  const step = n > 1 ? iw / (n - 1) : iw
+  const x = (i) => m.l + step * i
+  const y = (v) => m.t + ih - (v / top) * ih
+  const histPts = pts.filter((p) => p.hist)
+  const fPts = pts.map((p, i) => [p, i]).filter(([p]) => !p.hist)
+  const startF = histPts.length - 1
+  const line = (arr) => arr.map(([p, i], k) => `${k === 0 ? 'M' : 'L'}${x(i)},${y(p.p50)}`).join(' ')
+  const band = fPts.length ? `${fPts.map(([p, i], k) => `${k === 0 ? 'M' : 'L'}${x(i)},${y(p.p90)}`).join(' ')} ${[...fPts].reverse().map(([p, i]) => `L${x(i)},${y(p.p10)}`).join(' ')} Z` : ''
+  const every = Math.max(1, Math.ceil(52 / Math.max(step, 1)))
+  return (
+    <div ref={ref} className="viz-root relative w-full" onMouseLeave={() => setHover(null)}>
+      <VizStyles />
+      <div className="mb-1 flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: 'var(--viz-s1)' }} />Riwayat</span>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="inline-block h-0.5 w-4 border-t-2 border-dashed" style={{ borderColor: 'var(--viz-s2)' }} />Prakiraan (p50)</span>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-3 rounded-sm" style={{ background: 'var(--viz-s2)', opacity: 0.2 }} />Rentang p10-p90</span>
+      </div>
+      <svg width={width} height={height} role="img" aria-label={ariaLabel}>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={m.l} x2={m.l + iw} y1={y(t)} y2={y(t)} stroke={t === 0 ? 'var(--viz-axis)' : 'var(--viz-grid)'} strokeWidth={1} />
+            <text x={m.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="var(--viz-muted)">{format(t)}</text>
+          </g>
+        ))}
+        {band && <path d={band} fill="var(--viz-s2)" fillOpacity={0.2} />}
+        <path d={line(histPts.map((p, k) => [p, k]))} fill="none" stroke="var(--viz-s1)" strokeWidth={2} strokeLinejoin="round" />
+        {fPts.length > 0 && <path d={line([[pts[startF], startF], ...fPts])} fill="none" stroke="var(--viz-s2)" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" />}
+        {hover && <line x1={x(hover.i)} x2={x(hover.i)} y1={m.t} y2={m.t + ih} stroke="var(--viz-text2)" strokeWidth={1} />}
+        {hover && <circle cx={x(hover.i)} cy={y(pts[hover.i].p50)} r={4} fill={pts[hover.i].hist ? 'var(--viz-s1)' : 'var(--viz-s2)'} stroke="var(--viz-surface)" strokeWidth={2} />}
+        {pts.map((p, i) => i % every === 0 && <text key={p.month} x={x(i)} y={height - 8} textAnchor="middle" fontSize="11" fill="var(--viz-muted)">{monthLabel(p.month)}</text>)}
+        {pts.map((p, i) => (
+          <rect key={p.month} x={x(i) - step / 2} y={m.t} width={Math.max(step, 4)} height={ih} fill="transparent" tabIndex={0} aria-label={`${monthLabel(p.month)}: ${format(p.p50)}${unit ? ` ${unit}` : ''}`}
+            onMouseMove={() => setHover({ i, x: Math.min(x(i) + 10, width - 170), y: m.t })} onFocus={() => setHover({ i, x: Math.min(x(i) + 10, width - 170), y: m.t })} onBlur={() => setHover(null)} />
+        ))}
+      </svg>
+      <Tooltip box={hover}>
+        {hover && (
+          <div className="space-y-0.5">
+            <div className="font-semibold text-slate-900 dark:text-slate-100">{monthLong(pts[hover.i].month)}{pts[hover.i].hist ? '' : ' (prakiraan)'}</div>
+            <div className="text-slate-700 dark:text-slate-300">{pts[hover.i].hist ? 'Aktual' : 'p50'}: {format(pts[hover.i].p50)}{unit ? ` ${unit}` : ''}</div>
+            {!pts[hover.i].hist && <div className="text-slate-500 dark:text-slate-400">Rentang {format(pts[hover.i].p10)} sampai {format(pts[hover.i].p90)}</div>}
+          </div>
+        )}
+      </Tooltip>
+    </div>
+  )
+}
+
