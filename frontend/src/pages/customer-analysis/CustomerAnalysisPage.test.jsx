@@ -40,7 +40,10 @@ const PAYLOAD = {
     { year: 2026, months: 3, partial: true, pb_count: 90, pb_kva: 250, pd_up_kva: 20, pd_down_kva: -5, pd_net_kva: 15, requests_pb: 100, requests_pd: 60, cancelled: 5, refunded: 1, avg_kva_per_pb: 2.78, yoy_pct: null, yoy_kva_pct: null },
   ],
   by_tariff: { groups: [{ group: 'Rumah tangga', count: 90, kva: 180, share_pct: 75, kva_share_pct: 60, avg_kva: 2 }, { group: 'Bisnis', count: 30, kva: 120, share_pct: 25, kva_share_pct: 40, avg_kva: 4 }], top_codes: [{ tariff: 'R1T', group: 'Rumah tangga', count: 60, kva: 120, share_pct: 50, kva_share_pct: 40, avg_kva: 2 }] },
-  by_unit: [{ unit_id: 'ulp-1', unit_code: '51', unit_name: 'ULP Jombang', up3_name: 'UP3 Mojokerto', pb_count: 70, pb_kva: 190, pd_net_kva: 10, avg_kva_per_pb: 2.7, base_customers: 5000, base_kva: 12000, pb_vs_base_pct: 1.4 }, { unit_id: 'ulp-2', unit_code: '52', unit_name: 'ULP Nganjuk', up3_name: 'UP3 Mojokerto', pb_count: 50, pb_kva: 110, pd_net_kva: 5, avg_kva_per_pb: 2.2, base_customers: 4000, base_kva: 9000, pb_vs_base_pct: 1.25 }],
+  by_unit: [
+    { unit_id: 'ulp-1', unit_code: '51', unit_name: 'ULP Jombang', up3_name: 'UP3 Mojokerto', pb_count: 70, pb_kva: 190, pd_net_kva: 10, by_year: [{ year: 2025, pb_count: 50, pb_kva: 140 }, { year: 2026, pb_count: 20, pb_kva: 50 }], avg_pb_per_year: 35, l12m_pb: 60, l12m_kva: 160, avg_kva_per_pb: 2.7, base_customers: 5000, base_kva: 12000, l12m_vs_base_pct: 1.2 },
+    { unit_id: 'ulp-2', unit_code: '52', unit_name: 'ULP Nganjuk', up3_name: 'UP3 Mojokerto', pb_count: 50, pb_kva: 110, pd_net_kva: 5, by_year: [{ year: 2025, pb_count: 30, pb_kva: 70 }, { year: 2026, pb_count: 20, pb_kva: 40 }], avg_pb_per_year: 25, l12m_pb: 40, l12m_kva: 90, avg_kva_per_pb: 2.2, base_customers: 4000, base_kva: 9000, l12m_vs_base_pct: 1.0 },
+  ],
   seasonality: { years: [2024, 2025], months: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, avg_pb_count: 30, index: i === 11 ? 1.4 : 0.95 })), note: null },
   anomalies: [{ month: '2025-12', pb_count: 55, expected: 28, z: 3.1, direction: 'NAIK' }],
   notes: ['Penambahan dihitung dari permohonan yang sudah tersambung (status PEREMAJAAN di EIS), bukan dari tanggal permohonan masuk.'],
@@ -52,7 +55,7 @@ describe('buildInsights', () => {
     expect(texts.some((t) => /12 bulan terakhir .*400 pelanggan baru, \+25,0%/.test(t))).toBe(true)
     expect(texts.some((t) => /Daya rata-rata per pelanggan baru naik dari 1,90 kVA \(2024\) menjadi 2,81 kVA \(2025\)/.test(t))).toBe(true)
     expect(texts.some((t) => /puncak Desember \(indeks 1,40\)/.test(t))).toBe(true)
-    expect(texts.some((t) => /ULP Jombang paling banyak/.test(t))).toBe(true)
+    expect(texts.some((t) => /ULP Jombang paling banyak menambah pelanggan baru dalam 12 bulan terakhir \(60 PB/.test(t))).toBe(true)
     expect(texts.some((t) => /Bulan menyimpang terbaru: Des 2025/.test(t) || /menyimpang terbaru/.test(t))).toBe(true)
   })
   it('tanpa data tidak menghasilkan apa pun', () => {
@@ -88,6 +91,11 @@ describe('Analisis Pelanggan & Daya', () => {
     expect(within(yearly).getByText('(3 bulan)')).toBeInTheDocument()                          // an incomplete year says so
     expect(screen.getByText('Komposisi tarif pelanggan baru')).toBeInTheDocument()
     expect(screen.getAllByText('ULP Jombang').length).toBeGreaterThan(0)
+    const perUlp = screen.getByRole('table', { name: /Penambahan pelanggan baru per ULP, per tahun/ })
+    expect(within(perUlp).getByText('PB 2025')).toBeInTheDocument()                             // a year column per year, not a single grand total
+    expect(within(perUlp).getByText('PB 2026 (3 bln)')).toBeInTheDocument()
+    expect(within(perUlp).getByText('12 bulan terakhir')).toBeInTheDocument()
+    expect(within(perUlp).getByText('1,20%')).toBeInTheDocument()                               // 12-month additions against the current base
     expect(screen.getByText('Bulan yang menyimpang')).toBeInTheDocument()
     expect(screen.getByText(/Penambahan dihitung dari permohonan yang sudah tersambung/)).toBeInTheDocument()
     expect(screen.getByText(/Bulan Nov 2026 masih berjalan/)).toBeInTheDocument()

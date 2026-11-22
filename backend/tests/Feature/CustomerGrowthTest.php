@@ -159,6 +159,12 @@ class CustomerGrowthTest extends PostgresTestCase
         $this->assertContains('2025-06', array_column($d['anomalies'], 'month'));          // 12 in one month against a baseline of 1..3
         $this->assertSame('NAIK', collect($d['anomalies'])->firstWhere('month', '2025-06')['direction']);
         $this->assertSame('2026-10', $d['kpi']['last_full_month']);
+        $unit = collect($d['by_unit'])->firstWhere('unit_id', $this->ulpA->getKey());                  // per ULP: yearly breakdown and the 12-month rate, not only a grand total
+        $this->assertEquals([2024 => array_sum(array_filter($counts, fn ($v, $k) => str_starts_with($k, '2024'), ARRAY_FILTER_USE_BOTH)), 2025 => array_sum(array_filter($counts, fn ($v, $k) => str_starts_with($k, '2025'), ARRAY_FILTER_USE_BOTH)), 2026 => 1], collect($unit['by_year'])->pluck('pb_count', 'year')->all());
+        $this->assertSame($unit['pb_count'], array_sum(array_column($unit['by_year'], 'pb_count')));
+        $this->assertSame($counts['2025-11'] + $counts['2025-12'], $unit['l12m_pb']);                  // window = 2025-11 .. 2026-10 (the partial month is out)
+        $this->assertNotNull($unit['avg_pb_per_year']);
+        $this->assertArrayNotHasKey('pb_vs_base_pct', $unit);
         $this->assertSame('2026-11', $d['kpi']['partial_month']);
     }
 

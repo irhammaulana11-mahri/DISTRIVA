@@ -73,7 +73,7 @@ class CustomerGrowthService
             'monthly' => $monthly,
             'yearly' => $this->yearly($monthly),
             'by_tariff' => $this->byTariff($inRange(DB::query()->fromSub($realized, 'r')->where('t', 'PB')->whereNotNull('m'))),
-            'by_unit' => $this->byUnit($inRange(DB::query()->fromSub($realized, 'r')->whereNotNull('m')), $units),
+            'by_unit' => $this->byUnit($inRange(DB::query()->fromSub($realized, 'r')->whereNotNull('m')), $units, $monthly, $nowM),
             'seasonality' => $this->seasonality($monthly),
             'anomalies' => $this->anomalies($monthly),
             'notes' => [
@@ -206,28 +206,53 @@ class CustomerGrowthService
     }
 
     /**
+     * Per ULP: total pada rentang terpilih, rincian per tahun, rata-rata per tahun, dan 12 bulan terakhir (bulan lengkap). Perbandingan dengan basis pelanggan aktif DIL memakai
+     * 12 bulan terakhir (laju tahunan), bukan total semua tahun.
+     *
      * @param  list<string>  $units
+     * @param  list<array<string,mixed>>  $monthly
      * @return list<array<string,mixed>>
      */
-    private function byUnit($q, array $units): array
+    private function byUnit($q, array $units, array $monthly, string $nowM): array
     {
-        $rows = $q->selectRaw("u, count(*) filter (where t = 'PB') as pb_count, coalesce(sum(d) filter (where t = 'PB'), 0) as pb_kva, coalesce(sum(d) filter (where t = 'PD'), 0) as pd_net_kva")->groupBy('u')->get()->keyBy('u');
+        $rows = $q->selectRaw("u, m, count(*) filter (where t = 'PB') as pb_count, coalesce(sum(d) filter (where t = 'PB'), 0) as pb_kva, coalesce(sum(d) filter (where t = 'PD'), 0) as pd_net_kva")->groupBy('u', 'm')->get()->groupBy('u');
+        $full = array_values(array_filter($monthly, fn ($m) => ! $m['partial']));
+        $window = array_flip(array_column(array_slice($full, -12), 'month'));
         $names = DB::table('organizational_units as u')->leftJoin('organizational_units as p', 'p.id', '=', 'u.parent_id')->whereIn('u.id', $units)->get(['u.id', 'u.code', 'u.name', 'p.name as up3_name'])->keyBy('id');
         $base = DB::table('customer_connections')->whereIn('organizational_unit_id', $units)->where('status', 'AKTIF')->selectRaw('organizational_unit_id as u, count(*) as c, coalesce(sum(power_va), 0) as va')->groupBy('organizational_unit_id')->get()->keyBy('u');
+        $spanMonths = count($monthly);
         $out = [];
         foreach ($units as $id) {
             $n = $names[$id] ?? null;
-            $r = $rows[$id] ?? null;
+            $r = $rows[$id] ?? collect();
             $b = $base[$id] ?? null;
-            if ($n === null || ($r === null && $b === null)) {
+            if ($n === null || ($r->isEmpty() && $b === null)) {
                 continue;
             }
-            $pb = (int) ($r->pb_count ?? 0);
+            $years = [];
+            $l12 = ['pb' => 0, 'kva' => 0.0];
+            foreach ($r as $x) {
+                $y = (int) substr($x->m, 0, 4);
+                $years[$y] ??= ['year' => $y, 'pb_count' => 0, 'pb_kva' => 0.0];
+                $years[$y]['pb_count'] += (int) $x->pb_count;
+                $years[$y]['pb_kva'] += (float) $x->pb_kva;
+                if (isset($window[$x->m])) {
+                    $l12['pb'] += (int) $x->pb_count;
+                    $l12['kva'] += (float) $x->pb_kva;
+                }
+            }
+            ksort($years);
+            $pb = (int) $r->sum('pb_count');
+            $kva = (float) $r->sum('pb_kva');
             $baseCount = (int) ($b->c ?? 0);
-            $out[] = ['unit_id' => $id, 'unit_code' => $n->code, 'unit_name' => $n->name, 'up3_name' => $n->up3_name, 'pb_count' => $pb, 'pb_kva' => round((float) ($r->pb_kva ?? 0), 1), 'pd_net_kva' => round((float) ($r->pd_net_kva ?? 0), 1),
-                'avg_kva_per_pb' => $pb > 0 ? round((float) $r->pb_kva / $pb, 2) : null, 'base_customers' => $baseCount, 'base_kva' => round((float) ($b->va ?? 0) / 1000, 1), 'pb_vs_base_pct' => $baseCount > 0 ? round($pb / $baseCount * 100, 2) : null];
+            $out[] = ['unit_id' => $id, 'unit_code' => $n->code, 'unit_name' => $n->name, 'up3_name' => $n->up3_name, 'pb_count' => $pb, 'pb_kva' => round($kva, 1), 'pd_net_kva' => round((float) $r->sum('pd_net_kva'), 1),
+                'by_year' => array_values(array_map(fn ($y) => ['year' => $y['year'], 'pb_count' => $y['pb_count'], 'pb_kva' => round($y['pb_kva'], 1)], $years)),
+                'avg_pb_per_year' => $spanMonths > 0 ? round($pb / ($spanMonths / 12), 0) : null,
+                'l12m_pb' => $l12['pb'], 'l12m_kva' => round($l12['kva'], 1),
+                'avg_kva_per_pb' => $pb > 0 ? round($kva / $pb, 2) : null, 'base_customers' => $baseCount, 'base_kva' => round((float) ($b->va ?? 0) / 1000, 1),
+                'l12m_vs_base_pct' => $baseCount > 0 ? round($l12['pb'] / $baseCount * 100, 2) : null];
         }
-        usort($out, fn ($a, $b) => $b['pb_count'] <=> $a['pb_count']);
+        usort($out, fn ($a, $b) => $b['l12m_pb'] <=> $a['l12m_pb'] ?: $b['pb_count'] <=> $a['pb_count']);
 
         return $out;
     }

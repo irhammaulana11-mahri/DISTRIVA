@@ -31,7 +31,7 @@ export function buildInsights(d) {
     out.push({ tone: 'info', text: `Pola musiman (${d.seasonality.years.join(', ')}): puncak ${MONTH_NAMES[hi.month - 1]} (indeks ${fmtNum(hi.index, 2)}), terendah ${MONTH_NAMES[lo.month - 1]} (indeks ${fmtNum(lo.index, 2)}).` })
   }
   const top = (d.by_unit || [])[0]
-  if (top && top.pb_count > 0) out.push({ tone: 'info', text: `${top.unit_name} paling banyak menambah pelanggan baru pada rentang ini (${fmtInt(top.pb_count)} PB, ${fmtNum(top.pb_kva, 0)} kVA).` })
+  if (top && top.l12m_pb > 0) out.push({ tone: 'info', text: `${top.unit_name} paling banyak menambah pelanggan baru dalam 12 bulan terakhir (${fmtInt(top.l12m_pb)} PB, ${fmtNum(top.l12m_kva, 0)} kVA).` })
   const spike = (d.anomalies || [])[0]
   if (spike) out.push({ tone: spike.direction === 'NAIK' ? 'up' : 'down', text: `Bulan menyimpang terbaru: ${monthLong(spike.month)}, ${fmtInt(spike.pb_count)} PB ${spike.direction === 'NAIK' ? 'di atas' : 'di bawah'} kebiasaan 12 bulan sebelumnya (sekitar ${fmtInt(spike.expected)}).` })
   const last12 = (d.monthly || []).filter((m) => !m.partial).slice(-12)

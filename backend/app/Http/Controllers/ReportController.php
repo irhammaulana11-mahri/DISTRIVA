@@ -172,8 +172,10 @@ class ReportController extends Controller
                     'rows' => array_map(fn ($m) => [$m['month'], $m['pb_count'], $m['pb_kva'], $m['pd_up_count'], $m['pd_down_count'], $m['pd_same_count'], $m['pd_net_kva'], $m['requests_pb'], $m['requests_pd'], $m['cancelled'], $m['refunded'], $num($m['mom_pct']), $num($m['yoy_pct']), $m['partial'] ? 'bulan berjalan (belum lengkap)' : ''], $d['monthly'])],
                 ['heading' => 'PER KELOMPOK TARIF (PB)', 'columns' => ['KELOMPOK', 'PB', 'PORSI (%)', 'DAYA (kVA)', 'PORSI DAYA (%)', 'RATA-RATA kVA'],
                     'rows' => array_map(fn ($g) => [$g['group'], $g['count'], $g['share_pct'], $g['kva'], $g['kva_share_pct'], $num($g['avg_kva'])], $d['by_tariff']['groups'])],
-                ['heading' => 'PER ULP', 'columns' => ['KODE', 'ULP', 'UP3', 'PB', 'DAYA PB (kVA)', 'PD NETO (kVA)', 'RATA-RATA kVA/PB', 'BASIS PELANGGAN AKTIF (DIL)', 'BASIS DAYA (kVA)', 'PB TERHADAP BASIS (%)'],
-                    'rows' => array_map(fn ($u) => [$u['unit_code'], $u['unit_name'], $u['up3_name'], $u['pb_count'], $u['pb_kva'], $u['pd_net_kva'], $num($u['avg_kva_per_pb']), $u['base_customers'], $u['base_kva'], $num($u['pb_vs_base_pct'])], $d['by_unit'])],
+                ['heading' => 'PER ULP (total periode, rata-rata per tahun, 12 bulan terakhir)', 'columns' => ['KODE', 'ULP', 'UP3', 'PB TOTAL PERIODE', 'RATA-RATA PB/TAHUN', 'PB 12 BULAN TERAKHIR', 'DAYA PB TOTAL (kVA)', 'DAYA PB 12 BULAN (kVA)', 'RATA-RATA kVA/PB', 'PD NETO (kVA)', 'BASIS PELANGGAN AKTIF (DIL)', 'BASIS DAYA (kVA)', '12 BULAN TERHADAP BASIS (%)'],
+                    'rows' => array_map(fn ($u) => [$u['unit_code'], $u['unit_name'], $u['up3_name'], $u['pb_count'], $num($u['avg_pb_per_year']), $u['l12m_pb'], $u['pb_kva'], $u['l12m_kva'], $num($u['avg_kva_per_pb']), $u['pd_net_kva'], $u['base_customers'], $u['base_kva'], $num($u['l12m_vs_base_pct'])], $d['by_unit'])],
+                ['heading' => 'PER ULP PER TAHUN (PB)', 'columns' => array_merge(['ULP'], array_map(fn ($y) => 'PB '.$y['year'], $d['yearly'])),
+                    'rows' => array_map(fn ($u) => array_merge([$u['unit_name']], array_map(fn ($y) => collect($u['by_year'])->firstWhere('year', $y['year'])['pb_count'] ?? 0, $d['yearly'])), $d['by_unit'])],
             ]), 'ANALISIS-PELANGGAN-DAYA');
         }
 

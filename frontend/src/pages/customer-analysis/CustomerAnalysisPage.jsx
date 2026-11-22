@@ -217,15 +217,25 @@ function TrendTab({ state, filters, onExport, exporting, onRetry }) {
             </Section>
           </div>
 
-          <Section title="Per ULP" hint="PB dan daya pada rentang terpilih dibandingkan basis pelanggan aktif DIL saat ini (September 2026): menunjukkan seberapa cepat tiap ULP bertambah.">
-            <RankedBars ariaLabel="PB per ULP" items={d.by_unit.map((u) => ({ key: u.unit_id, label: u.unit_name, value: u.pb_count, text: fmtInt(u.pb_count), sub: u.up3_name }))} />
+          <Section title="Per ULP" hint="Batang = PB 12 bulan terakhir (laju per tahun). Tabel: total pada periode terpilih, rincian per tahun, rata-rata per tahun, dan 12 bulan terakhir dibandingkan basis pelanggan aktif DIL (September 2026).">
+            <RankedBars ariaLabel="PB 12 bulan terakhir per ULP" items={d.by_unit.map((u) => ({ key: u.unit_id, label: u.unit_name, value: u.l12m_pb, text: fmtInt(u.l12m_pb), sub: `${u.up3_name || ''} · total periode ${fmtInt(u.pb_count)}` }))} />
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-176 text-left text-sm">
-                <caption className="sr-only">Penambahan per ULP</caption>
-                <thead className="text-xs uppercase tracking-wide text-slate-500"><tr><th className="py-2 pr-3">ULP</th><th className="px-3">UP3</th><th className="px-3 text-right">PB</th><th className="px-3 text-right">Daya PB (kVA)</th><th className="px-3 text-right">kVA/PB</th><th className="px-3 text-right">PD neto (kVA)</th><th className="px-3 text-right">Basis aktif DIL</th><th className="px-3 text-right">PB terhadap basis</th></tr></thead>
+              <table className="w-full min-w-240 text-left text-sm">
+                <caption className="sr-only">Penambahan pelanggan baru per ULP, per tahun</caption>
+                <thead className="text-xs uppercase tracking-wide text-slate-500"><tr>
+                  <th className="py-2 pr-3">ULP</th>
+                  {d.yearly.map((y) => <th key={y.year} className="px-3 text-right">PB {y.year}{y.partial ? ` (${y.months} bln)` : ''}</th>)}
+                  <th className="px-3 text-right">Total periode</th><th className="px-3 text-right">Rata-rata/tahun</th><th className="px-3 text-right">12 bulan terakhir</th><th className="px-3 text-right">Daya 12 bln (kVA)</th><th className="px-3 text-right">kVA/PB</th><th className="px-3 text-right">PD neto (kVA)</th><th className="px-3 text-right">Basis aktif DIL</th><th className="px-3 text-right">12 bulan / basis</th>
+                </tr></thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {d.by_unit.map((u) => (
-                    <tr key={u.unit_id}><td className="py-2 pr-3 font-medium">{u.unit_name}</td><td className="px-3 text-slate-500">{u.up3_name || '-'}</td><td className="px-3 text-right tabular-nums">{fmtInt(u.pb_count)}</td><td className="px-3 text-right tabular-nums">{fmtInt(u.pb_kva)}</td><td className="px-3 text-right tabular-nums">{fmtNum(u.avg_kva_per_pb, 2)}</td><td className="px-3 text-right tabular-nums">{fmtInt(u.pd_net_kva)}</td><td className="px-3 text-right tabular-nums">{fmtInt(u.base_customers)}</td><td className="px-3 text-right tabular-nums">{u.pb_vs_base_pct === null ? '-' : `${fmtNum(u.pb_vs_base_pct, 2)}%`}</td></tr>
+                    <tr key={u.unit_id}>
+                      <td className="py-2 pr-3 font-medium" title={u.up3_name || undefined}>{u.unit_name}</td>
+                      {d.yearly.map((y) => <td key={y.year} className="px-3 text-right tabular-nums">{fmtInt(u.by_year.find((x) => x.year === y.year)?.pb_count ?? 0)}</td>)}
+                      <td className="px-3 text-right tabular-nums">{fmtInt(u.pb_count)}</td><td className="px-3 text-right tabular-nums">{fmtInt(u.avg_pb_per_year)}</td><td className="px-3 text-right font-semibold tabular-nums">{fmtInt(u.l12m_pb)}</td>
+                      <td className="px-3 text-right tabular-nums">{fmtInt(u.l12m_kva)}</td><td className="px-3 text-right tabular-nums">{fmtNum(u.avg_kva_per_pb, 2)}</td><td className="px-3 text-right tabular-nums">{fmtInt(u.pd_net_kva)}</td>
+                      <td className="px-3 text-right tabular-nums">{fmtInt(u.base_customers)}</td><td className="px-3 text-right tabular-nums">{u.l12m_vs_base_pct === null ? '-' : `${fmtNum(u.l12m_vs_base_pct, 2)}%`}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
