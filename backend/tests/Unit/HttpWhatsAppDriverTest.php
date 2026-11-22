@@ -108,15 +108,19 @@ class HttpWhatsAppDriverTest extends TestCase
     }
 
     #[Test]
-    public function non_https_urls_are_refused_outside_local_development(): void
+    public function http_and_https_urls_are_both_accepted_but_other_schemes_are_refused(): void
     {
-        Http::fake();
+        Http::fake(['*' => Http::response(['status' => true], 200)]);
         $this->app['env'] = 'production';
-        $this->expectExceptionMessage('must use https');
+        $this->driver(['url' => 'http://gateway.example.test/send'])->send('6281234567890', 'x');
+        $this->driver()->send('6281234567890', 'x');
+        Http::assertSentCount(2);
+
+        $this->expectExceptionMessage('http:// or https://');
         try {
-            $this->driver(['url' => 'http://gateway.example.test/send'])->send('6281234567890', 'x');
+            $this->driver(['url' => 'ftp://gateway.example.test/send'])->send('6281234567890', 'x');
         } finally {
-            Http::assertNothingSent();
+            Http::assertSentCount(2);
         }
     }
 

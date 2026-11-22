@@ -96,7 +96,7 @@ class NotifyCheckTest extends TestCase
             'distriva_notifications.whatsapp.http' => ['url' => 'http://insecure.test/send', 'token' => '', 'body' => '{"to":"{phone}"}', 'body_format' => 'xml'],
         ]);
 
-        foreach (['harus https://', 'DISTRIVA_WHATSAPP_TOKEN kosong', 'tidak memuat placeholder {message}', 'BODY_FORMAT harus form atau json'] as $needle) {
+        foreach (['memakai http://: token terkirim tanpa enkripsi', 'DISTRIVA_WHATSAPP_TOKEN kosong', 'tidak memuat placeholder {message}', 'BODY_FORMAT harus form atau json'] as $needle) {
             $this->assertStringContainsString($needle, $out);
         }
         $this->assertStringNotContainsString('tidak memuat placeholder {phone}', $out);

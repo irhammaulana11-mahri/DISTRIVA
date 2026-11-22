@@ -127,8 +127,10 @@ class NotifyCheck extends Command
         $p = [];
         if ($url === '') {
             $p[] = 'DISTRIVA_WHATSAPP_URL kosong.';
-        } elseif (! str_starts_with($url, 'https://') && ! (app()->isLocal() && str_starts_with($url, 'http://'))) {
-            $p[] = 'DISTRIVA_WHATSAPP_URL harus https://.';
+        } elseif (! preg_match('#^https?://[^/\s]+#i', $url)) {
+            $p[] = 'DISTRIVA_WHATSAPP_URL harus diawali http:// atau https://.';
+        } elseif (str_starts_with(strtolower($url), 'http://')) {
+            $p[] = 'DISTRIVA_WHATSAPP_URL memakai http://: token terkirim tanpa enkripsi; pakai hanya untuk gateway di server atau jaringan sendiri.';
         }
         if (blank($c['token'] ?? null)) {
             $p[] = 'DISTRIVA_WHATSAPP_TOKEN kosong (isi dengan API key dari penyedia).';

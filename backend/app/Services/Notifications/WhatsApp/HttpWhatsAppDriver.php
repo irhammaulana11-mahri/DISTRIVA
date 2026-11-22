@@ -33,8 +33,8 @@ class HttpWhatsAppDriver implements ChecksConfiguration, WhatsAppDriver
             throw new RuntimeException('WhatsApp HTTP gateway is not configured.');
         }
         $url = $this->url();
-        if (! str_starts_with($url, 'https://') && ! (app()->isLocal() && str_starts_with($url, 'http://'))) {
-            throw new RuntimeException('WhatsApp gateway URL must use https.');
+        if (! preg_match('#^https?://[^/\s]+#i', $url)) {                  // http:// is allowed on purpose (a gateway on the own server or network); https:// is advised
+            throw new RuntimeException('WhatsApp gateway URL must start with http:// or https://.');
         }
 
         $local = '0'.substr($phone, strlen((string) config('distriva_notifications.whatsapp.default_country_code')));

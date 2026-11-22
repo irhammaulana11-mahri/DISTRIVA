@@ -79,7 +79,7 @@ class WhatsAppSettingsTest extends PostgresTestCase
     #[Test]
     public function an_unusable_http_setup_is_refused_with_a_reason(): void
     {
-        foreach ([['url' => 'http://wa.example.test/send'], ['url' => ''], ['body' => 'bukan json'], ['body' => '{"target":"{phone}"}'], ['token' => '']] as $bad) {
+        foreach ([['url' => 'ftp://wa.example.test/send'], ['url' => ''], ['body' => 'bukan json'], ['body' => '{"target":"{phone}"}'], ['token' => '']] as $bad) {
             $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload($bad))->assertStatus(409);       // a rule violation, like every other rule of the app
         }
         $this->assertSame(0, DB::table('whatsapp_settings')->count());
@@ -100,6 +100,12 @@ class WhatsAppSettingsTest extends PostgresTestCase
         $this->as($this->admin)->postJson('/api/settings/whatsapp/test', ['phone' => '081234567890'])->assertStatus(409);     // the gateway says status=false
         $this->as($this->admin)->postJson('/api/settings/whatsapp/test', ['phone' => 'abc'])->assertStatus(409);
         $this->assertSame(['TEST_FAILED', 'TEST_SENT'], DB::table('whatsapp_setting_events')->whereIn('event_type', ['TEST_SENT', 'TEST_FAILED'])->distinct()->orderBy('event_type')->pluck('event_type')->all());
+    }
+
+    #[Test]
+    public function an_http_address_is_accepted_too(): void
+    {
+        $this->as($this->admin)->putJson('/api/settings/whatsapp', $this->payload(['url' => 'http://127.0.0.1:3000/send']))->assertOk()->assertJsonPath('data.url', 'http://127.0.0.1:3000/send');
     }
 
     #[Test]

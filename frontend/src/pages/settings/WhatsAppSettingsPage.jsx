@@ -364,14 +364,14 @@ export default function WhatsAppSettingsPage() {
                 label="Alamat gateway (URL)"
                 htmlFor="wa-url"
                 error={err('url')}
-                hint="Harus diawali https://."
+                hint="Boleh http:// atau https://. http:// mengirim token tanpa enkripsi: pakai hanya untuk gateway di server atau jaringan sendiri."
               >
                 <input
                   id="wa-url"
                   value={form.url}
                   onChange={set('url')}
                   className={INPUT}
-                  placeholder="https://..."
+                  placeholder="https://... atau http://..."
                   autoComplete="off"
                 />
               </Row>

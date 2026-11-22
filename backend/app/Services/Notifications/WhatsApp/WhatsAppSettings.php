@@ -142,8 +142,8 @@ class WhatsAppSettings
     private function assertUsable(array $v, bool $hasToken): void
     {
         $url = trim((string) $v['url']);
-        if ($url === '' || (! str_starts_with($url, 'https://') && ! (app()->isLocal() && str_starts_with($url, 'http://')))) {
-            throw new AssignmentRuleViolation('Alamat gateway wajib diisi dan harus diawali https://.');
+        if (! preg_match('#^https?://[^/\s]+#i', $url)) {
+            throw new AssignmentRuleViolation('Alamat gateway wajib diisi dan harus diawali http:// atau https://.');
         }
         if (! $hasToken) {
             throw new AssignmentRuleViolation('Token API wajib diisi untuk driver http.');
