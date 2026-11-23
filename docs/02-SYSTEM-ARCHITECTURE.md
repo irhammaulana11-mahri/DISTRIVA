@@ -152,3 +152,43 @@ Struktur direktori server produksi dan struktur repository Git dapat berbeda. `.
 
 ## Update v3.2 — Document Service dan Auto MTO
 Dokumen disimpan pada private storage DISTRIVA dan dilayani melalui Laravel policy. Python Auto MTO tidak mengakses database atau filesystem produksi secara langsung; Laravel menerbitkan akses sementara bertoken ke file versi tertentu. Pemrosesan berjalan per file dalam satu paket, sehingga kegagalan satu file tidak menghentikan file lain. Rincian tabel dan alur ada di dokumen 26 dan DDL baseline 27.
+
+
+## 9. Perluasan arsitektur menjadi platform multi-domain
+
+DISTRIVA tetap menggunakan **modular monolith** sebagai aplikasi inti. Perluasan Pengusahaan, NKO, histori gangguan, pengukuran gardu, dan analisis susut tidak menjadi alasan otomatis untuk memecah aplikasi menjadi microservices.
+
+### Domain aplikasi
+- Customer & Applications: PB/PD, permohonan, pelanggan, survei, KKO.
+- Engineering & Construction: drawing, Auto MTO, RAB/KKF, WO, vendor, pekerjaan.
+- Planning & Material: master material, KHS/BOM, RKM, forecasting, integrasi stok eksternal.
+- Asset & Network: master gardu, penyulang, pengukuran gardu, histori aset.
+- Reliability: histori gangguan APKT, SAIDI, SAIFI, ENS, dan analisis keandalan sesuai data.
+- Commercial / Pengusahaan: indikator dan proses pengusahaan berdasarkan definisi sumber.
+- Performance Management: NKO/KPI, target, realisasi, bobot, pencapaian, ranking.
+- Energy Analytics: analisis energi dan susut per level jaringan sesuai ketersediaan titik ukur.
+
+### Integration boundary
+- EIS/AP2T: sumber data layanan/permohonan dan informasi pengusahaan tertentu sesuai kontrak yang tersedia.
+- APKT: sumber histori gangguan dan data penanganan gangguan sesuai kontrak.
+- OMT/Maximo atau ekspor resmi terkait: sumber pengukuran gardu/aset sesuai format yang divalidasi.
+- Spreadsheet resmi: sumber definisi atau pelaporan sementara jika belum tersedia API; impor harus memiliki batch, pemetaan kolom, validasi, dan rekonsiliasi.
+- Sistem material/ERP: tetap menjadi sumber master material dan transaksi stok sesuai keputusan yang sudah ada.
+
+Tidak boleh menganggap semua data Pengusahaan berasal dari satu sistem atau mengarang endpoint. Setiap sumber harus dipetakan per indikator/field.
+
+### Data lineage dan calculation snapshots
+Setiap data impor atau hasil analisis setidaknya perlu menelusuri:
+- sistem/berkas sumber;
+- identitas batch dan waktu ekstraksi;
+- periode data yang direpresentasikan;
+- unit organisasi dan cakupan;
+- versi mapping/normalisasi;
+- formula dan parameter jika dihitung;
+- status validasi dan koreksi;
+- relasi ke data sumber.
+
+Untuk KPI/NKO dan analisis susut, formula/parameter harus berversi. Perubahan formula hanya berlaku sesuai periode efektif dan tidak mengubah hasil periode lampau secara diam-diam.
+
+### Analitik dan agregasi
+Dashboard lintas domain menggunakan data terotorisasi dan definisi indikator yang konsisten. Backend menerapkan scope sebelum agregasi, ranking, pagination, dan export. Angka dengan periode, satuan, definisi, atau tingkat kualitas berbeda tidak boleh dijumlahkan/ dibandingkan tanpa normalisasi yang terdokumentasi.

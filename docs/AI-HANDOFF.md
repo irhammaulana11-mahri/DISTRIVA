@@ -190,3 +190,21 @@ Backend + tes selesai (docs/62 §39–41, docs/57): impor gudang ERP (11 lokasi)
 
 ## 7 Nov 2026 — Token MIMS dari pengguna
 POST /master-data/stock-sync: tarik stok dengan token sesi MIMS pengguna yang login (hanya untuk panggilan itu, tidak disimpan — kecuali pengguna memilih `save_token`: tersimpan terenkripsi per pengguna dan dapat dipakai lagi lewat `use_saved_token`, docs/82 §19.15). Draf pemetaan SKU↔KHS: tools/output/pemetaan_khs_sku_kandidat.csv (19 keyakinan tinggi dari 185 kandidat; wajib diverifikasi). Panduan mengunduh contoh respons: docs/62 §42. Migrasi 160000 menambah stock_sync_runs.triggered_by.
+
+
+---
+
+## Addendum — Arah platform terpadu dan pembacaan arsip Markdown (22 November 2026)
+
+Addendum ini mencatat perluasan arah produk, bukan perubahan status implementasi modul yang tercantum pada checkpoint sebelumnya.
+
+- Seluruh 114 file Markdown di `docs.zip` telah diekstrak dan diinventarisasi; dokumen yang relevan untuk aset/jaringan/pengukuran diperiksa lebih lanjut, khususnya docs/80, docs/81, docs/83, docs/14, docs/62, dan docs/78.
+- Master gardu, master penyulang, master pelanggan, relasi pelanggan-gardu, dan pengukuran gardu OMT telah memiliki dokumentasi domain serta handoff frontend. Jangan membuat entitas/halaman duplikat sebelum audit source aktual.
+- Snapshot docs/83 mencatat pemuatan historis OMT dan data gardu/penyulang pada development; angka dalam dokumen adalah historis dan wajib diverifikasi sebelum dianggap kondisi terkini.
+- Arah baru yang ditambahkan: NKO/KPI, Pengusahaan, histori gangguan APKT, dan analisis susut per penyulang/gardu.
+- NKO/TRP workbook telah menjadi referensi struktur indikator, target, realisasi, polaritas, formula, bobot, nilai, dan ranking; formula/aturan tetap harus divalidasi.
+- Spreadsheet Pengusahaan belum terbaca dari link Google Sheets. Minta ekspor XLSX/CSV atau akses konektor yang sesuai sebelum merancang modul.
+- Analisis susut belum memiliki formula final; titik ukur energi, batas jaringan, periode, sumber dan metode rekonsiliasi harus ditentukan.
+- Dokumen arah baru: `docs/86-ARAH-PLATFORM-TERPADU-DAN-PERLUASAN-DOMAIN.md`.
+- Roadmap tahap 0–12 dipertahankan. Track perluasan X1–X6 ditambahkan sebagai kelanjutan, bukan penggantian urutan baseline.
+- Tidak ada source code, migration, database, atau deployment yang diubah dalam revisi dokumentasi ini.

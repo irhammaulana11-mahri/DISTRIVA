@@ -24,7 +24,13 @@ Roadmap menunjukkan urutan dan dependensi, bukan gate administrasi global. Setia
 | 9 | Warehouse integration | Integrasi/read-only sumber material eksternal, alokasi dan pemakaian sesuai batas sistem | Sinkronisasi material teruji |
 | 10 | Forecasting | Forecast volume pekerjaan, konversi BOM, evaluasi model | Forecast dan metrik |
 | 11 | Dashboard & reporting | KPI, rekap, filter, export, scope enforcement | Pelaporan sesuai hak akses |
-| 12 | Hardening & deployment | Security, performance, backup/restore, observability, deployment | Release siap operasional |
+| 12 | Asset & network data | Master gardu/penyulang/pelanggan, histori pengukuran OMT, kualitas data | Histori aset dan pengukuran tervalidasi |
+| 13 | Reliability & outage | Integrasi histori gangguan APKT, relasi gangguan-aset, indikator keandalan | Histori dan rekap gangguan terverifikasi |
+| 14 | Performance management / NKO | Master KPI, target, realisasi, formula, bobot, polaritas, ranking, checkpoint | NKO ULP/UP3 dapat direproduksi |
+| 15 | Commercial / Pengusahaan | Pemetaan proses, indikator, sumber data, monitoring dan tindak lanjut | Modul pengusahaan berdasarkan definisi tervalidasi |
+| 16 | Energy loss analytics | Analisis energi/susut per penyulang dan gardu sesuai titik ukur yang tersedia | Analisis dengan lineage dan kualitas data |
+| 17 | Cross-domain dashboard | Konsolidasi KPI operasional, pengusahaan, gangguan, aset, susut dan PB/PD | Dashboard lintas domain terotorisasi |
+| 18 | Hardening & deployment | Security, performance, backup/restore, observability, deployment | Release siap operasional |
 
 ## Status awal berdasarkan snapshot source v3.15.0
 
@@ -59,3 +65,47 @@ Status berikut adalah catatan audit pada 5 November 2026, bukan hasil pemeriksaa
 ## Definisi selesai
 
 Tahap/iterasi selesai ketika acceptance criteria terpenuhi, test relevan memiliki hasil tercatat, authorization dan integritas data diperiksa, serta dokumentasi dan handoff diperbarui. Fitur yang belum diverifikasi harus tetap berstatus `IMPLEMENTED` atau `TESTED`, bukan `VERIFIED`.
+
+
+## Perluasan roadmap: aturan urutan
+
+Roadmap baru bukan berarti semua domain harus dibangun sekaligus. Setiap domain melewati:
+1. Inventarisasi sumber data dan pemilik proses.
+2. Pemetaan field, definisi, formula, periode, unit, dan kualitas data.
+3. Klarifikasi hak akses, aktor, workflow, dan output.
+4. Desain model data dan kontrak integrasi.
+5. Implementasi import/adapter dan validasi.
+6. Backend, API, frontend, report, dan dashboard.
+7. Rekonsiliasi dengan sumber dan uji penerimaan.
+
+Prioritas teknis awal yang disarankan:
+- Pertahankan dan stabilkan domain yang telah berjalan.
+- Manfaatkan master gardu/penyulang/pelanggan dan pengukuran OMT yang telah terdokumentasi sebagai fondasi analisis jaringan.
+- Bangun histori gangguan APKT dan NKO setelah kontrak/format data serta rumus tervalidasi.
+- Petakan Pengusahaan dari spreadsheet sumber sebelum menetapkan tabel atau workflow.
+- Analisis susut penyulang/gardu dilakukan setelah ketersediaan titik ukur energi dan metode perhitungan disepakati.
+
+
+## Perluasan roadmap platform terpadu (track tambahan)
+
+Tabel tahap 0–12 di atas tetap menjadi roadmap baseline pengembangan yang sudah terdokumentasi. Domain berikut adalah perluasan lanjutan; bukan pengganti atau penomoran ulang tahap baseline. Pengembangan dilakukan setelah audit status aktual dan pemetaan sumber data.
+
+| Track | Domain | Fondasi yang sudah ada | Pekerjaan tambahan |
+|---|---|---|---|
+| X1 | Asset & network analytics | Master gardu, penyulang, pelanggan, pengukuran OMT (`docs/80–83`) | Audit kualitas/kelengkapan, relasi historis, analisis beban dan kapasitas |
+| X2 | Histori gangguan & keandalan | Master aset/jaringan dan struktur organisasi | Pemetaan APKT, histori kejadian, relasi ke gardu/penyulang, indikator keandalan sesuai data |
+| X3 | NKO/KPI | Belum ditemukan spesifikasi NKO dalam baseline Markdown | Ekstraksi workbook, master indikator, formula/bobot/polaritas berversi, target dan realisasi periodik |
+| X4 | Pengusahaan | Spreadsheet acuan pemilik belum terbaca pada saat revisi | Pemetaan proses, indikator, formula, sumber data, aktor, periode, dan output |
+| X5 | Analisis energi/susut | Data gardu/penyulang dan histori pengukuran OMT | Pemetaan titik ukur energi, formula yang disetujui, rekonsiliasi dan analisis per penyulang/gardu |
+| X6 | Dashboard lintas domain | Reporting/dashboard baseline perlu diverifikasi terhadap source terkini | Konsolidasi PB/PD, pengusahaan, NKO, gangguan, pengukuran, dan susut dengan scope serta definisi konsisten |
+
+### Urutan dan dependency tambahan
+
+1. **Audit baseline terlebih dahulu.** Verifikasi implementasi master gardu/penyulang/pelanggan dan pengukuran OMT berdasarkan `docs/80–83`, `docs/57`, source, test, dan database yang disetujui.
+2. **NKO:** petakan workbook `REALISASI UP3 MJK&ULP 2026 REV 3` dan `TRP ULP&UP3 MJK 2026 REV 3`; formula, bobot, polaritas, pembulatan, batas nilai, periode, dan target harus diverifikasi terhadap aturan resmi.
+3. **Pengusahaan:** belum dapat dispesifikasikan sebelum isi Google Sheets acuan diekspor/dibaca. Jangan mengarang tab, kolom, indikator atau alur.
+4. **Histori gangguan:** peroleh kontrak API atau ekspor APKT, lalu petakan external ID, waktu kejadian/pulih, gangguan, aset, penyulang, pelanggan terdampak, dan status penanganan.
+5. **Analisis susut:** jangan memulai formula final sebelum titik ukur energi masuk/keluar, periode, batas jaringan, data penjualan/energi, koreksi, serta metode rekonsiliasi disepakati.
+6. **Dashboard lintas domain:** dilakukan setelah definisi indikator, periode, kualitas data, dan authorization scope masing-masing domain konsisten.
+
+Tidak semua track harus menunggu track lain. Misalnya pemetaan workbook NKO dapat berjalan paralel dengan pengumpulan kontrak APKT. Namun, analisis susut per penyulang/gardu bergantung pada ketersediaan titik ukur dan metode yang tervalidasi.

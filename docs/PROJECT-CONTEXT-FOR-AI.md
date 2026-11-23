@@ -122,3 +122,39 @@ Full test suite 20/20 (30 assertions), termasuk 15 unit tests baru (20 assertion
 ## T4.2.1.2 — Policy/resource-scope design v3.6.0
 
 Matrix resource/ability/role/scope disetujui sebagai baseline desain saja. Tidak ada permission key final, seeder, Policy/query scope, atau perubahan database yang disetujui/diimplementasikan pada checkpoint ini. Source audit tidak menemukan business resource model, business route, atau vendor/project/work-order relations. “Pengawas Jaringan”, reviewer permohonan, dan approver final RKM masih perlu pemetaan yang disetujui. Vendor tetap fail-closed; `user_role_assignments` tetap satu-satunya sumber assignment. Detail: `docs/34-T4.2.1.2-AUTHORIZATION-POLICY-DESIGN.md`; audit: `test-evidence/2026-11-05-t4212-design-audit.md`. Tes tidak dijalankan pada checkpoint desain ini; hasil terakhir sebelumnya 20/20 tests (30 assertions).
+
+
+## Arah platform terpadu — 22 November 2026
+
+DISTRIVA bukan hanya aplikasi PB/PD dan perhitungan KKF. Visi pengembangan adalah satu platform untuk merangkum pekerjaan lintas bagian pada tingkat ULP/UP3. Domain yang akan dikembangkan bertahap meliputi:
+- PB/PD, survei, KKO, engineering, MTO, RAB/KKF, WO, vendor, RKM dan material;
+- Pengusahaan;
+- NKO/KPI;
+- histori gangguan APKT;
+- pengukuran gardu OMT;
+- analisis susut per penyulang dan gardu.
+
+EIS/AP2T, APKT, OMT/Maximo, ERP dan sumber resmi terkait tetap menjadi sumber data sesuai domain. DISTRIVA adalah lapisan konsolidasi, monitoring, workflow, analisis, dan pelaporan; bukan pengganti sistem sumber.
+
+Rujuk `docs/86-ARAH-PLATFORM-TERPADU-DAN-PERLUASAN-DOMAIN.md` untuk batas scope, data lineage, prasyarat analisis susut, serta isu yang belum boleh diasumsikan.
+
+Dua workbook NKO/TRP yang diberikan pada 22 November 2026 telah diperiksa sebagai referensi struktur KPI: indikator, formula, polaritas, bobot, target, realisasi, pencapaian, nilai, rekap dan ranking. Ini belum berarti seluruh formula/target disahkan untuk periode berikutnya. Spreadsheet Pengusahaan yang ditautkan belum dapat dibaca; minta ekspor XLSX/CSV atau akses Google Sheets yang sesuai sebelum membuat spesifikasi modul tersebut.
+
+
+## Catatan kesinambungan Markdown dalam docs.zip — 22 November 2026
+
+Seluruh 114 file Markdown di `docs.zip` telah diinventarisasi untuk pembaruan arah platform. Domain aset/jaringan dan pengukuran gardu bukan domain yang sepenuhnya baru:
+- `docs/80-DESAIN-MASTER-GARDU-KKO.md`
+- `docs/81-DESAIN-MASTER-PENYULANG-PELANGGAN.md`
+- `docs/83-DATA-PENGUKURAN-GARDU-OMT.md`
+- Handoff terkait: `docs/PROMPT-FRONTEND-GARDU-PENGUKURAN.md` dan `docs/PROMPT-FRONTEND-PENYULANG-PELANGGAN.md`.
+
+Dokumen tersebut mencatat desain, API, UI, test, serta snapshot pemuatan data gardu/penyulang/pelanggan/pengukuran. Audit lanjutan harus memeriksa kesinambungan implementasi yang sudah ada; jangan membuat master duplikat.
+
+Perluasan yang belum ditemukan sebagai spesifikasi domain tersendiri pada Markdown baseline:
+- NKO/KPI (dua workbook referensi tersedia).
+- Pengusahaan (Google Sheets acuan belum terbaca).
+- Histori gangguan APKT.
+- Analisis susut per penyulang/gardu (metode dan titik ukur belum ditetapkan).
+
+Lihat `docs/86-ARAH-PLATFORM-TERPADU-DAN-PERLUASAN-DOMAIN.md`. Dokumen ini menambahkan arah platform tanpa mengganti keputusan dan histori dokumen 00–85. Roadmap baseline 0–12 tetap dipertahankan; track tambahan diberi label X1–X6.
