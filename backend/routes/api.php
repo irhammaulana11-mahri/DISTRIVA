@@ -10,6 +10,7 @@ use App\Http\Controllers\BastpController;
 use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DrawingController;
+use App\Http\Controllers\EisReportController;
 use App\Http\Controllers\EisSyncController;
 use App\Http\Controllers\FeederController;
 use App\Http\Controllers\ForecastController;
@@ -327,6 +328,12 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::get('/rab-runs/{run}/documents/{type}', [OutputDocumentController::class, 'rab'])->whereUuid('run')->middleware('throttle:admin');
     Route::get('/kkf-runs/{run}/documents/{type}', [OutputDocumentController::class, 'kkf'])->whereUuid('run')->middleware('throttle:admin');
     // Backup / restore (docs/64): SYS_ADMIN only (MFA). Restore needs a verified backup, typed confirmation and the actor's password.
+    Route::prefix('eis-reports')->middleware('throttle:admin')->group(function () {
+        Route::get('/', [EisReportController::class, 'index']);
+        Route::get('/coverage', [EisReportController::class, 'coverage']);
+        Route::post('/import', [EisReportController::class, 'store']);
+        Route::get('/{file}/lines', [EisReportController::class, 'lines'])->whereUuid('file');
+    });
     Route::prefix('outages/sync')->middleware('throttle:admin')->group(function () {
         Route::get('/', [OutageSyncController::class, 'show']);
         Route::put('/settings', [OutageSyncController::class, 'save']);

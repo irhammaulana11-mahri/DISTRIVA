@@ -101,7 +101,7 @@ return [
         'eis_sync.manage' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
     ],
     'applications_descendant_keys' => [
-        'outages.view', 'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
+        'outages.view', 'eis_reports.view', 'eis_reports.import', 'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
         'drawings.view', 'drawings.review_perencanaan', 'drawings.review_konstruksi', 'drawings.approve_asman_perencanaan', 'drawings.approve_asman_niaga', 'drawings.approve_asman_konstruksi',
         'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings', 'tasks.view', 'forecast.view',
     ],
@@ -273,12 +273,22 @@ return [
     ],
 
     /*
-     * Data gangguan penyulang dan recloser (Google Sheet, docs/86): `outages.view` membaca analisis dalam cakupan (peran UP3 ke ULP di bawahnya, lihat 'applications_descendant_keys');
+     * Data gangguan penyulang dan recloser (Google Sheet, docs/87): `outages.view` membaca analisis dalam cakupan (peran UP3 ke ULP di bawahnya, lihat 'applications_descendant_keys');
      * `outages.sync` mengatur sumber, menjalankan sinkronisasi, dan memetakan nama penyulang yang tidak cocok.
      */
     'outages' => [
         'outages.view' => ['MANAGER_ULP', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'outages.sync' => ['PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+    ],
+
+    /**
+     * Laporan bulanan EIS/AP2T (docs/88): `eis_reports.view` membaca berkas yang diimpor dan isinya dalam cakupan (peran UP3 ke ULP di bawahnya, lihat 'applications_descendant_keys');
+     * `eis_reports.import` mengunggah laporan untuk unit dalam cakupannya (laporan tingkat UP3 hanya oleh peran yang bertugas pada UP3 itu sendiri atau SYS_ADMIN). Pembagian peran awal;
+     * pemilik dapat mengubahnya melalui katalog izin.
+     */
+    'eis_reports' => [
+        'eis_reports.view' => ['MANAGER_ULP', 'MANAGER_UP3', 'TEKNIK', 'NIAGA_RETAIL', 'ASMAN_NIAGA', 'ASMAN_PERENCANAAN', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'eis_reports.import' => ['NIAGA_RETAIL', 'ASMAN_NIAGA', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
     ],
 
     // who may raise the extended-approval requirement at which moment (SYS_ADMIN at both)
