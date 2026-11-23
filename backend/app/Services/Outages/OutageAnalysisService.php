@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Analisis gangguan penyulang dan recloser (docs/86): tren bulanan dan tahunan (permanen, temporer, ENS, SAIFI, SAIDI), penyebab, cuaca, jam, ULP, penyulang, dan gardu pada penyulang.
+ * Analisis gangguan penyulang dan recloser (docs/87): tren bulanan dan tahunan (permanen, temporer, ENS, SAIFI, SAIDI), penyebab, cuaca, jam, ULP, penyulang, dan gardu pada penyulang.
  *
  * Definisi (keputusan pemilik): pelanggan terdampak satu gangguan = seluruh pelanggan aktif penyulang (DIL, tertaut gardu) di unit yang dilihat; SAIFI = jumlah (pelanggan terdampak) / pelanggan aktif unit,
  * SAIDI = jumlah (pelanggan terdampak x menit padam) / pelanggan aktif unit. Gangguan lebih singkat dari ambang (bawaan 5 menit) tidak ikut, dan bisa dibatasi pada gangguan permanen. Karena sheet tidak

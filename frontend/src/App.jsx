@@ -49,6 +49,8 @@ import ReportsPage from './pages/reports/ReportsPage.jsx'
 import TasksPage from './pages/tasks/TasksPage.jsx'
 import ForecastPage from './pages/forecast/ForecastPage.jsx'
 import CustomerAnalysisPage from './pages/customer-analysis/CustomerAnalysisPage.jsx'
+import OutageSyncPage from './pages/outages/OutageSyncPage.jsx'
+import OutageAnalysisPage from './pages/outages/OutageAnalysisPage.jsx'
 import CategoriesPage from './pages/master-data/CategoriesPage.jsx'
 import ApplicationsPage from './pages/applications/ApplicationsPage.jsx'
 import KhsMaterialMapImportPage from './pages/master-data/KhsMaterialMapImportPage.jsx'
@@ -165,6 +167,8 @@ export default function App() {
         <Route path="master-data/substation-measurements/:id" element={<RequireCapability capability="substations.view"><SubstationMeasurementDetailPage /></RequireCapability>} />
         <Route path="master-data/feeders" element={<RequireCapability capability="feeders.view"><FeedersPage /></RequireCapability>} />
         <Route path="master-data/customers" element={<RequireCapability capability="customers.view"><CustomersPage /></RequireCapability>} />
+        <Route path="master-data/gangguan-sinkron" element={<RequireCapability capability="outages.view"><OutageSyncPage /></RequireCapability>} />
+        <Route path="analisis-gangguan" element={<RequireCapability capability="outages.view"><OutageAnalysisPage /></RequireCapability>} />
         <Route path="master-data/warehouses" element={<RequireCapability capability="master_data.view"><WarehousesPage /></RequireCapability>} />
         <Route path="master-data/warehouses/baru" element={<RequireCapability capability="warehouses.manage"><WarehouseCreatePage /></RequireCapability>} />
         <Route path="master-data/warehouses/tarik-mims" element={<RequireCapability capability="stock.import"><MimsStockPullPage /></RequireCapability>} />

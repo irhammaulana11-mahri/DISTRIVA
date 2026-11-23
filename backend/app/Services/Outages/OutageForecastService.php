@@ -5,7 +5,7 @@ namespace App\Services\Outages;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Prakiraan gangguan 12 bulan ke depan (docs/86), statistik dan dihitung saat diminta (tanpa pekerjaan latar): per metrik bulanan (gangguan permanen, temporer, ENS, SAIFI, SAIDI)
+ * Prakiraan gangguan 12 bulan ke depan (docs/87), statistik dan dihitung saat diminta (tanpa pekerjaan latar): per metrik bulanan (gangguan permanen, temporer, ENS, SAIFI, SAIDI)
  * dengan tingkat dasar 12 bulan terakhir, tren teredam, dan indeks musiman dari tahun yang lengkap. Rentang p10-p90 bulanan berasal dari rasio aktual/prakiraan pada uji mundur (origin bergulir, 1-3 bulan); rentang total 12 bulan menggabungkan galat bulanan sebagai saling bebas,
  * dan mutunya dibandingkan dengan pembanding sederhana "bulan yang sama tahun lalu". Selain itu perkiraan jumlah gangguan 12 bulan per penyulang dari laju historis (Poisson).
  * Ini prakiraan pola, bukan jaminan: peristiwa luar biasa (badai, pekerjaan besar) tidak bisa diprakirakan.

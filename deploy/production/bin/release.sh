@@ -7,7 +7,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"; BE="$ROOT/backend"; WEB="${WEB_ROOT:-/var/www/distriva-web}"; ENVF="$BE/.env"
 say(){ printf '\n== %s\n' "$*"; }; die(){ echo "GAGAL: $*" >&2; exit 1; }
-SEEDERS="FoundationPermissionSeeder MasterDataPermissionSeeder ApplicationPermissionSeeder KkoPermissionSeeder SurveyPermissionSeeder MtoPermissionSeeder RabPermissionSeeder KkfPermissionSeeder DrawingPermissionSeeder SubstationPermissionSeeder PlanningPermissionSeeder BackupPermissionSeeder SystemSettingsPermissionSeeder"
+SEEDERS="FoundationPermissionSeeder MasterDataPermissionSeeder ApplicationPermissionSeeder KkoPermissionSeeder SurveyPermissionSeeder MtoPermissionSeeder RabPermissionSeeder KkfPermissionSeeder DrawingPermissionSeeder SubstationPermissionSeeder PlanningPermissionSeeder BackupPermissionSeeder SystemSettingsPermissionSeeder OutagePermissionSeeder"
 if [ "${DRY_RUN:-0}" = 1 ]; then
   echo "[dry-run] 1 periksa git bersih, backend/.env, APP_ENV=production"; echo "[dry-run] 2 composer install --no-dev -o; npm ci; npm run build"
   [ "${FIRST_RUN:-0}" = 1 ] || echo "[dry-run] 3 cadangan segar (maks ${BACKUP_MAX_AGE_H:-26} jam) atau distriva:backup --documents"

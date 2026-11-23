@@ -25,7 +25,7 @@ class OutagePermissionSeeder extends Seeder
                 $permission = Permission::query()->where(['name' => $key, 'guard_name' => $guard])->first();
                 if ($permission === null) {
                     $permission = Permission::query()->create(['name' => $key, 'guard_name' => $guard]);
-                    $this->history('PERMISSION_CATALOG_CHANGED', null, $permission->getKey(), null, ['name' => $key], "Outage key {$key} (gangguan penyulang dari Google Sheet, docs/86).");
+                    $this->history('PERMISSION_CATALOG_CHANGED', null, $permission->getKey(), null, ['name' => $key], "Outage key {$key} (gangguan penyulang dari Google Sheet, docs/87).");
                 }
                 foreach ($permission->roles()->where('roles.guard_name', $guard)->get() as $held) {
                     if (! in_array($held->name, $roles, true)) {

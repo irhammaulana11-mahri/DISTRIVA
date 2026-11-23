@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Data gangguan penyulang dan recloser yang dibaca dari Google Sheet (docs/86): peristiwa, pengaturan sinkronisasi (satu baris), riwayat sinkronisasi, dan alias nama penyulang
+ * Data gangguan penyulang dan recloser yang dibaca dari Google Sheet (docs/87): peristiwa, pengaturan sinkronisasi (satu baris), riwayat sinkronisasi, dan alias nama penyulang
  * yang tidak cocok otomatis dengan master penyulang. Peristiwa memakai kunci sumber yang stabil (sidik jari tanggal, jam, GI, penyulang, jenis alat) agar sinkron berulang tidak menggandakan;
  * baris yang hilang dari sheet hanya ditandai `source_removed_at`, tidak dihapus.
  */

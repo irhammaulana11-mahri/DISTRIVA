@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
 /**
- * Sinkronisasi data gangguan dari Google Sheet (docs/86). Satu proses pendek: unduh CSV tiap tab, rapikan, cocokkan penyulang dan ULP, lalu upsert idempoten menurut kunci sumber.
+ * Sinkronisasi data gangguan dari Google Sheet (docs/87). Satu proses pendek: unduh CSV tiap tab, rapikan, cocokkan penyulang dan ULP, lalu upsert idempoten menurut kunci sumber.
  * Peristiwa yang tidak lagi ada di sheet hanya ditandai (source_removed_at), dan hanya bila hasil bacaan masuk akal (tidak kosong dan tidak jauh lebih kecil dari yang tersimpan).
  */
 class OutageSyncService

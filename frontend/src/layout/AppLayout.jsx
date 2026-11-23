@@ -87,6 +87,7 @@ const masterDataNav = [
   { to: '/master-data/substations', label: 'Master Gardu', capability: 'substations.view', icon: IconZap, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/feeders', label: 'Master Penyulang', capability: 'feeders.view', icon: IconLayers, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/customers', label: 'Master Pelanggan', capability: 'customers.view', icon: IconUsers, group: 'Aset Jaringan & Pelanggan' },
+  { to: '/master-data/gangguan-sinkron', label: 'Data Gangguan (Sinkron)', capability: 'outages.view', icon: IconZap, group: 'Aset Jaringan & Pelanggan' },
 
   // Standar & Konstruksi
   { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'jaringan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
@@ -112,6 +113,7 @@ const reportsNav = [
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
   { to: '/analisis-pelanggan', label: 'Analisis Pelanggan & Daya', anyOf: ['reports.view', 'forecast.view'], icon: IconUsers },
+  { to: '/analisis-gangguan', label: 'Analisis Gangguan', capability: 'outages.view', icon: IconActivity },
   { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconActivity },
   { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconClock },
   { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB/SPK)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconCalculator },
@@ -159,6 +161,7 @@ const titles = {
   '/tugas': 'Operasional / Tugas & SLA',
   '/forecast': 'Laporan & Monitoring / Forecasting',
   '/analisis-pelanggan': 'Laporan & Monitoring / Analisis Pelanggan & Daya',
+  '/analisis-gangguan': 'Laporan & Monitoring / Analisis Gangguan',
   '/permohonan': 'Operasional / Permohonan (PB/PD)',
   '/permohonan/sinkronisasi-eis': 'Operasional / Sinkronisasi EIS',
   '/survei': 'Operasional / Usulan Survei',
@@ -172,6 +175,7 @@ const titles = {
   '/master-data/substation-measurements/sinkronisasi-maximo': 'Operasional / Pengukuran Gardu / Sinkronisasi Maximo',
   '/master-data/feeders': 'Master Data / Master Penyulang',
   '/master-data/customers': 'Master Data / Master Pelanggan',
+  '/master-data/gangguan-sinkron': 'Master Data / Data Gangguan (Sinkron)',
   '/master-data/materials': 'Master Data / Katalog Material ERP',
   '/master-data/khs': 'Master Data / Katalog Harga Satuan (KHS)',
   '/master-data/mapping': 'Master Data / Pemetaan SKU↔KHS',
@@ -256,6 +260,7 @@ const getSectionForPath = (path) => {
     path.startsWith('/rkm') ||
     path.startsWith('/forecast') ||
     path.startsWith('/analisis-pelanggan') ||
+    path.startsWith('/analisis-gangguan') ||
     path.startsWith('/reports')
   ) {
     return 'reports'

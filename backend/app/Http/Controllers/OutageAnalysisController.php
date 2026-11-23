@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Analisis gangguan penyulang (docs/86). Cakupan mengikuti outages.view: ULP melihat ULP-nya, UP3 melihat ULP di bawahnya, SYS_ADMIN semuanya (termasuk peristiwa tanpa ULP). */
+/** Analisis gangguan penyulang (docs/87). Cakupan mengikuti outages.view: ULP melihat ULP-nya, UP3 melihat ULP di bawahnya, SYS_ADMIN semuanya (termasuk peristiwa tanpa ULP). */
 class OutageAnalysisController extends Controller
 {
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly OutageAnalysisService $analysis, private readonly OutageForecastService $forecast, private readonly ReportService $reports, private readonly DocumentDownload $download) {}
