@@ -203,6 +203,11 @@ class OutageSyncTest extends PostgresTestCase
         $this->as($this->viewer)->postJson('/api/outages/sync/runs')->assertForbidden();
         $this->as($this->viewer)->putJson('/api/outages/sync/settings', ['auto_enabled' => false, 'auto_time' => '06:30', 'saidi_min_minutes' => 5, 'saidi_only_permanent' => false])->assertForbidden();
         $this->as($this->niaga)->getJson('/api/outages/sync')->assertForbidden();
+
+        // menu di frontend mengikuti peta izin ini
+        $this->as($this->viewer)->getJson('/api/planning/access')->assertOk()->assertJson(['can' => ['outages.view' => true, 'outages.sync' => false]]);
+        $this->as($this->admin)->getJson('/api/planning/access')->assertOk()->assertJson(['can' => ['outages.sync' => true]]);
+        $this->as($this->niaga)->getJson('/api/planning/access')->assertOk()->assertJson(['can' => ['outages.view' => false]]);
     }
 
     #[Test]
