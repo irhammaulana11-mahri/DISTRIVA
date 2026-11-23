@@ -12,6 +12,9 @@ use Illuminate\Support\Str;
  */
 class NkoDefinitionImportService
 {
+    /** Naik bila pembaca menyimpan lebih banyak/ berbeda dari berkas yang sama, agar versi set ikut diperbarui. */
+    public const READER_VERSION = 4;
+
     public function __construct(private readonly NkoWorkbookReader $reader) {}
 
     /**
@@ -19,7 +22,7 @@ class NkoDefinitionImportService
      */
     public function import(string $path, string $originalName, ?User $user = null): array
     {
-        $sha = hash_file('sha256', $path);
+        $sha = hash('sha256', hash_file('sha256', $path).'|'.self::READER_VERSION);
         $book = $this->reader->read($path);
         $units = $this->unitIndex();
 
@@ -122,10 +125,72 @@ class NkoDefinitionImportService
                     DB::table('kpi_targets')->insert($chunk);
                 }
                 $targets += count($batch);
+                $this->storeReference($s, $unitId, $year, $setId, $idByRow);
+                if ($s['sheet'] !== $canon['sheet']) {
+                    $this->storeUnitRules($canon, $s, $unitId, $idByRow);
+                }
             }
 
             return $this->summary($level, $active !== null ? 'DIGANTIKAN' : 'BARU', $version, $setId, ['definitions' => count($rows), 'targets' => $targets, 'units' => $unitNames], $warnings);
         });
+    }
+
+    /**
+     * Aturan pencapaian/nilai tab unit yang berbeda dari tab acuan disimpan sebagai aturan khusus unit.
+     *
+     * @param  array<string, mixed>  $canon
+     * @param  array<string, mixed>  $sheet
+     * @param  array<int, string>  $idByRow
+     */
+    private function storeUnitRules(array $canon, array $sheet, string $unitId, array $idByRow): void
+    {
+        $base = [];
+        foreach ($canon['nodes'] as $n) {
+            $base[$n['code']] = $n;
+        }
+        $rows = [];
+        foreach ($sheet['nodes'] as $n) {
+            $c = $base[$n['code']] ?? null;
+            if ($c === null) {
+                continue;
+            }
+            $mine = array_intersect_key($n['rules'], array_flip(['pencapaian', 'nilai', 'months']));
+            $theirs = array_intersect_key($c['rules'], array_flip(['pencapaian', 'nilai', 'months']));
+            if (json_encode($mine) !== json_encode($theirs)) {
+                $rows[] = ['definition_id' => $idByRow[$c['row_no']], 'organizational_unit_id' => $unitId, 'rules' => json_encode($mine, JSON_UNESCAPED_UNICODE)];
+            }
+        }
+        if ($rows !== []) {
+            DB::table('kpi_unit_rules')->insert($rows);
+        }
+    }
+
+    /**
+     * Angka acuan workbook per unit (realisasi, pencapaian, nilai per indikator dan bulan; total dan NKO akhir) untuk rekonsiliasi mesin hitung.
+     *
+     * @param  array<string, mixed>  $sheet
+     * @param  array<int, string>  $idByRow
+     */
+    private function storeReference(array $sheet, string $unitId, int $year, string $setId, array $idByRow): void
+    {
+        $batch = [];
+        foreach ($sheet['reference'] as $row => $months) {
+            foreach ($months as $month => $v) {
+                $batch[] = ['definition_id' => $idByRow[$row], 'organizational_unit_id' => $unitId, 'period' => sprintf('%04d-%02d-01', $year, $month), 'realisasi' => $v['real'], 'pencapaian' => $v['capai'], 'nilai' => $v['nilai']];
+            }
+        }
+        foreach (array_chunk($batch, 500) as $chunk) {
+            DB::table('kpi_reference_values')->insert($chunk);
+        }
+        $totals = [];
+        foreach ($sheet['month_rules'] as $month => $m) {
+            if ($m['total_value'] !== null || $m['final_value'] !== null) {
+                $totals[] = ['set_id' => $setId, 'organizational_unit_id' => $unitId, 'period' => sprintf('%04d-%02d-01', $year, $month), 'total' => $m['total_value'], 'nko' => $m['final_value']];
+            }
+        }
+        if ($totals !== []) {
+            DB::table('kpi_reference_totals')->insert($totals);
+        }
     }
 
     /**

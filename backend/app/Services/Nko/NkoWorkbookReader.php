@@ -129,7 +129,7 @@ class NkoWorkbookReader
             }
             $codes[$code] = true;
 
-            $rules = $this->rules($ws, $r, $jan, $warnings);
+            $rules = $this->rules($ws, $r, $blocks, $warnings);
             $nodes[] = [
                 'row_no' => $r,
                 'sort_order' => ++$order,
@@ -159,11 +159,25 @@ class NkoWorkbookReader
         foreach ($blocks as $month => $cols) {
             $nilai = $cols['nilai'];
             $monthRules[$month] = [
-                'total_formula' => $this->formula($ws, $nilai.'10'),
+                'total_formula' => $this->canon($this->formula($ws, $nilai.'10'), $cols),
                 'total_value' => $this->cached($ws, $nilai.'10'),
-                'final_formula' => $finalRow !== null ? $this->formula($ws, $nilai.$finalRow) : null,
+                'final_formula' => $finalRow !== null ? $this->canon($this->formula($ws, $nilai.$finalRow), $cols) : null,
                 'final_value' => $finalRow !== null ? $this->cached($ws, $nilai.$finalRow) : null,
+                'total_row' => $totalRow,
+                'final_row' => $finalRow,
             ];
+        }
+
+        $reference = [];
+        foreach ($nodes as $n) {
+            foreach ($blocks as $month => $cols) {
+                $real = $this->cached($ws, $cols['real'].$n['row_no']);
+                $capai = $this->cached($ws, $cols['capai'].$n['row_no']);
+                $nilaiV = $this->cached($ws, $cols['nilai'].$n['row_no']);
+                if ($real !== null || $capai !== null || $nilaiV !== null) {
+                    $reference[$n['row_no']][$month] = ['real' => $real, 'capai' => $capai, 'nilai' => $nilaiV];
+                }
+            }
         }
 
         $weights = array_filter(array_map(fn ($n) => $n['level'] === 0 ? $n['weight'] : null, $nodes), fn ($w) => $w !== null);
@@ -172,7 +186,7 @@ class NkoWorkbookReader
             $warnings[] = "Tab {$ws->getTitle()}: jumlah bobot kelompok {$totalWeight}, bukan 100.";
         }
 
-        return ['year' => $year, 'nodes' => $nodes, 'targets' => $targets, 'month_rules' => $monthRules, 'total_weight' => $totalWeight, 'warnings' => $warnings];
+        return ['year' => $year, 'nodes' => $nodes, 'targets' => $targets, 'reference' => $reference, 'month_rules' => $monthRules, 'total_weight' => $totalWeight, 'warnings' => $warnings];
     }
 
     /**
@@ -201,12 +215,13 @@ class NkoWorkbookReader
     /**
      * Aturan pencapaian dan nilai dari rumus bulan pertama pada baris itu.
      *
-     * @param  array{target: string, real: string, capai: string, nilai: string}  $jan
+     * @param  array<int, array{target: string, real: string, capai: string, nilai: string}>  $blocks
      * @param  list<string>  $warnings
      * @return array{source_sheet: ?string, scoring_rule: ?string, nilai_rule: ?string, rules: array<string, mixed>}
      */
-    private function rules(Worksheet $ws, int $row, array $jan, array &$warnings): array
+    private function rules(Worksheet $ws, int $row, array $blocks, array &$warnings): array
     {
+        $jan = $blocks[1];
         $real = $this->formula($ws, $jan['real'].$row);
         $capai = $this->formula($ws, $jan['capai'].$row);
         $nilai = $this->formula($ws, $jan['nilai'].$row);
@@ -242,11 +257,32 @@ class NkoWorkbookReader
             };
         }
 
+        $capaiJan = $capai !== null ? preg_replace('/\s+/', ' ', $capai) : null;
+        $overrides = [];
+        foreach ($blocks as $month => $cols) {
+            if ($month === 1) {
+                continue;
+            }
+            $c = $this->canon($this->formula($ws, $cols['capai'].$row), $cols);
+            $n = $this->canon($this->formula($ws, $cols['nilai'].$row), $cols);
+            $c = $c !== null ? preg_replace('/\s+/', ' ', $c) : null;
+            $diff = [];
+            if ($c !== $capaiJan) {
+                $diff['pencapaian'] = $c;
+            }
+            if ($n !== $nilai) {
+                $diff['nilai'] = $n;
+            }
+            if ($diff !== []) {
+                $overrides[$month] = $diff;
+            }
+        }
+
         return [
             'source_sheet' => $sourceSheet,
             'scoring_rule' => $scoring,
             'nilai_rule' => $nilaiRule,
-            'rules' => array_filter(['realisasi' => $real, 'pencapaian' => $capai !== null ? preg_replace('/\s+/', ' ', $capai) : null, 'nilai' => $nilai], fn ($v) => $v !== null && $v !== ''),
+            'rules' => array_filter(['realisasi' => $real, 'pencapaian' => $capaiJan, 'nilai' => $nilai, 'months' => $overrides === [] ? null : $overrides], fn ($v) => $v !== null && $v !== ''),
         ];
     }
 
@@ -257,6 +293,21 @@ class NkoWorkbookReader
         $v = $cell->getValue();
 
         return is_string($v) && str_starts_with($v, '=') ? $cell->getOldCalculatedValue() : $v;
+    }
+
+    /**
+     * Mengubah rujukan kolom blok bulan (target, realisasi, pencapaian, nilai) menjadi kolom baku Z, AA, AB, AC agar rumus bulan mana pun sebanding dengan rumus Januari.
+     *
+     * @param  array{target: string, real: string, capai: string, nilai: string}  $cols
+     */
+    private function canon(?string $formula, array $cols): ?string
+    {
+        if ($formula === null || ! str_starts_with($formula, '=')) {
+            return $formula;
+        }
+        $map = [$cols['target'] => 'Z', $cols['real'] => 'AA', $cols['capai'] => 'AB', $cols['nilai'] => 'AC'];
+
+        return preg_replace_callback('/(?<![A-Za-z$!\'])(\$?)([A-Z]{1,3})(\$?\d+)(?![\d(A-Za-z])/', fn ($m) => $m[1].($map[$m[2]] ?? $m[2]).$m[3], $formula);
     }
 
     private function formula(Worksheet $ws, string $coordinate): ?string

@@ -32,6 +32,7 @@ use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MaximoSyncController;
 use App\Http\Controllers\MfaController;
 use App\Http\Controllers\MtoController;
+use App\Http\Controllers\NkoController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\OutageAnalysisController;
@@ -328,6 +329,16 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::get('/rab-runs/{run}/documents/{type}', [OutputDocumentController::class, 'rab'])->whereUuid('run')->middleware('throttle:admin');
     Route::get('/kkf-runs/{run}/documents/{type}', [OutputDocumentController::class, 'kkf'])->whereUuid('run')->middleware('throttle:admin');
     // Backup / restore (docs/64): SYS_ADMIN only (MFA). Restore needs a verified backup, typed confirmation and the actor's password.
+    Route::prefix('nko')->middleware('throttle:admin')->group(function () {
+        Route::get('/definitions', [NkoController::class, 'definitions']);
+        Route::get('/snapshots', [NkoController::class, 'index']);
+        Route::get('/snapshots/{snapshot}', [NkoController::class, 'show'])->whereUuid('snapshot');
+        Route::get('/ranking', [NkoController::class, 'ranking']);
+        Route::get('/inputs', [NkoController::class, 'inputs']);
+        Route::put('/inputs', [NkoController::class, 'saveInputs']);
+        Route::post('/calculate', [NkoController::class, 'calculate']);
+    });
+
     Route::prefix('eis-reports')->middleware('throttle:admin')->group(function () {
         Route::get('/', [EisReportController::class, 'index']);
         Route::get('/coverage', [EisReportController::class, 'coverage']);

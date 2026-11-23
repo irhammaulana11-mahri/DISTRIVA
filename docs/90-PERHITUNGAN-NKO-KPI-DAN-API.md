@@ -1,0 +1,57 @@
+# 90 — Perhitungan NKO/KPI, Masukan Manual, Peringkat, dan API (Tahap 3)
+
+Lanjutan docs/89 (master definisi). Tahap ini menghitung pencapaian, nilai, total, dan NKO akhir per unit dan bulan sebagai **snapshot** yang menunjuk ke set definisi yang dipakai, lalu memberi peringkat antar ULP satu UP3. Dokumen ini juga menjadi kontrak API untuk agen frontend.
+
+## 1. Cara kerja
+
+1. **Realisasi kumulatif** (Januari sampai bulan berjalan) tiap indikator ditentukan per unit:
+   - **Masukan manual** (`kpi_manual_inputs`) bila ada, sumber `MANUAL`;
+   - selain itu **sumber sistem**, sumber `SISTEM`. Saat ini: **SAIDI, SAIFI, dan ENS dari laporan DIFI yang diunggah** (keputusan pemilik; hasil hitung DISTRIVA sendiri hanya pembanding). SAIDI dan SAIFI = jumlah nilai bulanan Januari sampai bulan berjalan; ENS = kWh pada baris "TOTAL KELOMPOK Distribusi" dibagi 1000 (MWh). **Sumber sistem hanya dipakai bila laporan DIFI semua bulan Januari sampai bulan berjalan sudah ada**; kalau ada bulan yang belum diunggah, indikator dibiarkan kosong dan dilaporkan sebagai "kurang" sampai laporan diunggah atau diisi manual. (Data contoh: DIFI 2026 baru ada mulai Mei.)
+   - Indikator lain (penjualan, susut, pelanggan, piutang, PLN Mobile, ERT, dst.) belum punya pemetaan otomatis ke data DISTRIVA, sehingga saat ini diisi manual per bulan. Pemetaan otomatis ditambahkan bertahap tanpa mengubah API.
+2. **Mesin hitung** (`NkoCalculator`) memakai rumus asli workbook (rumus pencapaian dan nilai per indikator, rumus total dan NKO akhir per bulan, aturan khusus unit) lewat mesin rumus; tiga pola yang membagi dengan target dihitung langsung dengan semantik Excel (target 0 dan galat bagi-nol ditangani seperti Excel). Indikator tanpa realisasi tidak diberi pencapaian dan nilai (dihitung 0 pada jumlah) dan dicantumkan pada `missing`; snapshot-nya `complete = false`.
+3. **Snapshot** (`kpi_snapshots`, `kpi_snapshot_values`): satu snapshot berlaku (`is_current`) per unit dan bulan; menghitung ulang menjadikan yang lama riwayat. **Peringkat** hanya antar ULP satu UP3 pada bulan yang sama (urut NKO akhir turun); UP3 tidak diberi peringkat. Peringkat dihitung ulang tiap kali satu ULP dihitung.
+4. **Rekonsiliasi dengan workbook**: realisasi dari workbook REALISASI dimasukkan ke mesin hitung dan dibandingkan dengan angka workbook. Hasil: **99 unit-bulan (UP3 + 10 ULP, Januari sampai September 2026), 5.793 nilai, 0 selisih** pada toleransi 0,000001 (pencapaian, nilai tiap indikator dan kelompok, total, dan NKO akhir). Tes otomatis `NkoReconcileTest`; manual: `php artisan distriva:nko-reconcile [--month=] [--unit=]`.
+
+Perbaikan pada master (docs/89) yang diperlukan agar cocok: rumus per bulan (aturan berubah mulai Juni), aturan khusus unit (31 baris pada tab ULP yang rumusnya berbeda dari tab acuan), serta penyimpanan target dan angka acuan sebagai `double precision` (kelompok memakai `TRUNC(...,2)`, sehingga pembulatan desimal mengubah hasil).
+
+## 2. Izin (keputusan pemilik, 2026-11-24)
+
+| Izin | Peran |
+|---|---|
+| `nko.calculate` (hitung) dan `nko.input` (isi masukan manual) | PERENCANAAN, ASMAN_PERENCANAAN, SYS_ADMIN (MFA) |
+| `nko.view` (hanya lihat) | MANAGER_ULP, MANAGER_UP3, TEKNIK, NIAGA_RETAIL, ASMAN_NIAGA, ASMAN_PERENCANAAN, PERENCANAAN, ASMAN_JARINGAN, SYS_ADMIN |
+
+Cakupan unit: peran UP3 mencakup ULP di bawahnya; unit UP3 sendiri untuk menulis hanya bagi peran yang bertugas di UP3 itu atau SYS_ADMIN; peran ULP hanya unitnya sendiri (dan UP3 induknya untuk dibaca). Unit di luar cakupan dijawab 404. Peta izin frontend: `GET /planning/access` memuat `nko.view`, `nko.calculate`, `nko.input`. Seeder: `NkoPermissionSeeder` (sudah ditambahkan ke daftar rilis dan docs/85). Pembagian peran `nko.view` adalah usulan awal (sama dengan laporan EIS); `nko.calculate/input` sesuai keputusan pemilik.
+
+## 3. API (semua di bawah `/api/nko`, auth, throttle `admin`)
+
+Galat: 403 tanpa izin, 404 di luar cakupan atau definisi belum ada, 422 validasi atau indikator tidak dapat diisi.
+
+| Metode dan jalur | Izin | Fungsi |
+|---|---|---|
+| `GET /definitions?year=&level=ULP\|UP3` | view | Definisi aktif: `set` (id, version, source_name, total_weight) dan `definitions[]` (id, code, number, name, level 0/1/2, parent_code, polarity, unit_label, weight, weight_note, formula_text, source_sheet, scoring_rule) berurutan sebagai pohon |
+| `GET /snapshots?year=&month=&unit_id=&up3_id=` | view | Ringkasan snapshot berlaku: `id, period (YYYY-MM), unit_id, unit_name, unit_type, total_nilai, nko, rank, rank_of, missing_count, complete, calculated_at` |
+| `GET /snapshots/{id}` | view | Ringkasan + `is_current`, `missing[]` (`code`, `name`), dan `values[]` per baris definisi: `code, number, name, level, parent_code, polarity, unit_label, weight, weight_note, target` (angka atau teks rentang), `realisasi`, `source` (`MANUAL`/`SISTEM`/null), `pencapaian`, `nilai` |
+| `GET /ranking?year=&month=&up3_id=` | view | `ulp[]` terurut peringkat dan `up3` (ringkasan snapshot UP3) untuk bulan itu |
+| `GET /inputs?unit_id=&year=&month=` | view | Daftar indikator yang punya sumber realisasi: `code, name, group, unit_label, polarity, weight, target, editable, system_source, value, source, manual, system, note`. `editable=false` untuk indikator bernilai tetap pada workbook (mis. RUPTL, Lisdes, penghapusan ATTB/NAC). `system_source=true` bila bisa diisi otomatis dari DIFI |
+| `PUT /inputs` | input | Body `{unit_id, year, month, items:[{code, value, note?}]}` (maks 100). `value` null menghapus masukan. Nilai = realisasi **kumulatif** Januari sampai `month`. Menyimpan tidak menghitung ulang |
+| `POST /calculate` | calculate | Body `{year, month, unit_id}` atau `{year, month, up3_id}` (UP3 beserta semua ULP di bawahnya yang dalam cakupan). Hasil `data[]`: `ok, snapshot_id, unit_id, unit_name, period, nko, total_nilai, missing_count, rank, rank_of` atau `ok=false` + `message` per unit; status 422 hanya bila semuanya gagal |
+
+Saran alur layar: (1) pilih tahun, bulan, unit; (2) tabel masukan dari `GET /inputs` dengan kolom target, nilai sistem, masukan manual, dan sumber efektif; (3) tombol Hitung memanggil `POST /calculate`; (4) tampilkan `GET /snapshots/{id}` sebagai pohon indikator (kelompok, indikator, pencapaian, nilai) dengan penanda "belum lengkap" bila `complete=false`; (5) peringkat dari `GET /ranking`. Angka NKO akhir boleh melebihi 100 (batas pencapaian 110%, lihat docs/89).
+
+## 4. Perintah
+
+```
+php artisan distriva:nko-import-definitions <workbook.xlsx>        # master definisi (docs/89)
+php artisan distriva:nko-reconcile [--year=2026] [--month=] [--unit=] [--tolerance=0.0001]
+php artisan db:seed --class=NkoPermissionSeeder                    # izin (atas persetujuan pemilik di sistem berjalan)
+```
+
+Kode: `app/Services/Nko/` (`NkoCalculator`, `NkoCalculationService`, `NkoRealizationResolver`, `NkoSnapshotService`), `app/Http/Controllers/NkoController.php`; tes `NkoCalculationTest` (hitung, kurang, target nol, peringkat, izin, masukan, DIFI), `NkoReconcileTest`, `NkoDefinitionImportTest`.
+
+## 5. Batasan yang diketahui
+
+- Hanya definisi 2026 yang diimpor; tahun berikutnya mengikuti workbook baru lewat perintah impor yang sama (versi baru, yang lama diarsipkan).
+- Indikator bernilai tetap pada workbook tetap bernilai tetap (belum dapat diisi); bila pemilik ingin mengukurnya, rumus indikator itu harus ditetapkan lebih dulu.
+- Unit UP3 lain (mis. Ponorogo) belum punya target karena workbook hanya memuat UP3 Mojokerto dan ULP-nya; unit baru cukup ditambahkan sebagai tab bertata letak sama lalu diimpor ulang.
+- Pemetaan otomatis penjualan, susut, pelanggan, piutang, gangguan, dan keluhan dari laporan EIS yang sudah diimpor adalah pekerjaan berikutnya; sampai itu selesai, indikator tersebut diisi manual.

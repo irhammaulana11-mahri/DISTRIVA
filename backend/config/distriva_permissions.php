@@ -101,7 +101,7 @@ return [
         'eis_sync.manage' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
     ],
     'applications_descendant_keys' => [
-        'outages.view', 'eis_reports.view', 'eis_reports.import', 'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
+        'outages.view', 'eis_reports.view', 'eis_reports.import', 'nko.view', 'nko.calculate', 'nko.input', 'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
         'drawings.view', 'drawings.review_perencanaan', 'drawings.review_konstruksi', 'drawings.approve_asman_perencanaan', 'drawings.approve_asman_niaga', 'drawings.approve_asman_konstruksi',
         'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings', 'tasks.view', 'forecast.view',
     ],
@@ -289,6 +289,16 @@ return [
     'eis_reports' => [
         'eis_reports.view' => ['MANAGER_ULP', 'MANAGER_UP3', 'TEKNIK', 'NIAGA_RETAIL', 'ASMAN_NIAGA', 'ASMAN_PERENCANAAN', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'eis_reports.import' => ['NIAGA_RETAIL', 'ASMAN_NIAGA', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+    ],
+
+    /**
+     * NKO/KPI (docs/90): `nko.view` melihat nilai, peringkat, dan masukan (UP3 ke ULP di bawahnya); `nko.calculate` menjalankan perhitungan dan `nko.input` mengisi masukan manual
+     * realisasi bulanan, keduanya hanya bagian perencanaan, asman perencanaan, dan SYS_ADMIN (keputusan pemilik, 2026-11-24); peran lain hanya melihat.
+     */
+    'nko' => [
+        'nko.view' => ['MANAGER_ULP', 'MANAGER_UP3', 'TEKNIK', 'NIAGA_RETAIL', 'ASMAN_NIAGA', 'ASMAN_PERENCANAAN', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'nko.calculate' => ['PERENCANAAN', 'ASMAN_PERENCANAAN', 'SYS_ADMIN'],
+        'nko.input' => ['PERENCANAAN', 'ASMAN_PERENCANAAN', 'SYS_ADMIN'],
     ],
 
     // who may raise the extended-approval requirement at which moment (SYS_ADMIN at both)
