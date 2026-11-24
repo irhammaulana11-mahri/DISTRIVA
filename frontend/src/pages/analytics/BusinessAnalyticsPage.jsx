@@ -35,7 +35,7 @@ const CARD = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white
 
 const fmtInt = (v) => {
   if (v === null || v === undefined) return '-'
-  return Number(v).toLocaleString('id-ID')
+  return Number(v).toLocaleString('id-ID', { maximumFractionDigits: 0 })
 }
 
 const fmtFloat = (v, digits = 2) => {
@@ -44,6 +44,36 @@ const fmtFloat = (v, digits = 2) => {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   })
+}
+
+/** Format nilai cerdas sesuai satuan metrik (docs/91 §4):
+ * - plg, pelanggan, kali, lbr, permohonan -> bulat tanpa desimal
+ * - MVA -> dua desimal
+ * - Rp -> singkatan cerdas (Miliar/Juta) atau tanpa desimal
+ */
+const fmtMetricValue = (v, unit = '') => {
+  if (v === null || v === undefined) return '-'
+  const u = (unit || '').toLowerCase()
+  if (u.includes('plg') || u.includes('pelanggan') || u.includes('kali') || u.includes('lbr') || u.includes('permohonan')) {
+    return fmtInt(v)
+  }
+  if (u.includes('mva')) {
+    return fmtFloat(v, 2)
+  }
+  if (u.includes('rp')) {
+    const num = Number(v)
+    if (Math.abs(num) >= 1e9) {
+      return `Rp ${fmtFloat(num / 1e9, 2)} M`
+    }
+    if (Math.abs(num) >= 1e6) {
+      return `Rp ${fmtFloat(num / 1e6, 2)} jt`
+    }
+    return `Rp ${fmtInt(num)}`
+  }
+  if (u.includes('%')) {
+    return `${fmtFloat(v, 2)}%`
+  }
+  return fmtFloat(v, 2)
 }
 
 const fmtPct = (v) => {
@@ -563,28 +593,50 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
             {ytd && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
                 <div>
-                  <span className="text-[11px] font-medium text-slate-500 block">
-                    {isYoy ? 'Kenaikan Resmi YoY (YTD)' : isNet ? 'Tambahan Bersih Resmi (YTD)' : 'Nilai Resmi YTD'}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-slate-500 block">
+                      {isYoy ? 'Kenaikan Resmi YoY (YTD)' : isNet ? 'Tambahan Bersih Resmi (YTD)' : 'Nilai Resmi YTD'}
+                    </span>
+                    {ytd.official_change_pct !== null && ytd.official_change_pct !== undefined && (
+                      <span className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.2 rounded ${
+                        ytd.official_change_pct > 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}>
+                        {ytd.official_change_pct > 0 ? '+' : ''}{fmtFloat(ytd.official_change_pct, 1)}% YoY
+                      </span>
+                    )}
+                  </div>
                   <div className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums mt-0.5">
-                    {ytd.official_net !== null ? fmtFloat(ytd.official_net) : '-'}{' '}
+                    {ytd.official_net !== null ? fmtMetricValue(ytd.official_net, rec.unit) : '-'}{' '}
                     <span className="text-xs font-normal text-slate-500">{rec.unit}</span>
                   </div>
                   <span className="text-[10px] text-slate-400">
-                    {ytd.base_month ? `${fmtMonth(ytd.base_month)} s/d ${fmtMonth(ytd.to_month)}` : ytd.year}
+                    {ytd.previous_year?.official_net !== null && ytd.previous_year?.official_net !== undefined
+                      ? `Th lalu: ${fmtMetricValue(ytd.previous_year.official_net, rec.unit)} (${ytd.previous_year.units_compared} ULP)`
+                      : ytd.base_month ? `${fmtMonth(ytd.base_month)} s/d ${fmtMonth(ytd.to_month)}` : ytd.year}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[11px] font-medium text-slate-500 block">
-                    {isYoy ? 'Perkiraan Sumbangan PB (YTD)' : 'Data Pendamping YTD'}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-slate-500 block">
+                      {isYoy ? 'Perkiraan Sumbangan PB (YTD)' : 'Data Pendamping YTD'}
+                    </span>
+                    {ytd.companion_change_pct !== null && ytd.companion_change_pct !== undefined && (
+                      <span className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.2 rounded ${
+                        ytd.companion_change_pct > 0 ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}>
+                        {ytd.companion_change_pct > 0 ? '+' : ''}{fmtFloat(ytd.companion_change_pct, 1)}% YoY
+                      </span>
+                    )}
+                  </div>
                   <div className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums mt-0.5">
-                    {ytd.companion !== null ? fmtFloat(ytd.companion) : '-'}{' '}
+                    {ytd.companion !== null ? fmtMetricValue(ytd.companion, rec.unit) : '-'}{' '}
                     <span className="text-xs font-normal text-slate-500">{rec.unit}</span>
                   </div>
                   <span className="text-[10px] text-slate-400">
-                    Dari {ytd.units_compared} ULP setara
+                    {ytd.previous_year?.companion !== null && ytd.previous_year?.companion !== undefined
+                      ? `Th lalu: ${fmtMetricValue(ytd.previous_year.companion, rec.unit)}`
+                      : `Dari ${ytd.units_compared} ULP setara`}
                   </span>
                 </div>
 
@@ -595,11 +647,13 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
                   <div className={`text-lg font-bold tabular-nums mt-0.5 ${
                     ytd.difference > 0 ? 'text-indigo-600 dark:text-indigo-400' : ytd.difference < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700'
                   }`}>
-                    {ytd.difference !== null ? `${ytd.difference > 0 ? '+' : ''}${fmtFloat(ytd.difference)}` : '-'}{' '}
+                    {ytd.difference !== null ? `${ytd.difference > 0 ? '+' : ''}${fmtMetricValue(ytd.difference, rec.unit)}` : '-'}{' '}
                     <span className="text-xs font-normal text-slate-500">{rec.unit}</span>
                   </div>
                   <span className="text-[10px] text-slate-400">
-                    Evaluasi kumulatif tahun berjalan
+                    {ytd.previous_year?.difference !== null && ytd.previous_year?.difference !== undefined
+                      ? `Th lalu: ${ytd.previous_year.difference > 0 ? '+' : ''}${fmtMetricValue(ytd.previous_year.difference, rec.unit)}`
+                      : 'Evaluasi kumulatif tahun berjalan'}
                   </span>
                 </div>
               </div>
@@ -781,10 +835,32 @@ export default function BusinessAnalyticsPage() {
     }
   }, [effectiveUnitId, activeCode, loadMetricData])
 
-  const handleSelectMetric = (code, available = true) => {
-    if (!available) return
-    setActiveCode(code)
-    navigate(`/pengusahaan/${code}`)
+  // Helper tombol cepat rentang waktu (docs/91 §4)
+  const handleRangePreset = (preset) => {
+    const baseTo = toMonth || d?.to || new Date().toISOString().slice(0, 7)
+    const [y, m] = baseTo.split('-').map(Number)
+
+    if (preset === 'ytd') {
+      // Tahun berjalan: Januari tahun ini sampai bulan laporan
+      setFromMonth(`${y}-01`)
+      setToMonth(baseTo)
+    } else if (preset === '12m') {
+      // 12 bulan terakhir: (baseTo - 11 bulan) sampai baseTo
+      const dFrom = new Date(y, m - 1 - 11, 1)
+      const fromYm = `${dFrom.getFullYear()}-${String(dFrom.getMonth() + 1).padStart(2, '0')}`
+      setFromMonth(fromYm)
+      setToMonth(baseTo)
+    } else if (preset === '24m') {
+      // 24 bulan: (baseTo - 23 bulan) sampai baseTo
+      const dFrom = new Date(y, m - 1 - 23, 1)
+      const fromYm = `${dFrom.getFullYear()}-${String(dFrom.getMonth() + 1).padStart(2, '0')}`
+      setFromMonth(fromYm)
+      setToMonth(baseTo)
+    } else if (preset === 'default') {
+      // Reset ke bawaan backend (kosongkan from/to)
+      setFromMonth('')
+      setToMonth('')
+    }
   }
 
   const d = metricState.data
@@ -1176,59 +1252,88 @@ export default function BusinessAnalyticsPage() {
         </div>
       ) : (
       <>
-      {/* Filter Bar (HierarchicalUnitFilter, Dari bulan, Sampai bulan) - Tampilan Seragam Persis Referensi */}
+      {/* Filter Bar (HierarchicalUnitFilter, Dari bulan, Sampai bulan, Tombol Cepat) */}
       {!(activeCode === 'susut' && susutViewMode === 'inputs') && (
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-wrap items-center gap-3">
-          <HierarchicalUnitFilter
-            permission="pengusahaan.view"
-            up3Id={up3Id}
-            onUp3Change={(v) => setUp3Id(v)}
-            unitId={selectedUnitId}
-            onUnitChange={(v) => setSelectedUnitId(v)}
-            up3AriaLabel="Pilih Unit UP3"
-            unitAriaLabel="Pilih Unit ULP"
-          />
-
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-              Dari bulan
-            </label>
-            <input
-              type="month"
-              aria-label="Dari bulan"
-              value={fromMonth}
-              onChange={(e) => setFromMonth(e.target.value)}
-              className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <HierarchicalUnitFilter
+              permission="pengusahaan.view"
+              up3Id={up3Id}
+              onUp3Change={(v) => setUp3Id(v)}
+              unitId={selectedUnitId}
+              onUnitChange={(v) => setSelectedUnitId(v)}
+              up3AriaLabel="Pilih Unit UP3"
+              unitAriaLabel="Pilih Unit ULP"
             />
+
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                Dari bulan
+              </label>
+              <input
+                type="month"
+                aria-label="Dari bulan"
+                value={fromMonth}
+                onChange={(e) => setFromMonth(e.target.value)}
+                className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                Sampai bulan
+              </label>
+              <input
+                type="month"
+                aria-label="Sampai bulan"
+                value={toMonth}
+                onChange={(e) => setToMonth(e.target.value)}
+                className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
+              />
+            </div>
+
+            {/* Tombol Cepat Rentang Waktu (docs/91 §4) */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => handleRangePreset('ytd')}
+                className="px-2.5 py-1 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition"
+              >
+                Tahun Berjalan
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRangePreset('12m')}
+                className="px-2.5 py-1 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition"
+              >
+                12 Bulan
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRangePreset('24m')}
+                className="px-2.5 py-1 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition"
+              >
+                24 Bulan
+              </button>
+              {(fromMonth || toMonth) && (
+                <button
+                  type="button"
+                  onClick={() => handleRangePreset('default')}
+                  className="px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-white dark:hover:bg-slate-700 transition"
+                  title="Kembalikan ke rentang bawaan server"
+                >
+                  Bawaan
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-              Sampai bulan
-            </label>
-            <input
-              type="month"
-              aria-label="Sampai bulan"
-              value={toMonth}
-              onChange={(e) => setToMonth(e.target.value)}
-              className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
-            />
-          </div>
-
-          {(fromMonth || toMonth) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setFromMonth('')
-                setToMonth('')
-              }}
-            >
-              Semua periode
-            </Button>
-          )}
-
-          <div className="ml-auto">
+            {d?.from && d?.to && (
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400 hidden xl:inline">
+                Rentang: {fmtMonth(d.from)} &ndash; {fmtMonth(d.to)}
+              </span>
+            )}
             <Button
               type="button"
               variant="secondary"
@@ -1616,54 +1721,280 @@ export default function BusinessAnalyticsPage() {
             </div>
           )}
 
-          {/* KPI Summary Cards per Seri */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {d.summary?.map((s) => {
-              const metaSeries = d.series?.find((x) => x.key === s.key)
-              const polarity = d.metric?.polarity || 'up'
+          {/* Empat Kartu KPI Standar DISTRIVA (docs/91 §4):
+              1. Nilai resmi terakhir (summary[0]) dengan MoM & YoY
+              2. Pertumbuhan tahun berjalan (posisi: official_net lawan previous_year, atau kumulatif YTD lawan ytd_previous_year)
+              3. Pendamping utama (companions.series[0], atau seri ke-2)
+              4. Rekonsiliasi selisih (reconciliation.ytd.difference, atau seri ke-3/berikutnya)
+          */}
+          {(() => {
+            const s0 = d.summary?.[0]
+            const meta0 = d.series?.[0]
+            const polarity = d.metric?.polarity || 'up'
+            const isPositionMetric = d.metric?.ytd_mode === 'last'
 
-              return (
-                <div key={s.key} className={`${CARD} p-4 flex flex-col justify-between`}>
+            // Kartu 1: Nilai Resmi Terakhir
+            const card1 = {
+              title: meta0?.name || d.metric?.name || 'Realisasi Terakhir',
+              badge: fmtMonth(d.to),
+              value: fmtMetricValue(s0?.latest, meta0?.unit),
+              unit: meta0?.unit,
+              mom: s0?.mom_pct,
+              yoy: s0?.yoy_pct,
+              footerLabel: isPositionMetric ? 'Posisi Saldo Akhir' : 'Arus Bulan Berjalan',
+            }
+
+            // Kartu 2: Pertumbuhan Tahun Berjalan (YTD)
+            const rec0 = d.reconciliations?.[0] || d.reconciliation
+            let card2Value = null
+            let card2Unit = meta0?.unit
+            let card2Pct = null
+            let card2Label = 'Pertumbuhan YTD'
+            let card2Prev = null
+
+            if (isPositionMetric && rec0?.ytd) {
+              card2Label = 'Tambahan Bersih YTD'
+              card2Value = fmtMetricValue(rec0.ytd.official_net, rec0.unit)
+              card2Unit = rec0.unit
+              card2Pct = rec0.ytd.official_change_pct
+              card2Prev = rec0.ytd.previous_year?.official_net !== null && rec0.ytd.previous_year?.official_net !== undefined
+                ? fmtMetricValue(rec0.ytd.previous_year.official_net, rec0.unit)
+                : null
+            } else if (s0) {
+              card2Label = `Kumulatif ${d.metric?.ytd_mode === 'sum' ? 'YTD' : 'Tertimbang'}`
+              card2Value = fmtMetricValue(s0.ytd, meta0?.unit)
+              card2Pct = s0.ytd_pct
+              card2Prev = s0.ytd_previous_year !== null && s0.ytd_previous_year !== undefined
+                ? fmtMetricValue(s0.ytd_previous_year, meta0?.unit)
+                : null
+            }
+
+            // Kartu 3: Pendamping Utama (atau seri ke-2 bila tidak ada pendamping)
+            const comp0 = d.companions?.series?.[0]
+            const s1 = d.summary?.[1]
+            const meta1 = d.series?.[1]
+
+            let card3 = null
+            if (comp0) {
+              card3 = {
+                title: comp0.name,
+                source: d.companions.source || 'Operasional',
+                value: fmtMetricValue(comp0.latest, comp0.unit),
+                unit: comp0.unit,
+                footerLabel: 'Kumulatif YTD',
+                footerValue: `${fmtMetricValue(comp0.ytd, comp0.unit)} ${comp0.unit}`,
+              }
+            } else if (s1 && meta1) {
+              card3 = {
+                title: meta1.name,
+                source: 'Seri Resmi 2',
+                value: fmtMetricValue(s1.latest, meta1.unit),
+                unit: meta1.unit,
+                mom: s1.mom_pct,
+                yoy: s1.yoy_pct,
+                footerLabel: 'Kumulatif YTD',
+                footerValue: `${fmtMetricValue(s1.ytd, meta1.unit)} ${meta1.unit}`,
+              }
+            }
+
+            // Kartu 4: Rekonsiliasi Selisih (atau seri ke-3/pendamping ke-2)
+            const comp1 = d.companions?.series?.[1]
+            const s2 = d.summary?.[2]
+            const meta2 = d.series?.[2]
+
+            let card4 = null
+            if (rec0?.ytd) {
+              const diff = rec0.ytd.difference
+              const diffSign = diff > 0 ? '+' : ''
+              card4 = {
+                title: 'Selisih Rekonsiliasi YTD',
+                badge: rec0.mode === 'yoy' ? 'Perkiraan' : rec0.mode === 'net' ? 'Net' : 'Flow',
+                value: diff !== null && diff !== undefined ? `${diffSign}${fmtMetricValue(diff, rec0.unit)}` : '-',
+                unit: rec0.unit,
+                status: diff === 0 ? 'Sesuai' : diff > 0 ? 'Pendamping > Resmi' : 'Resmi > Pendamping',
+                footerLabel: `Cakupan ${rec0.ytd.units_compared} ULP`,
+                footerValue: rec0.note || 'Perbandingan data resmi vs lapangan',
+              }
+            } else if (comp1) {
+              card4 = {
+                title: comp1.name,
+                source: d.companions.source || 'Operasional',
+                value: fmtMetricValue(comp1.latest, comp1.unit),
+                unit: comp1.unit,
+                footerLabel: 'Kumulatif YTD',
+                footerValue: `${fmtMetricValue(comp1.ytd, comp1.unit)} ${comp1.unit}`,
+              }
+            } else if (s2 && meta2) {
+              card4 = {
+                title: meta2.name,
+                source: 'Seri Resmi 3',
+                value: fmtMetricValue(s2.latest, meta2.unit),
+                unit: meta2.unit,
+                mom: s2.mom_pct,
+                yoy: s2.yoy_pct,
+                footerLabel: 'Kumulatif YTD',
+                footerValue: `${fmtMetricValue(s2.ytd, meta2.unit)} ${meta2.unit}`,
+              }
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Kartu 1: Nilai Resmi Terakhir */}
+                <div className={`${CARD} p-4 flex flex-col justify-between`}>
                   <div>
                     <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                      <span>{metaSeries?.name || s.key}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800">
-                        {fmtMonth(d.to)}
+                      <span className="truncate pr-2">{card1.title}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 shrink-0">
+                        {card1.badge}
                       </span>
                     </div>
 
                     <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
-                      {s.latest !== null ? fmtFloat(s.latest) : '-'}{' '}
+                      {card1.value}{' '}
                       <span className="text-sm font-normal text-slate-500">
-                        {metaSeries?.unit}
+                        {card1.unit}
                       </span>
                     </div>
 
-                    {/* Perubahan MoM & YoY */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <PolarityPctBadge pct={s.mom_pct} polarity={polarity} label="MoM" />
-                      <PolarityPctBadge pct={s.yoy_pct} polarity={polarity} label="YoY" />
+                      <PolarityPctBadge pct={card1.mom} polarity={polarity} label="MoM" />
+                      <PolarityPctBadge pct={card1.yoy} polarity={polarity} label="YoY" />
                     </div>
                   </div>
 
-                  {/* Bagian Kumulatif YTD */}
                   <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                    <div>
-                      <span className="block text-[10px] text-slate-400">
-                        Kumulatif YTD ({d.metric?.ytd_mode === 'last' ? 'Posisi' : d.metric?.ytd_mode === 'sum' ? 'Akumulasi' : 'Rata-rata'})
-                      </span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
-                        {s.ytd !== null ? fmtFloat(s.ytd) : '-'} {metaSeries?.unit}
-                      </span>
-                    </div>
-                    {s.ytd_pct !== null && (
-                      <PolarityPctBadge pct={s.ytd_pct} polarity={polarity} label="YTD YoY" />
-                    )}
+                    <span className="text-[11px] text-slate-400">{card1.footerLabel}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      Resmi ({d.metric?.source?.split('(')[0]?.trim() || 'PLN'})
+                    </span>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+
+                {/* Kartu 2: Pertumbuhan Tahun Berjalan */}
+                <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                  <div>
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                      <span className="truncate pr-2">{card2Label}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shrink-0">
+                        YTD {d.to?.slice(0, 4)}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                      {card2Value}{' '}
+                      <span className="text-sm font-normal text-slate-500">
+                        {card2Unit}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {card2Pct !== null && (
+                        <PolarityPctBadge pct={card2Pct} polarity={polarity} label="YoY YTD" />
+                      )}
+                      {card2Prev && (
+                        <span className="text-[11px] text-slate-400">
+                          Th lalu: {card2Prev}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">Dasar Evaluasi</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      {isPositionMetric ? 'Selisih vs Des Th Lalu' : 'Akumulasi Jan s/d Saat Ini'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Kartu 3: Pendamping Utama */}
+                {card3 ? (
+                  <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className="truncate pr-2" title={card3.title}>{card3.title}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 shrink-0 border border-sky-200 dark:border-sky-800">
+                          Penjelas
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                        {card3.value}{' '}
+                        <span className="text-sm font-normal text-slate-500">
+                          {card3.unit}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {card3.mom !== undefined && (
+                          <PolarityPctBadge pct={card3.mom} polarity={polarity} label="MoM" />
+                        )}
+                        {card3.yoy !== undefined && (
+                          <PolarityPctBadge pct={card3.yoy} polarity={polarity} label="YoY" />
+                        )}
+                        <span className="text-[11px] text-slate-400">
+                          {card3.source}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">{card3.footerLabel}</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        {card3.footerValue}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`${CARD} p-4 flex flex-col justify-between opacity-60`}>
+                    <span className="text-xs text-slate-400">Pendamping Operasional</span>
+                    <p className="text-xs text-slate-400 mt-2">Belum ada seri pendamping untuk metrik ini.</p>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400">-</div>
+                  </div>
+                )}
+
+                {/* Kartu 4: Rekonsiliasi Selisih */}
+                {card4 ? (
+                  <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className="truncate pr-2" title={card4.title}>{card4.title}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shrink-0 border border-indigo-200 dark:border-indigo-800">
+                          {card4.badge || 'Rekonsiliasi'}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                        {card4.value}{' '}
+                        <span className="text-sm font-normal text-slate-500">
+                          {card4.unit}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                          {card4.status || card4.source}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">{card4.footerLabel}</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[140px]" title={card4.footerValue}>
+                        {card4.footerValue}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`${CARD} p-4 flex flex-col justify-between opacity-60`}>
+                    <span className="text-xs text-slate-400">Rekonsiliasi</span>
+                    <p className="text-xs text-slate-400 mt-2">Tidak ada perbandingan rekonsiliasi.</p>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400">-</div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Tren Grafik Line / Comparison */}
           <div className={`${CARD} p-5 space-y-4`}>

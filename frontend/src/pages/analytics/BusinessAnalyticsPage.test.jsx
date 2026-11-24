@@ -614,13 +614,13 @@ describe('BusinessAnalyticsPage', () => {
 
     // Data Penjelas Operasional
     expect(await screen.findByText('Data Penjelas Operasional')).toBeInTheDocument()
-    expect(screen.getByText('Permohonan Pelanggan DISTRIVA')).toBeInTheDocument()
+    expect(screen.getAllByText('Permohonan Pelanggan DISTRIVA').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Pelanggan baru tersambung (PB)').length).toBeGreaterThan(0)
 
     // Rekonsiliasi Angka Resmi vs Penjelas
     expect(screen.getByText(/Rekonsiliasi: Penambahan pelanggan Laporan 309 vs Pelanggan baru tersambung/i)).toBeInTheDocument()
     expect(screen.getByText('Mode Saldo Bersih (Net)')).toBeInTheDocument()
-    expect(screen.getByText(/309 adalah posisi akhir bulan/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/309 adalah posisi akhir bulan/i).length).toBeGreaterThan(0)
 
     // Klik tab Rincian Permohonan (EIS)
     await user.click(screen.getByText('Rincian Permohonan (EIS)'))

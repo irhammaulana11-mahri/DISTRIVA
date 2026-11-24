@@ -125,24 +125,32 @@ const reportsNav = [
   { to: '/reports/erp-anomalies', tabId: 'erpAnomalies', label: 'Anomali & Rekonsiliasi', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconAlertCircle },
 ]
 
-// 5. Analisa & Tren Pengusahaan (Indikator Pengusahaan)
+// 5. Analisa & Tren Pengusahaan (Dikelompokkan secara tematik sesuai docs/91 §4)
 const pengusahaanNav = [
-  { to: '/pengusahaan', label: 'Semua Indikator (Ikhtisar)', capability: 'pengusahaan.view', icon: IconChart, end: true },
-  { to: '/pengusahaan/pelanggan', label: 'Analisa Pelanggan', capability: 'pengusahaan.view', icon: IconUsers },
-  { to: '/pengusahaan/daya', label: 'Daya Tersambung', capability: 'pengusahaan.view', icon: IconZap },
-  { to: '/pengusahaan/kwh-jual', label: 'kWh Jual', capability: 'pengusahaan.view', icon: IconActivity },
-  { to: '/pengusahaan/pendapatan', label: 'Pendapatan', capability: 'pengusahaan.view', icon: IconCalculator },
-  { to: '/pengusahaan/piutang-prabayar', label: 'Piutang Prabayar', capability: 'pengusahaan.view', icon: IconFileText },
-  { to: '/pengusahaan/piutang-pascabayar', label: 'Piutang Pascabayar', capability: 'pengusahaan.view', icon: IconFileText },
-  { to: '/pengusahaan/piutang-pascabayar-umur', label: 'Umur Piutang Pascabayar', capability: 'pengusahaan.view', icon: IconClock },
-  { to: '/pengusahaan/rpt-rct-keluhan', label: 'RPT-RCT Keluhan', capability: 'pengusahaan.view', icon: IconAlertCircle },
-  { to: '/pengusahaan/rpt-rct-gangguan', label: 'RPT-RCT Gangguan', capability: 'pengusahaan.view', icon: IconActivity },
-  { to: '/pengusahaan/saidi-saifi', label: 'SAIDI & SAIFI', capability: 'pengusahaan.view', icon: IconZap },
-  { to: '/pengusahaan/ens', label: 'ENS (Energi Tak Tersalur)', capability: 'pengusahaan.view', icon: IconZap },
-  { to: '/pengusahaan/kwh-p2tl', label: 'kWh P2TL', capability: 'pengusahaan.view', icon: IconShield },
-  { to: '/pengusahaan/gangguan', label: 'Gangguan Penyulang', capability: 'pengusahaan.view', icon: IconActivity },
-  { to: '/pengusahaan/hpl-bp', label: 'HPL Biaya Penyambungan', capability: 'pengusahaan.view', icon: IconTag },
-  { to: '/pengusahaan/susut', label: 'Susut Distribusi', capability: 'pengusahaan.view', icon: IconChart },
+  { to: '/pengusahaan', label: 'Ikhtisar', capability: 'pengusahaan.view', icon: IconChart, end: true, group: 'Ikhtisar' },
+  
+  // Kelompok Pelanggan & Penjualan
+  { to: '/pengusahaan/pelanggan', label: 'Pelanggan', capability: 'pengusahaan.view', icon: IconUsers, group: 'Pelanggan & Penjualan', tooltip: 'Jumlah pelanggan terdaftar dan tren penambahan' },
+  { to: '/pengusahaan/daya', label: 'Daya Tersambung', capability: 'pengusahaan.view', icon: IconZap, group: 'Pelanggan & Penjualan', tooltip: 'Kapasitas daya tersambung (MVA)' },
+  { to: '/pengusahaan/kwh-jual', label: 'kWh Jual', capability: 'pengusahaan.view', icon: IconActivity, group: 'Pelanggan & Penjualan', tooltip: 'Realisasi penjualan tenaga listrik (kWh)' },
+  { to: '/pengusahaan/pendapatan', label: 'Pendapatan', capability: 'pengusahaan.view', icon: IconCalculator, group: 'Pelanggan & Penjualan', tooltip: 'Pendapatan penjualan tenaga listrik (Rp)' },
+  { to: '/pengusahaan/hpl-bp', label: 'Biaya Penyambungan (BP)', capability: 'pengusahaan.view', icon: IconTag, group: 'Pelanggan & Penjualan', tooltip: 'Hasil Penjualan Tenaga Listrik Biaya Penyambungan (HPL-BP)' },
+
+  // Kelompok Piutang
+  { to: '/pengusahaan/piutang-prabayar', label: 'Piutang Pra', capability: 'pengusahaan.view', icon: IconFileText, group: 'Piutang', tooltip: 'Saldo dan lembar piutang listrik prabayar' },
+  { to: '/pengusahaan/piutang-pascabayar', label: 'Piutang Pasca', capability: 'pengusahaan.view', icon: IconFileText, group: 'Piutang', tooltip: 'Saldo piutang lewat tanggal 20 rekening baru' },
+  { to: '/pengusahaan/piutang-pascabayar-umur', label: 'Umur Piutang', capability: 'pengusahaan.view', icon: IconClock, group: 'Piutang', tooltip: 'Tunggakan pascabayar menurut kelompok umur tunggakan dan kogol' },
+
+  // Kelompok Keandalan & Pelayanan
+  { to: '/pengusahaan/gangguan', label: 'Gangguan Penyulang', capability: 'pengusahaan.view', icon: IconActivity, group: 'Keandalan & Pelayanan', tooltip: 'Frekuensi kali gangguan penyulang distribusi' },
+  { to: '/pengusahaan/saidi-saifi', label: 'SAIDI & SAIFI', capability: 'pengusahaan.view', icon: IconZap, group: 'Keandalan & Pelayanan', tooltip: 'System Average Interruption Duration/Frequency Index' },
+  { to: '/pengusahaan/ens', label: 'ENS', capability: 'pengusahaan.view', icon: IconZap, group: 'Keandalan & Pelayanan', tooltip: 'Energy Not Supplied (Energi Tak Tersalur dalam MWh)' },
+  { to: '/pengusahaan/rpt-rct-gangguan', label: 'RPT-RCT Gangguan', capability: 'pengusahaan.view', icon: IconActivity, group: 'Keandalan & Pelayanan', tooltip: 'Response Time & Recovery Time Gangguan Pelanggan' },
+  { to: '/pengusahaan/rpt-rct-keluhan', label: 'RPT-RCT Keluhan', capability: 'pengusahaan.view', icon: IconAlertCircle, group: 'Keandalan & Pelayanan', tooltip: 'Response Time & Recovery Time Keluhan Pelanggan' },
+
+  // Kelompok Susut & Penertiban
+  { to: '/pengusahaan/susut', label: 'Susut Distribusi', capability: 'pengusahaan.view', icon: IconChart, group: 'Susut & Penertiban', tooltip: 'Susut jaringan distribusi (%) dari kWh beli vs kWh jual' },
+  { to: '/pengusahaan/kwh-p2tl', label: 'kWh P2TL', capability: 'pengusahaan.view', icon: IconShield, group: 'Susut & Penertiban', tooltip: 'Penertiban Pemakaian Tenaga Listrik (Tagihan Susulan P2TL)' },
 ]
 
 // 5. Administrasi (Pengguna, Unit, Mitra)
@@ -222,12 +230,30 @@ const titles = {
   '/sistem/backup': 'Pengaturan / Backup & Pemulihan Sistem',
 }
 
+const PENGUSAHAAN_TITLES = {
+  pelanggan: 'Pelanggan',
+  daya: 'Daya Tersambung',
+  'kwh-jual': 'kWh Jual',
+  pendapatan: 'Pendapatan',
+  'hpl-bp': 'Biaya Penyambungan (BP)',
+  'piutang-prabayar': 'Piutang Pra',
+  'piutang-pascabayar': 'Piutang Pasca',
+  'piutang-pascabayar-umur': 'Umur Piutang',
+  gangguan: 'Gangguan Penyulang',
+  'saidi-saifi': 'SAIDI & SAIFI',
+  ens: 'ENS',
+  'rpt-rct-gangguan': 'RPT-RCT Gangguan',
+  'rpt-rct-keluhan': 'RPT-RCT Keluhan',
+  susut: 'Susut Distribusi',
+  'kwh-p2tl': 'kWh P2TL',
+}
+
 const titleFor = (path, search = '') => {
-  if (path === '/pengusahaan/pelanggan' || path.startsWith('/pengusahaan/pelanggan/')) {
-    return 'Laporan & Monitoring / Analisa Pelanggan'
-  }
   if (path.startsWith('/pengusahaan')) {
-    return 'Laporan & Monitoring / Analisa Pengusahaan'
+    const slug = path.replace('/pengusahaan', '').replace(/^\//, '')
+    if (!slug) return 'Analisa & Tren Pengusahaan / Ikhtisar'
+    const name = PENGUSAHAAN_TITLES[slug] || slug
+    return `Analisa & Tren Pengusahaan / ${name}`
   }
   if (path.startsWith('/reports')) {
     const slug = path.replace('/reports', '').replace(/^\//, '')
@@ -855,30 +881,43 @@ export default function AppLayout() {
               </button>
               <div
                 className={`overflow-hidden transition-all duration-200 ease-in-out ${
-                  expandedSections.pengusahaan ? 'max-h-[800px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
+                  expandedSections.pengusahaan ? 'max-h-[900px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
                 }`}
               >
                 <nav aria-label="Navigasi analisa pengusahaan" className="space-y-1">
-                  {accessiblePengusahaanItems.map((n) => {
-                    const Icon = n.icon
-                    const active = isLinkActive(n)
-                    return (
-                      <NavLink
-                        key={n.to}
-                        to={n.to}
-                        end={n.end}
-                        onClick={() => setOpen(false)}
-                        className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                          active
-                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        }`}
-                      >
-                        {Icon && <Icon size={16} className={active ? 'text-white' : 'text-slate-400'} />}
-                        <span className="truncate">{n.label}</span>
-                      </NavLink>
-                    )
-                  })}
+                  {(() => {
+                    let lastGroup = null
+                    return accessiblePengusahaanItems.map((n) => {
+                      const Icon = n.icon
+                      const active = isLinkActive(n)
+                      const isNewGroup = n.group && n.group !== lastGroup
+                      lastGroup = n.group
+
+                      return (
+                        <div key={n.to}>
+                          {isNewGroup && n.group !== 'Ikhtisar' && (
+                            <div className="pt-2 pb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              {n.group}
+                            </div>
+                          )}
+                          <NavLink
+                            to={n.to}
+                            end={n.end}
+                            title={n.tooltip}
+                            onClick={() => setOpen(false)}
+                            className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                              active
+                                ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
+                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            }`}
+                          >
+                            {Icon && <Icon size={16} className={active ? 'text-white' : 'text-slate-400'} />}
+                            <span className="truncate">{n.label}</span>
+                          </NavLink>
+                        </div>
+                      )
+                    })
+                  })()}
                 </nav>
               </div>
             </div>
