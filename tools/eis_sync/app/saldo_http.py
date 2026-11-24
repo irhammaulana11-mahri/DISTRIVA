@@ -31,10 +31,12 @@ LAPORAN = ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR")
 UP3_CODE = os.getenv("EIS_UP3_CODE", "51MJK")         # kode AP (UP3) dan UPI pada parameter laporan saldo prabayar; semua ULP yang disinkron berada di bawah UP3 ini
 UPI_CODE = os.getenv("EIS_UPI_CODE", "51")
 # laporan halaman mycube.aspx: jenis halaman dan pembuat parameter alamat (ULP, YYYYMM)
+# elemen ketiga = halaman induk menu yang dibuka lebih dulu bila halaman mycube-nya bergantung pada keadaan sesi yang disiapkan induk itu (peramban selalu membukanya lebih dulu; Referer
+# permintaan mycube memang halaman induk ini). Laporan pascabayar mandiri, laporan prabayar tidak: tanpa induk halamannya tanpa keadaan pivot dan postback ditolak (HTTP 500).
 MYCUBE = {
-    "GOLONGAN": ("saldo_lalu_eis", lambda ulp, ym: f"'{ulp}';'{ym}';'PERGOLONGAN'"),
-    "LEMBAR": ("saldo_lalu_eis_lbr", lambda ulp, ym: f"'{ulp}';'{ym}';'PERLEMBAR'"),
-    "PRABAYAR": ("saldo_lalu_ap3t_tarif_up", lambda ulp, ym: f"'{ulp}';'{UP3_CODE}';'{UPI_CODE}';'{ym}'"),     # Saldo Prabayar Bulan Lalu, per tarif (PIUTANGLPB_EIS)
+    "GOLONGAN": ("saldo_lalu_eis", lambda ulp, ym: f"'{ulp}';'{ym}';'PERGOLONGAN'", None),
+    "LEMBAR": ("saldo_lalu_eis_lbr", lambda ulp, ym: f"'{ulp}';'{ym}';'PERLEMBAR'", None),
+    "PRABAYAR": ("saldo_lalu_ap3t_tarif_up", lambda ulp, ym: f"'{ulp}';'{UP3_CODE}';'{UPI_CODE}';'{ym}'", "saldolaluap3t.aspx"),     # Saldo Prabayar Bulan Lalu, per tarif (PIUTANGLPB_EIS)
 }
 NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 MIN_BYTES = 2000                    # Excel yang lebih kecil dianggap kosong (EIS membuat berkas kosong bila sesi tidak sah)
@@ -124,11 +126,11 @@ def with_diagnosis(error: Exception, payload: dict[str, str], response: requests
     """Galat HTTP dari EIS dengan keterangan yang membantu mencari sebabnya: jumlah isian yang dikirim, isian kunci ASP.NET, dan awal jawaban (halaman galat ASP.NET menyebut sebabnya)."""
     body = re.sub(r"\s+", " ", BeautifulSoup(response.text or "", "html.parser").get_text(" ", strip=True))[:300]
     keys = ", ".join(f"{k}={'ada' if k in payload else 'TIDAK ADA'}" for k in ("__VIEWSTATE", "__EVENTVALIDATION", "pivotGrid$CallbackState", "ASPxPopupControl1$DropDownList2"))
-    return type(error)(f"{error} [{len(payload)} isian terkirim; {keys}; jawaban: {body or '(kosong)'}]")
+    return type(error)(f"{error} [{len(payload)} isian terkirim: {', '.join(sorted(payload))}; {keys}; jawaban: {body or '(kosong)'}]")
 
 
-def page_form(session: requests.Session, url: str, step: str):
-    response = session.get(url, timeout=(20, 90))
+def page_form(session: requests.Session, url: str, step: str, referer: str | None = None):
+    response = session.get(url, timeout=(20, 90), headers={"Referer": referer} if referer else None)
     eis._check_response(response, step)
     payload = form_fields(response.text)
     if not payload.get("__VIEWSTATE"):
@@ -137,10 +139,15 @@ def page_form(session: requests.Session, url: str, step: str):
 
 
 def fetch_mycube(session: requests.Session, report: str, ulp: str, month: str) -> tuple[bytes, str]:
-    jenis, make_parameter = MYCUBE[report]
+    jenis, make_parameter, parent = MYCUBE[report]
     parameter = make_parameter(ulp, month.replace("-", ""))
     url = f"{base()}/mycube.aspx?jenis={jenis}&parameter={quote(parameter, safe='')}"
-    _response, payload = page_form(session, url, f"GET {report}")
+    referer = None
+    if parent is not None:
+        referer = f"{base()}/{parent}"
+        opened = session.get(referer, timeout=(20, 90), headers={"Referer": eis.main_url()})
+        eis._check_response(opened, f"GET halaman induk {report}")
+    _response, payload = page_form(session, url, f"GET {report}", referer)
     payload.update({"__EVENTTARGET": "", "__EVENTARGUMENT": "", "listExportFormatx": "Excel", "ASPxPopupControl1$DropDownList2": "Excel", "btnSave": "Save"})
     answer = session.post(url, data=payload, timeout=(20, 180), headers=post_headers(url))
     try:

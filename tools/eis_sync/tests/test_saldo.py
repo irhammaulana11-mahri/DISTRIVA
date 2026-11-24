@@ -39,6 +39,7 @@ class FakeSession:
 
     def get(self, url, **kw):
         self.gets.append(url)
+        self.get_headers = getattr(self, "get_headers", []) + [kw.get("headers")]
         return Reply(form())
 
     def post(self, url, data=None, **kw):
@@ -79,12 +80,28 @@ class MycubeTest(unittest.TestCase):
         for other in ("btnLoad", "btnExport", "imgGo", "btnX"):                         # tombol lain tidak boleh ikut: EIS menganggapnya tombol yang diklik
             self.assertNotIn(other, sent)
         sh.fetch_mycube(s, "PRABAYAR", "51453", "2026-10")
-        self.assertIn("jenis=saldo_lalu_ap3t_tarif_up", s.gets[1])
-        self.assertEqual(unquote(s.gets[1].split("parameter=")[1]), "'51453';'51MJK';'51';'202610'")      # ULP; AP (UP3); UPI; bulan
+        self.assertIn("jenis=saldo_lalu_ap3t_tarif_up", s.gets[2])                                       # gets[1] = halaman induk menu
+        self.assertEqual(unquote(s.gets[2].split("parameter=")[1]), "'51453';'51MJK';'51';'202610'")      # ULP; AP (UP3); UPI; bulan
         sh.fetch_mycube(s, "GOLONGAN", "51454", "2026-01")
-        self.assertIn("jenis=saldo_lalu_eis&", s.gets[2])
-        self.assertIn("PERGOLONGAN", unquote(s.gets[2]))
+        self.assertIn("jenis=saldo_lalu_eis&", s.gets[3])
+        self.assertIn("PERGOLONGAN", unquote(s.gets[3]))
         self.assertEqual(sh.LAPORAN, ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR"))
+
+
+class ParentPageTest(unittest.TestCase):
+    def test_the_prepaid_report_opens_its_menu_page_first_and_asks_for_the_data_page_with_that_referer(self):
+        s = FakeSession()
+        sh.fetch_mycube(s, "PRABAYAR", "51453", "2026-10")
+        self.assertTrue(s.gets[0].endswith("/saldolaluap3t.aspx"))                          # halaman induk dulu, seperti peramban
+        self.assertIn("mycube.aspx?jenis=saldo_lalu_ap3t_tarif_up", s.gets[1])
+        self.assertEqual(s.get_headers[1]["Referer"], s.gets[0])
+        self.assertTrue(s.posts[0][0].startswith(s.gets[1].split("&parameter")[0]))        # POST ke halaman data yang sama
+
+    def test_the_standalone_reports_do_not_open_a_parent_page(self):
+        s = FakeSession()
+        sh.fetch_mycube(s, "GOLONGAN", "51453", "2026-10")
+        self.assertEqual(len(s.gets), 1)
+        self.assertIn("mycube.aspx", s.gets[0])
 
 
 class KogolTest(unittest.TestCase):
@@ -138,7 +155,7 @@ class DiagnosisTest(unittest.TestCase):
         self.assertIn("isian terkirim", message)
         self.assertIn("__EVENTVALIDATION=TIDAK ADA", message)                      # halaman tiruan tidak punya isian itu: terlihat jelas
         self.assertEqual(s.headers_seen["Origin"], "http://eis.ap2t.pln.co.id")  # header POST seperti peramban
-        self.assertEqual(s.headers_seen["Referer"], s.gets[0])
+        self.assertEqual(s.headers_seen["Referer"], s.gets[1])                          # POST: Referer = halaman data (gets[0] = halaman induk)
 
 
 class RetryTest(unittest.TestCase):
