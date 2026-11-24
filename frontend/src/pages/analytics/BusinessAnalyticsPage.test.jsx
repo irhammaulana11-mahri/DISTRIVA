@@ -9,6 +9,40 @@ import BusinessAnalyticsPage from './BusinessAnalyticsPage.jsx'
 import { pengusahaanApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
+  reportsApi: {
+    customerGrowth: vi.fn().mockResolvedValue({
+      data: {
+        filters: { from: null, to: null, units: 1 },
+        as_of: '2026-11-14',
+        kpi: {
+          last_full_month: '2026-10',
+          l12m: { pb_count: 400, pb_kva: 1200, pd_net_kva: 90 },
+          prev12m: { pb_count: 320, pb_kva: 900, pd_net_kva: 50 },
+          l12m_growth_pct: 25,
+          ytd: { year: 2026, months: 10, pb_count: 330, pb_kva: 1000 },
+          ytd_prev: { year: 2025, months: 10, pb_count: 280, pb_kva: 800 },
+          ytd_growth_pct: 17.9,
+          pb_total: 1500,
+          pb_kva_total: 4000,
+          avg_kva_per_pb: 2.67,
+        },
+        monthly: [
+          { month: '2026-09', partial: false, pb_count: 30, pb_kva: 80, pd_net_kva: 10, requests_pb: 35, mom_pct: 5, yoy_pct: 10 },
+          { month: '2026-10', partial: false, pb_count: 40, pb_kva: 100, pd_net_kva: 15, requests_pb: 45, mom_pct: 33.3, yoy_pct: 15 },
+        ],
+        yearly: [
+          { year: 2025, months: 12, partial: false, pb_count: 320, pb_kva: 900, pd_net_kva: 50, requests_pb: 360, cancelled: 20, refunded: 3, avg_kva_per_pb: 2.81, yoy_pct: 10, yoy_kva_pct: 12 },
+          { year: 2026, months: 10, partial: true, pb_count: 330, pb_kva: 1000, pd_net_kva: 60, requests_pb: 370, cancelled: 15, refunded: 2, avg_kva_per_pb: 3.03, yoy_pct: 15, yoy_kva_pct: 18 },
+        ],
+        by_tariff: { groups: [{ group: 'Rumah tangga', count: 90, kva: 180, share_pct: 75, kva_share_pct: 60, avg_kva: 2 }], top_codes: [] },
+        by_unit: [{ unit_id: 'u-1', unit_name: 'ULP Jombang', pb_count: 70, l12m_pb: 60, l12m_kva: 160, by_year: [] }],
+        seasonality: { years: [2025], months: [] },
+        anomalies: [],
+        notes: [],
+      },
+    }),
+    downloadCustomerGrowthXlsx: vi.fn(),
+  },
   pengusahaanApi: {
     metrics: vi.fn(),
     metric: vi.fn(),
@@ -508,5 +542,27 @@ describe('BusinessAnalyticsPage', () => {
 
     // OutageAnalysisContent ter-render
     expect(await screen.findByText(/Gangguan 12 bln terakhir/i)).toBeInTheDocument()
+  })
+
+  it('8. menu pelanggan di bawah pengusahaan menampilkan header Analisa & Tren Pelanggan, 4 card, delta bulanan, dan temuan di bagian bawah', async () => {
+    pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
+    pengusahaanApi.metric.mockResolvedValue(MOCK_METRIC_DETAIL)
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelanggan'])
+
+    // Header dan badge
+    expect(await screen.findByText('Analisa & Tren Pelanggan')).toBeInTheDocument()
+    expect(screen.getByText('Laporan 309 & Permohonan EIS')).toBeInTheDocument()
+
+    // 4 Card Statistik
+    expect(screen.getByText('Jumlah pelanggan (Laporan 309)')).toBeInTheDocument()
+    expect(screen.getByText('Pelanggan baru, 12 bulan terakhir')).toBeInTheDocument()
+    expect(screen.getByText('Tambahan daya PB, 12 bulan')).toBeInTheDocument()
+
+    // Body: delta pelanggan bulanan, PB per bulan, ringkasan per tahun, temuan
+    expect(screen.getByText('Pelanggan baru (PB) per bulan')).toBeInTheDocument()
+    expect(screen.getByText('Delta pelanggan bulanan')).toBeInTheDocument()
+    expect(screen.getByText('Ringkasan per tahun')).toBeInTheDocument()
+    expect(screen.getByText('Temuan')).toBeInTheDocument()
   })
 })

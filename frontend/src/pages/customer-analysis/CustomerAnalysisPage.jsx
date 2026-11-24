@@ -93,11 +93,19 @@ function Section({ title, hint, children, actions = null }) {
   )
 }
 
-export default function CustomerAnalysisPage() {
+export function CustomerAnalysisContent({
+  hideHeader = false,
+  hideTabs = false,
+  defaultTab = 'trend',
+  forcedTab = null,
+  permission = 'reports.view',
+}) {
   const { can } = useAccess()
-  const scopedUnitsInfo = useScopedUnits('reports.view')
-  const tabs = TABS.filter((t) => can[t.cap])
-  const [tab, setTab] = useState(() => (can['reports.view'] ? 'trend' : 'forecast'))
+  const scopedUnitsInfo = useScopedUnits(permission)
+  const canTrend = Boolean(can[permission] || can['reports.view'])
+  const tabs = TABS.filter((t) => (t.key === 'trend' ? canTrend : can[t.cap]))
+  const [tab, setTab] = useState(() => (forcedTab || (canTrend ? defaultTab : 'forecast')))
+  const activeTab = forcedTab || (tabs.some((t) => t.key === tab) ? tab : (tabs[0]?.key || 'trend'))
   const [up3Id, setUp3Id] = useState('')
   const [unitId, setUnitId] = useState('')
   const [fromM, setFromM] = useState('')
@@ -146,8 +154,8 @@ export default function CustomerAnalysisPage() {
   }, [params, unitId, up3Id, scopedUnitsInfo, fromM, toM])
 
   useEffect(() => {
-    if (tab === 'trend' && can['reports.view']) load()
-  }, [tab, load, can])
+    if (activeTab === 'trend' && (can[permission] || can['reports.view'] || can['pengusahaan.view'])) load()
+  }, [activeTab, load, can, permission])
 
   const exportXlsx = async () => {
     setExporting(true)
@@ -164,85 +172,94 @@ export default function CustomerAnalysisPage() {
   return (
     <div className="space-y-5 w-full">
       {/* 1. Hero Header Card Standar DISTRIVA */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs p-5 sm:p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
-              <IconChart size={26} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Analisa &amp; Tren Pelanggan
-                </h1>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                  Laporan &amp; Monitoring
-                </span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Laporan 309 &amp; Permohonan EIS
-                </span>
+      {!hideHeader && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs p-5 sm:p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
+                <IconChart size={26} />
               </div>
-              <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                Realisasi jumlah pelanggan dari Laporan 309 dan penambahan pelanggan baru (PB) serta perubahan daya (PD) dari Permohonan EIS per bulan dan tahun, komposisi tarif, perbandingan antar ULP, pola musiman, serta prakiraan 12 bulan ke depan.
-              </p>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                    Analisa &amp; Tren Pelanggan
+                  </h1>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    Laporan &amp; Monitoring
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Laporan 309 &amp; Permohonan EIS
+                  </span>
+                </div>
+                <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                  Realisasi jumlah pelanggan dari Laporan 309 dan penambahan pelanggan baru (PB) serta perubahan daya (PD) dari Permohonan EIS per bulan dan tahun, komposisi tarif, perbandingan antar ULP, pola musiman, serta prakiraan 12 bulan ke depan.
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
-            {tab === 'trend' && (
-              <Button
-                variant="secondary"
-                onClick={load}
-                loading={state.loading && Boolean(state.data)}
-                icon={IconRefresh}
-              >
-                Segarkan
-              </Button>
-            )}
+            <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+              {activeTab === 'trend' && (
+                <Button
+                  variant="secondary"
+                  onClick={load}
+                  loading={state.loading && Boolean(state.data)}
+                  icon={IconRefresh}
+                >
+                  Segarkan
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 2. Navigasi Tab Underline Standar */}
-      <nav aria-label="Bagian analisis" className="border-b border-slate-200 dark:border-slate-800">
-        <div role="tablist" className="flex items-center gap-6 overflow-x-auto">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={tab === t.key}
-              aria-label={t.label}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                tab === t.key
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {!hideTabs && (
+        <nav aria-label="Bagian analisis" className="border-b border-slate-200 dark:border-slate-800">
+          <div role="tablist" className="flex items-center gap-6 overflow-x-auto">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={activeTab === t.key}
+                aria-label={t.label}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                  activeTab === t.key
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
 
       {/* 3. Konten Tab */}
-      {tab === 'forecast' && can['forecast.view'] && (
+      {activeTab === 'forecast' && can['forecast.view'] && (
         <DemandForecast key="customers" kinds={['CUSTOMERS_ADDED', 'VA_ADDED']} onSelectMaterial={() => {}} />
       )}
-      {tab === 'trend' && can['reports.view'] && (
+      {activeTab === 'trend' && (can[permission] || can['reports.view'] || can['pengusahaan.view']) && (
         <TrendTab
           state={state}
           filters={{ up3Id, setUp3Id, unitId, setUnitId, fromM, setFromM, toM, setToM }}
           onExport={exportXlsx}
           exporting={exporting}
           onRetry={load}
+          permission={permission}
         />
       )}
     </div>
   )
 }
 
-function TrendTab({ state, filters, onExport, exporting, onRetry }) {
+export default function CustomerAnalysisPage() {
+  return <CustomerAnalysisContent />
+}
+
+function TrendTab({ state, filters, onExport, exporting, onRetry, permission = 'reports.view' }) {
   const { up3Id, setUp3Id, unitId, setUnitId, fromM, setFromM, toM, setToM } = filters
   const d = state.data
   const metric309 = state.metric309
@@ -316,7 +333,7 @@ function TrendTab({ state, filters, onExport, exporting, onRetry }) {
       {/* Filter Bar Terstandarisasi */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-wrap items-center gap-3">
         <HierarchicalUnitFilter
-          permission="reports.view"
+          permission={permission}
           up3Id={up3Id}
           onUp3Change={(v) => setUp3Id(v)}
           unitId={unitId}

@@ -223,6 +223,9 @@ const titles = {
 }
 
 const titleFor = (path, search = '') => {
+  if (path === '/pengusahaan/pelanggan' || path.startsWith('/pengusahaan/pelanggan/')) {
+    return 'Laporan & Monitoring / Analisa Pelanggan'
+  }
   if (path.startsWith('/pengusahaan')) {
     return 'Laporan & Monitoring / Analisa Pengusahaan'
   }

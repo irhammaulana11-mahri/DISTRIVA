@@ -10,6 +10,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
+import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent } from '../outages/OutageAnalysisPage.jsx'
 import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 import {
@@ -735,22 +736,24 @@ export default function BusinessAnalyticsPage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Analisa &amp; Tren Pengusahaan
+                  {metricCode === 'pelanggan' ? 'Analisa & Tren Pelanggan' : 'Analisa & Tren Pengusahaan'}
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   Laporan &amp; Monitoring
                 </span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Realisasi EIS
+                  {metricCode === 'pelanggan' ? 'Laporan 309 & Permohonan EIS' : 'Realisasi EIS'}
                 </span>
-                {d?.metric?.name && (
+                {metricCode !== 'pelanggan' && d?.metric?.name && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                     {d.metric.name}
                   </span>
                 )}
               </div>
               <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                Analisis tren bulanan, posisi kumulatif YTD, evaluasi Year-over-Year (YoY), dan perbandingan kinerja antar ULP berbasis laporan resmi PLN dan rekonsiliasi data operasional.
+                {metricCode === 'pelanggan'
+                  ? 'Realisasi jumlah pelanggan dari Laporan 309 dan penambahan pelanggan baru (PB) serta perubahan daya (PD) dari Permohonan EIS per bulan dan tahun, komposisi tarif, perbandingan antar ULP, pola musiman, serta prakiraan 12 bulan ke depan.'
+                  : 'Analisis tren bulanan, posisi kumulatif YTD, evaluasi Year-over-Year (YoY), dan perbandingan kinerja antar ULP berbasis laporan resmi PLN dan rekonsiliasi data operasional.'}
               </p>
             </div>
           </div>
@@ -913,6 +916,15 @@ export default function BusinessAnalyticsPage() {
             key={activeCode}
             kinds={activeCode === 'daya' ? ['VA_ADDED'] : ['CUSTOMERS_ADDED']}
             onSelectMaterial={() => {}}
+          />
+        </div>
+      ) : metricCode === 'pelanggan' && customerTab === 'trend' ? (
+        <div className="pt-2">
+          <CustomerAnalysisContent
+            hideHeader={true}
+            hideTabs={true}
+            forcedTab="trend"
+            permission="pengusahaan.view"
           />
         </div>
       ) : (
