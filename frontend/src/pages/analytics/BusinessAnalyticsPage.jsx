@@ -7,6 +7,9 @@ import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
+import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 import {
   IconChart,
@@ -440,15 +443,22 @@ export default function BusinessAnalyticsPage() {
 
   // State mode tampilan untuk Susut ('trend' | 'inputs')
   const [susutViewMode, setSusutViewMode] = useState('trend')
+  // State sub-tab untuk metrik pelanggan & daya ('trend' | 'forecast')
+  const [customerTab, setCustomerTab] = useState('trend')
+  const [syncDrawerOpen, setSyncDrawerOpen] = useState(false)
 
   // State katalog metrik & unit
   const [catalogState, setCatalogState] = useState({ loading: true, error: '', data: null })
 
   // State filter & metrik aktif
   const [activeCode, setActiveCode] = useState(metricCode || 'pelanggan')
+  const [up3Id, setUp3Id] = useState('')
   const [selectedUnitId, setSelectedUnitId] = useState('')
   const [fromMonth, setFromMonth] = useState('')
   const [toMonth, setToMonth] = useState('')
+
+  // Efektif unit_id: jika ada selectedUnitId (ULP) pakai itu, jika tidak gunakan up3Id
+  const effectiveUnitId = selectedUnitId || up3Id
 
   // State data analisis metrik terpilih
   const [metricState, setMetricState] = useState({ loading: false, error: '', data: null })
@@ -472,10 +482,14 @@ export default function BusinessAnalyticsPage() {
       setCatalogState({ loading: false, error: '', data })
 
       // Set default unit bila belum terpilih
-      if (data.units?.length > 0 && !selectedUnitId) {
+      if (data.units?.length > 0 && !selectedUnitId && !up3Id) {
         // Cari UP3 terlebih dahulu, bila tidak ada pilih unit pertama
         const defaultUnit = data.units.find((u) => u.unit_type === 'UP3') || data.units[0]
-        setSelectedUnitId(defaultUnit.id)
+        if (defaultUnit.unit_type === 'UP3') {
+          setUp3Id(defaultUnit.id)
+        } else {
+          setSelectedUnitId(defaultUnit.id)
+        }
       }
     } catch (err) {
       setCatalogState({
@@ -484,7 +498,7 @@ export default function BusinessAnalyticsPage() {
         data: null,
       })
     }
-  }, [selectedUnitId])
+  }, [selectedUnitId, up3Id])
 
   useEffect(() => {
     loadCatalog()
@@ -499,11 +513,12 @@ export default function BusinessAnalyticsPage() {
 
   // 2. Muat data metrik yang sedang aktif
   const loadMetricData = useCallback(async () => {
-    if (!selectedUnitId || !activeCode) return
+    const targetUnit = effectiveUnitId
+    if (!targetUnit || !activeCode) return
     setMetricState((s) => ({ ...s, loading: true, error: '' }))
     try {
       const params = {
-        unit_id: selectedUnitId,
+        unit_id: targetUnit,
       }
       if (fromMonth) params.from = fromMonth
       if (toMonth) params.to = toMonth
@@ -526,13 +541,13 @@ export default function BusinessAnalyticsPage() {
         data: null,
       })
     }
-  }, [selectedUnitId, activeCode, fromMonth, toMonth])
+  }, [effectiveUnitId, activeCode, fromMonth, toMonth])
 
   useEffect(() => {
-    if (selectedUnitId && activeCode) {
+    if (effectiveUnitId && activeCode) {
       loadMetricData()
     }
-  }, [selectedUnitId, activeCode, loadMetricData])
+  }, [effectiveUnitId, activeCode, loadMetricData])
 
   const handleSelectMetric = (code, available = true) => {
     if (!available) return
@@ -706,102 +721,88 @@ export default function BusinessAnalyticsPage() {
 
   return (
     <div className="space-y-6 w-full">
-      {/* Hero Header Card */}
-      <div className={`${CARD} p-5 sm:p-6 bg-linear-to-r from-white via-slate-50 to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/20`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="rounded-xl bg-indigo-600 p-2.5 text-white shadow-xs">
-              <IconChart size={24} />
+      {/* Hero Header Card Standar DISTRIVA (Selaras dengan Analisis Pelanggan & Daya) */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs p-5 sm:p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
+              <IconChart size={26} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Analisa & Tren Pengusahaan
+                  Analisa &amp; Tren Pengusahaan
                 </h1>
-                <span className="rounded-full bg-indigo-100 dark:bg-indigo-950 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                  Katalog Terpadu
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  Laporan &amp; Monitoring
                 </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  Realisasi EIS
+                </span>
+                {d?.metric?.name && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    {d.metric.name}
+                  </span>
+                )}
               </div>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
-                Analisis tren bulanan, posisi kumulatif YTD, evaluasi Year-over-Year (YoY), dan perbandingan kinerja antar ULP berbasis laporan resmi PLN.
+              <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                Analisis tren bulanan, posisi kumulatif YTD, evaluasi Year-over-Year (YoY), dan perbandingan kinerja antar ULP berbasis laporan resmi PLN dan rekonsiliasi data operasional.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0 flex-wrap">
             <Button
               variant="secondary"
-              size="md"
-              icon={IconRefresh}
               onClick={() => {
                 loadCatalog()
                 loadMetricData()
               }}
+              loading={metricState.loading}
+              icon={IconRefresh}
               aria-label="Segarkan"
             >
               Segarkan
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => setSyncDrawerOpen(true)}
+              icon={IconRefresh}
+              aria-label="Sinkronisasi Data"
+            >
+              Sinkronisasi Data
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Submenu / Katalog Metrik */}
-      <div className={`${CARD} p-4 space-y-3`}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Pilih Indikator Pengusahaan
-          </span>
-          {activeCode === 'gangguan' && (
-            <Link
-              to="/analisis-gangguan"
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-            >
-              <IconActivity size={14} />
-              <span>Buka Analisis Gangguan Penyulang</span>
-            </Link>
-          )}
-          {activeCode === 'pelanggan' && (
-            <Link
-              to="/analisis-pelanggan"
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-            >
-              <IconUsers size={14} />
-              <span>Buka Analisis Pelanggan & Daya</span>
-            </Link>
-          )}
+      {/* Tab Switcher Khusus Metrik Pelanggan & Daya (Tren & Analisis vs Prakiraan) */}
+      {(activeCode === 'pelanggan' || activeCode === 'daya') && (
+        <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setCustomerTab('trend')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              customerTab === 'trend'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Tren &amp; Analisis
+          </button>
+          <button
+            type="button"
+            onClick={() => setCustomerTab('forecast')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              customerTab === 'forecast'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            {activeCode === 'daya' ? 'Prakiraan Daya Tersambung' : 'Prakiraan Pelanggan'}
+          </button>
         </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {metricsList.map((m) => {
-            const isActive = activeCode === m.code
-            const isAvailable = m.available !== false
-
-            return (
-              <button
-                key={m.code}
-                type="button"
-                disabled={!isAvailable}
-                onClick={() => handleSelectMetric(m.code, isAvailable)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-xs font-semibold'
-                    : isAvailable
-                    ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
-                    : 'bg-slate-100/50 dark:bg-slate-800/30 text-slate-400 dark:text-slate-600 cursor-not-allowed border border-dashed border-slate-200 dark:border-slate-800'
-                }`}
-                title={!isAvailable ? 'Belum tersedia: butuh kWh beli, E-Min, dan PSSD' : m.name}
-              >
-                <span>{m.name}</span>
-                {!isAvailable && (
-                  <span className="text-[10px] px-1 py-0.2 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                    Segera
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      )}
 
       {/* Tab Switcher Khusus Metrik Susut (Tren & Analisis vs Masukan kWh Beli) */}
       {activeCode === 'susut' && (
@@ -836,54 +837,77 @@ export default function BusinessAnalyticsPage() {
         </div>
       )}
 
-      {/* Filter Bar (Unit & Rentang Periode) - Ditampilkan pada mode tren */}
+      {/* Tampilan Prakiraan Permintaan (Demand Forecast) saat tab forecast aktif untuk Pelanggan/Daya */}
+      {(activeCode === 'pelanggan' || activeCode === 'daya') && customerTab === 'forecast' ? (
+        <div className="pt-2">
+          <DemandForecast
+            key={activeCode}
+            kinds={activeCode === 'daya' ? ['VA_ADDED'] : ['CUSTOMERS_ADDED']}
+            onSelectMaterial={() => {}}
+          />
+        </div>
+      ) : (
+      <>
+      {/* Filter Bar (HierarchicalUnitFilter, Dari bulan, Sampai bulan) - Tampilan Seragam Persis Referensi */}
       {!(activeCode === 'susut' && susutViewMode === 'inputs') && (
-        <div className={`${CARD} p-4`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Unit:</span>
-              <select
-                value={selectedUnitId}
-                onChange={(e) => setSelectedUnitId(e.target.value)}
-                aria-label="Pilih Unit Pengusahaan"
-                className={filterSelectCls}
-              >
-                {unitsList.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.unit_type})
-                  </option>
-                ))}
-              </select>
-            </label>
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-wrap items-center gap-3">
+          <HierarchicalUnitFilter
+            permission="pengusahaan.view"
+            up3Id={up3Id}
+            onUp3Change={(v) => setUp3Id(v)}
+            unitId={selectedUnitId}
+            onUnitChange={(v) => setSelectedUnitId(v)}
+            up3AriaLabel="Pilih Unit UP3"
+            unitAriaLabel="Pilih Unit ULP"
+          />
 
-            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Dari:</span>
-              <input
-                type="month"
-                value={fromMonth}
-                onChange={(e) => setFromMonth(e.target.value)}
-                aria-label="Bulan Awal"
-                className={filterControlCls}
-              />
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              Dari bulan
             </label>
+            <input
+              type="month"
+              aria-label="Dari bulan"
+              value={fromMonth}
+              onChange={(e) => setFromMonth(e.target.value)}
+              className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
+            />
+          </div>
 
-            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Sampai:</span>
-              <input
-                type="month"
-                value={toMonth}
-                onChange={(e) => setToMonth(e.target.value)}
-                aria-label="Bulan Akhir"
-                className={filterControlCls}
-              />
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              Sampai bulan
             </label>
+            <input
+              type="month"
+              aria-label="Sampai bulan"
+              value={toMonth}
+              onChange={(e) => setToMonth(e.target.value)}
+              className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
+            />
+          </div>
 
+          {(fromMonth || toMonth) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFromMonth('')
+                setToMonth('')
+              }}
+            >
+              Semua periode
+            </Button>
+          )}
+
+          <div className="ml-auto">
             <Button
               type="button"
-              variant="primary"
+              variant="secondary"
               size="sm"
               onClick={loadMetricData}
               loading={metricState.loading}
+              icon={IconRefresh}
             >
               Terapkan
             </Button>
@@ -1661,6 +1685,18 @@ export default function BusinessAnalyticsPage() {
         )}
       </div>
       )}
+      </>
+      )}
+
+      {/* Drawer Sinkronisasi Data EIS */}
+      <EisSyncDrawer
+        open={syncDrawerOpen}
+        onClose={() => setSyncDrawerOpen(false)}
+        onSynced={() => {
+          loadCatalog()
+          loadMetricData()
+        }}
+      />
     </div>
   )
 }

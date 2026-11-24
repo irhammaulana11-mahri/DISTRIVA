@@ -477,7 +477,7 @@ export default function EisReportsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Laporan Bulanan EIS / AP2T
+                  Upload APKT/EIS/AP2T
                 </h1>
                 <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
                   Penjualan & Keandalan

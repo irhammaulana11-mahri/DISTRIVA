@@ -88,7 +88,7 @@ const masterDataNav = [
   { to: '/master-data/feeders', label: 'Master Penyulang', capability: 'feeders.view', icon: IconLayers, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/customers', label: 'Master Pelanggan', capability: 'customers.view', icon: IconUsers, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/gangguan-sinkron', label: 'Data Gangguan (Sinkron)', capability: 'outages.view', icon: IconZap, group: 'Aset Jaringan & Pelanggan' },
-  { to: '/master-data/laporan-eis', label: 'Laporan EIS Bulanan', capability: 'eis_reports.view', icon: IconFileText, group: 'Aset Jaringan & Pelanggan' },
+  { to: '/master-data/laporan-eis', label: 'Upload APKT/EIS/AP2T', capability: 'eis_reports.view', icon: IconUpload, group: 'Aset Jaringan & Pelanggan' },
 
   // Standar & Konstruksi
   { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'jaringan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
@@ -114,7 +114,6 @@ const reportsNav = [
   { to: '/nko', label: 'NKO & Kinerja Unit', capability: 'nko.view', icon: IconChart },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
-  { to: '/analisis-pelanggan', label: 'Analisis Pelanggan & Daya', anyOf: ['reports.view', 'forecast.view'], icon: IconUsers },
   { to: '/analisis-gangguan', label: 'Analisis Gangguan', capability: 'outages.view', icon: IconActivity },
   { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconActivity },
   { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconClock },
@@ -199,7 +198,7 @@ const titles = {
   '/master-data/feeders': 'Master Data / Master Penyulang',
   '/master-data/customers': 'Master Data / Master Pelanggan',
   '/master-data/gangguan-sinkron': 'Master Data / Data Gangguan (Sinkron)',
-  '/master-data/laporan-eis': 'Master Data / Laporan Bulanan EIS/AP2T',
+  '/master-data/laporan-eis': 'Master Data / Upload APKT/EIS/AP2T',
   '/master-data/materials': 'Master Data / Katalog Material ERP',
   '/master-data/khs': 'Master Data / Katalog Harga Satuan (KHS)',
   '/master-data/mapping': 'Master Data / Pemetaan SKU↔KHS',

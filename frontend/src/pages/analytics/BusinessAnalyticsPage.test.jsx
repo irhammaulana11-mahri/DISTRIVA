@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthContext } from '../../features/auth/AuthContext.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
@@ -31,12 +31,17 @@ vi.mock('../../services/api.js', () => ({
   },
 }))
 
-function wrap(ui, can = { 'pengusahaan.view': true }) {
+function wrap(ui, can = { 'pengusahaan.view': true }, initialEntries = ['/pengusahaan']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <AuthContext.Provider value={{ user: { id: 'usr-1', name: 'Tester' }, status: 'authenticated' }}>
         <AccessContext.Provider value={{ can, isSysAdmin: false, createUnits: [], loading: false }}>
-          <NotificationProvider>{ui}</NotificationProvider>
+          <NotificationProvider>
+            <Routes>
+              <Route path="/pengusahaan" element={ui} />
+              <Route path="/pengusahaan/:metricCode" element={ui} />
+            </Routes>
+          </NotificationProvider>
         </AccessContext.Provider>
       </AuthContext.Provider>
     </MemoryRouter>,
@@ -184,18 +189,19 @@ describe('BusinessAnalyticsPage', () => {
     vi.clearAllMocks()
   })
 
-  it('1. menampilkan hero card, navigasi metrik, dan filter unit', async () => {
+  it('1. menampilkan hero card dan filter unit', async () => {
     pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
     pengusahaanApi.metric.mockResolvedValue(MOCK_METRIC_DETAIL)
 
     wrap(<BusinessAnalyticsPage />)
 
     expect(await screen.findByText('Analisa & Tren Pengusahaan')).toBeInTheDocument()
-    expect(screen.getByText('Pelanggan')).toBeInTheDocument()
-    expect(screen.getByText('kWh Jual')).toBeInTheDocument()
-    expect(screen.getByText('Susut')).toBeInTheDocument()
-    // Susut bertanda "Segera" karena available=false
-    expect(screen.getByText('Segera')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sinkronisasi Data' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Segarkan' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Pilih Unit UP3')).toBeInTheDocument()
+    expect(screen.getByLabelText('Pilih Unit ULP')).toBeInTheDocument()
+    expect(screen.getByLabelText('Dari bulan')).toBeInTheDocument()
+    expect(screen.getByLabelText('Sampai bulan')).toBeInTheDocument()
   })
 
   it('2. menampilkan peringatan jika angka UP3 pada bulan terakhir belum utuh', async () => {
@@ -233,20 +239,18 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText(/Pertumbuhan penjualan kumulatif meningkat/i)).toBeInTheDocument()
   })
 
-  it('4. dapat beralih metrik dari katalog metrik pengusahaan', async () => {
+  it('4. dapat memuat metrik dari parameter URL rute', async () => {
     pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
     pengusahaanApi.metric.mockResolvedValue(MOCK_METRIC_DETAIL)
 
-    const user = userEvent.setup()
-    wrap(<BusinessAnalyticsPage />)
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/kwh-jual'])
 
-    const kwhBtn = await screen.findByRole('button', { name: /kWh Jual/i })
-    await user.click(kwhBtn)
-
-    expect(pengusahaanApi.metric).toHaveBeenCalledWith(
-      'kwh-jual',
-      expect.objectContaining({ unit_id: 'up3-1' }),
-    )
+    await waitFor(() => {
+      expect(pengusahaanApi.metric).toHaveBeenCalledWith(
+        'kwh-jual',
+        expect.objectContaining({ unit_id: 'up3-1' }),
+      )
+    })
   })
 
   it('5. menampilkan tab Masukan kWh Beli pada metrik Susut dan dapat menyimpan', async () => {
@@ -312,11 +316,7 @@ describe('BusinessAnalyticsPage', () => {
     pengusahaanApi.saveInputs.mockResolvedValue({ message: '1 masukan berubah.', changed: 1 })
 
     const user = userEvent.setup()
-    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'pengusahaan.input': true })
-
-    // Klik metrik Susut
-    const susutBtn = await screen.findByRole('button', { name: 'Susut' })
-    await user.click(susutBtn)
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'pengusahaan.input': true }, ['/pengusahaan/susut'])
 
     // Beralih ke tab "Masukan kWh Beli"
     const inputTabBtn = await screen.findByRole('button', { name: /Masukan kWh Beli/i })
@@ -420,12 +420,7 @@ describe('BusinessAnalyticsPage', () => {
     pengusahaanApi.metrics.mockResolvedValue(piutangCatalog)
     pengusahaanApi.metric.mockResolvedValue(piutangDetail)
 
-    const user = userEvent.setup()
-    wrap(<BusinessAnalyticsPage />)
-
-    // Beralih ke metrik Umur Piutang Pascabayar
-    const piutangBtn = await screen.findByRole('button', { name: 'Umur Piutang Pascabayar' })
-    await user.click(piutangBtn)
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/piutang-pascabayar-umur'])
 
     // Periksa tabel matriks silang
     expect(await screen.findByText(/Matriks Silang/i)).toBeInTheDocument()

@@ -114,7 +114,7 @@ describe('EisReportsPage', () => {
 
     wrap(<EisReportsPage />)
 
-    expect(await screen.findByText('Laporan Bulanan EIS / AP2T')).toBeInTheDocument()
+    expect(await screen.findByText('Upload APKT/EIS/AP2T')).toBeInTheDocument()
     expect(screen.getByText('309-51453-042026.xls')).toBeInTheDocument()
     expect(screen.getByText('DIFI-51453-052026.xlsx')).toBeInTheDocument()
     expect(screen.getByText('kode unit dipulihkan')).toBeInTheDocument()
@@ -125,7 +125,7 @@ describe('EisReportsPage', () => {
 
     // Tanpa izin import
     const { unmount } = wrap(<EisReportsPage />, { 'eis_reports.view': true })
-    expect(await screen.findByText('Laporan Bulanan EIS / AP2T')).toBeInTheDocument()
+    expect(await screen.findByText('Upload APKT/EIS/AP2T')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Unggah Laporan/i })).toBeNull()
     unmount()
 
