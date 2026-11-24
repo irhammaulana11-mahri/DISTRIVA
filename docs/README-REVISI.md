@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Tidak ada tugas terbuka saat ini. Semua butir revisi backend telah diselesaikan di frontend)*
+| # | Tanggal | Commit backend | Perubahan | Dokumen | Kebutuhan frontend | Status | Catatan |
+|---|---|---|---|---|---|---|---|
+| 8 | 2026-11-24 | f7b0723 | **Unggah laporan EIS dipermudah**: nama berkas bebas (unduhan EIS apa adanya dikenali dari isi), `POST /eis-reports/import` menerima **.zip** (unit/bulan dari nama folder) serta opsional `unit_id` dan `period`; `GET /eis-reports/coverage?up3_id=&year=` kelengkapan semua ULP satu UP3 dengan daftar yang belum masuk | docs/88 §1, §1a, §4 | (a) `EisReportsPage.jsx`: hapus kewajiban/petunjuk ganti nama berkas (pola lama tetap boleh); terima `.zip` dan folder (`webkitdirectory`); pilihan opsional **Bulan** dan **Unit** pada form unggah dengan keterangan "hanya untuk laporan yang tidak menyebut bulan/unit: 309EIS, AKHIEPERIODE_EIS, PIUTANGLPB_EIS (bulan) dan UMURPIUTANG (unit)"; contoh susunan ZIP satu UP3: `JOMBANG/2026-10/Rekap.xls`. (b) Kirim berkas lepas **paling banyak 20 per permintaan** (batas PHP `max_file_uploads`, kelebihan dibuang diam-diam), bertahap dengan kemajuan; satukan hasil per berkas, tampilkan `name` (isi ZIP berbentuk `arsip.zip › jalur`), status, jenis, unit, bulan, pesan galat apa adanya. (c) Matriks kelengkapan UP3: baris ULP × jenis laporan per bulan (atau ringkas `missing_count` per ULP, buka untuk rincian `missing[]`), hanya bulan ≤ `expected_until_month` yang dihitung kurang; tautan dari Analisa Pengusahaan bila banner "angka UP3 belum utuh" muncul | BARU | |
 
 ## Selesai
 
