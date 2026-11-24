@@ -6,13 +6,13 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Menentukan realisasi kumulatif (Januari sampai bulan berjalan) tiap indikator untuk satu unit: masukan manual bila ada, selain itu dari sumber sistem.
- * Sumber sistem saat ini: SAIDI, SAIFI, dan ENS dari laporan DIFI yang diunggah (jumlah bulanan Januari sampai bulan berjalan; ENS dari baris "TOTAL KELOMPOK Distribusi", kWh menjadi MWh).
+ * Sumber sistem saat ini: penambahan pelanggan dan daya tersambung dari laporan 309 (selisih terhadap Desember tahun lalu); SAIDI, SAIFI, dan ENS dari laporan DIFI yang diunggah (jumlah bulanan Januari sampai bulan berjalan; ENS dari baris "TOTAL KELOMPOK Distribusi", kWh menjadi MWh).
  * Sumber sistem hanya dipakai bila laporan DIFI semua bulan Januari sampai bulan berjalan tersedia; bila tidak, indikator dibiarkan kosong sampai laporan atau masukan manual ada (docs/90).
  */
 class NkoRealizationResolver
 {
     /** kode indikator => jenis sumber sistem */
-    public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh'];
+    public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh', 'penambahan-pelanggan' => 'pelanggan_309', 'daya-tersambung' => 'daya_309'];
 
     /**
      * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string}> menurut kode indikator
@@ -36,6 +36,42 @@ class NkoRealizationResolver
      * @return array<string, float>
      */
     public function systemValues(string $unitId, int $year, int $month): array
+    {
+        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month);
+    }
+
+    /**
+     * Penambahan pelanggan (jumlah) dan daya tersambung (MVA) = posisi laporan 309 akhir bulan dikurangi posisi Desember tahun sebelumnya (baris "JUMLAH"); divalidasi terhadap workbook ULP Jombang.
+     *
+     * @return array<string, float>
+     */
+    private function report309Values(string $unitId, int $year, int $month): array
+    {
+        $fetch = function (string $period) use ($unitId): ?array {
+            $file = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)->where('period', $period)->value('id');
+            if ($file === null) {
+                return null;
+            }
+            $line = DB::table('eis_report_lines')->where('file_id', $file)->where('label', 'JUMLAH')->orderByDesc('line_no')->value('values');
+
+            return $line === null ? null : json_decode($line, true);
+        };
+        $now = $fetch(sprintf('%04d-%02d-01', $year, $month));
+        $base = $fetch(($year - 1).'-12-01');
+        if ($now === null || $base === null || ! isset($now['pelanggan'], $now['daya_va'], $base['pelanggan'], $base['daya_va'])) {
+            return [];
+        }
+
+        return [
+            'penambahan-pelanggan' => (float) $now['pelanggan'] - (float) $base['pelanggan'],
+            'daya-tersambung' => ((float) $now['daya_va'] - (float) $base['daya_va']) / 1000000,
+        ];
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function difiValues(string $unitId, int $year, int $month): array
     {
         $files = DB::table('eis_report_files')->where('family', 'DIFI')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
             ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->get(['id', 'summary']);

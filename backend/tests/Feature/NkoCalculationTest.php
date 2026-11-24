@@ -190,6 +190,31 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertEqualsWithDelta(2.0, $over['saidi']['system'], 1e-9);
     }
 
+    #[Test]
+    public function penambahan_pelanggan_dan_daya_dari_laporan_309_adalah_selisih_terhadap_desember_tahun_lalu(): void
+    {
+        $resolver = app(NkoRealizationResolver::class);
+        $this->report309($this->ulpA, '2026-03-01', 1409 + 100000, 6.0419e6 + 295000000);
+        $this->assertArrayNotHasKey('penambahan-pelanggan', $resolver->resolve($this->ulpA->id, 2026, 3));   // posisi Desember belum ada
+
+        $this->report309($this->ulpA, '2025-12-01', 100000, 295000000);
+        $r = $resolver->resolve($this->ulpA->id, 2026, 3);
+        $this->assertEqualsWithDelta(1409.0, $r['penambahan-pelanggan']['value'], 1e-9);
+        $this->assertEqualsWithDelta(6.0419, $r['daya-tersambung']['value'], 1e-6);   // VA menjadi MVA
+        $this->assertSame('SISTEM', $r['daya-tersambung']['source']);
+    }
+
+    private function report309(OrganizationalUnit $unit, string $period, float $pelanggan, float $dayaVa): void
+    {
+        $id = (string) Str::uuid();
+        DB::table('eis_report_files')->insert(['id' => $id, 'family' => '309', 'unit_code' => $unit->code, 'organizational_unit_id' => $unit->id, 'period' => $period, 'original_name' => "309-{$unit->code}.xls",
+            'sha256' => hash('sha256', $id), 'size_bytes' => 1, 'status' => 'AKTIF', 'summary' => '{}', 'line_count' => 2, 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('eis_report_lines')->insert([
+            ['file_id' => $id, 'line_no' => 1, 'label' => 'JUMLAH S', 'values' => json_encode(['pelanggan' => 1, 'daya_va' => 1])],
+            ['file_id' => $id, 'line_no' => 2, 'label' => 'JUMLAH', 'values' => json_encode(['pelanggan' => $pelanggan, 'daya_va' => $dayaVa])],
+        ]);
+    }
+
     private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, float $kwh): void
     {
         $id = (string) Str::uuid();
