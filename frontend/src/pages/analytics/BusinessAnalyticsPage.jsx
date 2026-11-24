@@ -7,6 +7,7 @@ import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import OutageSyncDrawer from '../outages/OutageSyncDrawer.jsx'
@@ -586,6 +587,9 @@ function CompanionSection({ companions, toMonth }) {
 
 /** Komponen Rekonsiliasi Angka Resmi vs Data Operasional */
 function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
+  const [recPages, setRecPages] = useState({})
+  const [recPerPages, setRecPerPages] = useState({})
+
   const list = reconciliations || []
   if (list.length === 0) return null
 
@@ -596,6 +600,12 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
         const isYoy = rec.mode === 'yoy'
         const ytd = rec.ytd
         const monthly = rec.monthly || []
+
+        const pageKey = rec.key || 'default'
+        const currentPage = recPages[pageKey] || 1
+        const perPage = recPerPages[pageKey] || 12
+        const start = (currentPage - 1) * perPage
+        const paginatedMonthly = monthly.slice(start, start + perPage)
 
         // Judul & Badge mode
         const modeBadge = isNet ? (
@@ -723,52 +733,70 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
 
             {/* Tabel Rincian Rekonsiliasi Bulanan */}
             {monthly.length > 0 && (
-              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                    <tr>
-                      <th className="py-2.5 px-3">Bulan</th>
-                      <th className="py-2.5 px-3 text-right">
-                        {isYoy ? 'Kenaikan Resmi YoY' : isNet ? 'Tambahan Bersih (Resmi)' : rec.official_name}
-                      </th>
-                      <th className="py-2.5 px-3 text-right">
-                        {isYoy ? 'Perkiraan PB' : rec.companion_name}
-                      </th>
-                      <th className="py-2.5 px-3 text-right">Selisih</th>
-                      <th className="py-2.5 px-3 text-center">Unit Terbanding</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums">
-                    {monthly.map((m) => {
-                      const diff = m.difference
-                      const diffCls = diff > 0
-                        ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                        : diff < 0
-                        ? 'text-amber-600 dark:text-amber-400 font-semibold'
-                        : 'text-slate-500'
+              <div className="space-y-3">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                      <tr>
+                        <th className="py-2.5 px-3">Bulan</th>
+                        <th className="py-2.5 px-3 text-right">
+                          {isYoy ? 'Kenaikan Resmi YoY' : isNet ? 'Tambahan Bersih (Resmi)' : rec.official_name}
+                        </th>
+                        <th className="py-2.5 px-3 text-right">
+                          {isYoy ? 'Perkiraan PB' : rec.companion_name}
+                        </th>
+                        <th className="py-2.5 px-3 text-right">Selisih</th>
+                        <th className="py-2.5 px-3 text-center">Unit Terbanding</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums">
+                      {paginatedMonthly.map((m) => {
+                        const diff = m.difference
+                        const diffCls = diff > 0
+                          ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                          : diff < 0
+                          ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                          : 'text-slate-500'
 
-                      return (
-                        <tr key={m.month} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                          <td className="py-2 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
-                            {fmtMonth(m.month)}
-                          </td>
-                          <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
-                            {m.official_net !== null ? fmtFloat(m.official_net) : '-'}
-                          </td>
-                          <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
-                            {m.companion !== null ? fmtFloat(m.companion) : '-'}
-                          </td>
-                          <td className={`py-2 px-3 text-right ${diffCls}`}>
-                            {diff !== null ? `${diff > 0 ? '+' : ''}${fmtFloat(diff)}` : '-'}
-                          </td>
-                          <td className="py-2 px-3 text-center text-slate-400 text-[11px]">
-                            {m.units_compared}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                        return (
+                          <tr key={m.month} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                            <td className="py-2 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
+                              {fmtMonth(m.month)}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                              {m.official_net !== null ? fmtFloat(m.official_net) : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                              {m.companion !== null ? fmtFloat(m.companion) : '-'}
+                            </td>
+                            <td className={`py-2 px-3 text-right ${diffCls}`}>
+                              {diff !== null ? `${diff > 0 ? '+' : ''}${fmtFloat(diff)}` : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-center text-slate-400 text-[11px]">
+                              {m.units_compared}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {monthly.length > 6 && (
+                  <div className="pt-1">
+                    <Pagination
+                      page={currentPage}
+                      total={monthly.length}
+                      perPage={perPage}
+                      onPage={(p) => setRecPages((prev) => ({ ...prev, [pageKey]: p }))}
+                      onPerPage={(pp) => {
+                        setRecPerPages((prev) => ({ ...prev, [pageKey]: pp }))
+                        setRecPages((prev) => ({ ...prev, [pageKey]: 1 }))
+                      }}
+                      perPageOptions={[6, 12, 24, 36]}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -809,6 +837,18 @@ export default function BusinessAnalyticsPage() {
   const [selectedUnitId, setSelectedUnitId] = useState('')
   const [fromMonth, setFromMonth] = useState('')
   const [toMonth, setToMonth] = useState('')
+
+  // State pagination untuk tabel Rincian Komposisi
+  const [breakdownPage, setBreakdownPage] = useState(1)
+  const [breakdownPerPage, setBreakdownPerPage] = useState(10)
+
+  // State pagination untuk tabel Rincian Kedua (Secondary)
+  const [breakdownSecondaryPage, setBreakdownSecondaryPage] = useState(1)
+  const [breakdownSecondaryPerPage, setBreakdownSecondaryPerPage] = useState(10)
+
+  // State pagination untuk tabel Perbandingan ULP
+  const [comparisonPage, setComparisonPage] = useState(1)
+  const [comparisonPerPage, setComparisonPerPage] = useState(10)
 
   // Metrik klasifikasi untuk aksi sinkronisasi spesifik
   const isOutageMetric = activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'rpt-rct-gangguan'
@@ -2215,7 +2255,9 @@ export default function BusinessAnalyticsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {d.breakdown.rows?.map((r) => (
+                          {(d.breakdown.rows || [])
+                            .slice((breakdownPage - 1) * breakdownPerPage, breakdownPage * breakdownPerPage)
+                            .map((r) => (
                             <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                               <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
                                 {r.key}
@@ -2247,6 +2289,22 @@ export default function BusinessAnalyticsPage() {
                         </tbody>
                       </table>
                     </div>
+
+                    {(d.breakdown.rows || []).length > 5 && (
+                      <div className="pt-2">
+                        <Pagination
+                          page={breakdownPage}
+                          total={(d.breakdown.rows || []).length}
+                          perPage={breakdownPerPage}
+                          onPage={setBreakdownPage}
+                          onPerPage={(pp) => {
+                            setBreakdownPerPage(pp)
+                            setBreakdownPage(1)
+                          }}
+                          perPageOptions={[5, 10, 25]}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2276,7 +2334,9 @@ export default function BusinessAnalyticsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {d.breakdown_secondary.rows?.map((r) => (
+                          {(d.breakdown_secondary.rows || [])
+                            .slice((breakdownSecondaryPage - 1) * breakdownSecondaryPerPage, breakdownSecondaryPage * breakdownSecondaryPerPage)
+                            .map((r) => (
                             <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                               <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
                                 {r.key}
@@ -2308,6 +2368,22 @@ export default function BusinessAnalyticsPage() {
                         </tbody>
                       </table>
                     </div>
+
+                    {(d.breakdown_secondary.rows || []).length > 5 && (
+                      <div className="pt-2">
+                        <Pagination
+                          page={breakdownSecondaryPage}
+                          total={(d.breakdown_secondary.rows || []).length}
+                          perPage={breakdownSecondaryPerPage}
+                          onPage={setBreakdownSecondaryPage}
+                          onPerPage={(pp) => {
+                            setBreakdownSecondaryPerPage(pp)
+                            setBreakdownSecondaryPage(1)
+                          }}
+                          perPageOptions={[5, 10, 25]}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2337,10 +2413,12 @@ export default function BusinessAnalyticsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {d.comparison.map((c, idx) => (
+                          {(d.comparison || [])
+                            .slice((comparisonPage - 1) * comparisonPerPage, comparisonPage * comparisonPerPage)
+                            .map((c, idx) => (
                             <tr key={c.unit_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                               <td className="py-2.5 px-3 text-center font-mono text-slate-400 text-[11px]">
-                                {idx + 1}
+                                {(comparisonPage - 1) * comparisonPerPage + idx + 1}
                               </td>
                               <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
                                 {c.unit_name}
@@ -2359,6 +2437,22 @@ export default function BusinessAnalyticsPage() {
                         </tbody>
                       </table>
                     </div>
+
+                    {(d.comparison || []).length > 5 && (
+                      <div className="pt-2">
+                        <Pagination
+                          page={comparisonPage}
+                          total={(d.comparison || []).length}
+                          perPage={comparisonPerPage}
+                          onPage={setComparisonPage}
+                          onPerPage={(pp) => {
+                            setComparisonPerPage(pp)
+                            setComparisonPage(1)
+                          }}
+                          perPageOptions={[5, 10, 20]}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

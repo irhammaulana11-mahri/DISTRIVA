@@ -722,7 +722,7 @@ describe('BusinessAnalyticsPage', () => {
     const historyTabBtn = screen.getByRole('button', { name: /^Histori Sinkronisasi$/i })
     await user.click(historyTabBtn)
     expect(pengusahaanApi.history).toHaveBeenCalledWith('pelanggan', expect.any(Object))
-    expect(await screen.findByText(/Matriks Kelengkapan 24 Bulan Terakhir/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Matriks Kelengkapan Laporan/i)).toBeInTheDocument()
     expect(screen.getByText(/309-51453-202610\.xls/i)).toBeInTheDocument()
   })
 

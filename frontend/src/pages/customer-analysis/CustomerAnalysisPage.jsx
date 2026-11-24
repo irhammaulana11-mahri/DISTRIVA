@@ -5,6 +5,7 @@ import { useScopedUnits, useUnitScope } from '../../utils/unitScope.js'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
+import Pagination from '../../components/Pagination.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import {
   IconChart,
@@ -267,6 +268,8 @@ export default function CustomerAnalysisPage() {
 
 function TrendTab({ state, filters, onExport, exporting, onRetry, permission = 'reports.view' }) {
   const { up3Id, setUp3Id, unitId, setUnitId, fromM, setFromM, toM, setToM } = filters
+  const [monthlyPage, setMonthlyPage] = useState(1)
+  const [monthlyPerPage, setMonthlyPerPage] = useState(12)
   const d = state.data
   const metric309 = state.metric309
   const insights = useMemo(() => buildInsights(d), [d])
@@ -697,41 +700,62 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
               <summary className="cursor-pointer text-sm font-semibold text-blue-600 dark:text-blue-400">
                 Tampilkan tabel {monthly.length} bulan
               </summary>
-              <div className="mt-3.5 max-h-96 overflow-auto rounded-lg border border-slate-200 dark:border-slate-800">
-                <table className="w-full min-w-160 text-left text-sm">
-                  <caption className="sr-only">Penambahan pelanggan per bulan</caption>
-                  <thead className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-xs text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/80">
-                    <tr>
-                      <th className="py-2 px-3">Bulan</th>
-                      <th className="px-3 text-right">PB</th>
-                      <th className="px-3 text-right">MoM</th>
-                      <th className="px-3 text-right">YoY</th>
-                      <th className="px-3 text-right">Mohon PB</th>
-                      <th className="px-3 text-right">Batal</th>
-                      <th className="px-3 text-right">Restitusi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {[...monthly].reverse().map((m) => (
-                      <tr key={m.month} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="py-2 px-3 font-medium">
-                          {monthLong(m.month)}
-                          {m.partial ? (
-                            <span className="ml-1.5 text-xs font-normal text-amber-700 dark:text-amber-400">
-                              (berjalan)
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-3 text-right tabular-nums">{fmtInt(m.pb_count)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtPct(m.mom_pct)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtPct(m.yoy_pct)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtInt(m.requests_pb)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtInt(m.cancelled)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtInt(m.refunded)}</td>
+              <div className="mt-3.5 space-y-3">
+                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                  <table className="w-full min-w-160 text-left text-sm">
+                    <caption className="sr-only">Penambahan pelanggan per bulan</caption>
+                    <thead className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-xs text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/80">
+                      <tr>
+                        <th className="py-2 px-3">Bulan</th>
+                        <th className="px-3 text-right">PB</th>
+                        <th className="px-3 text-right">MoM</th>
+                        <th className="px-3 text-right">YoY</th>
+                        <th className="px-3 text-right">Mohon PB</th>
+                        <th className="px-3 text-right">Batal</th>
+                        <th className="px-3 text-right">Restitusi</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {[...monthly]
+                        .reverse()
+                        .slice((monthlyPage - 1) * monthlyPerPage, monthlyPage * monthlyPerPage)
+                        .map((m) => (
+                        <tr key={m.month} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="py-2 px-3 font-medium">
+                            {monthLong(m.month)}
+                            {m.partial ? (
+                              <span className="ml-1.5 text-xs font-normal text-amber-700 dark:text-amber-400">
+                                (berjalan)
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-3 text-right tabular-nums">{fmtInt(m.pb_count)}</td>
+                          <td className="px-3 text-right tabular-nums">{fmtPct(m.mom_pct)}</td>
+                          <td className="px-3 text-right tabular-nums">{fmtPct(m.yoy_pct)}</td>
+                          <td className="px-3 text-right tabular-nums">{fmtInt(m.requests_pb)}</td>
+                          <td className="px-3 text-right tabular-nums">{fmtInt(m.cancelled)}</td>
+                          <td className="px-3 text-right tabular-nums">{fmtInt(m.refunded)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {monthly.length > 6 && (
+                  <div className="pt-2">
+                    <Pagination
+                      page={monthlyPage}
+                      total={monthly.length}
+                      perPage={monthlyPerPage}
+                      onPage={setMonthlyPage}
+                      onPerPage={(pp) => {
+                        setMonthlyPerPage(pp)
+                        setMonthlyPage(1)
+                      }}
+                      perPageOptions={[6, 12, 24, 36]}
+                    />
+                  </div>
+                )}
               </div>
             </details>
           </Section>
