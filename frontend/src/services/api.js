@@ -968,3 +968,22 @@ export const maximoSyncApi = {
   start: (body = {}) => request('/maximo-sync/runs', { method: 'POST', body }),
   run: (id) => request(`/maximo-sync/runs/${id}`),
 }
+
+/** Laporan bulanan EIS/AP2T (309, DIFI, GGN, KLH, Piutang, TAGSUS): daftar, kelengkapan, isi, dan impor (docs/88). */
+export const eisReportsApi = {
+  list: (params = {}) => request(`/eis-reports${qs(params)}`),
+  coverage: (params = {}) => request(`/eis-reports/coverage${qs(params)}`),
+  lines: (id) => request(`/eis-reports/${id}/lines`),
+  importFiles: (formData) => request('/eis-reports/import', { method: 'POST', body: formData }),
+}
+
+/** Nilai Kinerja Organisasi (NKO/KPI): definisi, snapshot, peringkat, masukan manual, dan hitung (docs/90). */
+export const nkoApi = {
+  definitions: (params = {}) => request(`/nko/definitions${qs(params)}`),
+  snapshots: (params = {}) => request(`/nko/snapshots${qs(params)}`),
+  snapshot: (id) => request(`/nko/snapshots/${id}`),
+  ranking: (params = {}) => request(`/nko/ranking${qs(params)}`),
+  inputs: (params = {}) => request(`/nko/inputs${qs(params)}`),
+  saveInputs: (body) => request('/nko/inputs', { method: 'PUT', body }),
+  calculate: (body) => request('/nko/calculate', { method: 'POST', body }),
+}

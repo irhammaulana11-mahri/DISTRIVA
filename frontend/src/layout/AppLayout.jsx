@@ -88,6 +88,7 @@ const masterDataNav = [
   { to: '/master-data/feeders', label: 'Master Penyulang', capability: 'feeders.view', icon: IconLayers, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/customers', label: 'Master Pelanggan', capability: 'customers.view', icon: IconUsers, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/gangguan-sinkron', label: 'Data Gangguan (Sinkron)', capability: 'outages.view', icon: IconZap, group: 'Aset Jaringan & Pelanggan' },
+  { to: '/master-data/laporan-eis', label: 'Laporan EIS Bulanan', capability: 'eis_reports.view', icon: IconFileText, group: 'Aset Jaringan & Pelanggan' },
 
   // Standar & Konstruksi
   { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'jaringan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
@@ -110,6 +111,7 @@ const masterDataNav = [
 // 4. Laporan & Monitoring (RKM, Forecasting, serta sub-halaman analitika)
 const reportsNav = [
   { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
+  { to: '/nko', label: 'NKO & Kinerja Unit', capability: 'nko.view', icon: IconChart },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
   { to: '/analisis-pelanggan', label: 'Analisis Pelanggan & Daya', anyOf: ['reports.view', 'forecast.view'], icon: IconUsers },
@@ -162,6 +164,7 @@ const titles = {
   '/forecast': 'Laporan & Monitoring / Forecasting',
   '/analisis-pelanggan': 'Laporan & Monitoring / Analisis Pelanggan & Daya',
   '/analisis-gangguan': 'Laporan & Monitoring / Analisis Gangguan',
+  '/nko': 'Laporan & Monitoring / Nilai Kinerja Organisasi (NKO)',
   '/permohonan': 'Operasional / Permohonan (PB/PD)',
   '/permohonan/sinkronisasi-eis': 'Operasional / Sinkronisasi EIS',
   '/survei': 'Operasional / Usulan Survei',
@@ -176,6 +179,7 @@ const titles = {
   '/master-data/feeders': 'Master Data / Master Penyulang',
   '/master-data/customers': 'Master Data / Master Pelanggan',
   '/master-data/gangguan-sinkron': 'Master Data / Data Gangguan (Sinkron)',
+  '/master-data/laporan-eis': 'Master Data / Laporan Bulanan EIS/AP2T',
   '/master-data/materials': 'Master Data / Katalog Material ERP',
   '/master-data/khs': 'Master Data / Katalog Harga Satuan (KHS)',
   '/master-data/mapping': 'Master Data / Pemetaan SKU↔KHS',
@@ -261,6 +265,7 @@ const getSectionForPath = (path) => {
     path.startsWith('/forecast') ||
     path.startsWith('/analisis-pelanggan') ||
     path.startsWith('/analisis-gangguan') ||
+    path.startsWith('/nko') ||
     path.startsWith('/reports')
   ) {
     return 'reports'

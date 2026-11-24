@@ -45,8 +45,9 @@ export function useScopedUnits(permission) {
     let first
     try { first = api.unitScopeApi?.get?.(permission) } catch { first = undefined }
     Promise.resolve(first)
-      .then((d) => {
+      .then((res) => {
         if (!live) return
+        const d = res?.data?.scope ? res.data : res
         if (d && d.scope) setInfo({ scope: d.scope, up3_units: d.up3_units || [], ulp_units: d.ulp_units || [], default_up3_id: d.default_up3_id, default_unit_id: d.default_unit_id })
         else fallback()
       })

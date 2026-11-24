@@ -77,6 +77,8 @@ import MtoDetailPage from './pages/mto/MtoDetailPage.jsx'
 import BackupPage from './pages/backup/BackupPage.jsx'
 import WhatsAppSettingsPage from './pages/settings/WhatsAppSettingsPage.jsx'
 import MfaSettingsPage from './pages/settings/MfaSettingsPage.jsx'
+import EisReportsPage from './pages/master-data/EisReportsPage.jsx'
+import NkoPage from './pages/nko/NkoPage.jsx'
 
 // UX gate only: the server enforces authentication on every request.
 function RequireAuth({ children }) {
@@ -167,8 +169,10 @@ export default function App() {
         <Route path="master-data/substation-measurements/:id" element={<RequireCapability capability="substations.view"><SubstationMeasurementDetailPage /></RequireCapability>} />
         <Route path="master-data/feeders" element={<RequireCapability capability="feeders.view"><FeedersPage /></RequireCapability>} />
         <Route path="master-data/customers" element={<RequireCapability capability="customers.view"><CustomersPage /></RequireCapability>} />
+        <Route path="master-data/laporan-eis" element={<RequireCapability capability="eis_reports.view"><EisReportsPage /></RequireCapability>} />
         <Route path="master-data/gangguan-sinkron" element={<RequireCapability capability="outages.view"><OutageSyncPage /></RequireCapability>} />
         <Route path="analisis-gangguan" element={<RequireCapability capability="outages.view"><OutageAnalysisPage /></RequireCapability>} />
+        <Route path="nko" element={<RequireCapability capability="nko.view"><NkoPage /></RequireCapability>} />
         <Route path="master-data/warehouses" element={<RequireCapability capability="master_data.view"><WarehousesPage /></RequireCapability>} />
         <Route path="master-data/warehouses/baru" element={<RequireCapability capability="warehouses.manage"><WarehouseCreatePage /></RequireCapability>} />
         <Route path="master-data/warehouses/tarik-mims" element={<RequireCapability capability="stock.import"><MimsStockPullPage /></RequireCapability>} />
