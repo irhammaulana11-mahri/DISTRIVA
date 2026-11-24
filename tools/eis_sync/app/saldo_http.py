@@ -91,12 +91,12 @@ def check_excel(data: bytes, content_type: str, status: int) -> str:
 
 def form_fields(html: str) -> dict[str, str]:
     """Isian form halaman seperti yang dikirim skrip konsol: semua input, select, dan textarea bernama KECUALI tombol (submit, button, image, reset) dan berkas. Tombol lain tidak boleh ikut
-    terkirim: ASP.NET menganggapnya tombol yang diklik sehingga kejadian Save atau Load Data tertimpa dan halaman hanya digambar ulang (bukan Excel)."""
-    form = BeautifulSoup(html, "html.parser").find("form")
-    if form is None:
-        return {}
+    terkirim: ASP.NET menganggapnya tombol yang diklik sehingga kejadian Save atau Load Data tertimpa dan halaman hanya digambar ulang (bukan Excel).
+    Dibaca dari SELURUH dokumen, bukan hanya di dalam tag <form>: parser html.parser menutup <form> lebih awal pada HTML yang tidak rapi dan membuang isian sesudahnya (mis. bagian popup ekspor
+    di akhir halaman), sedangkan peramban tetap menyertakannya; isian yang hilang membuat ASP.NET menolak postback (HTTP 500). Halaman ASP.NET hanya punya satu formulir."""
+    soup = BeautifulSoup(html, "html.parser")
     payload: dict[str, str] = {}
-    for el in form.find_all(["input", "select", "textarea"]):
+    for el in soup.find_all(["input", "select", "textarea"]):
         name = el.get("name")
         if not name:
             continue
@@ -115,6 +115,18 @@ def form_fields(html: str) -> dict[str, str]:
     return payload
 
 
+def post_headers(url: str) -> dict[str, str]:
+    """Header POST seperti peramban (Origin dan Referer); load balancer di depan EIS bisa menolak POST tanpa Origin."""
+    return {"Referer": url, "Origin": base().rsplit("/", 1)[0], "Cache-Control": "no-cache", "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7"}
+
+
+def with_diagnosis(error: Exception, payload: dict[str, str], response: requests.Response) -> Exception:
+    """Galat HTTP dari EIS dengan keterangan yang membantu mencari sebabnya: jumlah isian yang dikirim, isian kunci ASP.NET, dan awal jawaban (halaman galat ASP.NET menyebut sebabnya)."""
+    body = re.sub(r"\s+", " ", BeautifulSoup(response.text or "", "html.parser").get_text(" ", strip=True))[:300]
+    keys = ", ".join(f"{k}={'ada' if k in payload else 'TIDAK ADA'}" for k in ("__VIEWSTATE", "__EVENTVALIDATION", "pivotGrid$CallbackState", "ASPxPopupControl1$DropDownList2"))
+    return type(error)(f"{error} [{len(payload)} isian terkirim; {keys}; jawaban: {body or '(kosong)'}]")
+
+
 def page_form(session: requests.Session, url: str, step: str):
     response = session.get(url, timeout=(20, 90))
     eis._check_response(response, step)
@@ -130,8 +142,11 @@ def fetch_mycube(session: requests.Session, report: str, ulp: str, month: str) -
     url = f"{base()}/mycube.aspx?jenis={jenis}&parameter={quote(parameter, safe='')}"
     _response, payload = page_form(session, url, f"GET {report}")
     payload.update({"__EVENTTARGET": "", "__EVENTARGUMENT": "", "listExportFormatx": "Excel", "ASPxPopupControl1$DropDownList2": "Excel", "btnSave": "Save"})
-    answer = session.post(url, data=payload, timeout=(20, 180), headers={"Referer": url})
-    eis._check_response(answer, f"Export {report}")
+    answer = session.post(url, data=payload, timeout=(20, 180), headers=post_headers(url))
+    try:
+        eis._check_response(answer, f"Export {report}")
+    except eis.EISRequestError as e:
+        raise with_diagnosis(e, payload, answer) from None
     return answer.content, check_excel(answer.content, answer.headers.get("Content-Type", ""), answer.status_code)
 
 
@@ -157,7 +172,7 @@ def fetch_kogol(session: requests.Session, ulp: str, month: str) -> tuple[bytes,
     url = f"{base()}/saldo_pal_20.aspx"
     _response, payload = page_form(session, url, "GET Saldo PAL tanggal 20")
     payload.update({"__EVENTTARGET": "btnLoad", "__EVENTARGUMENT": "", "cbojenis_Value": "KOGOL", "cbojenis": "KOGOL", "cbojenis_SelIndex": "0"})
-    loaded = session.post(url, data=payload, timeout=(20, 180), headers={"Referer": url})
+    loaded = session.post(url, data=payload, timeout=(20, 180), headers=post_headers(url))
     eis._check_response(loaded, "Load Data KOGOL")
     head = _HEAD.search(BeautifulSoup(loaded.text, "html.parser").get_text(" ", strip=True))
     if not head:
@@ -166,7 +181,7 @@ def fetch_kogol(session: requests.Session, ulp: str, month: str) -> tuple[bytes,
         raise SaldoError(f"EIS menampilkan unit {head.group(1)} bulan {head.group(2)}/{head.group(3)}, bukan {ulp} {mm}/{year} (akun mungkin tidak boleh berpindah unit atau bulan)")
     payload = form_fields(loaded.text)
     payload.update({"__EVENTTARGET": "btnExport", "__EVENTARGUMENT": "", "cbojenis_Value": "KOGOL", "cbojenis": "KOGOL", "cbojenis_SelIndex": "0"})
-    answer = session.post(url, data=payload, timeout=(20, 180), headers={"Referer": url})
+    answer = session.post(url, data=payload, timeout=(20, 180), headers=post_headers(url))
     eis._check_response(answer, "Export KOGOL")
     return answer.content, check_excel(answer.content, answer.headers.get("Content-Type", ""), answer.status_code)
 

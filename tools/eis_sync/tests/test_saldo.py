@@ -116,6 +116,31 @@ class FormFieldsTest(unittest.TestCase):
         self.assertEqual(sh.form_fields("<p>tanpa form</p>"), {})
 
 
+class DiagnosisTest(unittest.TestCase):
+    def test_fields_after_a_form_closed_early_by_malformed_html_are_still_collected(self):
+        html = ('<form><input type="hidden" name="__VIEWSTATE" value="VS"><table><tr><td><input name="a" value="1"></td></tr></form>'
+                '<div><input type="hidden" name="ASPxPopupControl1$DropDownList2" value="Excel"></div></table><input name="z" value="9"></form>')
+        self.assertEqual(sh.form_fields(html), {"__VIEWSTATE": "VS", "a": "1", "ASPxPopupControl1$DropDownList2": "Excel", "z": "9"})
+
+    def test_an_http_500_names_the_fields_sent_and_the_start_of_the_answer_and_keeps_its_kind(self):
+        class Broken(FakeSession):
+            def post(self, url, data=None, **kw):
+                self.posts.append((url, dict(data)))
+                self.headers_seen = kw.get("headers")
+                return Reply("<html><body><h1>Server Error</h1><p>Invalid postback or callback argument.</p></body></html>", status=500)
+
+        s = Broken()
+        with self.assertRaises(sh.eis.EISTransientError) as ctx:
+            sh.fetch_mycube(s, "PRABAYAR", "51453", "2026-10")
+        message = str(ctx.exception)
+        self.assertIn("HTTP 500", message)
+        self.assertIn("Invalid postback or callback argument", message)
+        self.assertIn("isian terkirim", message)
+        self.assertIn("__EVENTVALIDATION=TIDAK ADA", message)                      # halaman tiruan tidak punya isian itu: terlihat jelas
+        self.assertEqual(s.headers_seen["Origin"], "http://eis.ap2t.pln.co.id")  # header POST seperti peramban
+        self.assertEqual(s.headers_seen["Referer"], s.gets[0])
+
+
 class RetryTest(unittest.TestCase):
     def test_a_transient_eis_error_is_retried_and_other_files_continue_when_it_keeps_failing(self):
         calls = {"n": 0}
