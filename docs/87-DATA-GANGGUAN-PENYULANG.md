@@ -26,5 +26,6 @@ Dua menu: **Master Data › Aset Jaringan & Pelanggan › Data Gangguan (Sinkron
 
 ## 4. Operasional
 - Perintah: `distriva:outage-sync-execute` (satu proses), `distriva:outage-sync-scheduled` (dipanggil penjadwal tiap menit).
+- Sesi yang tidak pernah selesai (proses mati atau tidak pernah mulai) tidak mengunci tombol: bila berstatus Menunggu atau Berjalan lebih dari 13 menit, sesi ditandai Gagal ("Dihentikan: proses tidak selesai.") saat status dibaca atau sesi baru dimulai. Bila proses terpisah tidak dapat dimulai sama sekali, sesi langsung ditandai Gagal dengan alasannya ("Proses sinkronisasi tidak dapat dimulai: ...") dan galatnya dikembalikan ke pemanggil. Aturan yang sama berlaku untuk sinkron EIS (permohonan dan piutang; batas `DISTRIVA_EIS_SYNC_TIMEOUT` + 10 menit).
 - Jika sheet tidak dapat dibaca (mis. tidak lagi dibagikan publik), riwayat mencatat pesan galat tanpa membocorkan alamat; data lama tidak berubah.
 - Tes: `OutageSyncTest`, `OutageAnalysisTest` (backend), `Outage.test.jsx` (frontend).

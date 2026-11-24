@@ -62,9 +62,7 @@ class EisSyncService
         if ($s->eis_username === null || $s->eis_password_encrypted === null) {
             throw new AssignmentRuleViolation('User dan password EIS belum diisi pada pengaturan sinkronisasi.');
         }
-        // a run that never finished (the process died) must not block the next one forever
-        DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.eis_sync.timeout_seconds') + 600))
-            ->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => DB::raw("coalesce(log, '') || E'\\nDihentikan: proses tidak selesai.'")]);
+        $this->expireStale();
         if (DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists()) {
             throw new AssignmentRuleViolation('Sinkronisasi EIS sedang berjalan; tunggu sampai selesai.');
         }
@@ -74,16 +72,29 @@ class EisSyncService
         return $id;
     }
 
-    /** Hands a registered run to a detached process (or runs it inline in tests). */
+    /** A run that never finished (the process died or never started) must not block the next one, or lock the button, forever. Called when a run starts and when the status is read. */
+    public function expireStale(): void
+    {
+        DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.eis_sync.timeout_seconds') + 600))
+            ->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => DB::raw("coalesce(log, '') || E'\\nDihentikan: proses tidak selesai.'")]);
+    }
+
+    /** Hands a registered run to a detached process (or runs it inline in tests). A process that cannot be started marks the run FAILED instead of leaving it waiting, and the error is passed on. */
     public function launch(string $runId): void
     {
-        if (config('distriva.eis_sync.run_inline')) {
-            Artisan::call('distriva:eis-sync-execute', ['id' => $runId]);
+        try {
+            if (config('distriva.eis_sync.run_inline')) {
+                Artisan::call('distriva:eis-sync-execute', ['id' => $runId]);
 
-            return;
+                return;
+            }
+            $cmd = sprintf('nohup %s artisan distriva:eis-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId));
+            Process::fromShellCommandline($cmd, base_path())->run();
+        } catch (\Throwable $e) {
+            DB::table('eis_sync_runs')->where('id', $runId)->whereIn('status', ['QUEUED', 'RUNNING'])->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => mb_substr('Proses sinkronisasi tidak dapat dimulai: '.$e->getMessage(), 0, 500)]);
+
+            throw $e;
         }
-        $cmd = sprintf('nohup %s artisan distriva:eis-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId));
-        Process::fromShellCommandline($cmd, base_path())->run();
     }
 
     /** Called every minute by the scheduler: starts the automatic run when it is due (once per business day, even if it failed). */

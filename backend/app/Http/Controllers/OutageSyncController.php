@@ -54,6 +54,7 @@ class OutageSyncController extends Controller
     public function showRun(Request $request, string $run): JsonResponse
     {
         $this->scoped->authorizeScope($request->user(), 'outages.view');
+        $this->sync->expireStale();
         $r = DB::table('outage_sync_runs')->where('id', $run)->first();
         abort_if($r === null, 404);
 

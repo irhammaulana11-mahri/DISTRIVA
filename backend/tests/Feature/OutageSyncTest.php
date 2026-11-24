@@ -10,6 +10,7 @@ use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\OutagePermissionSeeder;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -175,6 +176,40 @@ class OutageSyncTest extends PostgresTestCase
         $this->fake('', 404);
         $this->as($this->admin)->postJson('/api/outages/sync/runs')->assertStatus(202);
         $this->assertStringContainsString('HTTP 404', (string) DB::table('outage_sync_runs')->orderByDesc('created_at')->first()->message);
+    }
+
+    #[Test]
+    public function a_run_that_never_started_cannot_lock_the_button_and_a_launch_failure_marks_the_run_failed(): void
+    {
+        $this->configure();
+        // sisa klik yang gagal memulai proses: terdaftar tetapi tidak pernah berjalan
+        $stale = (string) Str::uuid();
+        DB::table('outage_sync_runs')->insert(['id' => $stale, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'created_at' => now()->subMinutes(30)]);
+        $fresh = (string) Str::uuid();
+        DB::table('outage_sync_runs')->insert(['id' => $fresh, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'created_at' => now()->subMinute()]);
+
+        $runs = $this->as($this->admin)->getJson('/api/outages/sync')->assertOk()->json('data.runs');                      // membaca status membersihkan yang macet
+        $byId = collect($runs)->keyBy('id');
+        $this->assertSame('FAILED', $byId[$stale]['status']);
+        $this->assertStringContainsString('proses tidak selesai', $byId[$stale]['message']);
+        $this->assertSame('QUEUED', $byId[$fresh]['status']);                                                                // yang baru masih boleh menunggu
+        $this->assertSame('FAILED', $this->as($this->admin)->getJson('/api/outages/sync/runs/'.$stale)->assertOk()->json('data.status'));
+        $this->as($this->admin)->postJson('/api/outages/sync/runs')->assertStatus(409);                                      // masih ada yang berjalan: tidak ditumpuk
+
+        // proses tidak dapat dimulai: run tidak dibiarkan Menunggu
+        DB::table('outage_sync_runs')->where('id', $fresh)->delete();
+        Artisan::shouldReceive('call')->andThrow(new \RuntimeException('boom'));
+        $this->withoutExceptionHandling();
+        try {
+            $this->as($this->admin)->postJson('/api/outages/sync/runs');
+            $this->fail('Galat peluncuran seharusnya diteruskan.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('boom', $e->getMessage());
+        }
+        $last = DB::table('outage_sync_runs')->orderByDesc('created_at')->first();
+        $this->assertSame('FAILED', $last->status);
+        $this->assertStringContainsString('tidak dapat dimulai: boom', (string) $last->message);
+        $this->assertFalse(DB::table('outage_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists());              // tombol tidak terkunci
     }
 
     #[Test]

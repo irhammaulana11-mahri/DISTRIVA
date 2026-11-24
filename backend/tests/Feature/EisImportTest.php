@@ -11,6 +11,7 @@ use Database\Seeders\EisReportPermissionSeeder;
 use Database\Seeders\SurveyPermissionSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -915,6 +916,33 @@ class EisImportTest extends PostgresTestCase
         $this->assertSame('permohonan', $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data.kind'));                         // the application pull is unchanged
         $this->assertContains('--per-unit', $args());
         $this->assertSame('piutang', $this->as($this->sysAdmin)->getJson('/api/eis-sync')->json('data.runs.1.kind'));
+    }
+
+    #[Test]
+    public function a_run_that_never_started_is_expired_when_the_status_is_read_and_a_launch_failure_marks_it_failed(): void
+    {
+        $this->fakeTool();
+        $this->as($this->sysAdmin)->putJson('/api/eis-sync/settings', $this->syncBody())->assertOk();
+        $stale = (string) Str::uuid();
+        DB::table('eis_sync_runs')->insert(['id' => $stale, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'kind' => 'PIUTANG', 'created_at' => now()->subHours(5)]);
+
+        $runs = collect($this->as($this->sysAdmin)->getJson('/api/eis-sync')->assertOk()->json('data.runs'))->keyBy('id');
+        $this->assertSame('FAILED', $runs[$stale]['status']);                                                                // dibersihkan saat status dibaca: tombol tidak terkunci
+        $this->assertSame('FAILED', $this->as($this->sysAdmin)->getJson('/api/eis-sync/runs/'.$stale)->assertOk()->json('data.status'));
+        $this->assertStringContainsString('proses tidak selesai', (string) DB::table('eis_sync_runs')->where('id', $stale)->value('log'));
+
+        Artisan::shouldReceive('call')->andThrow(new \RuntimeException('boom'));
+        $this->withoutExceptionHandling();
+        try {
+            $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs');
+            $this->fail('Galat peluncuran seharusnya diteruskan.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('boom', $e->getMessage());
+        }
+        $last = DB::table('eis_sync_runs')->orderByDesc('created_at')->first();
+        $this->assertSame('FAILED', $last->status);
+        $this->assertStringContainsString('tidak dapat dimulai: boom', (string) $last->log);
+        $this->assertFalse(DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists());
     }
 
     #[Test]

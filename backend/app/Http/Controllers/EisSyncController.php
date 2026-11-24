@@ -20,6 +20,7 @@ class EisSyncController extends Controller
     public function show(Request $request): JsonResponse
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
+        $this->sync->expireStale();
         $runs = DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->orderByDesc('r.created_at')->limit(10)->get(['r.*', 'u.email as started_by_email']);
 
         return response()->json(['data' => ['settings' => $this->sync->settings(), 'runs' => $runs->map(fn ($r) => $this->run($r, false))->all(), 'units' => $this->units($scope)]]);
@@ -74,6 +75,7 @@ class EisSyncController extends Controller
     public function showRun(Request $request, string $run): JsonResponse
     {
         $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
+        $this->sync->expireStale();
         $r = DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.id', $run)->first(['r.*', 'u.email as started_by_email']) ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
 
         return response()->json(['data' => $this->run($r, true)]);
