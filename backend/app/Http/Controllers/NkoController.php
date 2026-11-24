@@ -152,6 +152,14 @@ class NkoController extends Controller
                 'value' => $r['value'] ?? null, 'source' => $r['source'] ?? null, 'manual' => $r['manual'] ?? null, 'system' => $r['system'] ?? null, 'note' => $r['note'] ?? null];
         }
 
+        if (in_array(NkoRealizationResolver::SUSUT_CODE, array_column($nodes, 'code'), true)) {
+            foreach (NkoRealizationResolver::SUSUT_INPUTS as $code => $name) {
+                $r = $resolved[$code] ?? null;
+                $items[] = ['code' => $code, 'name' => $name, 'group' => 'Masukan pembantu susut', 'unit_label' => 'kWh', 'polarity' => null, 'weight' => null, 'target' => null, 'editable' => true, 'auxiliary' => true,
+                    'system_source' => false, 'system_validated' => true, 'value' => $r['value'] ?? null, 'source' => $r ? 'MANUAL' : null, 'manual' => $r['manual'] ?? null, 'system' => null, 'note' => $r['note'] ?? null];
+            }
+        }
+
         return response()->json(['data' => ['unit_id' => $unit->id, 'unit_name' => $unit->name, 'year' => (int) $d['year'], 'month' => (int) $d['month'], 'items' => $items]]);
     }
 
@@ -167,6 +175,11 @@ class NkoController extends Controller
         foreach ($nodes as $n) {
             if ($this->snapshots->needsRealisasi($n, (int) $d['month'])) {
                 $editable[$n['code']] = true;
+            }
+        }
+        if (in_array(NkoRealizationResolver::SUSUT_CODE, array_column($nodes, 'code'), true)) {
+            foreach (array_keys(NkoRealizationResolver::SUSUT_INPUTS) as $aux) {
+                $editable[$aux] = true;
             }
         }
         $bad = array_values(array_filter(array_column($d['items'], 'code'), fn ($c) => ! isset($editable[$c])));

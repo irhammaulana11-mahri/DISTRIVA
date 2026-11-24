@@ -249,6 +249,25 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertContains('gangguan-tm', NkoRealizationResolver::UNVALIDATED_CODES);
     }
 
+    #[Test]
+    public function susut_dihitung_dari_kwh_beli_emin_pssd_manual_dan_kwh_jual_total_309(): void
+    {
+        $resolver = app(NkoRealizationResolver::class);
+        $aux = fn (string $code, float $v) => DB::table('kpi_manual_inputs')->insert(['id' => (string) Str::uuid(), 'definition_code' => $code, 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-01-01', 'value' => $v, 'created_at' => now(), 'updated_at' => now()]);
+        $aux('kwh-beli', 1000000);
+        $aux('e-min', 50000);
+        $aux('pssd', 30000);
+        $this->assertArrayNotHasKey('susut-distribusi-tanpa-e-min', $resolver->resolve($this->ulpA->id, 2026, 1));   // laporan 309 belum ada
+
+        $this->report309($this->ulpA, '2026-01-01', 1, 1);   // kWh jual JUMLAH diisi pada baris di bawah
+        DB::table('eis_report_lines')->where('label', 'JUMLAH')->update(['values' => json_encode(['pelanggan' => 1, 'daya_va' => 1, 'kwh_jumlah' => 870000])]);
+
+        $r = $resolver->resolve($this->ulpA->id, 2026, 1)['susut-distribusi-tanpa-e-min'];
+        $this->assertEqualsWithDelta((920000 - 870000) / 920000 * 100, $r['value'], 1e-9);   // (beli - emin - pssd - jual) / (beli - emin - pssd)
+        $this->assertSame('SISTEM', $r['source']);
+        $this->assertContains('susut-distribusi-tanpa-e-min', NkoRealizationResolver::UNVALIDATED_CODES);
+    }
+
     private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, float $kwh): void
     {
         $id = (string) Str::uuid();
