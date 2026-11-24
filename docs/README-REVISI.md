@@ -16,6 +16,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 ## Terbuka
 
 (Tidak ada tugas terbuka saat ini)
+| 10 | 2026-11-24 | (belum di-commit) | **Pelanggan dan Daya: angka resmi 309 + pendamping permohonan + rekonsiliasi**: `GET /pengusahaan/metrics/{pelanggan\|daya}` kini memuat `companions` (PB tersambung, permohonan masuk / daya PB dan PD neto dalam MVA), `reconciliation` (tambahan bersih 309 lawan permohonan per bulan dan kumulatif tahun berjalan, hanya ULP yang punya 309 di kedua ujung) dan `forecast.kind`; metrik lain: ketiganya `null` | docs/91 §3 dan §4 | (a) Tab **Tren & Analisis** Pelanggan dan Daya memakai pola metrik standar dari respons ini (grafik 309 lawan tahun lalu, kartu nilai terakhir/MoM/YoY/kumulatif, rincian tarif, perbandingan ULP, wawasan, banner UP3 belum utuh), **bukan** komponen Analisa Pelanggan lama. (b) Bagian terpisah **Penjelas (Permohonan EIS)** dari `companions` dan **Rekonsiliasi** dari `reconciliation` (tabel bulan + baris kumulatif `ytd` dengan `units_compared/units_expected`, tampilkan `note`); label jelas bahwa 309 = resmi, permohonan = penjelas. (c) Tab **Prakiraan** memakai `forecast.kind`; satu pilihan unit dan rentang untuk kedua sumber. (d) `/analisis-pelanggan` dialihkan ke `/pengusahaan/pelanggan`, perbaiki breadcrumb; bagian analisa per permohonan lama jadi tab **Rincian** | BARU | |
 
 ## Selesai
 

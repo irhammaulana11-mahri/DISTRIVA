@@ -100,6 +100,86 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertStringContainsString('hanya mencakup 1 dari 2 ULP', $d['insights'][0]['text']);
     }
 
+    /** @param list<array{string, int}> $counts [periode, pelanggan] Laporan 309 baris JUMLAH */
+    private function customers309(OrganizationalUnit $unit, array $counts): void
+    {
+        foreach ($counts as [$period, $n]) {
+            $this->report($unit, '309', $period, [['JUMLAH', ['kwh_jumlah' => 0, 'pelanggan' => $n, 'daya_va' => 1000, 'rp_jumlah' => 0]]]);
+        }
+    }
+
+    private ?array $applicationTemplate = null;
+
+    /** Satu permohonan tersambung (status PEREMAJAAN dilihat pada $when), seperti pada tes pertumbuhan pelanggan. */
+    private function connected(OrganizationalUnit $ulp, string $type, float $delta, string $when): void
+    {
+        if ($this->applicationTemplate === null) {
+            $retail = $this->makeUser();
+            $this->assign($retail, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $ulp);
+            $id = $this->as($retail)->postJson('/api/applications', ['application_type' => 'PB', 'transaction_type' => 'PASANG BARU', 'organizational_unit_id' => $ulp->getKey(),
+                'customer' => ['name' => 'Siti', 'phone' => '081234567890'], 'service_address' => 'Jl. A', 'new_power_value' => 900, 'new_power_unit' => 'VA'])->assertCreated()->json('data.id');
+            $this->applicationTemplate = (array) DB::table('applications')->where('id', $id)->first();
+        }
+        $id = (string) Str::uuid();
+        DB::table('applications')->insert(array_merge($this->applicationTemplate, ['id' => $id, 'application_number' => 'T-'.Str::random(10), 'application_type' => $type, 'transaction_type' => $type === 'PB' ? 'PASANG BARU' : 'PERUBAHAN DAYA',
+            'organizational_unit_id' => $ulp->getKey(), 'delta_power_kva' => $delta, 'current_status' => 'CONNECTION_DONE', 'source_created_at' => $when.' 08:00:00', 'last_external_status_at' => $when.' 09:00:00', 'created_at' => $when.' 08:00:00', 'updated_at' => $when.' 09:00:00']));
+        DB::table('application_external_status_histories')->insert(['id' => (string) Str::uuid(), 'application_id' => $id, 'external_system' => 'EIS', 'external_status_code' => 'PEREMAJAAN', 'observed_at' => $when.' 09:00:00', 'received_at' => $when.' 09:00:00']);
+    }
+
+    #[Test]
+    public function metrik_pelanggan_membawa_pendamping_permohonan_dan_rekonsiliasi_kumulatif_pada_ulp_yang_sama(): void
+    {
+        $this->customers309($this->ulpA, [['2025-12-01', 1000], ['2026-01-01', 1010], ['2026-02-01', 1025], ['2026-03-01', 1040]]);
+        $this->customers309($this->ulpB, [['2026-01-01', 505], ['2026-02-01', 508], ['2026-03-01', 520]]);   // ULP B tanpa Laporan 309 Desember 2025: tidak ikut rekonsiliasi
+        foreach ([['2026-01-05', 3], ['2026-02-05', 4], ['2026-03-05', 5]] as [$when, $n]) {
+            for ($i = 0; $i < $n; $i++) {
+                $this->connected($this->ulpA, 'PB', 2.2, $when);
+            }
+        }
+        $this->connected($this->ulpB, 'PB', 2.2, '2026-02-10');
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->up3->id}&from=2026-01&to=2026-03")->assertOk()->json('data');
+
+        $pb = collect($d['companions']['series'])->firstWhere('key', 'pb');
+        $this->assertEquals([3, 5, 5], $pb['values']);                                  // ULP A dan ULP B digabung untuk UP3
+        $this->assertEquals(13, $pb['ytd']);
+        $this->assertSame(['kind' => 'CUSTOMERS_ADDED'], $d['forecast']);
+        $y = $d['reconciliation']['ytd'];
+        $this->assertSame(['2025-12', '2026-03', 1, 2], [$y['base_month'], $y['to_month'], $y['units_compared'], $y['units_expected']]);
+        $this->assertEquals(40, $y['official_net']);                                     // 1040 - 1000, hanya ULP A
+        $this->assertEquals(12, $y['companion']);                                        // PB ULP A saja (ULP yang sama dengan angka resmi)
+        $this->assertEquals(-28, $y['difference']);
+        $m = collect($d['reconciliation']['monthly'])->keyBy('month');
+        $this->assertEquals([10, 3, 1], [$m['2026-01']['official_net'], $m['2026-01']['companion'], $m['2026-01']['units_compared']]);
+        $this->assertEquals([18, 5, 2], [$m['2026-02']['official_net'], $m['2026-02']['companion'], $m['2026-02']['units_compared']]);   // per bulan: ULP yang punya 309 bulan itu dan bulan sebelumnya (kedua ULP)
+        $this->assertSame('perhatian', collect($d['insights'])->last()['level']);
+        $this->assertStringContainsString('melebihi permohonan', collect($d['insights'])->last()['text']);
+    }
+
+    #[Test]
+    public function metrik_daya_mengonversi_kva_permohonan_ke_mva_dan_metrik_lain_tanpa_pendamping(): void
+    {
+        foreach (['2025-12-01' => 5_000_000, '2026-03-01' => 5_016_000] as $period => $va) {
+            $this->report($this->ulpA, '309', $period, [['JUMLAH', ['kwh_jumlah' => 0, 'pelanggan' => 10, 'daya_va' => $va, 'rp_jumlah' => 0]]]);
+        }
+        $this->connected($this->ulpA, 'PB', 10, '2026-02-03');
+        $this->connected($this->ulpA, 'PB', 10, '2026-03-03');
+        $this->connected($this->ulpA, 'PD', -4, '2026-03-04');
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/daya?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data');
+
+        $this->assertSame(['kind' => 'VA_ADDED'], $d['forecast']);
+        $this->assertEqualsWithDelta(0.016, $d['reconciliation']['ytd']['companion'], 1e-9);            // (10 + 10 - 4) kVA = 0,016 MVA
+        $this->assertSame('MVA', $d['reconciliation']['unit']);
+        $pbMva = collect($d['companions']['series'])->firstWhere('key', 'pb_kva');
+        $this->assertEqualsWithDelta(0.01, $pbMva['latest'], 1e-9);
+
+        $kwh = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data');
+        $this->assertNull($kwh['companions']);
+        $this->assertNull($kwh['reconciliation']);
+        $this->assertNull($kwh['forecast']);
+    }
+
     #[Test]
     public function waktu_respons_gangguan_tertimbang_jumlah_kejadian_tanpa_baris_total(): void
     {
