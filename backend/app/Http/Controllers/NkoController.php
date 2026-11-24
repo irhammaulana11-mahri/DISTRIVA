@@ -152,10 +152,15 @@ class NkoController extends Controller
                 'value' => $r['value'] ?? null, 'source' => $r['source'] ?? null, 'manual' => $r['manual'] ?? null, 'system' => $r['system'] ?? null, 'note' => $r['note'] ?? null];
         }
 
-        if (in_array(NkoRealizationResolver::SUSUT_CODE, array_column($nodes, 'code'), true)) {
-            foreach (NkoRealizationResolver::SUSUT_INPUTS as $code => $name) {
+        $nodeCodes = array_column($nodes, 'code');
+        $nodeIds = array_column($nodes, 'id', 'code');
+        foreach (NkoRealizationResolver::auxiliaryInputs() as $owner => $inputs) {
+            if (! in_array($owner, $nodeCodes, true)) {
+                continue;
+            }
+            foreach ($inputs as $code => $name) {
                 $r = $resolved[$code] ?? null;
-                $items[] = ['code' => $code, 'name' => $name, 'group' => 'Masukan pembantu susut', 'unit_label' => 'kWh', 'polarity' => null, 'weight' => null, 'target' => null, 'editable' => true, 'auxiliary' => true,
+                $items[] = ['code' => $code, 'name' => $name, 'group' => 'Masukan pembantu: '.$meta[$nodeIds[$owner]]->name, 'unit_label' => $owner === NkoRealizationResolver::SUSUT_CODE ? 'kWh' : 'Rp juta', 'polarity' => null, 'weight' => null, 'target' => null, 'editable' => true, 'auxiliary' => true,
                     'system_source' => false, 'system_validated' => true, 'value' => $r['value'] ?? null, 'source' => $r ? 'MANUAL' : null, 'manual' => $r['manual'] ?? null, 'system' => null, 'note' => $r['note'] ?? null];
             }
         }
@@ -177,9 +182,11 @@ class NkoController extends Controller
                 $editable[$n['code']] = true;
             }
         }
-        if (in_array(NkoRealizationResolver::SUSUT_CODE, array_column($nodes, 'code'), true)) {
-            foreach (array_keys(NkoRealizationResolver::SUSUT_INPUTS) as $aux) {
-                $editable[$aux] = true;
+        foreach (NkoRealizationResolver::auxiliaryInputs() as $owner => $inputs) {
+            if (in_array($owner, array_column($nodes, 'code'), true)) {
+                foreach (array_keys($inputs) as $aux) {
+                    $editable[$aux] = true;
+                }
             }
         }
         $bad = array_values(array_filter(array_column($d['items'], 'code'), fn ($c) => ! isset($editable[$c])));

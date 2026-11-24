@@ -291,6 +291,32 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertContains('penjualan-tenaga-listrik', NkoRealizationResolver::UNVALIDATED_CODES);
     }
 
+    #[Test]
+    public function pelunasan_prabayar_dari_selisih_piutang_bulan_lalu_dan_bulan_ini_ditambah_prr_manual(): void
+    {
+        $resolver = app(NkoRealizationResolver::class);
+        $piutang = function (string $period, float $baru, float $berjalan, float $tunggakan) {
+            $id = (string) Str::uuid();
+            DB::table('eis_report_files')->insert(['id' => $id, 'family' => 'PIUTANGLPB_EIS', 'unit_code' => $this->ulpA->code, 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'original_name' => 'P.xls',
+                'sha256' => hash('sha256', $id), 'size_bytes' => 1, 'status' => 'AKTIF', 'summary' => '{}', 'line_count' => 4, 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+            foreach (['BARU' => $baru, 'BERJALAN' => $berjalan, 'TUNGGAKAN' => $tunggakan] as $i => $v) {
+                DB::table('eis_report_lines')->insert(['file_id' => $id, 'line_no' => count(DB::table('eis_report_lines')->where('file_id', $id)->get()) + 1, 'label' => $i, 'values' => json_encode(['rptag' => $v])]);
+            }
+            DB::table('eis_report_lines')->insert(['file_id' => $id, 'line_no' => 9, 'label' => 'NO REGISTER Total', 'values' => json_encode(['rptag' => 999999999])]);   // baris total tidak ikut
+        };
+        $piutang('2025-12-01', 10e6, 20e6, 30e6);   // 60 juta
+        $this->assertArrayNotHasKey('pencapaian-pelunasan-prr-ex-prr-dan-piutang-prabayar', $resolver->resolve($this->ulpA->id, 2026, 1));   // Januari belum ada
+
+        $piutang('2026-01-01', 5e6, 15e6, 25e6);    // berjalan+tunggakan 40 juta: lunas 60-40 = 20
+        $this->assertEqualsWithDelta(20.0, $resolver->resolve($this->ulpA->id, 2026, 1)[NkoRealizationResolver::PELUNASAN_CODE]['value'], 1e-9);
+
+        $piutang('2026-02-01', 0, 20e6, 30e6);      // lalu 45 juta, kini 50 juta: negatif dihitung 0
+        $this->assertEqualsWithDelta(20.0, $resolver->resolve($this->ulpA->id, 2026, 2)[NkoRealizationResolver::PELUNASAN_CODE]['value'], 1e-9);
+
+        DB::table('kpi_manual_inputs')->insert(['id' => (string) Str::uuid(), 'definition_code' => 'prr-lunas', 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-02-01', 'value' => 7.5, 'created_at' => now(), 'updated_at' => now()]);
+        $this->assertEqualsWithDelta(27.5, $resolver->resolve($this->ulpA->id, 2026, 2)[NkoRealizationResolver::PELUNASAN_CODE]['value'], 1e-9);
+    }
+
     private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, float $kwh): void
     {
         $id = (string) Str::uuid();

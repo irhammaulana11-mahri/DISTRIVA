@@ -14,7 +14,19 @@ class NkoRealizationResolver
     /** kode indikator => jenis sumber sistem */
     public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh', 'penambahan-pelanggan' => 'pelanggan_309', 'daya-tersambung' => 'daya_309',
         'gangguan-tm' => 'gangguan_penyulang', 'response-time-atas-gangguan-diluar-clear-tamper' => 'response_ggnall', 'feedback-rating-negatif-pada-pln-mobile-gangguan' => 'rating_negatif_ggn',
-        'susut-distribusi-tanpa-e-min' => 'susut_hitung', 'penjualan-tenaga-listrik' => 'penjualan_selisih'];
+        'susut-distribusi-tanpa-e-min' => 'susut_hitung', 'penjualan-tenaga-listrik' => 'penjualan_selisih',
+        self::PELUNASAN_CODE => 'pelunasan_prabayar'];
+
+    public const PELUNASAN_CODE = 'pencapaian-pelunasan-prr-ex-prr-dan-piutang-prabayar';
+
+    /** @var array<string, string> masukan pembantu pelunasan (Rp juta, kumulatif, manual): PRR dan Ex-PRR belum punya data */
+    public const PELUNASAN_INPUTS = ['prr-lunas' => 'Pelunasan PRR (Rp juta, kumulatif)', 'ex-prr-lunas' => 'Pelunasan Ex-PRR (Rp juta, kumulatif)'];
+
+    /** @return array<string, array<string, string>> kode indikator => masukan pembantunya */
+    public static function auxiliaryInputs(): array
+    {
+        return [self::SUSUT_CODE => self::SUSUT_INPUTS, self::PELUNASAN_CODE => self::PELUNASAN_INPUTS];
+    }
 
     /** kode susut dan masukan pembantunya (kWh kumulatif, diisi manual; kWh jual dari total laporan 309) */
     public const SUSUT_CODE = 'susut-distribusi-tanpa-e-min';
@@ -23,7 +35,7 @@ class NkoRealizationResolver
     public const SUSUT_INPUTS = ['kwh-beli' => 'kWh Beli (kumulatif)', 'e-min' => 'E-Min (kWh, kumulatif)', 'pssd' => 'PSSD (kWh, kumulatif)'];
 
     /** sumber sistem yang dimuat otomatis tetapi belum cocok dengan angka workbook (dapat dikoreksi dengan masukan manual disertai alasan) */
-    public const UNVALIDATED_CODES = ['penjualan-tenaga-listrik', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
+    public const UNVALIDATED_CODES = [self::PELUNASAN_CODE, 'penjualan-tenaga-listrik', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
 
     /**
      * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string}> menurut kode indikator
@@ -48,7 +60,7 @@ class NkoRealizationResolver
      */
     public function systemValues(string $unitId, int $year, int $month): array
     {
-        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($unitId, $year, $month) + $this->susutValues($unitId, $year, $month) + $this->penjualanValues($unitId, $year, $month);
+        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($unitId, $year, $month) + $this->susutValues($unitId, $year, $month) + $this->penjualanValues($unitId, $year, $month) + $this->pelunasanValues($unitId, $year, $month);
     }
 
     /**
@@ -77,6 +89,46 @@ class NkoRealizationResolver
             'penambahan-pelanggan' => (float) $now['pelanggan'] - (float) $base['pelanggan'],
             'daya-tersambung' => ((float) $now['daya_va'] - (float) $base['daya_va']) / 1000000,
         ];
+    }
+
+    /**
+     * Pelunasan (Rp juta, kumulatif) = komponen piutang prabayar dari laporan PIUTANGLPB_EIS + PRR + Ex-PRR (dua terakhir masukan manual pembantu, dianggap 0 bila kosong).
+     * Pelunasan prabayar tiap bulan = (BARU + BERJALAN + TUNGGAKAN bulan lalu) - (BERJALAN + TUNGGAKAN bulan ini), nilai negatif dihitung 0, dijumlahkan Januari sampai bulan berjalan
+     * (Januari memakai laporan Desember tahun lalu; semua laporan harus ada). Definisi dari pemilik; kumulatif September Jombang 117,36 lawan workbook 117,53 (bulan awal workbook belum terisi).
+     *
+     * @return array<string, float>
+     */
+    private function pelunasanValues(string $unitId, int $year, int $month): array
+    {
+        $balances = function (string $period) use ($unitId): ?array {
+            $file = DB::table('eis_report_files')->where('family', 'PIUTANGLPB_EIS')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)->where('period', $period)->value('id');
+            if ($file === null) {
+                return null;
+            }
+            $out = ['BARU' => 0.0, 'BERJALAN' => 0.0, 'TUNGGAKAN' => 0.0];
+            foreach (DB::table('eis_report_lines')->where('file_id', $file)->whereIn('label', array_keys($out))->get(['label', 'values']) as $l) {
+                $out[$l->label] += (float) (json_decode($l->values, true)['rptag'] ?? 0);
+            }
+
+            return $out;
+        };
+        $prev = $balances(($year - 1).'-12-01');
+        if ($prev === null) {
+            return [];
+        }
+        $total = 0.0;
+        for ($m = 1; $m <= $month; $m++) {
+            $cur = $balances(sprintf('%04d-%02d-01', $year, $m));
+            if ($cur === null) {
+                return [];
+            }
+            $total += max(0.0, array_sum($prev) - ($cur['BERJALAN'] + $cur['TUNGGAKAN']));
+            $prev = $cur;
+        }
+        $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))
+            ->whereIn('definition_code', array_keys(self::PELUNASAN_INPUTS))->pluck('value')->sum();
+
+        return [self::PELUNASAN_CODE => $total / 1000000 + (float) $manual];
     }
 
     /**
