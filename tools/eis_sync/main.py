@@ -13,6 +13,7 @@
   python main.py sync --metode http --unit 51453 [--unit 51454]   hanya unit itu (kode ULP)
   python main.py sync --sumber grid              ... baca tabel hasil di layar (tanpa Export Excel) menjadi CSV yang diimpor DISTRIVA
   python main.py sync --berkas FILE              skip the EIS and upload a file that was exported before
+  python main.py piutang --dari 2026-01 --sampai 2026-10 [--unit 51453] [--laporan GOLONGAN,LEMBAR,KOGOL]   laporan saldo piutang (per golongan, per lembar, kogol) per ULP per bulan -> ZIP -> impor laporan EIS DISTRIVA
   python main.py schedule [--jam 18:13]          run `sync` every day at that time (add --konfirmasi to apply)
 The old receivables ("piutang", MongoDB) job is unchanged: python piutang.py
 Dates: dd/mm/yyyy or yyyy-mm-dd.
@@ -223,6 +224,33 @@ def do_sync(args):
     return 0
 
 
+def do_piutang(args):
+    """Laporan saldo piutang bulanan (docs/88): bulan demi bulan, semua unit yang dipilih, tiga laporan; satu ZIP per bulan diunggah ke impor laporan EIS."""
+    from app import permohonan_http as eis
+    from app import saldo_http
+    from app.distriva import DistrivaClient
+    last = saldo_http.parse_month(args.sampai)
+    first = saldo_http.parse_month(args.dari) if args.dari else last
+    if first > last:
+        raise SystemExit("--dari tidak boleh setelah --sampai.")
+    months = saldo_http.months_between(first, last)
+    if len(months) > 24:
+        raise SystemExit("Paling banyak 24 bulan per putaran.")
+    wanted = [x.strip().upper() for x in (args.laporan or "").split(",") if x.strip()] or list(saldo_http.LAPORAN)
+    unknown = [x for x in wanted if x not in saldo_http.LAPORAN]
+    if unknown:
+        raise SystemExit(f"Laporan tidak dikenal: {', '.join(unknown)}. Pilihan: {', '.join(saldo_http.LAPORAN)}.")
+    session = eis.http_session()
+    units, _known = _unit_choices(args, session)
+    client = DistrivaClient()
+    client.login()
+    print(f"Mulai: {len(wanted)} laporan x {len(units)} unit x {len(months)} bulan ({first} s.d. {last})", flush=True)
+    try:
+        return saldo_http.run(client, units, months, wanted, keep_dir=args.simpan_zip)
+    finally:
+        client.logout()
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Sinkron permohonan EIS (Layanan > Monitoring Permohonan Detail) ke DISTRIVA")
     sub = ap.add_subparsers(dest="cmd")
@@ -246,6 +274,12 @@ def main(argv=None):
             p.add_argument("--berkas")
         if name == "schedule":
             p.add_argument("--jam", default="18:13")
+    pp = sub.add_parser("piutang")
+    pp.add_argument("--dari", help="bulan awal YYYY-MM (bawaan: sama dengan --sampai)")
+    pp.add_argument("--sampai", required=True, help="bulan akhir YYYY-MM")
+    pp.add_argument("--unit", action="append", help="hanya unit ini (kode ULP); boleh diulang atau dipisah koma; bawaan semua unit di kotak UP EIS")
+    pp.add_argument("--laporan", help="GOLONGAN,LEMBAR,KOGOL (bawaan: ketiganya)")
+    pp.add_argument("--simpan-zip", dest="simpan_zip", help="folder untuk menyimpan ZIP tiap bulan (bawaan: tidak disimpan)")
     args = ap.parse_args(argv)
     if args.cmd is None:                                # `python main.py` alone: show how to use it (nothing is run, no login, no upload)
         print(__doc__)
@@ -270,6 +304,8 @@ def main(argv=None):
         return 0
     if args.cmd == "sync":
         return do_sync(args)
+    if args.cmd == "piutang":
+        return do_piutang(args)
     from apscheduler.schedulers.blocking import BlockingScheduler
     hour, minute = args.jam.split(":")
     args.berkas = None

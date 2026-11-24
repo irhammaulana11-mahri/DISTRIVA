@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Tidak ada tugas terbuka saat ini)*
+| # | Tanggal | Commit backend | Perubahan | Dokumen | Kebutuhan frontend | Status | Catatan |
+|---|---|---|---|---|---|---|---|
+| 9 | 2026-11-24 | (belum di-commit) | **Sinkronisasi saldo piutang EIS dari DISTRIVA**: `POST /eis-sync/runs` menerima `kind: "piutang"` (+ `to_month` YYYY-MM wajib, `from_month`, `reports` GOLONGAN/LEMBAR/KOGOL, `units`); respons dan riwayat `GET /eis-sync` kini memuat `kind` (`permohonan`\|`piutang`) dan `options` | docs/88 §5 | Halaman Sinkronisasi EIS: kartu baru **Tarik Laporan Piutang** (di bawah kartu tarik permohonan): pilihan Bulan akhir (wajib) dan Bulan awal (bawaan sama; paling banyak 24 bulan), centang laporan (Per Golongan, Per Lembar, Kogol; bawaan ketiganya), pilihan unit (daftar `units` yang sama), tombol **Tarik Piutang** memanggil `POST /eis-sync/runs {kind:"piutang", ...}`; tampilkan sesi seperti sinkron permohonan (polling `GET /eis-sync/runs/{id}` untuk log); riwayat diberi label jenis (`kind`). Galat 409 (sedang berjalan, di luar cakupan, lebih dari 24 bulan) tampilkan pesan apa adanya. Setelah selesai arahkan ke Laporan EIS / Analisa Pengusahaan | BARU | |
 
 ## Selesai
 

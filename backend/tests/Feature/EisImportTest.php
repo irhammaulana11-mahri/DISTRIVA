@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Applications\EisSyncService;
 use Database\Seeders\ApplicationPermissionSeeder;
+use Database\Seeders\EisReportPermissionSeeder;
 use Database\Seeders\SurveyPermissionSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -878,6 +879,42 @@ class EisImportTest extends PostgresTestCase
 
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202);                         // no choice = every unit
         $this->assertNotContains('--unit', json_decode((string) file_get_contents($dir.'/seen.json'), true)['args']);
+    }
+
+    #[Test]
+    public function a_receivable_run_hands_the_months_reports_and_units_to_the_tool_and_is_kept_with_its_kind(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        $dir = $this->fakeTool();
+        $this->as($this->sysAdmin)->putJson('/api/eis-sync/settings', $this->syncBody())->assertOk();
+        $args = fn () => json_decode((string) file_get_contents($dir.'/seen.json'), true)['args'];
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'from_month' => '2026-01', 'to_month' => '2026-10', 'reports' => ['KOGOL', 'GOLONGAN', 'KOGOL'], 'units' => ['51453']])->assertStatus(202)->json('data');
+        $this->assertSame('piutang', $run['kind']);
+        $this->assertEquals(['from_month' => '2026-01', 'to_month' => '2026-10', 'reports' => ['KOGOL', 'GOLONGAN']], $run['options']);
+        $seen = $args();
+        $this->assertSame('piutang', $seen[0]);
+        $this->assertSame('2026-01', $seen[array_search('--dari', $seen, true) + 1]);
+        $this->assertSame('2026-10', $seen[array_search('--sampai', $seen, true) + 1]);
+        $this->assertSame('KOGOL,GOLONGAN', $seen[array_search('--laporan', $seen, true) + 1]);
+        $this->assertSame('51453', $seen[array_search('--unit', $seen, true) + 1]);
+        $this->assertNotContains('--per-unit', $seen);
+
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10'])->assertStatus(202);                          // a month alone, all reports, all units
+        $seen = $args();
+        $this->assertSame(['2026-10', '2026-10', 'GOLONGAN,LEMBAR,KOGOL'], [$seen[array_search('--dari', $seen, true) + 1], $seen[array_search('--sampai', $seen, true) + 1], $seen[array_search('--laporan', $seen, true) + 1]]);
+        $this->assertNotContains('--unit', $seen);
+
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang'])->assertUnprocessable();                                              // the last month is required
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'from_month' => '2026-10', 'to_month' => '2026-01'])->assertUnprocessable();
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10', 'reports' => ['SEMUA']])->assertUnprocessable();
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'from_month' => '2024-01', 'to_month' => '2026-10'])->assertStatus(409);        // at most 24 months
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'lain'])->assertUnprocessable();
+        $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10', 'units' => ['51454']])->assertStatus(409);     // a unit outside the scope
+
+        $this->assertSame('permohonan', $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data.kind'));                         // the application pull is unchanged
+        $this->assertContains('--per-unit', $args());
+        $this->assertSame('piutang', $this->as($this->sysAdmin)->getJson('/api/eis-sync')->json('data.runs.1.kind'));
     }
 
     #[Test]

@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Services\Applications\EisSyncService;
 use App\Services\Authorization\ApplicationAuthorizer;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,19 +37,35 @@ class EisSyncController extends Controller
         return response()->json(['data' => $this->sync->save($d, $request->user()), 'message' => 'Pengaturan sinkronisasi EIS disimpan.']);
     }
 
-    /** POST /eis-sync/runs — starts a manual run (optionally of a given Range Mohon); answers at once, the run goes on in its own process. */
+    /**
+     * POST /eis-sync/runs — starts a manual run; answers at once, the run goes on in its own process. `kind` = permohonan (default; optionally of a given Range Mohon) or piutang
+     * (the monthly receivable reports per golongan / per lembar / kogol for `from_month`..`to_month` into the EIS report import, docs/88).
+     */
     public function start(Request $request): JsonResponse
     {
         $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
-        $this->authorizer->authorizeScope($request->user(), 'applications.import');
+        $piutang = $request->input('kind') === 'piutang';
+        $this->authorizer->authorizeScope($request->user(), $piutang ? 'eis_reports.import' : 'applications.import');
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
-        $d = Validator::make($request->all(), ['from' => ['nullable', 'date_format:Y-m-d', 'required_with:to'], 'to' => ['nullable', 'date_format:Y-m-d', 'required_with:from', 'after_or_equal:from'],
-            'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/'], 'complete_old' => ['sometimes', 'boolean']])->validate();
+        $rules = ['kind' => ['sometimes', 'in:permohonan,piutang'], 'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']];
+        $rules += $piutang
+            ? ['from_month' => ['nullable', 'date_format:Y-m'], 'to_month' => ['required', 'date_format:Y-m', 'after_or_equal:from_month'], 'reports' => ['sometimes', 'array', 'min:1'], 'reports.*' => ['in:GOLONGAN,LEMBAR,KOGOL']]
+            : ['from' => ['nullable', 'date_format:Y-m-d', 'required_with:to'], 'to' => ['nullable', 'date_format:Y-m-d', 'required_with:from', 'after_or_equal:from'], 'complete_old' => ['sometimes', 'boolean']];
+        $d = Validator::make($request->all(), $rules)->validate();
         $units = isset($d['units']) ? array_values(array_unique($d['units'])) : null;
         if ($units !== null && array_diff($units, array_column($this->units($scope), 'code')) !== []) {
             throw new AssignmentRuleViolation('Ada unit yang tidak dikenal atau di luar cakupan Anda.');
         }
-        $id = $this->sync->start('MANUAL', $request->user(), $d['from'] ?? null, $d['to'] ?? null, $units, (bool) ($d['complete_old'] ?? false));
+        if ($piutang) {
+            $from = $d['from_month'] ?? $d['to_month'];
+            if (Carbon::createFromFormat('!Y-m', $from)->diffInMonths(Carbon::createFromFormat('!Y-m', $d['to_month'])) >= 24) {
+                throw new AssignmentRuleViolation('Paling banyak 24 bulan per penarikan.');
+            }
+            $options = ['from_month' => $from, 'to_month' => $d['to_month'], 'reports' => array_values(array_unique($d['reports'] ?? ['GOLONGAN', 'LEMBAR', 'KOGOL']))];
+            $id = $this->sync->start('MANUAL', $request->user(), null, null, $units, false, 'PIUTANG', $options);
+        } else {
+            $id = $this->sync->start('MANUAL', $request->user(), $d['from'] ?? null, $d['to'] ?? null, $units, (bool) ($d['complete_old'] ?? false));
+        }
         $this->sync->launch($id);
 
         return response()->json(['data' => $this->run(DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.id', $id)->first(['r.*', 'u.email as started_by_email']), true)], 202);
@@ -79,7 +96,7 @@ class EisSyncController extends Controller
     /** @return array<string,mixed> */
     private function run(object $r, bool $withLog): array
     {
-        return ['id' => $r->id, 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by_email, 'range_from' => $r->range_from, 'range_to' => $r->range_to, 'units' => $r->units === null ? null : json_decode((string) $r->units, true), 'complete_old' => (bool) ($r->complete_old ?? false), 'exit_code' => $r->exit_code,
+        return ['id' => $r->id, 'kind' => strtolower((string) ($r->kind ?? 'PERMOHONAN')), 'options' => ($r->options ?? null) === null ? null : json_decode((string) $r->options, true), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by_email, 'range_from' => $r->range_from, 'range_to' => $r->range_to, 'units' => $r->units === null ? null : json_decode((string) $r->units, true), 'complete_old' => (bool) ($r->complete_old ?? false), 'exit_code' => $r->exit_code,
             'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at] + ($withLog ? ['log' => $r->log] : []);
     }
 }

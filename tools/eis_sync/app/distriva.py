@@ -78,6 +78,19 @@ class DistrivaClient:
         res = self.http.get(f"{self.base_url}/api/applications/imports/stale", params={"before": str(before)}, headers=self._headers(), timeout=self.timeout)
         return self._check(res, "Pemeriksaan permohonan lama")["data"]
 
+    def import_eis_reports(self, name, content):
+        """Upload one ZIP (folders ULP/BULAN/<laporan>.xls) to the monthly EIS report import (docs/88): {results: [{name, ok, status, family, unit, period, lines, warnings | message}]}.
+        HTTP 422 means every file of the archive failed; the per-file reasons are still in the answer, so they are returned instead of raised."""
+        res = self.http.post(f"{self.base_url}/api/eis-reports/import", files={"files[]": (name, content, "application/zip")}, headers=self._headers(), timeout=max(self.timeout, 600))
+        if res.status_code == 422:
+            try:
+                body = res.json()
+                if isinstance(body.get("results"), list):
+                    return body
+            except ValueError:
+                pass
+        return self._check(res, "Unggah laporan EIS")
+
     def logout(self):
         if self.external_token:
             return
