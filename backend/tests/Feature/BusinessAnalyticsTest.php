@@ -205,4 +205,24 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->as($this->viewer)->post('/api/pengusahaan/inputs/import', ['file' => $upload()])->assertForbidden();
         $this->as($this->viewer)->get('/api/pengusahaan/inputs/template?year=2026')->assertForbidden();
     }
+
+    #[Test]
+    public function tunggakan_pascabayar_per_umur_dan_kogol_dengan_matriks(): void
+    {
+        $row = fn (int $lembar, int $kogol, int $plg, float $rp) => [(string) $lembar, ['label' => $lembar, 'kogol' => (string) $kogol, 'plg' => $plg, 'lbr' => $lembar * $plg, 'gabungan' => $rp]];
+        $this->report($this->ulpA, 'UMURPIUTANG', '2026-10-01', [$row(1, 0, 9, 200), $row(2, 0, 5, 100), $row(7, 1, 2, 600), $row(15, 2, 1, 100)]);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-pascabayar-umur?unit_id={$this->ulpA->id}&from=2026-10&to=2026-10")->assertOk()->json('data');
+
+        $s = collect($d['summary'])->keyBy('key');
+        $this->assertEquals(1000, $s['rp']['latest']);
+        $this->assertEquals(17, $s['pelanggan']['latest']);
+        $this->assertEqualsWithDelta((9 + 10 + 14 + 15) / 17, $s['umur_rata']['latest'], 1e-9);   // lembar per pelanggan
+        $this->assertEqualsWithDelta(70.0, $s['lebih_3_bulan']['latest'], 1e-9);
+        $this->assertSame(['1 bulan', '2 bulan', '3 bulan', '4-6 bulan', '7-12 bulan', '> 12 bulan'], array_column($d['breakdown']['rows'], 'key'));   // urutan umur tetap
+        $this->assertEquals([200, 100, 0, 0, 600, 100], array_column($d['breakdown']['rows'], 'value'));
+        $this->assertSame(['Kogol 0', 'Kogol 1', 'Kogol 2'], $d['matrix']['rows']);
+        $this->assertEquals([0, 0, 0, 0, 600, 0], $d['matrix']['values'][1]);
+        $this->assertContains('Porsi terbesar umur tunggakan: 7-12 bulan (60.0%).', array_column($d['insights'], 'text'));
+    }
 }

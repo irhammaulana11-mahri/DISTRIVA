@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
  */
 final class EisReportParser
 {
-    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'TAGSUS'];
+    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'TAGSUS', 'UMURPIUTANG'];
 
     private const MONTHS = ['januari' => 1, 'pebruari' => 2, 'februari' => 2, 'maret' => 3, 'april' => 4, 'mei' => 5, 'juni' => 6, 'juli' => 7, 'agustus' => 8, 'september' => 9, 'oktober' => 10, 'nopember' => 11, 'november' => 11, 'desember' => 12];
 
@@ -59,6 +59,7 @@ final class EisReportParser
             'GGNPERJENIS' => [$this->isV1Layout() ? $this->perJenisV1() : $this->perJenis(), null],
             'GGNBERULANG', 'GGNNEGATIF', 'KLHBERULANG', 'KLHNEGATIF' => [$this->fixedByLetter(), null],
             'TAGSUS' => [$this->tagsus(), null],
+            'UMURPIUTANG' => [$this->umurPiutang(), null],
         };
         if ($lines === []) {
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
@@ -155,6 +156,25 @@ final class EisReportParser
         }
 
         return $out;
+    }
+
+    /**
+     * Rekap tunggakan pascabayar per jumlah lembar (umur, bulan) dan kogol (pivot EIS jenis "PERLEMBAR": UNITUPI, THBLLAP, JENIS_LAPORAN, LABEL = jumlah lembar, KOGOL, PLG, LBR, GABUNGAN, ...).
+     * Sel gabungan (label lembar untuk beberapa kogol) diisi dari baris sebelumnya; baris subtotal dan total (tanpa KOGOL) tidak disimpan. Unit diambil dari nama berkas (isi hanya memuat UNITUPI).
+     *
+     * @return list<array{line_no:int,group_label:?string,label:?string,code:?string,values:array<string,mixed>}>
+     */
+    private function umurPiutang(): array
+    {
+        $lines = [];
+        foreach ($this->flat(['unitupi', 'thbllap', 'jenis_laporan', 'label', 'kogol'], ['unitupi', 'thbllap', 'jenis_laporan', 'label'], 'label', 'kogol', 'UNITUPI') as $l) {
+            if (! isset($l['values']['kogol']) || ! is_numeric($l['values']['label'] ?? null) || str_contains(strtoupper((string) ($l['values']['jenis_laporan'] ?? '')), 'TOTAL')) {
+                continue;
+            }
+            $lines[] = $l;
+        }
+
+        return $lines;
     }
 
     /** Lembar 309: baris data setelah baris penomoran kolom (1, 2, 3 ...); nilai bernama per kolom. */

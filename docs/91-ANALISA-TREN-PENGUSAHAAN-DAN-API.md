@@ -14,6 +14,7 @@ Semua angka bulanan per ULP. UP3 = gabungan semua ULP di bawahnya: angka arus da
 | `pendapatan` | Pendapatan | 309 (`rp_jumlah`) | Rp; Rp/kWh | jumlah |
 | `piutang-prabayar` | Piutang Pra | PIUTANGLPB_EIS; rincian BARU/BERJALAN/TUNGGAKAN (baris total tidak dipakai) | saldo Rp; lembar | posisi akhir |
 | `piutang-pascabayar` | Piutang Pasca | AKHIEPERIODE_EIS per kogol (baris "SEMUA KOGOL" tidak dipakai) | saldo lewat tanggal 20; rekening baru; persen saldo/rekening baru; lembar | posisi akhir |
+| `piutang-pascabayar-umur` | Piutang Pasca (umur) | UMURPIUTANG: tunggakan per jumlah lembar dan kogol; rincian per umur (1, 2, 3, 4-6, 7-12, > 12 bulan, urutan tetap), rincian kedua per kogol, dan matriks kogol × umur | tunggakan Rp; pelanggan; lembar; umur rata-rata (lembar/pelanggan, bulan); % tunggakan > 3 bulan | posisi akhir |
 | `rpt-rct-keluhan` | RPT-RCT Keluhan | KLHALL (baris "Total" tidak dipakai) | response dan recovery rata-rata (jam); jumlah keluhan; % respons dalam SLA | tertimbang |
 | `rpt-rct-gangguan` | RPT-RCT Gangguan | GGNALL (baris "Total" tidak dipakai) | response dan recovery rata-rata (menit); jumlah; % respons dalam SLA | tertimbang |
 | `saidi-saifi` | SAIDI SAIFI | ringkasan DIFI | menit/plg; kali/plg | jumlah bulanan |
@@ -25,7 +26,7 @@ Semua angka bulanan per ULP. UP3 = gabungan semua ULP di bawahnya: angka arus da
 
 Catatan sumber:
 - **HPL Biaya BP**: kolom `BP` pada AKHIRBULAN_EIS bernilai 0 di semua 46 bulan contoh, begitu pula baris "Penetapan Cicilan BP" pada 309EIS. Karena itu sumbernya adalah biaya permohonan yang sudah lunas (data untuk semua ULP sejak 2022).
-- **Umur piutang pascabayar**: laporan yang ada hanya memisahkan rekening baru dan saldo yang lewat tanggal 20 per kogol. Pemecahan umur bertingkat (mis. 1, 2, 3+ bulan) butuh laporan umur piutang tersendiri.
+- **Umur piutang pascabayar**: dari laporan UMURPIUTANG (docs/88), yaitu tunggakan menurut jumlah lembar per pelanggan. `piutang-pascabayar` (AKHIEPERIODE) tetap untuk saldo lewat tanggal 20 terhadap rekening baru; totalnya berbeda karena cakupannya berbeda (contoh Jombang Oktober 2026: tunggakan Rp 680,8 juta, saldo lewat tanggal 20 Rp 2,53 miliar). Contoh UMURPIUTANG baru satu bulan (Jombang Oktober 2026), jadi tren dan YoY terbentuk setelah bulan lain diunggah.
 - **Susut** = (kWh beli − E-Min − PSSD − kWh jual) / (kWh beli − E-Min − PSSD) × 100, per bulan dan kumulatif (jumlah susut kWh dibagi jumlah beli bersih). E-Min dan PSSD dianggap 0 bila kosong. Belum ada data kWh beli di sistem, jadi metrik ini kosong sampai masukan diisi.
 - Data EIS saat ini hanya ULP Jombang (Januari 2023 sampai Oktober 2026; DIFI 18 bulan). Tampilan UP3 lengkap setelah laporan semua ULP diimpor.
 
@@ -60,7 +61,9 @@ Respons `GET /metrics/{code}` (`data`):
   - `sum`: jumlah nilai bulanan;
   - `ratio`: jumlah angka mentah Januari sampai `to` lalu dihitung (rata-rata tertimbang).
   - `ytd` bernilai null bila ada bulan yang datanya kosong sama sekali.
-- `breakdown` (null bila metrik tanpa rincian): `dimension`, `period`, dan `rows[]` (`key, value, share_pct, same_month_last_year, yoy_pct`, urut dari terbesar). Rincian adalah komposisi seri pertama pada bulan `to`.
+- `breakdown` (null bila metrik tanpa rincian): `dimension`, `period`, dan `rows[]` (`key, value, share_pct, same_month_last_year, yoy_pct`, urut dari terbesar). Rincian adalah komposisi seri pertama pada bulan `to`. Urutan baris: terbesar dulu, kecuali dimensi berurutan tetap (umur tunggakan).
+- `breakdown_secondary` (null bila tidak ada): rincian kedua dengan bentuk sama seperti `breakdown` (saat ini kogol pada `piutang-pascabayar-umur`).
+- `matrix` (null bila tidak ada): `rows_dimension`, `columns_dimension`, `period`, `rows[]`, `columns[]`, `values[][]` (baris × kolom, nilai seri pertama), mis. kogol × umur. Tampilkan sebagai tabel silang (heatmap opsional).
 - `comparison[]` (hanya bila unit UP3): per ULP `unit_id, unit_name, latest, yoy_pct, ytd` untuk seri pertama, urut `latest` turun.
 - `coverage`: `months_expected`, dan `missing[]` (`unit_id, unit_name, months[]`) berisi bulan yang laporannya belum diunggah per ULP. Untuk metrik berbasis laporan EIS dan susut (bulan tanpa kWh beli atau tanpa laporan 309). Bulan kosong tidak dihitung nol: angka UP3 bulan itu hanya memuat ULP yang ada datanya.
 - `insights[]`: `level` (`baik`, `perhatian`, `info`) dan `text`. Catatan otomatis berbasis aturan:
@@ -114,5 +117,4 @@ Analisa Gangguan (`/outages/analysis`) dan Analisa Pelanggan (`/reports/customer
 
 ## 6. Belum dikerjakan
 
-- Umur piutang pascabayar bertingkat: menunggu laporan umur piutang.
 - Target NKO pada grafik untuk metrik yang punya indikator NKO padanan.

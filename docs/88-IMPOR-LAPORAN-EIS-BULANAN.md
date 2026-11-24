@@ -17,6 +17,7 @@ Nama berkas wajib `JENIS-KODEUNIT-BBTTTT.xls|xlsx` (kode unit 5 karakter, contoh
 | `PIUTANGLPB_EIS` | Piutang per golongan dan skema bayar | |
 | `AKHIRBULAN_EIS`, `AKHIEPERIODE_EIS` | Rekening akhir bulan dan akhir periode | |
 | `TAGSUS` | Tagihan susulan | hanya ringkasan per golongan tarif; nama, alamat, dan nomor pelanggan tidak dibaca dan tidak disimpan |
+| `UMURPIUTANG` | Rekap tunggakan pascabayar per jumlah lembar (umur, bulan) dan kogol (pivot EIS jenis PERLEMBAR: UNITUPI, THBLLAP, JENIS_LAPORAN, LABEL, KOGOL, PLG, LBR, GABUNGAN, PAL, PPJ, ...) | isi hanya memuat UNITUPI, jadi unit dari kode pada nama berkas (`UMURPIUTANG-51453-102026.xls`; unduhan EIS bernama "Rekap.xls" perlu diganti nama); sel LABEL gabungan diisi dari baris sebelumnya; baris subtotal dan total tidak disimpan. Totalnya sama dengan AKHIRBULAN_EIS PERGOLONGAN bulan itu |
 
 ## 2. Aturan impor
 - Unit dibaca dari kode pada nama berkas dan dicocokkan dengan nama ULP/UP3 di dalam berkas; tidak cocok berarti ditolak. Kode yang tidak dikenal (salah ketik, mis. `15453`) dipulihkan dari nama di isi berkas dengan peringatan.

@@ -17,6 +17,9 @@ class BusinessMetricService
     /** Masukan bulanan (nilai bulan itu, bukan kumulatif) => nama. kWh beli wajib untuk susut; E-Min dan PSSD dianggap 0 bila kosong. */
     public const INPUT_CODES = ['kwh-beli' => 'kWh beli', 'e-min' => 'E-Min', 'pssd' => 'PSSD'];
 
+    /** Kelompok umur tunggakan menurut jumlah lembar (bulan), berurutan. */
+    public const AGE_BUCKETS = ['1 bulan', '2 bulan', '3 bulan', '4-6 bulan', '7-12 bulan', '> 12 bulan'];
+
     /** Baris TAGSUS yang bukan P2TL: tagihan susulan kWh (TS kWh) dan koreksi rekening (DKRP). */
     private const NON_P2TL = ['KWH', 'DKRP'];
 
@@ -41,6 +44,11 @@ class BusinessMetricService
         'piutang-pascabayar' => ['name' => 'Piutang pascabayar', 'source' => 'AKHIEPERIODE_EIS (per kogol)', 'family' => 'AKHIEPERIODE_EIS', 'polarity' => 'down', 'ytd' => 'last', 'breakdown' => 'Kogol',
             'series' => [['key' => 'saldo', 'name' => 'Saldo lewat tanggal 20', 'unit' => 'Rp', 'num' => 'saldo'], ['key' => 'rek_baru', 'name' => 'Rekening baru', 'unit' => 'Rp', 'num' => 'rek_baru'],
                 ['key' => 'persen', 'name' => 'Saldo terhadap rekening baru', 'unit' => '%', 'num' => 'saldo', 'den' => 'rek_baru', 'factor' => 100], ['key' => 'lembar', 'name' => 'Lembar saldo', 'unit' => 'lbr', 'num' => 'lembar']]],
+        'piutang-pascabayar-umur' => ['name' => 'Tunggakan pascabayar per umur', 'source' => 'UMURPIUTANG (rekap tunggakan per jumlah lembar dan kogol)', 'family' => 'UMURPIUTANG', 'polarity' => 'down', 'ytd' => 'last',
+            'breakdown' => 'Umur tunggakan', 'breakdown_keys' => self::AGE_BUCKETS, 'breakdown2' => 'Kogol',
+            'series' => [['key' => 'rp', 'name' => 'Tunggakan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'pelanggan', 'name' => 'Pelanggan menunggak', 'unit' => 'plg', 'num' => 'plg'],
+                ['key' => 'lembar', 'name' => 'Lembar tunggakan', 'unit' => 'lbr', 'num' => 'lbr'], ['key' => 'umur_rata', 'name' => 'Umur rata-rata', 'unit' => 'bulan', 'num' => 'lbr', 'den' => 'plg'],
+                ['key' => 'lebih_3_bulan', 'name' => 'Tunggakan lebih dari 3 bulan', 'unit' => '%', 'num' => 'rp_lebih3', 'den' => 'rp', 'factor' => 100]]],
         'rpt-rct-keluhan' => ['name' => 'RPT-RCT keluhan', 'source' => 'KLHALL', 'family' => 'KLHALL', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
             'series' => [['key' => 'rpt', 'name' => 'Response time rata-rata', 'unit' => 'jam', 'num' => 'rpt_x_n', 'den' => 'n'], ['key' => 'rct', 'name' => 'Recovery (selesai) rata-rata', 'unit' => 'jam', 'num' => 'rct_x_n', 'den' => 'n'],
                 ['key' => 'jumlah', 'name' => 'Jumlah keluhan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'rpt_sla', 'name' => 'Respons dalam SLA', 'unit' => '%', 'num' => 'rpt_in', 'den' => 'rpt_all', 'factor' => 100]]],
@@ -76,6 +84,7 @@ class BusinessMetricService
         return match ($code) {
             'pelanggan', 'daya', 'kwh-jual', 'pendapatan' => $this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->from309($lines, $code)),
             'piutang-prabayar' => $this->eis('PIUTANGLPB_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromPiutangLpb($lines)),
+            'piutang-pascabayar-umur' => $this->eis('UMURPIUTANG', $units, $fromDate, $toDate, fn (array $lines) => $this->fromUmurPiutang($lines)),
             'piutang-pascabayar' => $this->eis('AKHIEPERIODE_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromAkhirPeriode($lines)),
             'rpt-rct-keluhan' => $this->eis('KLHALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_jam', 'selesai_rata_jam')),
             'rpt-rct-gangguan' => $this->eis('GGNALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_menit', 'recovery_rata_menit')),
@@ -198,6 +207,43 @@ class BusinessMetricService
         }
 
         return $bd === [] ? null : ['raw' => $raw, 'bd' => $bd];
+    }
+
+    /**
+     * Tunggakan per umur: LABEL = jumlah lembar (bulan menunggak). bd = rupiah per kelompok umur, bd2 = rupiah per kogol, bdm = rupiah per "kogol|umur".
+     *
+     * @param  list<array{label: string, values: array<string, mixed>}>  $lines
+     */
+    private function fromUmurPiutang(array $lines): ?array
+    {
+        $raw = ['rp' => 0.0, 'plg' => 0.0, 'lbr' => 0.0, 'rp_lebih3' => 0.0];
+        $bd = array_fill_keys(self::AGE_BUCKETS, 0.0);
+        $bd2 = [];
+        $bdm = [];
+        foreach ($lines as $l) {
+            $months = (int) $l['label'];
+            if ($months < 1) {
+                continue;
+            }
+            $rp = (float) ($l['values']['gabungan'] ?? 0);
+            $bucket = match (true) {
+                $months <= 3 => self::AGE_BUCKETS[$months - 1],
+                $months <= 6 => self::AGE_BUCKETS[3],
+                $months <= 12 => self::AGE_BUCKETS[4],
+                default => self::AGE_BUCKETS[5],
+            };
+            $kogol = 'Kogol '.($l['values']['kogol'] ?? '-');
+            $raw['rp'] += $rp;
+            $raw['plg'] += (float) ($l['values']['plg'] ?? 0);
+            $raw['lbr'] += (float) ($l['values']['lbr'] ?? 0);
+            $months > 3 && $raw['rp_lebih3'] += $rp;
+            $bd[$bucket] += $rp;
+            $bd2[$kogol] = ($bd2[$kogol] ?? 0) + $rp;
+            $bdm["{$kogol}|{$bucket}"] = ($bdm["{$kogol}|{$bucket}"] ?? 0) + $rp;
+        }
+        ksort($bd2);
+
+        return $lines === [] ? null : ['raw' => $raw, 'bd' => $bd, 'bd2' => $bd2, 'bdm' => $bdm];
     }
 
     /** @param list<array{label: string, values: array<string, mixed>}> $lines */

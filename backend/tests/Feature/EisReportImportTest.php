@@ -85,6 +85,29 @@ class EisReportImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function rekap_umur_piutang_menyimpan_baris_per_lembar_dan_kogol_tanpa_subtotal_dan_total(): void
+    {
+        $path = $this->book([
+            0 => [null, null, null, null, null, 'Grand Total'],
+            1 => ['UNITUPI', 'THBLLAP', 'JENIS_LAPORAN', 'LABEL', 'KOGOL', 'PLG', 'LBR', 'GABUNGAN', 'PAL'],
+            2 => [51, 202610, 'PERLEMBAR', 1, 0, 9, 9, 2021480, 1741345],
+            3 => [null, null, null, null, 2, 2, 2, 9989837, 9989837],   // sel LABEL gabungan: lembar 1
+            4 => [null, null, null, 1, null, 11, 11, 12011317, 11731182],   // subtotal lembar 1
+            5 => [null, null, null, 7, 1, 24, 168, 529896607, 529896607],
+            6 => [null, null, 'PERLEMBAR Total', null, null, 35, 179, 541907924, 541627789],
+        ]);
+
+        $r = $this->service()->import($path, 'UMURPIUTANG-51453-102026.xls');
+
+        $this->assertSame(3, $r['lines']);
+        $lines = DB::table('eis_report_lines')->orderBy('line_no')->get(['label', 'code', 'values']);
+        $this->assertSame(['1', '1', '7'], $lines->pluck('label')->all());
+        $this->assertSame(['0', '2', '1'], $lines->pluck('code')->all());
+        $this->assertEquals(9989837, json_decode($lines[1]->values, true)['gabungan']);
+        $this->assertSame($this->ulp->getKey(), DB::table('eis_report_files')->value('organizational_unit_id'));   // unit dari nama berkas
+    }
+
+    #[Test]
     public function the_same_content_is_not_imported_twice_and_changed_content_replaces_the_active_file_but_keeps_the_history(): void
     {
         $this->assertSame('BARU', $this->service()->import($this->report309(), '309-51453-042026.xlsx')['status']);

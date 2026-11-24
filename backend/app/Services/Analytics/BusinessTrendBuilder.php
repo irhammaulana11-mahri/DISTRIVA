@@ -76,14 +76,25 @@ class BusinessTrendBuilder
                 'ytd_pct' => $basis['ytd'] === [] ? null : $this->pct($this->ytd($s, $def['ytd'], $on($basis['ytd']), $to), $this->ytd($s, $def['ytd'], $on($basis['ytd']), $prevTo))];
         }
 
-        $breakdown = null;
-        if ($def['breakdown'] !== null) {
-            $now = $combined($to)['bd'] ?? [];
-            $before = $combined($this->shift($to, -12))['bd'] ?? [];
+        $rowsOf = function (string $dim, ?array $order) use ($combined, $to): array {
+            $now = $combined($to)[$dim] ?? [];
+            $before = $combined($this->shift($to, -12))[$dim] ?? [];
             $total = array_sum($now);
-            arsort($now);
-            $breakdown = ['dimension' => $def['breakdown'], 'period' => $to, 'rows' => array_map(fn ($k, $v) => ['key' => $k, 'value' => $v, 'share_pct' => $total != 0 ? $v / $total * 100 : null,
-                'same_month_last_year' => $before[$k] ?? null, 'yoy_pct' => $this->pct($v, $before[$k] ?? null)], array_keys($now), $now)];
+            $order === null ? arsort($now) : uksort($now, fn ($a, $b) => array_search($a, $order, true) <=> array_search($b, $order, true));
+
+            return array_map(fn ($k, $v) => ['key' => $k, 'value' => $v, 'share_pct' => $total != 0 ? $v / $total * 100 : null,
+                'same_month_last_year' => $before[$k] ?? null, 'yoy_pct' => $this->pct($v, $before[$k] ?? null)], array_keys($now), $now);
+        };
+        $breakdown = $def['breakdown'] === null ? null : ['dimension' => $def['breakdown'], 'period' => $to, 'rows' => $rowsOf('bd', $def['breakdown_keys'] ?? null)];
+        $breakdownSecondary = isset($def['breakdown2']) ? ['dimension' => $def['breakdown2'], 'period' => $to, 'rows' => $rowsOf('bd2', null)] : null;
+        $matrix = null;
+        if (isset($def['breakdown2'])) {
+            $cells = $combined($to)['bdm'] ?? [];
+            $rowKeys = array_column($breakdownSecondary['rows'], 'key');
+            sort($rowKeys);
+            $colKeys = $def['breakdown_keys'] ?? array_column($breakdown['rows'] ?? [], 'key');
+            $matrix = ['rows_dimension' => $def['breakdown2'], 'columns_dimension' => $def['breakdown'], 'period' => $to, 'rows' => $rowKeys, 'columns' => $colKeys,
+                'values' => array_map(fn ($r) => array_map(fn ($c) => $cells["{$r}|{$c}"] ?? 0.0, $colKeys), $rowKeys)];
         }
 
         $primary = $def['series'][0] ?? null;
@@ -102,7 +113,7 @@ class BusinessTrendBuilder
 
         return ['metric' => ['code' => $code, 'name' => $def['name'], 'source' => $def['source'], 'polarity' => $def['polarity'], 'ytd_mode' => $def['ytd']],
             'from' => $from, 'to' => $to, 'months' => $months, 'units_expected' => count($units), 'units_reporting' => $unitsReporting,
-            'comparison_basis' => array_map('count', $basis), 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'comparison' => $comparison, 'coverage' => $coverage,
+            'comparison_basis' => array_map('count', $basis), 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'breakdown_secondary' => $breakdownSecondary, 'matrix' => $matrix, 'comparison' => $comparison, 'coverage' => $coverage,
             'insights' => $this->insights($def, $series[0] ?? null, $summary[0] ?? null, $breakdown, $comparison, $coverage, $months, $to, count($units), end($unitsReporting) ?: 0, $unitNames)];
     }
 
@@ -123,8 +134,10 @@ class BusinessTrendBuilder
             foreach ($cell['raw'] as $k => $v) {
                 $out['raw'][$k] = ($out['raw'][$k] ?? 0) + $v;
             }
-            foreach ($cell['bd'] as $k => $v) {
-                $out['bd'][$k] = ($out['bd'][$k] ?? 0) + $v;
+            foreach (['bd', 'bd2', 'bdm'] as $dim) {
+                foreach ($cell[$dim] ?? [] as $k => $v) {
+                    $out[$dim][$k] = ($out[$dim][$k] ?? 0) + $v;
+                }
             }
         }
 
@@ -221,7 +234,7 @@ class BusinessTrendBuilder
             $out[] = ['level' => $good($summary['ytd_pct']) ? 'baik' : ($summary['ytd_pct'] == 0 ? 'info' : 'perhatian'), 'text' => sprintf('Kumulatif Januari sampai %s %s %.1f%% dibanding periode yang sama tahun lalu.', $label, $summary['ytd_pct'] >= 0 ? 'naik' : 'turun', abs($summary['ytd_pct']))];
         }
         if ($breakdown !== null && $breakdown['rows'] !== []) {
-            $top = $breakdown['rows'][0];
+            $top = array_reduce($breakdown['rows'], fn ($a, $r) => $a === null || $r['value'] > $a['value'] ? $r : $a);
             $top['share_pct'] !== null && $out[] = ['level' => 'info', 'text' => sprintf('Porsi terbesar %s: %s (%.1f%%).', strtolower($breakdown['dimension']), $top['key'], $top['share_pct'])];
             $moves = array_filter($breakdown['rows'], fn ($r) => $r['same_month_last_year'] !== null);
             usort($moves, fn ($a, $b) => abs($b['value'] - $b['same_month_last_year']) <=> abs($a['value'] - $a['same_month_last_year']));
