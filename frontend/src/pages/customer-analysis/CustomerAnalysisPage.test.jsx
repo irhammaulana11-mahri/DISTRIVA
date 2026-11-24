@@ -7,10 +7,11 @@ import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import CustomerAnalysisPage from './CustomerAnalysisPage.jsx'
 import { buildInsights } from './insights.js'
-import { reportsApi, forecastApi, unitScopeApi, triggerFileDownload } from '../../services/api.js'
+import { reportsApi, pengusahaanApi, forecastApi, unitScopeApi, triggerFileDownload } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   reportsApi: { customerGrowth: vi.fn(), downloadCustomerGrowthXlsx: vi.fn() },
+  pengusahaanApi: { metric: vi.fn() },
   forecastApi: { schedule: vi.fn(), saveSchedule: vi.fn(), derived: vi.fn(), runs: vi.fn(), run: vi.fn(), substations: vi.fn(), series: vi.fn(), start: vi.fn(), review: vi.fn() },
   unitScopeApi: { get: vi.fn() },
   triggerFileDownload: vi.fn(),
@@ -69,6 +70,13 @@ describe('Analisis Pelanggan & Daya', () => {
     vi.clearAllMocks()
     reportsApi.customerGrowth.mockResolvedValue({ data: PAYLOAD })
     reportsApi.downloadCustomerGrowthXlsx.mockResolvedValue({ blob: new Blob(['x']), filename: 'ANALISIS.xlsx' })
+    pengusahaanApi.metric.mockResolvedValue({
+      data: {
+        metric: { code: 'pelanggan' },
+        summary: [{ key: 'pelanggan', month: '2026-10', value: 928450, formatted: '928.450', yoy_pct: 3.5 }],
+        breakdown: [{ key: 'R', name: 'Rumah tangga', value: 800000, share_pct: 86.2 }],
+      },
+    })
     unitScopeApi.get.mockResolvedValue({
       scope: 'GLOBAL',
       up3_units: [{ id: 'up3-1', code: 'UP3-A', name: 'UP3 Satu' }, { id: 'up3-2', code: 'UP3-B', name: 'UP3 Dua' }],
@@ -82,9 +90,12 @@ describe('Analisis Pelanggan & Daya', () => {
 
   it('menampilkan ringkasan, temuan, tabel tahunan, komposisi tarif, per ULP, anomali, dan catatan data', async () => {
     renderPage()
+    expect(screen.getByText('Analisa & Tren Pelanggan')).toBeInTheDocument()
     expect(await screen.findByText('Pelanggan baru, 12 bulan terakhir')).toBeInTheDocument()
     expect(screen.getByText('400')).toBeInTheDocument()
+    expect(screen.getByText('Jumlah pelanggan (Laporan 309)')).toBeInTheDocument()
     expect(screen.getAllByText(/\+25,0%/).length).toBeGreaterThan(0)
+    expect(screen.getByText('Delta pelanggan bulanan')).toBeInTheDocument()
     expect(screen.getByText('Temuan')).toBeInTheDocument()
     const yearly = screen.getByRole('table', { name: /Ringkasan penambahan pelanggan dan daya per tahun/ })
     expect(within(yearly).getByText('2026')).toBeInTheDocument()

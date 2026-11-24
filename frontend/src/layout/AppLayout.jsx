@@ -112,6 +112,7 @@ const masterDataNav = [
 const reportsNav = [
   { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
   { to: '/nko', label: 'NKO & Kinerja Unit', capability: 'nko.view', icon: IconChart },
+  { to: '/analisis-pelanggan', label: 'Analisa Pelanggan', capability: 'reports.view', icon: IconUsers },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
   { to: '/analisis-gangguan', label: 'Analisis Gangguan', capability: 'outages.view', icon: IconActivity },
@@ -181,7 +182,7 @@ const titles = {
   '/mfa': 'Pengaturan / Autentikasi Dua Faktor (MFA)',
   '/tugas': 'Operasional / Tugas & SLA',
   '/forecast': 'Laporan & Monitoring / Forecasting',
-  '/analisis-pelanggan': 'Laporan & Monitoring / Analisis Pelanggan & Daya',
+  '/analisis-pelanggan': 'Laporan & Monitoring / Analisa Pelanggan',
   '/analisis-gangguan': 'Laporan & Monitoring / Analisis Gangguan',
   '/nko': 'Laporan & Monitoring / Nilai Kinerja Organisasi (NKO)',
   '/permohonan': 'Operasional / Permohonan (PB/PD)',
