@@ -37,7 +37,7 @@ class BusinessTrendBuilder
         $def = BusinessMetricService::CATALOG[$code];
         $months = $this->months($from, $to);
         $toYear = (int) substr($to, 0, 4);
-        $fetchFrom = min($this->shift($from, -12), ($toYear - 1).'-01');
+        $fetchFrom = min($this->shift($from, -12), (isset($def['companion']) ? $toYear - 2 : $toYear - 1).'-01');   // rekonsiliasi membandingkan kumulatif dengan tahun lalu: butuh data dua tahun sebelumnya
         $raw = $this->metrics->raw($code, $units, $fetchFrom, $to);
         $zeroFill = $def['zero_fill'] ?? $def['family'] === null;
         $combined = fn (string $m, ?array $only = null) => $this->combine($raw, $only ?? $units, $m, $zeroFill);
@@ -195,26 +195,41 @@ class BusinessTrendBuilder
                 $comp = $set === [] ? $companionVal($units, $m) : $companionVal($set, $m);
                 $monthly[] = ['month' => $m, 'official_net' => $net, 'companion' => $comp, 'difference' => $net === null || $comp === null ? null : $comp - $net, 'units_compared' => count($set)];
             }
-            $from = substr($to, 0, 4).'-01';
-            $ytdMonths = $this->months($from, $to);
-            if ($spec['mode'] === 'net') {
-                $base = $this->shift($from, -1);
-                $set = array_values(array_filter($units, fn ($u) => $has($u, $base) && $has($u, $to)));
-                $official = $set === [] ? null : (float) $officialVal($set, $to) - (float) $officialVal($set, $base);
-                $baseMonth = $base;
-            } elseif ($spec['mode'] === 'yoy') {
-                $set = array_values(array_filter($units, fn ($u) => array_reduce($ytdMonths, fn ($ok, $m) => $ok && $has($u, $m) && $has($u, $this->shift($m, -12)), true)));
-                $official = $set === [] ? null : array_sum(array_map(fn ($m) => (float) $officialVal($set, $m) - (float) $officialVal($set, $this->shift($m, -12)), $ytdMonths));
-                $baseMonth = $from;
-            } else {
-                $set = array_values(array_filter($units, fn ($u) => array_reduce($ytdMonths, fn ($ok, $m) => $ok && $has($u, $m), true)));
-                $official = $set === [] ? null : array_sum(array_map(fn ($m) => (float) $officialVal($set, $m), $ytdMonths));
-                $baseMonth = $from;
-            }
-            $ytd = null;
-            if ($set !== [] && $official !== null) {
+            /** Kumulatif Januari sampai $end atas ULP kandidat yang memenuhi syarat mode; null bila tidak ada. */
+            $ytdFor = function (string $end, array $candidates) use ($spec, $has, $officialVal, $companionVal): ?array {
+                $from = substr($end, 0, 4).'-01';
+                $ytdMonths = $this->months($from, $end);
+                if ($spec['mode'] === 'net') {
+                    $base = $this->shift($from, -1);
+                    $set = array_values(array_filter($candidates, fn ($u) => $has($u, $base) && $has($u, $end)));
+                    $official = $set === [] ? null : (float) $officialVal($set, $end) - (float) $officialVal($set, $base);
+                    $baseMonth = $base;
+                } elseif ($spec['mode'] === 'yoy') {
+                    $set = array_values(array_filter($candidates, fn ($u) => array_reduce($ytdMonths, fn ($ok, $m) => $ok && $has($u, $m) && $has($u, $this->shift($m, -12)), true)));
+                    $official = $set === [] ? null : array_sum(array_map(fn ($m) => (float) $officialVal($set, $m) - (float) $officialVal($set, $this->shift($m, -12)), $ytdMonths));
+                    $baseMonth = $from;
+                } else {
+                    $set = array_values(array_filter($candidates, fn ($u) => array_reduce($ytdMonths, fn ($ok, $m) => $ok && $has($u, $m), true)));
+                    $official = $set === [] ? null : array_sum(array_map(fn ($m) => (float) $officialVal($set, $m), $ytdMonths));
+                    $baseMonth = $from;
+                }
+                if ($set === [] || $official === null) {
+                    return null;
+                }
                 $comp = array_sum(array_map(fn ($m) => (float) $companionVal($set, $m), $ytdMonths));
-                $ytd = ['year' => (int) substr($to, 0, 4), 'base_month' => $baseMonth, 'to_month' => $to, 'official_net' => $official, 'companion' => $comp, 'difference' => $comp - $official, 'units_compared' => count($set), 'units_expected' => count($units)];
+
+                return ['year' => (int) substr($end, 0, 4), 'base_month' => $baseMonth, 'to_month' => $end, 'official_net' => $official, 'companion' => $comp, 'difference' => $comp - $official, 'units' => $set];
+            };
+            $ytd = $ytdFor($to, $units);
+            if ($ytd !== null) {
+                // pembanding tahun lalu atas ULP yang sama (setara); ULP yang datanya tahun lalu tidak lengkap tidak ikut, dan jumlahnya terlihat pada units_compared
+                $prev = $ytdFor($prevTo, $ytd['units']);
+                $ytd['units_compared'] = count($ytd['units']);
+                $ytd['units_expected'] = count($units);
+                $ytd['previous_year'] = $prev === null ? null : ['base_month' => $prev['base_month'], 'to_month' => $prev['to_month'], 'official_net' => $prev['official_net'], 'companion' => $prev['companion'], 'difference' => $prev['difference'], 'units_compared' => count($prev['units'])];
+                $ytd['official_change_pct'] = $prev === null ? null : $this->pct($ytd['official_net'], $prev['official_net']);
+                $ytd['companion_change_pct'] = $prev === null ? null : $this->pct($ytd['companion'], $prev['companion']);
+                unset($ytd['units']);
             }
             $reconciliations[] = ['key' => $spec['key'], 'mode' => $spec['mode'], 'unit' => $spec['unit'], 'official_name' => $spec['official_name'], 'companion_name' => $spec['companion_name'], 'monthly' => $monthly, 'ytd' => $ytd,
                 'note' => $spec['mode'] === 'net'

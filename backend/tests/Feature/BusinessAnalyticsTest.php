@@ -129,7 +129,8 @@ class BusinessAnalyticsTest extends PostgresTestCase
     #[Test]
     public function metrik_pelanggan_membawa_pendamping_permohonan_dan_rekonsiliasi_kumulatif_pada_ulp_yang_sama(): void
     {
-        $this->customers309($this->ulpA, [['2025-12-01', 1000], ['2026-01-01', 1010], ['2026-02-01', 1025], ['2026-03-01', 1040]]);
+        $this->customers309($this->ulpA, [['2024-12-01', 900], ['2025-03-01', 930], ['2025-12-01', 1000], ['2026-01-01', 1010], ['2026-02-01', 1025], ['2026-03-01', 1040]]);
+        $this->connected($this->ulpA, 'PB', 2.2, '2025-02-10');                                                // pembanding tahun lalu
         $this->customers309($this->ulpB, [['2026-01-01', 505], ['2026-02-01', 508], ['2026-03-01', 520]]);   // ULP B tanpa Laporan 309 Desember 2025: tidak ikut rekonsiliasi
         foreach ([['2026-01-05', 3], ['2026-02-05', 4], ['2026-03-05', 5]] as [$when, $n]) {
             for ($i = 0; $i < $n; $i++) {
@@ -149,6 +150,9 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertEquals(40, $y['official_net']);                                     // 1040 - 1000, hanya ULP A
         $this->assertEquals(12, $y['companion']);                                        // PB ULP A saja (ULP yang sama dengan angka resmi)
         $this->assertEquals(-28, $y['difference']);
+        $this->assertEquals(['2024-12', '2025-03', 30, 1, 1], [$y['previous_year']['base_month'], $y['previous_year']['to_month'], $y['previous_year']['official_net'], $y['previous_year']['companion'], $y['previous_year']['units_compared']]);
+        $this->assertEqualsWithDelta(100 / 3, $y['official_change_pct'], 1e-9);                               // tambahan bersih 40 lawan 30
+        $this->assertEqualsWithDelta(1100.0, $y['companion_change_pct'], 1e-9);                               // PB 12 lawan 1
         $m = collect($d['reconciliation']['monthly'])->keyBy('month');
         $this->assertEquals([10, 3, 1], [$m['2026-01']['official_net'], $m['2026-01']['companion'], $m['2026-01']['units_compared']]);
         $this->assertEquals([18, 5, 2], [$m['2026-02']['official_net'], $m['2026-02']['companion'], $m['2026-02']['units_compared']]);   // per bulan: ULP yang punya 309 bulan itu dan bulan sebelumnya (kedua ULP)

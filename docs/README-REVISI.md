@@ -16,6 +16,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 ## Terbuka
 
 (Tidak ada tugas terbuka saat ini)
+| 13 | 2026-11-24 | (belum di-commit) | **Tata letak halaman Analisa & Tren Pengusahaan**; backend: `reconciliation(s)[].ytd` kini memuat `previous_year` (kumulatif tahun lalu atas ULP yang sama), `official_change_pct`, `companion_change_pct` | docs/91 §4 (Tata letak halaman metrik) | (a) Breadcrumb `Analisa & Tren Pengusahaan / <Menu>` (bukan "Laporan & Monitoring / Analisa Pelanggan"). (b) Sidebar dikelompokkan: Ikhtisar; Pelanggan & Penjualan; Piutang; Keandalan & Pelayanan; Susut & Penertiban, nama singkat ("Semua Indikator (Ikhtisar)" jadi "Ikhtisar", "ENS (Energi Tak Tersalur)" jadi "ENS", dst.). (c) **Empat kartu** per metrik sesuai docs/91; kartu "Kumulatif YTD (Posisi)" yang mengulang nilai utama dihapus. (d) Format angka: satuan hitungan tanpa desimal (sekarang "1.436.628,00 plg"), MVA dua desimal, Rupiah disingkat. (e) Rentang bawaan dari backend (tanpa `from`/`to`), tampilkan rentang terpakai, tombol cepat Tahun berjalan/12/24 bulan/Kustom; hapus label "Semua periode". (f) Grafik: posisi = batang tambahan bersih + garis pendamping (garis posisi jadi grafik kecil/tab); arus = Jan–Des antar tahun + kumulatif; rincian batang bertumpuk; ULP batang horizontal; bulan belum lengkap putus-putus | BARU | |
 
 ## Selesai
 
