@@ -258,9 +258,12 @@ class NkoRealizationResolver
                 $out['response-time-atas-gangguan-diluar-clear-tamper'] = array_sum(array_map(fn ($v) => (float) ($v['response_rata_menit'] ?? 0) * (float) ($v['total'] ?? 0), $all)) / $weight;
             }
         }
-        $neg = $lines('GGNNEGATIF');
-        if ($neg !== null) {
-            $out['feedback-rating-negatif-pada-pln-mobile-gangguan'] = array_sum(array_map(fn ($v) => (float) ($v['c_L'] ?? 0), $neg));
+        $negFiles = DB::table('eis_report_files')->where('family', 'GGNNEGATIF')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
+            ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->pluck('id');
+        if ($negFiles->count() === $month) {
+            // Tata letak lama (sampai September 2025) memuat dua tabel dalam satu berkas; hanya baris pertama yang memuat kolom c_L yang dihitung, satu per berkas.
+            $perFile = DB::table('eis_report_lines')->whereIn('file_id', $negFiles)->orderBy('line_no')->get(['file_id', 'values'])->groupBy('file_id');
+            $out['feedback-rating-negatif-pada-pln-mobile-gangguan'] = (float) $perFile->sum(fn ($rows) => (float) ($rows->map(fn ($r) => json_decode($r->values, true) ?: [])->first(fn ($v) => isset($v['c_L']))['c_L'] ?? 0));
         }
 
         return $out;

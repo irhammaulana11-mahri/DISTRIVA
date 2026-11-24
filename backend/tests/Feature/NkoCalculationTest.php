@@ -295,6 +295,25 @@ class NkoCalculationTest extends PostgresTestCase
     }
 
     #[Test]
+    public function rating_negatif_menghitung_satu_baris_per_berkas_walau_tata_letak_lama_memuat_dua_tabel(): void
+    {
+        $file = function (string $period, array $lines) {
+            $id = (string) Str::uuid();
+            DB::table('eis_report_files')->insert(['id' => $id, 'family' => 'GGNNEGATIF', 'unit_code' => $this->ulpA->code, 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'original_name' => 'GGNNEGATIF.xls',
+                'sha256' => hash('sha256', $id), 'size_bytes' => 1, 'status' => 'AKTIF', 'summary' => '{}', 'line_count' => count($lines), 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+            foreach ($lines as $i => $v) {
+                DB::table('eis_report_lines')->insert(['file_id' => $id, 'line_no' => $i + 1, 'label' => 'ULP JOMBANG', 'values' => json_encode($v)]);
+            }
+        };
+        $file('2026-01-01', [['c_B' => 100, 'c_L' => 2], ['c_B' => 150]]);   // dua tabel: tabel kedua tanpa c_L
+        $file('2026-02-01', [['c_B' => 100, 'c_L' => 3]]);
+
+        $r = app(NkoRealizationResolver::class)->resolve($this->ulpA->id, 2026, 2);
+
+        $this->assertEqualsWithDelta(5.0, $r['feedback-rating-negatif-pada-pln-mobile-gangguan']['value'], 1e-9);
+    }
+
+    #[Test]
     public function susut_dihitung_dari_kwh_beli_emin_pssd_manual_dan_kwh_jual_total_309(): void
     {
         $resolver = app(NkoRealizationResolver::class);
