@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { pengusahaanApi, triggerFileDownload } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
@@ -121,7 +121,9 @@ function PolarityPctBadge({ pct, polarity = 'up', label = '' }) {
   )
 }
 
-/** Komponen grafik tren SVG interaktif (values vs previous_year) */
+/** Komponen grafik tren SVG interaktif (values vs previous_year)
+ * Didesain full-width (kiri s/d kanan), legenda di atas kiri, dan kartu tooltip mengambang persis di atas chart saat hover.
+ */
 function MetricTrendChart({
   months = [],
   series = [],
@@ -131,7 +133,8 @@ function MetricTrendChart({
   unitsReporting = [],
   polarity = 'up',
 }) {
-  const [hoverIndex, setHoverIndex] = useState(null)
+  const [hoverData, setHoverData] = useState(null)
+  const containerRef = useRef(null)
 
   const activeSeries = useMemo(() => {
     return series.find((s) => s.key === activeSeriesKey) || series[0]
@@ -163,11 +166,12 @@ function MetricTrendChart({
     return { minVal: mn, maxVal: mx }
   }, [allNums])
 
-  const width = 800
-  const height = 280
-  const padLeft = 65
-  const padRight = 30
-  const padTop = 30
+  // Desain SVG dengan viewBox proporsional full width
+  const width = 1000
+  const height = 300
+  const padLeft = 70
+  const padRight = 20
+  const padTop = 25
   const padBottom = 45
 
   const chartW = width - padLeft - padRight
@@ -238,7 +242,7 @@ function MetricTrendChart({
   // Sumbu Y ticks
   const yTicks = useMemo(() => {
     const ticks = []
-    const count = 5
+    const count = 4
     for (let i = 0; i <= count; i++) {
       const val = minVal + (i / count) * (maxVal - minVal)
       const y = padTop + chartH - (i / count) * chartH
@@ -247,8 +251,27 @@ function MetricTrendChart({
     return ticks
   }, [minVal, maxVal])
 
+  const handlePointerMove = (idx) => {
+    const currentVal = values[idx]
+    const prevVal = previousYear[idx]
+    let yoyPct = null
+    if (currentVal !== null && prevVal !== null && prevVal !== 0) {
+      yoyPct = ((currentVal - prevVal) / Math.abs(prevVal)) * 100
+    }
+
+    setHoverData({
+      idx,
+      month: months[idx],
+      currentVal,
+      prevVal,
+      yoyPct,
+      unitsReporting: unitsReporting[idx],
+      xPct: (getX(idx) / width) * 100,
+    })
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative" ref={containerRef} onMouseLeave={() => setHoverData(null)}>
       {/* Series Selector Buttons (bila lebih dari 1 seri) */}
       {series.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -270,53 +293,89 @@ function MetricTrendChart({
         </div>
       )}
 
-      {/* Legend & Summary Info */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-1 rounded-full bg-indigo-600" />
+      {/* Baris Atas: Legend di Sebelah Kiri */}
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-1.5 rounded-full bg-indigo-600 shrink-0" />
             <span className="font-semibold text-slate-700 dark:text-slate-300">
               Tahun Berjalan ({activeSeries?.unit})
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-1 rounded-full border-b border-dashed border-slate-400 bg-slate-300 dark:bg-slate-600" />
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-1 rounded-full border-b-2 border-dashed border-slate-400 bg-slate-300 dark:bg-slate-600 shrink-0" />
             <span className="text-slate-500 dark:text-slate-400">
               Bulan Sama Tahun Lalu
             </span>
           </div>
         </div>
-
-        {hoverIndex !== null && (
-          <div className="text-xs font-mono bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
-            <span className="font-bold text-slate-800 dark:text-slate-200">{months[hoverIndex]}:</span>{' '}
-            <span className="text-indigo-600 font-bold">
-              {values[hoverIndex] !== null ? fmtFloat(values[hoverIndex]) : '-'} {activeSeries?.unit}
-            </span>
-            {previousYear[hoverIndex] !== null && (
-              <span className="text-slate-500 ml-2">
-                (Thn lalu: {fmtFloat(previousYear[hoverIndex])})
-              </span>
-            )}
-            {unitsExpected > 1 && unitsReporting[hoverIndex] !== undefined && (
-              <span className={`ml-2 text-[11px] ${unitsReporting[hoverIndex] < unitsExpected ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
-                [{unitsReporting[hoverIndex]}/{unitsExpected} ULP]
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* SVG Chart Container */}
-      <div className="relative w-full overflow-x-auto">
+      {/* Tooltip Melayang Interaktif (Persis di atas titik hover chart seperti contoh gambar) */}
+      {hoverData && (
+        <div
+          className="absolute z-20 pointer-events-none transition-all duration-150 ease-out"
+          style={{
+            left: `${hoverData.xPct}%`,
+            top: '55px',
+            transform: hoverData.xPct > 70 ? 'translateX(-100%)' : hoverData.xPct < 30 ? 'translateX(0%)' : 'translateX(-50%)',
+          }}
+        >
+          <div className="rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-xl p-3 min-w-[200px] backdrop-blur-xs text-xs space-y-1.5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5 font-bold text-slate-900 dark:text-slate-100">
+              <span>Bulan {fmtMonth(hoverData.month)}</span>
+              {unitsExpected > 1 && hoverData.unitsReporting !== undefined && (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                  hoverData.unitsReporting < unitsExpected ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                }`}>
+                  {hoverData.unitsReporting}/{unitsExpected} ULP
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-1 pt-0.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0" />
+                  <span>Berjalan:</span>
+                </span>
+                <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
+                  {hoverData.currentVal !== null ? `${fmtMetricValue(hoverData.currentVal, activeSeries?.unit)} ${activeSeries?.unit}` : '-'}
+                </span>
+              </div>
+
+              {hoverData.prevVal !== null && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-1.5 text-slate-500 font-medium">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0" />
+                    <span>Thn Lalu:</span>
+                  </span>
+                  <span className="font-mono text-slate-600 dark:text-slate-300 tabular-nums">
+                    {fmtMetricValue(hoverData.prevVal, activeSeries?.unit)} {activeSeries?.unit}
+                  </span>
+                </div>
+              )}
+
+              {hoverData.yoyPct !== null && (
+                <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
+                  <span className="text-slate-500">Pertumbuhan YoY:</span>
+                  <PolarityPctBadge pct={hoverData.yoyPct} polarity={polarity} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SVG Chart Container Full Width (Kiri s/d Kanan) */}
+      <div className="relative w-full">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-auto max-h-[340px] select-none"
-          style={{ minWidth: '600px' }}
+          className="w-full h-auto select-none overflow-visible"
         >
           <defs>
-            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.25" />
+            <linearGradient id="areaGradientFull" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.28" />
               <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
             </linearGradient>
           </defs>
@@ -345,7 +404,7 @@ function MetricTrendChart({
           ))}
 
           {/* Area fill tahun berjalan */}
-          {currentArea && <path d={currentArea} fill="url(#areaGradient)" />}
+          {currentArea && <path d={currentArea} fill="url(#areaGradientFull)" />}
 
           {/* Garis Tahun Lalu (Dashed) */}
           {prevPath && (
@@ -372,31 +431,31 @@ function MetricTrendChart({
             />
           )}
 
-          {/* Sumbu X labels & markers */}
+          {/* Kolom Interaktif & Titik-titik Marker */}
           {months.map((m, idx) => {
             const x = getX(idx)
-            const isHovered = hoverIndex === idx
+            const isHovered = hoverData?.idx === idx
             const yCurrent = getY(values[idx])
             const yPrev = getY(previousYear[idx])
             const isIncomplete = unitsExpected > 1 && (unitsReporting[idx] || 0) < unitsExpected
+            const colWidth = chartW / Math.max(1, months.length - 1)
 
             return (
               <g
                 key={m}
-                onMouseEnter={() => setHoverIndex(idx)}
-                onMouseLeave={() => setHoverIndex(null)}
+                onMouseEnter={() => handlePointerMove(idx)}
                 className="cursor-pointer"
               >
-                {/* Hit area vertical */}
+                {/* Kolom Tangkapan Mouse Transparan */}
                 <rect
-                  x={x - (chartW / (months.length || 1)) / 2}
+                  x={x - colWidth / 2}
                   y={padTop}
-                  width={chartW / (months.length || 1)}
-                  height={chartH}
+                  width={colWidth}
+                  height={chartH + 20}
                   fill="transparent"
                 />
 
-                {/* Hover line */}
+                {/* Garis Bantu Vertikal saat Hover */}
                 {isHovered && (
                   <line
                     x1={x}
@@ -405,7 +464,7 @@ function MetricTrendChart({
                     y2={padTop + chartH}
                     stroke="#818cf8"
                     strokeWidth="1.5"
-                    strokeDasharray="2 2"
+                    strokeDasharray="3 3"
                   />
                 )}
 
@@ -414,7 +473,7 @@ function MetricTrendChart({
                   <circle
                     cx={x}
                     cy={yPrev}
-                    r={isHovered ? 4 : 2.5}
+                    r={isHovered ? 4.5 : 2.5}
                     fill="#94a3b8"
                   />
                 )}
@@ -424,7 +483,7 @@ function MetricTrendChart({
                   <circle
                     cx={x}
                     cy={yCurrent}
-                    r={isHovered ? 5.5 : 3.5}
+                    r={isHovered ? 6 : 3.5}
                     fill={isHovered ? '#4338ca' : '#4f46e5'}
                     stroke="#ffffff"
                     strokeWidth="1.5"
@@ -441,7 +500,7 @@ function MetricTrendChart({
                   />
                 )}
 
-                {/* Label Bulan (tampilkan setiap 1 atau 2 bulan agar tidak tumpang tindih) */}
+                {/* Label Bulan pada Sumbu X */}
                 {(months.length <= 16 || idx % 2 === 0 || isHovered) && (
                   <text
                     x={x}
