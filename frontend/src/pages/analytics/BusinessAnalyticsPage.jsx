@@ -11,7 +11,7 @@ import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
-import { OutageAnalysisContent } from '../outages/OutageAnalysisPage.jsx'
+import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
 import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 import {
   IconChart,
@@ -435,6 +435,233 @@ function MetricTrendChart({
   )
 }
 
+/** Komponen Data Penjelas Operasional (Companions) */
+function CompanionSection({ companions, toMonth }) {
+  if (!companions || !companions.series || companions.series.length === 0) return null
+
+  return (
+    <div className={`${CARD} p-5 space-y-4`}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Data Penjelas Operasional
+            </h3>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+              {companions.source || 'Operasional DISTRIVA'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Data operasional lapangan sebagai pembanding dan penjelas pergerakan angka resmi laporan PLN.
+          </p>
+        </div>
+        {toMonth && (
+          <span className="text-[11px] font-mono text-slate-500 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-md self-start sm:self-auto">
+            Posisi s/d {fmtMonth(toMonth)}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {companions.series.map((s) => (
+          <div
+            key={s.key}
+            className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between"
+          >
+            <div>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {s.name}
+              </span>
+              <div className="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
+                {s.latest !== null && s.latest !== undefined ? fmtFloat(s.latest) : '-'}{' '}
+                <span className="text-xs font-normal text-slate-500">{s.unit}</span>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500">
+              <span className="text-[11px] text-slate-400">Kumulatif YTD</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
+                {s.ytd !== null && s.ytd !== undefined ? fmtFloat(s.ytd) : '-'}{' '}
+                <span className="text-[10px] font-normal text-slate-400">{s.unit}</span>
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Komponen Rekonsiliasi Angka Resmi vs Data Operasional */
+function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
+  const list = reconciliations || []
+  if (list.length === 0) return null
+
+  return (
+    <div className="space-y-4">
+      {list.map((rec) => {
+        const isNet = rec.mode === 'net'
+        const isYoy = rec.mode === 'yoy'
+        const ytd = rec.ytd
+        const monthly = rec.monthly || []
+
+        // Judul & Badge mode
+        const modeBadge = isNet ? (
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            Mode Saldo Bersih (Net)
+          </span>
+        ) : isYoy ? (
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            Mode Kenaikan Tahunan (YoY)
+          </span>
+        ) : (
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            Mode Arus Bulanan (Flow)
+          </span>
+        )
+
+        return (
+          <div key={rec.key} className={`${CARD} p-5 space-y-4`}>
+            {/* Header Rekonsiliasi */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Rekonsiliasi: {rec.official_name} vs {rec.companion_name}
+                  </h3>
+                  {modeBadge}
+                  {isYoy && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                      Perkiraan (Bukan Resmi)
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Perbandingan angka resmi dengan data penjelas operasional per bulan dan akumulasi tahun berjalan (YTD).
+                </p>
+              </div>
+
+              {ytd && (
+                <div className="flex items-center gap-2 self-start sm:self-auto text-xs bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-slate-700">
+                  <span className="text-slate-500">Cakupan Rekonsiliasi YTD:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {ytd.units_compared} / {ytd.units_expected || unitsExpected} ULP
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Note Penjelasan Rekonsiliasi dari Backend */}
+            {rec.note && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2">
+                <IconInfo size={16} className="mt-0.5 shrink-0 text-slate-500" />
+                <span className="leading-relaxed">{rec.note}</span>
+              </div>
+            )}
+
+            {/* Kartu Ringkasan YTD Rekonsiliasi */}
+            {ytd && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block">
+                    {isYoy ? 'Kenaikan Resmi YoY (YTD)' : isNet ? 'Tambahan Bersih Resmi (YTD)' : 'Nilai Resmi YTD'}
+                  </span>
+                  <div className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums mt-0.5">
+                    {ytd.official_net !== null ? fmtFloat(ytd.official_net) : '-'}{' '}
+                    <span className="text-xs font-normal text-slate-500">{rec.unit}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">
+                    {ytd.base_month ? `${fmtMonth(ytd.base_month)} s/d ${fmtMonth(ytd.to_month)}` : ytd.year}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block">
+                    {isYoy ? 'Perkiraan Sumbangan PB (YTD)' : 'Data Pendamping YTD'}
+                  </span>
+                  <div className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums mt-0.5">
+                    {ytd.companion !== null ? fmtFloat(ytd.companion) : '-'}{' '}
+                    <span className="text-xs font-normal text-slate-500">{rec.unit}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">
+                    Dari {ytd.units_compared} ULP setara
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block">
+                    Selisih (Pendamping &minus; Resmi)
+                  </span>
+                  <div className={`text-lg font-bold tabular-nums mt-0.5 ${
+                    ytd.difference > 0 ? 'text-indigo-600 dark:text-indigo-400' : ytd.difference < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700'
+                  }`}>
+                    {ytd.difference !== null ? `${ytd.difference > 0 ? '+' : ''}${fmtFloat(ytd.difference)}` : '-'}{' '}
+                    <span className="text-xs font-normal text-slate-500">{rec.unit}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">
+                    Evaluasi kumulatif tahun berjalan
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Tabel Rincian Rekonsiliasi Bulanan */}
+            {monthly.length > 0 && (
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Bulan</th>
+                      <th className="py-2.5 px-3 text-right">
+                        {isYoy ? 'Kenaikan Resmi YoY' : isNet ? 'Tambahan Bersih (Resmi)' : rec.official_name}
+                      </th>
+                      <th className="py-2.5 px-3 text-right">
+                        {isYoy ? 'Perkiraan PB' : rec.companion_name}
+                      </th>
+                      <th className="py-2.5 px-3 text-right">Selisih</th>
+                      <th className="py-2.5 px-3 text-center">Unit Terbanding</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums">
+                    {monthly.map((m) => {
+                      const diff = m.difference
+                      const diffCls = diff > 0
+                        ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                        : diff < 0
+                        ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                        : 'text-slate-500'
+
+                      return (
+                        <tr key={m.month} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                          <td className="py-2 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
+                            {fmtMonth(m.month)}
+                          </td>
+                          <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                            {m.official_net !== null ? fmtFloat(m.official_net) : '-'}
+                          </td>
+                          <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                            {m.companion !== null ? fmtFloat(m.companion) : '-'}
+                          </td>
+                          <td className={`py-2 px-3 text-right ${diffCls}`}>
+                            {diff !== null ? `${diff > 0 ? '+' : ''}${fmtFloat(diff)}` : '-'}
+                          </td>
+                          <td className="py-2 px-3 text-center text-slate-400 text-[11px]">
+                            {m.units_compared}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function BusinessAnalyticsPage() {
   const { metricCode } = useParams()
   const navigate = useNavigate()
@@ -783,7 +1010,7 @@ export default function BusinessAnalyticsPage() {
         </div>
       </div>
 
-      {/* Tab Switcher Khusus Metrik Pelanggan & Daya (Tren & Analisis vs Prakiraan) */}
+      {/* Tab Switcher Khusus Metrik Pelanggan & Daya (Tren & Analisis vs Rincian vs Prakiraan) */}
       {(activeCode === 'pelanggan' || activeCode === 'daya') && (
         <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
           <button
@@ -797,6 +1024,19 @@ export default function BusinessAnalyticsPage() {
           >
             Tren &amp; Analisis
           </button>
+          {activeCode === 'pelanggan' && (
+            <button
+              type="button"
+              onClick={() => setCustomerTab('details')}
+              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                customerTab === 'details'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              Rincian Permohonan (EIS)
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setCustomerTab('forecast')}
@@ -811,7 +1051,7 @@ export default function BusinessAnalyticsPage() {
         </div>
       )}
 
-      {/* Tab Switcher Khusus Metrik Keandalan & Gangguan (Realisasi Laporan EIS vs Rincian APKT / Penyulang) */}
+      {/* Tab Switcher Khusus Metrik Keandalan & Gangguan (Realisasi Laporan EIS vs Rincian APKT / Penyulang / Prakiraan) */}
       {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && (
         <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
           <button
@@ -823,7 +1063,7 @@ export default function BusinessAnalyticsPage() {
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
             }`}
           >
-            Tren &amp; Analisis (Laporan EIS)
+            Tren &amp; Analisis (Laporan DIFI/EIS)
           </button>
           <button
             type="button"
@@ -851,19 +1091,17 @@ export default function BusinessAnalyticsPage() {
           >
             Penyulang &amp; Gardu
           </button>
-          {activeCode === 'gangguan' && (
-            <button
-              type="button"
-              onClick={() => setOutageTab('forecast')}
-              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                outageTab === 'forecast'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              Prakiraan Gangguan
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setOutageTab('forecast')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              outageTab === 'forecast'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Prakiraan Keandalan
+          </button>
         </div>
       )}
 
@@ -900,8 +1138,17 @@ export default function BusinessAnalyticsPage() {
         </div>
       )}
 
-      {/* Tampilan Khusus Analitika Gangguan APKT saat sub-tab APKT/penyulang aktif */}
-      {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && outageTab !== 'eis' ? (
+      {/* Tampilan Khusus Analitika Gangguan APKT saat sub-tab APKT/penyulang/prakiraan aktif */}
+      {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && outageTab === 'forecast' ? (
+        <div className="pt-2">
+          <OutageForecastTab
+            params={{
+              up3_id: up3Id || undefined,
+              unit_id: selectedUnitId || undefined,
+            }}
+          />
+        </div>
+      ) : (activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && outageTab !== 'eis' ? (
         <div className="pt-2">
           <OutageAnalysisContent
             hideHeader={true}
@@ -918,7 +1165,7 @@ export default function BusinessAnalyticsPage() {
             onSelectMaterial={() => {}}
           />
         </div>
-      ) : metricCode === 'pelanggan' && customerTab === 'trend' ? (
+      ) : activeCode === 'pelanggan' && customerTab === 'details' ? (
         <div className="pt-2">
           <CustomerAnalysisContent
             hideHeader={true}
@@ -1727,6 +1974,19 @@ export default function BusinessAnalyticsPage() {
                 )
               })()}
             </div>
+          )}
+
+          {/* Data Penjelas Operasional (Companions) */}
+          {d.companions && (
+            <CompanionSection companions={d.companions} toMonth={d.to} />
+          )}
+
+          {/* Rekonsiliasi Angka Resmi vs Operasional */}
+          {(d.reconciliations?.length > 0 || d.reconciliation) && (
+            <ReconciliationSection
+              reconciliations={d.reconciliations || (d.reconciliation ? [d.reconciliation] : [])}
+              unitsExpected={unitsExpected}
+            />
           )}
 
           {/* Catatan Wawasan & Analisa Otomatis (Insights) */}

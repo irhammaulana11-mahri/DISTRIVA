@@ -532,10 +532,10 @@ describe('BusinessAnalyticsPage', () => {
     wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/gangguan'])
 
     // Terdapat sub-tab untuk Laporan EIS, Rincian APKT, Penyulang & Gardu, dan Prakiraan
-    expect(await screen.findByText('Tren & Analisis (Laporan EIS)')).toBeInTheDocument()
+    expect(await screen.findByText('Tren & Analisis (Laporan DIFI/EIS)')).toBeInTheDocument()
     expect(screen.getByText('Rincian Gangguan (APKT)')).toBeInTheDocument()
     expect(screen.getByText('Penyulang & Gardu')).toBeInTheDocument()
-    expect(screen.getByText('Prakiraan Gangguan')).toBeInTheDocument()
+    expect(screen.getByText('Prakiraan Keandalan')).toBeInTheDocument()
 
     // Klik tab Rincian Gangguan (APKT)
     await user.click(screen.getByText('Rincian Gangguan (APKT)'))
@@ -544,25 +544,89 @@ describe('BusinessAnalyticsPage', () => {
     expect(await screen.findByText(/Gangguan 12 bln terakhir/i)).toBeInTheDocument()
   })
 
-  it('8. menu pelanggan di bawah pengusahaan menampilkan header Analisa & Tren Pelanggan, 4 card, delta bulanan, dan temuan di bagian bawah', async () => {
-    pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
-    pengusahaanApi.metric.mockResolvedValue(MOCK_METRIC_DETAIL)
+  it('8. menu pelanggan di bawah pengusahaan menampilkan angka resmi 309, tab rincian permohonan, data penjelas, dan rekonsiliasi', async () => {
+    const pelangganDetailWithReconciliation = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: {
+          code: 'pelanggan',
+          name: 'Pelanggan',
+          source: '309 (baris JUMLAH)',
+          polarity: 'up',
+          ytd_mode: 'last',
+        },
+        from: '2026-01',
+        to: '2026-02',
+        months: ['2026-01', '2026-02'],
+        units_expected: 2,
+        units_reporting: [2, 2],
+        series: [{ key: 'pelanggan', name: 'Jumlah Pelanggan', unit: 'pelanggan', values: [1400000, 1403000], previous_year: [1380000, 1382000] }],
+        summary: [{ key: 'pelanggan', name: 'Jumlah Pelanggan', unit: 'pelanggan', latest: 1403000, yoy_pct: 1.5, ytd: 1403000, ytd_pct: 1.5 }],
+        companions: {
+          source: 'Permohonan Pelanggan DISTRIVA',
+          series: [
+            { key: 'pb', name: 'Pelanggan baru tersambung (PB)', unit: 'plg', latest: 3200, ytd: 6500 },
+            { key: 'req_pb', name: 'Permohonan PB masuk', unit: 'plg', latest: 3600, ytd: 7200 },
+          ],
+        },
+        reconciliations: [
+          {
+            key: 'pb',
+            mode: 'net',
+            unit: 'plg',
+            official_name: 'Penambahan pelanggan Laporan 309',
+            companion_name: 'Pelanggan baru tersambung (PB)',
+            note: '309 adalah posisi akhir bulan, penambahan = selisih antar bulan. PB permohonan status PEREMAJAAN.',
+            monthly: [
+              { month: '2026-01', official_net: 3000, companion: 3300, difference: 300, units_compared: 2 },
+              { month: '2026-02', official_net: 3000, companion: 3200, difference: 200, units_compared: 2 },
+            ],
+            ytd: {
+              year: 2026,
+              base_month: '2025-12',
+              to_month: '2026-02',
+              official_net: 6000,
+              companion: 6500,
+              difference: 500,
+              units_compared: 2,
+              units_expected: 2,
+            },
+          },
+        ],
+        insights: [{ level: 'info', text: 'Data rekonsiliasi menunjukkan pertumbuhan PB stabil.' }],
+      },
+    }
 
+    pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
+    pengusahaanApi.metric.mockResolvedValue(pelangganDetailWithReconciliation)
+
+    const user = userEvent.setup()
     wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelanggan'])
 
     // Header dan badge
     expect(await screen.findByText('Analisa & Tren Pelanggan')).toBeInTheDocument()
     expect(screen.getByText('Laporan 309 & Permohonan EIS')).toBeInTheDocument()
 
-    // 4 Card Statistik
-    expect(screen.getByText('Jumlah pelanggan (Laporan 309)')).toBeInTheDocument()
-    expect(screen.getByText('Pelanggan baru, 12 bulan terakhir')).toBeInTheDocument()
-    expect(screen.getByText('Rata-rata pasang baru bulanan')).toBeInTheDocument()
+    // Tab switcher: Tren & Analisis, Rincian Permohonan (EIS), Prakiraan Pelanggan
+    expect(screen.getByText('Tren & Analisis')).toBeInTheDocument()
+    expect(screen.getByText('Rincian Permohonan (EIS)')).toBeInTheDocument()
+    expect(screen.getByText('Prakiraan Pelanggan')).toBeInTheDocument()
 
-    // Body: delta pelanggan bulanan, PB per bulan, ringkasan per tahun, temuan
-    expect(screen.getByText('Pelanggan baru (PB) per bulan')).toBeInTheDocument()
+    // Data Penjelas Operasional
+    expect(await screen.findByText('Data Penjelas Operasional')).toBeInTheDocument()
+    expect(screen.getByText('Permohonan Pelanggan DISTRIVA')).toBeInTheDocument()
+    expect(screen.getAllByText('Pelanggan baru tersambung (PB)').length).toBeGreaterThan(0)
+
+    // Rekonsiliasi Angka Resmi vs Penjelas
+    expect(screen.getByText(/Rekonsiliasi: Penambahan pelanggan Laporan 309 vs Pelanggan baru tersambung/i)).toBeInTheDocument()
+    expect(screen.getByText('Mode Saldo Bersih (Net)')).toBeInTheDocument()
+    expect(screen.getByText(/309 adalah posisi akhir bulan/i)).toBeInTheDocument()
+
+    // Klik tab Rincian Permohonan (EIS)
+    await user.click(screen.getByText('Rincian Permohonan (EIS)'))
+
+    // Komponen CustomerAnalysisContent tampil
+    expect(await screen.findByText('Pelanggan baru (PB) per bulan')).toBeInTheDocument()
     expect(screen.getByText('Delta pelanggan bulanan')).toBeInTheDocument()
-    expect(screen.getByText('Ringkasan per tahun')).toBeInTheDocument()
-    expect(screen.getByText('Temuan')).toBeInTheDocument()
   })
 })

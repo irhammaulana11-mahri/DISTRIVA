@@ -484,7 +484,7 @@ function FeedersTab({ data, params }) {
   )
 }
 
-function ForecastTab({ params }) {
+export function ForecastTab({ params }) {
   const [state, setState] = useState({ loading: true, error: '', data: null })
   const [metric, setMetric] = useState('permanent')
   useEffect(() => {

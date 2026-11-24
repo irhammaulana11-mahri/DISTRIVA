@@ -112,7 +112,7 @@ const masterDataNav = [
 const reportsNav = [
   { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
   { to: '/nko', label: 'NKO & Kinerja Unit', capability: 'nko.view', icon: IconChart },
-  { to: '/analisis-pelanggan', label: 'Analisa Pelanggan', capability: 'reports.view', icon: IconUsers },
+  { to: '/pengusahaan/pelanggan', label: 'Analisa Pelanggan', capability: 'reports.view', icon: IconUsers },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
   { to: '/analisis-gangguan', label: 'Analisis Gangguan', capability: 'outages.view', icon: IconActivity },
@@ -128,7 +128,7 @@ const reportsNav = [
 // 5. Analisa & Tren Pengusahaan (Indikator Pengusahaan)
 const pengusahaanNav = [
   { to: '/pengusahaan', label: 'Semua Indikator (Ikhtisar)', capability: 'pengusahaan.view', icon: IconChart, end: true },
-  { to: '/pengusahaan/pelanggan', label: 'Pelanggan', capability: 'pengusahaan.view', icon: IconUsers },
+  { to: '/pengusahaan/pelanggan', label: 'Analisa Pelanggan', capability: 'pengusahaan.view', icon: IconUsers },
   { to: '/pengusahaan/daya', label: 'Daya Tersambung', capability: 'pengusahaan.view', icon: IconZap },
   { to: '/pengusahaan/kwh-jual', label: 'kWh Jual', capability: 'pengusahaan.view', icon: IconActivity },
   { to: '/pengusahaan/pendapatan', label: 'Pendapatan', capability: 'pengusahaan.view', icon: IconCalculator },

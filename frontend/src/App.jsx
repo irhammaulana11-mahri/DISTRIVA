@@ -195,7 +195,7 @@ export default function App() {
         <Route path="permohonan/sinkronisasi-eis" element={<RequireCapability capability="eis_sync.manage"><EisSyncPage /></RequireCapability>} />
         <Route path="permohonan/:applicationId" element={<RequireCapability capability="applications.view"><ApplicationDetailPage /></RequireCapability>} />
         <Route path="forecast" element={<RequireCapability capability="forecast.view"><ForecastPage /></RequireCapability>} />
-        <Route path="analisis-pelanggan" element={<RequireCapability anyOf={['reports.view', 'forecast.view']}><CustomerAnalysisPage /></RequireCapability>} />
+        <Route path="analisis-pelanggan" element={<Navigate to="/pengusahaan/pelanggan" replace />} />
         <Route path="tugas" element={<RequireCapability capability="tasks.view"><TasksPage /></RequireCapability>} />
         <Route path="tugas/:taskId" element={<RequireCapability capability="tasks.view"><TasksPage /></RequireCapability>} />
         <Route path="usulan" element={<RequireCapability capability="proposals.view"><ProposalsPage /></RequireCapability>} />
