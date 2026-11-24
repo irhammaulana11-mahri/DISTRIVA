@@ -4,6 +4,7 @@ import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import { filterControlCls } from '../../components/filterStyles.js'
 import { IconActivity, IconRefresh, IconDownload, IconX } from '../../components/icons.jsx'
 import {
   ColumnChart,
@@ -459,11 +460,11 @@ export default function OutageAnalysisPage() {
         <HierarchicalUnitFilter permission="outages.view" up3Id={up3Id} onUp3Change={setUp3Id} unitId={unitId} onUnitChange={setUnitId} unitAriaLabel="Filter Unit ULP" />
         <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
           Dari
-          <input type="month" value={fromM} onChange={(e) => setFromM(e.target.value)} aria-label="Dari bulan" className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-sm" />
+          <input type="month" value={fromM} onChange={(e) => setFromM(e.target.value)} aria-label="Dari bulan" className={`${filterControlCls} w-32`} />
         </label>
         <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
           Sampai
-          <input type="month" value={toM} onChange={(e) => setToM(e.target.value)} aria-label="Sampai bulan" className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-sm" />
+          <input type="month" value={toM} onChange={(e) => setToM(e.target.value)} aria-label="Sampai bulan" className={`${filterControlCls} w-32`} />
         </label>
         {cov && cov.events > 0 && (
           <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">

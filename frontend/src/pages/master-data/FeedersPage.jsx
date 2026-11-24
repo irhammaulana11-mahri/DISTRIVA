@@ -895,13 +895,13 @@ export default function FeedersPage() {
             <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               aria-label="Cari penyulang"
-              placeholder="Cari kode, nama, GI…"
+              placeholder="Cari kode, nama penyulang, GI…"
               value={q}
               onChange={(e) => {
                 setPage(1)
                 setQ(e.target.value)
               }}
-              className={`${filterControlCls} pl-8 w-56 sm:w-64`}
+              className={`${filterControlCls} pl-8 w-60 sm:w-72`}
             />
           </div>
 
