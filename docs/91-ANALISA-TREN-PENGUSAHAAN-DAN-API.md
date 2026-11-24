@@ -83,6 +83,20 @@ Nilai **bulan itu** (bukan kumulatif), kWh, per ULP. Satu-satunya tempat mengisi
 
 Saran layar: tabel 12 bulan × (kWh beli, E-Min, PSSD, kWh jual hanya-baca, susut bulan, susut kumulatif), pilih tahun dan ULP, simpan sekaligus. Tempatkan sebagai tab "Masukan kWh Beli" pada halaman metrik Susut (tampil hanya bila `can_edit`), dan tautkan dari butir pembantu susut di halaman masukan NKO.
 
+### 3b. Templat dan impor Excel kWh beli
+
+Data yang biasa diisi hanya **kWh beli** dan **PSSD** (kWh, nilai bulan itu); kolom **E-MIN** tersedia tetapi boleh kosong.
+
+- `GET /inputs/template?year=&unit_id=` (`pengusahaan.input`): berkas `KWH-BELI-<tahun>.xlsx`, lembar "KWH BELI", kolom `KODE ULP | NAMA ULP | BULAN (YYYY-MM) | KWH BELI | PSSD | E-MIN | CATATAN`, satu baris per ULP per bulan (12 bulan) untuk ULP yang boleh diisi pengguna; `unit_id` (ULP atau UP3) membatasi. Nilai yang sudah tersimpan ikut terisi.
+- `POST /inputs/import` (multipart `file`, xlsx/xls, maks 5 MB, `pengusahaan.input`). Aturan baca:
+  - judul kolom dicari pada 10 baris pertama; ULP dicocokkan dengan kode, atau nama bila kode kosong;
+  - `BULAN` boleh `2026-01`, `2026/1`, `01-2026`, atau tanggal Excel; tidak boleh setelah bulan berjalan;
+  - angka boleh sel numerik atau teks berformat Indonesia (`1.234.567,89`) atau Inggris (`1,234,567.89`), harus ≥ 0;
+  - sel nilai kosong dilewati (tidak menghapus nilai tersimpan; menghapus lewat `PUT /inputs` dengan `value` null);
+  - bila ada satu baris salah (ULP tidak dikenal, di luar kewenangan, bulan salah, angka salah, ganda), **seluruh berkas ditolak** (422) dengan daftar baris yang salah dan tidak ada yang tersimpan.
+
+  Respons sukses `{data: {rows, changed, unchanged}, message}`.
+
 ## 4. Saran layar (agen frontend)
 
 Satu menu **Analisa Pengusahaan** dengan submenu per metrik (dari `GET /metrics`). Metrik dengan `available=false` ditampilkan nonaktif beserta `source`. Pola halaman yang sama untuk semua metrik:
@@ -100,6 +114,5 @@ Analisa Gangguan (`/outages/analysis`) dan Analisa Pelanggan (`/reports/customer
 
 ## 6. Belum dikerjakan
 
-- Impor kWh beli dari berkas (Excel) bila sumbernya tersedia; saat ini isian manual per bulan.
 - Umur piutang pascabayar bertingkat: menunggu laporan umur piutang.
 - Target NKO pada grafik untuk metrik yang punya indikator NKO padanan.

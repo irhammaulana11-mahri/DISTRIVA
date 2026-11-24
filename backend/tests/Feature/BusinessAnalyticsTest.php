@@ -8,9 +8,12 @@ use App\Models\User;
 use App\Services\Nko\NkoRealizationResolver;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\NkoPermissionSeeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\PostgresTestCase;
 
@@ -162,5 +165,44 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->as($this->planner)->putJson('/api/pengusahaan/inputs', ['unit_id' => $this->up3->id, 'items' => $item])->assertNotFound();   // masukan hanya per ULP
         $this->as($this->planner)->putJson('/api/pengusahaan/inputs', ['unit_id' => $this->ulpA->id, 'items' => [['period' => '2026-01', 'code' => 'kwh-jual', 'value' => 1]]])->assertStatus(422);
         $this->as($this->planner)->putJson('/api/pengusahaan/inputs', ['unit_id' => $this->ulpA->id, 'items' => [['period' => '2026-01', 'code' => 'kwh-beli', 'value' => -5]]])->assertStatus(422);
+    }
+
+    #[Test]
+    public function templat_excel_diisi_lalu_diimpor_dan_ditolak_seluruhnya_bila_ada_baris_salah(): void
+    {
+        $other = $this->makeUnit('UP3');
+        $foreign = $this->makeUnit('ULP', $other);
+        $download = $this->as($this->planner)->get("/api/pengusahaan/inputs/template?year=2026&unit_id={$this->up3->id}")->assertOk();
+        $path = tempnam(sys_get_temp_dir(), 'kb').'.xlsx';
+        file_put_contents($path, $download->streamedContent());
+        $book = IOFactory::load($path);
+        $ws = $book->getActiveSheet();
+        $this->assertSame(['KODE ULP', 'NAMA ULP', 'BULAN', 'KWH BELI', 'PSSD', 'E-MIN', 'CATATAN'], $ws->rangeToArray('A1:G1')[0]);
+        $this->assertSame(25, $ws->getHighestRow());   // 2 ULP x 12 bulan + judul
+        $ws->setCellValue('D2', 1000);   // baris ULP pertama, Januari 2026
+        $ws->setCellValue('E2', 30);
+        $ws->setCellValueExplicit('D3', '1.200.000,5', 's');   // teks format Indonesia
+        (new Xlsx($book))->save($path);
+        $upload = fn () => new UploadedFile($path, 'kwh.xlsx', null, null, true);
+
+        $r = $this->as($this->planner)->post('/api/pengusahaan/inputs/import', ['file' => $upload()])->assertOk()->json('data');
+        $this->assertSame(['rows' => 3, 'changed' => 3, 'unchanged' => 0], $r);
+        $first = $ws->getCell('A2')->getValue();
+        $unitId = DB::table('organizational_units')->where('code', $first)->value('id');
+        $this->assertEquals(1000, DB::table('business_monthly_inputs')->where(['organizational_unit_id' => $unitId, 'code' => 'kwh-beli', 'period' => '2026-01-01'])->value('value'));
+        $this->assertEquals(1200000.5, DB::table('business_monthly_inputs')->where(['organizational_unit_id' => $unitId, 'code' => 'kwh-beli', 'period' => '2026-02-01'])->value('value'));
+        $this->assertEquals(30, DB::table('business_monthly_inputs')->where(['organizational_unit_id' => $unitId, 'code' => 'pssd', 'period' => '2026-01-01'])->value('value'));
+        $this->assertSame(0, $this->as($this->planner)->post('/api/pengusahaan/inputs/import', ['file' => $upload()])->json('data.changed'));
+
+        $ws->setCellValue('D2', 5000);
+        $ws->setCellValueExplicit('A26', (string) $foreign->code, 's');
+        $ws->setCellValue('C26', '2026-01');
+        $ws->setCellValue('D26', 10);
+        (new Xlsx($book))->save($path);
+        $this->as($this->planner)->post('/api/pengusahaan/inputs/import', ['file' => $upload()])->assertStatus(422)->assertJsonFragment(['message' => "Impor dibatalkan, perbaiki baris berikut: Baris 26: {$foreign->name} di luar kewenangan Anda."]);
+        $this->assertEquals(1000, DB::table('business_monthly_inputs')->where(['organizational_unit_id' => $unitId, 'code' => 'kwh-beli', 'period' => '2026-01-01'])->value('value'));   // tidak ada yang tersimpan
+
+        $this->as($this->viewer)->post('/api/pengusahaan/inputs/import', ['file' => $upload()])->assertForbidden();
+        $this->as($this->viewer)->get('/api/pengusahaan/inputs/template?year=2026')->assertForbidden();
     }
 }

@@ -346,6 +346,8 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/metrics/{code}', [BusinessAnalyticsController::class, 'show'])->where('code', '[a-z0-9-]+');
         Route::get('/inputs', [BusinessAnalyticsController::class, 'inputs']);
         Route::put('/inputs', [BusinessAnalyticsController::class, 'saveInputs']);
+        Route::get('/inputs/template', [BusinessAnalyticsController::class, 'template']);
+        Route::post('/inputs/import', [BusinessAnalyticsController::class, 'import']);
     });
     Route::prefix('eis-reports')->middleware('throttle:admin')->group(function () {
         Route::get('/', [EisReportController::class, 'index']);

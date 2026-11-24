@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
+use App\Services\Analytics\BusinessInputWorkbook;
 use App\Services\Analytics\BusinessMetricService;
 use App\Services\Analytics\BusinessTrendBuilder;
 use App\Services\Authorization\ApplicationAuthorizer;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Analisa dan tren pengusahaan (docs/91). Membaca butuh pengusahaan.view, mengisi masukan bulanan (kWh beli, E-Min, PSSD) butuh pengusahaan.input pada ULP itu; ULP dalam cakupan peran, UP3 hanya bila perannya mencakup UP3 itu (atau sistem).
@@ -21,7 +23,7 @@ class BusinessAnalyticsController extends Controller
 
     private const INPUT_PERMISSION = 'pengusahaan.input';
 
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $workbook) {}
 
     /** GET /pengusahaan/metrics: katalog metrik dan unit yang boleh dilihat. */
     public function index(Request $request): JsonResponse
@@ -139,6 +141,34 @@ class BusinessAnalyticsController extends Controller
         });
 
         return response()->json(['message' => $changed === 0 ? 'Tidak ada perubahan masukan.' : "{$changed} masukan berubah.", 'changed' => $changed]);
+    }
+
+    /** GET /pengusahaan/inputs/template?year=&unit_id=: templat Excel (ULP yang boleh diisi; unit_id ULP atau UP3 membatasi), terisi nilai tersimpan. */
+    public function template(Request $request): BinaryFileResponse
+    {
+        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100'], 'unit_id' => ['nullable', 'uuid']]);
+        $scope = $this->authorizer->authorizeScope($request->user(), self::INPUT_PERMISSION);
+        $units = DB::table('organizational_units')->where('unit_type', 'ULP')
+            ->when(! $scope['unrestricted'], fn ($q) => $q->whereIn('id', $scope['units']))
+            ->when(! empty($d['unit_id']), fn ($q) => $q->where(fn ($x) => $x->where('id', $d['unit_id'])->orWhere('parent_id', $d['unit_id'])))
+            ->orderBy('name')->get(['id', 'code', 'name'])->all();
+        if ($units === []) {
+            throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        }
+        $path = storage_path('app/kwh-beli-'.Str::uuid().'.xlsx');
+        $this->workbook->template($units, (int) $d['year'], $path);
+
+        return response()->download($path, "KWH-BELI-{$d['year']}.xlsx", ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
+    }
+
+    /** POST /pengusahaan/inputs/import (multipart `file`): impor templat; seluruh berkas ditolak bila ada baris salah. */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate(['file' => ['required', 'file', 'max:5120', 'extensions:xlsx,xls']]);
+        $this->authorizer->authorizeScope($request->user(), self::INPUT_PERMISSION);
+        $r = $this->workbook->import($request->file('file')->getRealPath(), $request->user());
+
+        return response()->json(['data' => $r, 'message' => "{$r['rows']} nilai dibaca, {$r['changed']} berubah, {$r['unchanged']} sama."]);
     }
 
     /** ULP dalam cakupan peran dan UP3 yang perannya mencakup UP3 itu; semua untuk peran sistem. */
