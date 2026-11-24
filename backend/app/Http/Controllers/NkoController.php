@@ -247,15 +247,20 @@ class NkoController extends Controller
         if ($noReason !== []) {
             throw new AdministrationDenied('Koreksi atas nilai otomatis wajib disertai alasan (note): '.implode(', ', array_column($noReason, 'code')).'.', 422);
         }
-        DB::transaction(function () use ($d, $period, $request, $system) {
+        $changed = 0;
+        DB::transaction(function () use ($d, $period, $request, $system, &$changed) {
             foreach ($d['items'] as $it) {
                 $where = ['definition_code' => $it['code'], 'organizational_unit_id' => $d['unit_id'], 'period' => $period];
                 if (! array_key_exists('value', $it) || $it['value'] === null) {
-                    DB::table('kpi_manual_inputs')->where($where)->delete();
+                    $changed += DB::table('kpi_manual_inputs')->where($where)->delete();
 
                     continue;
                 }
                 $existing = DB::table('kpi_manual_inputs')->where($where)->first();
+                if ($existing !== null && (float) $existing->value === (float) $it['value'] && trim((string) $existing->note) === trim((string) ($it['note'] ?? ''))) {
+                    continue;   // tidak berubah: pengisi, waktu, dan nilai sistem saat koreksi tetap seperti semula (jejak audit)
+                }
+                $changed++;
                 $data = ['value' => $it['value'], 'note' => $it['note'] ?? null, 'system_value' => $system[$it['code']] ?? null, 'entered_by' => $request->user()->id, 'updated_at' => now()];
                 $existing === null
                     ? DB::table('kpi_manual_inputs')->insert($where + $data + ['id' => (string) Str::uuid7(), 'created_at' => now()])
@@ -263,7 +268,7 @@ class NkoController extends Controller
             }
         });
 
-        return response()->json(['message' => count($d['items']).' masukan disimpan. Jalankan perhitungan untuk memperbarui nilai.']);
+        return response()->json(['message' => $changed === 0 ? 'Tidak ada perubahan masukan.' : "{$changed} masukan berubah. Jalankan perhitungan untuk memperbarui nilai.", 'changed' => $changed]);
     }
 
     /** POST /nko/calculate {year, month, unit_id | up3_id}: hitung satu unit, atau satu UP3 beserta ULP di bawahnya. */

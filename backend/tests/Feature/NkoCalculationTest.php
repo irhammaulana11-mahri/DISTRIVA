@@ -274,6 +274,27 @@ class NkoCalculationTest extends PostgresTestCase
     }
 
     #[Test]
+    public function menyimpan_ulang_masukan_yang_tidak_berubah_tidak_menimpa_pengisi_dan_waktu(): void
+    {
+        $this->input($this->ulpA, ['penjualan-tenaga-listrik' => 2.5]);
+        $before = DB::table('kpi_manual_inputs')->where('definition_code', 'penjualan-tenaga-listrik')->first();
+        $other = $this->makeUser();
+        $this->assign($other, Role::query()->where('name', 'PERENCANAAN')->firstOrFail(), $this->up3);
+        $this->travel(1)->hour();
+
+        $r = $this->as($other)->putJson('/api/nko/inputs', ['unit_id' => $this->ulpA->id, 'year' => 2026, 'month' => 1,
+            'items' => [['code' => 'penjualan-tenaga-listrik', 'value' => 2.5, 'note' => 'Alasan uji'], ['code' => 'saidi', 'value' => null]]])->assertOk();
+
+        $this->assertSame(0, $r->json('changed'));
+        $after = DB::table('kpi_manual_inputs')->where('definition_code', 'penjualan-tenaga-listrik')->first();
+        $this->assertSame($before->entered_by, $after->entered_by);
+        $this->assertSame($before->updated_at, $after->updated_at);
+        $this->as($other)->putJson('/api/nko/inputs', ['unit_id' => $this->ulpA->id, 'year' => 2026, 'month' => 1,
+            'items' => [['code' => 'penjualan-tenaga-listrik', 'value' => 3, 'note' => 'Alasan uji']]])->assertOk()->assertJsonPath('changed', 1);
+        $this->assertSame($other->id, DB::table('kpi_manual_inputs')->where('definition_code', 'penjualan-tenaga-listrik')->value('entered_by'));
+    }
+
+    #[Test]
     public function susut_dihitung_dari_kwh_beli_emin_pssd_manual_dan_kwh_jual_total_309(): void
     {
         $resolver = app(NkoRealizationResolver::class);
