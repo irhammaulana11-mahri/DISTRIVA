@@ -268,6 +268,29 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertContains('susut-distribusi-tanpa-e-min', NkoRealizationResolver::UNVALIDATED_CODES);
     }
 
+    #[Test]
+    public function penambahan_penjualan_adalah_selisih_kwh_jual_kumulatif_tahun_berjalan_dan_tahun_lalu(): void
+    {
+        $resolver = app(NkoRealizationResolver::class);
+        $jual = function (string $period, float $kwh) {
+            $this->report309($this->ulpA, $period, 1, 1);
+            DB::table('eis_report_lines')->join('eis_report_files', 'eis_report_files.id', '=', 'eis_report_lines.file_id')
+                ->where('eis_report_files.period', $period)->where('eis_report_lines.label', 'JUMLAH')->update(['values' => json_encode(['pelanggan' => 1, 'daya_va' => 1, 'kwh_jumlah' => $kwh])]);
+        };
+        $jual('2026-01-01', 48000000);
+        $this->assertArrayNotHasKey('penjualan-tenaga-listrik', $resolver->resolve($this->ulpA->id, 2026, 1));   // Januari tahun lalu belum ada
+
+        $jual('2025-01-01', 50000000);
+        $jan = $resolver->resolve($this->ulpA->id, 2026, 1)['penjualan-tenaga-listrik'];
+        $this->assertEqualsWithDelta(-2.0, $jan['value'], 1e-9);   // GWh: turun dibanding tahun lalu
+        $this->assertSame('SISTEM', $jan['source']);
+
+        $jual('2026-02-01', 44000000);
+        $jual('2025-02-01', 41000000);
+        $this->assertEqualsWithDelta(1.0, $resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['value'], 1e-9);   // (48+44) - (50+41), kumulatif
+        $this->assertContains('penjualan-tenaga-listrik', NkoRealizationResolver::UNVALIDATED_CODES);
+    }
+
     private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, float $kwh): void
     {
         $id = (string) Str::uuid();

@@ -14,7 +14,7 @@ class NkoRealizationResolver
     /** kode indikator => jenis sumber sistem */
     public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh', 'penambahan-pelanggan' => 'pelanggan_309', 'daya-tersambung' => 'daya_309',
         'gangguan-tm' => 'gangguan_penyulang', 'response-time-atas-gangguan-diluar-clear-tamper' => 'response_ggnall', 'feedback-rating-negatif-pada-pln-mobile-gangguan' => 'rating_negatif_ggn',
-        'susut-distribusi-tanpa-e-min' => 'susut_hitung'];
+        'susut-distribusi-tanpa-e-min' => 'susut_hitung', 'penjualan-tenaga-listrik' => 'penjualan_selisih'];
 
     /** kode susut dan masukan pembantunya (kWh kumulatif, diisi manual; kWh jual dari total laporan 309) */
     public const SUSUT_CODE = 'susut-distribusi-tanpa-e-min';
@@ -23,7 +23,7 @@ class NkoRealizationResolver
     public const SUSUT_INPUTS = ['kwh-beli' => 'kWh Beli (kumulatif)', 'e-min' => 'E-Min (kWh, kumulatif)', 'pssd' => 'PSSD (kWh, kumulatif)'];
 
     /** sumber sistem yang dimuat otomatis tetapi belum cocok dengan angka workbook (dapat dikoreksi dengan masukan manual disertai alasan) */
-    public const UNVALIDATED_CODES = ['gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
+    public const UNVALIDATED_CODES = ['penjualan-tenaga-listrik', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
 
     /**
      * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string}> menurut kode indikator
@@ -48,7 +48,7 @@ class NkoRealizationResolver
      */
     public function systemValues(string $unitId, int $year, int $month): array
     {
-        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($unitId, $year, $month) + $this->susutValues($unitId, $year, $month);
+        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($unitId, $year, $month) + $this->susutValues($unitId, $year, $month) + $this->penjualanValues($unitId, $year, $month);
     }
 
     /**
@@ -77,6 +77,37 @@ class NkoRealizationResolver
             'penambahan-pelanggan' => (float) $now['pelanggan'] - (float) $base['pelanggan'],
             'daya-tersambung' => ((float) $now['daya_va'] - (float) $base['daya_va']) / 1000000,
         ];
+    }
+
+    /**
+     * Penambahan penjualan TL (GWh) = kWh jual kumulatif tahun berjalan dikurangi periode yang sama tahun lalu, dari baris "JUMLAH" laporan 309 (semua bulan kedua tahun harus ada).
+     * Definisi dari pemilik; angka workbook berbeda karena faktor lain (pembanding tahun lalu workbook bukan dari 309), sehingga dapat dikoreksi dengan masukan manual beralasan.
+     *
+     * @return array<string, float>
+     */
+    private function penjualanValues(string $unitId, int $year, int $month): array
+    {
+        $ytd = function (int $y) use ($unitId, $month): ?float {
+            $files = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
+                ->whereBetween('period', ["{$y}-01-01", sprintf('%04d-%02d-01', $y, $month)])->pluck('id');
+            if ($files->count() !== $month) {
+                return null;
+            }
+            $sum = 0.0;
+            foreach ($files as $id) {
+                $line = DB::table('eis_report_lines')->where('file_id', $id)->where('label', 'JUMLAH')->orderByDesc('line_no')->value('values');
+                if ($line === null) {
+                    return null;
+                }
+                $sum += (float) (json_decode($line, true)['kwh_jumlah'] ?? 0);
+            }
+
+            return $sum;
+        };
+        $now = $ytd($year);
+        $before = $ytd($year - 1);
+
+        return $now === null || $before === null ? [] : ['penjualan-tenaga-listrik' => ($now - $before) / 1000000];
     }
 
     /**
