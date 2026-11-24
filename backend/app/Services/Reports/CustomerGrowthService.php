@@ -131,6 +131,25 @@ class CustomerGrowthService
         return $out;
     }
 
+    /**
+     * Daya (kVA) pasang baru tersambung per ULP per bulan menurut kelompok tarif (huruf pertama kode tarif baru: R, B, I, S, P; lainnya digabung ke "?"); dasar sama dengan trend().
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array<string, float>>> unit => bulan (YYYY-MM) => kelompok => kVA
+     */
+    public function pbKvaByGroup(array $units, string $fromMonth, string $toMonth): array
+    {
+        $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
+        $out = [];
+        $rows = DB::query()->fromSub($this->realized($units, $tz), 'r')->where('t', 'PB')->whereNotNull('m')->whereBetween('m', [$fromMonth, $toMonth])
+            ->selectRaw("u, m, coalesce(nullif(upper(left(tariff, 1)), ''), '?') as g, coalesce(sum(d), 0) as kva")->groupBy('u', 'm', 'g')->get();
+        foreach ($rows as $r) {
+            $out[$r->u][$r->m][$r->g] = (float) $r->kva;
+        }
+
+        return $out;
+    }
+
     /** @param list<string> $present @return list<string> bulan berurutan tanpa celah dari yang tertua sampai terbaru */
     private function monthSpan(array $present): array
     {

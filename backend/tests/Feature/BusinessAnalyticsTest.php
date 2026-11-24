@@ -111,7 +111,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
     private ?array $applicationTemplate = null;
 
     /** Satu permohonan tersambung (status PEREMAJAAN dilihat pada $when), seperti pada tes pertumbuhan pelanggan. */
-    private function connected(OrganizationalUnit $ulp, string $type, float $delta, string $when): void
+    private function connected(OrganizationalUnit $ulp, string $type, float $delta, string $when, string $tariff = 'R1T'): void
     {
         if ($this->applicationTemplate === null) {
             $retail = $this->makeUser();
@@ -122,7 +122,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
         }
         $id = (string) Str::uuid();
         DB::table('applications')->insert(array_merge($this->applicationTemplate, ['id' => $id, 'application_number' => 'T-'.Str::random(10), 'application_type' => $type, 'transaction_type' => $type === 'PB' ? 'PASANG BARU' : 'PERUBAHAN DAYA',
-            'organizational_unit_id' => $ulp->getKey(), 'delta_power_kva' => $delta, 'current_status' => 'CONNECTION_DONE', 'source_created_at' => $when.' 08:00:00', 'last_external_status_at' => $when.' 09:00:00', 'created_at' => $when.' 08:00:00', 'updated_at' => $when.' 09:00:00']));
+            'organizational_unit_id' => $ulp->getKey(), 'delta_power_kva' => $delta, 'new_tariff_code' => $tariff, 'current_status' => 'CONNECTION_DONE', 'source_created_at' => $when.' 08:00:00', 'last_external_status_at' => $when.' 09:00:00', 'created_at' => $when.' 08:00:00', 'updated_at' => $when.' 09:00:00']));
         DB::table('application_external_status_histories')->insert(['id' => (string) Str::uuid(), 'application_id' => $id, 'external_system' => 'EIS', 'external_status_code' => 'PEREMAJAAN', 'observed_at' => $when.' 09:00:00', 'received_at' => $when.' 09:00:00']);
     }
 
@@ -174,10 +174,11 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $pbMva = collect($d['companions']['series'])->firstWhere('key', 'pb_kva');
         $this->assertEqualsWithDelta(0.01, $pbMva['latest'], 1e-9);
 
-        $kwh = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data');
-        $this->assertNull($kwh['companions']);
-        $this->assertNull($kwh['reconciliation']);
-        $this->assertNull($kwh['forecast']);
+        $none = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-keluhan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data');
+        $this->assertNull($none['companions']);
+        $this->assertNull($none['reconciliation']);
+        $this->assertNull($none['reconciliations']);
+        $this->assertNull($none['forecast']);
     }
 
     private int $seq = 0;
@@ -264,6 +265,47 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $last = collect($d['insights'])->last();
         $this->assertSame('perhatian', $last['level']);
         $this->assertStringContainsString('1000% dari angka resmi', $last['text']);
+    }
+
+    /** Laporan 309 dengan baris kelompok (JUMLAH R, JUMLAH B) dan JUMLAH: kWh, daya, rupiah. */
+    private function groups309(OrganizationalUnit $unit, string $period, array $r, array $b = [0, 0, 0]): void
+    {
+        $this->report($unit, '309', $period, [['JUMLAH R', ['kwh_jumlah' => $r[0], 'daya_va' => $r[1], 'rp_jumlah' => $r[2]]], ['JUMLAH B', ['kwh_jumlah' => $b[0], 'daya_va' => $b[1], 'rp_jumlah' => $b[2]]],
+            ['JUMLAH', ['kwh_jumlah' => $r[0] + $b[0], 'pelanggan' => 10, 'daya_va' => $r[1] + $b[1], 'rp_jumlah' => $r[2] + $b[2]]]]);
+    }
+
+    #[Test]
+    public function kwh_jual_dan_pendapatan_memperkirakan_sumbangan_pelanggan_baru_dari_kva_pb_dan_kwh_per_kva_aktual(): void
+    {
+        foreach (['2025-01-01', '2025-02-01'] as $period) {
+            $this->groups309($this->ulpA, $period, [1000, 10_000, 1_000_000]);
+        }
+        foreach (['2026-01-01', '2026-02-01'] as $period) {
+            $this->groups309($this->ulpA, $period, [1200, 12_000, 1_200_000], [500, 5_000, 800_000]);            // R: 100 kWh per kVA, Rp 100.000 per kVA
+        }
+        $this->connected($this->ulpA, 'PB', 2, '2026-01-05');        // kelompok R
+        $this->connected($this->ulpA, 'PB', 3, '2026-02-05');
+        $this->connected($this->ulpA, 'PB', 4, '2026-02-06', 'Z9X');   // kelompok di luar S R B I P: tidak dihitung
+        $this->connected($this->ulpA, 'PB', 1, '2024-01-05');        // di luar jendela 12 bulan
+        $url = fn (string $code) => "/api/pengusahaan/metrics/{$code}?unit_id={$this->ulpA->id}&from=2026-02&to=2026-02";
+
+        $d = $this->as($this->planner)->getJson($url('kwh-jual'))->assertOk()->json('data');
+
+        $est = collect($d['companions']['series'])->firstWhere('key', 'est_kwh');
+        $this->assertEqualsWithDelta(500.0, $est['values'][0], 1e-6);                                   // Februari: (2 + 3) kVA x 100 kWh per kVA (jendela Mar 2025 sampai Feb 2026)
+        $this->assertEqualsWithDelta(700.0, $est['ytd'], 1e-6);                                         // Januari 200 (hanya PB Januari) + Februari 500
+        $y = $d['reconciliation']['ytd'];
+        $this->assertSame('yoy', $d['reconciliation']['mode']);
+        $this->assertEqualsWithDelta(1400.0, $y['official_net'], 1e-6);                                  // (1700 - 1000) per bulan x 2 bulan
+        $this->assertEqualsWithDelta(700.0, $y['companion'], 1e-6);
+        $this->assertEqualsWithDelta(-700.0, $y['difference'], 1e-6);                                  // perkiraan 700 dikurangi kenaikan resmi 1400
+        $this->assertNull($d['forecast']);
+        $this->assertSame('info', collect($d['insights'])->last()['level']);
+        $this->assertStringContainsString('sekitar 50% dari kenaikan resmi', collect($d['insights'])->last()['text']);
+
+        $p = $this->as($this->planner)->getJson($url('pendapatan'))->assertOk()->json('data');
+        $this->assertEqualsWithDelta(500_000.0, collect($p['companions']['series'])->firstWhere('key', 'est_rp')['values'][0], 1e-3);     // 5 kVA x Rp 100.000
+        $this->assertSame('Rp', $p['reconciliation']['unit']);
     }
 
     #[Test]

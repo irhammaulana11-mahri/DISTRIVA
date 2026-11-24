@@ -185,6 +185,9 @@ class BusinessTrendBuilder
                 if ($spec['mode'] === 'net') {
                     $set = array_values(array_filter($units, fn ($u) => $has($u, $m) && $has($u, $this->shift($m, -1))));
                     $net = $set === [] ? null : (float) $officialVal($set, $m) - (float) $officialVal($set, $this->shift($m, -1));
+                } elseif ($spec['mode'] === 'yoy') {
+                    $set = array_values(array_filter($units, fn ($u) => $has($u, $m) && $has($u, $this->shift($m, -12))));
+                    $net = $set === [] ? null : (float) $officialVal($set, $m) - (float) $officialVal($set, $this->shift($m, -12));
                 } else {
                     $set = array_values(array_filter($units, fn ($u) => $has($u, $m)));
                     $net = $set === [] ? null : $officialVal($set, $m);
@@ -199,6 +202,10 @@ class BusinessTrendBuilder
                 $set = array_values(array_filter($units, fn ($u) => $has($u, $base) && $has($u, $to)));
                 $official = $set === [] ? null : (float) $officialVal($set, $to) - (float) $officialVal($set, $base);
                 $baseMonth = $base;
+            } elseif ($spec['mode'] === 'yoy') {
+                $set = array_values(array_filter($units, fn ($u) => array_reduce($ytdMonths, fn ($ok, $m) => $ok && $has($u, $m) && $has($u, $this->shift($m, -12)), true)));
+                $official = $set === [] ? null : array_sum(array_map(fn ($m) => (float) $officialVal($set, $m) - (float) $officialVal($set, $this->shift($m, -12)), $ytdMonths));
+                $baseMonth = $from;
             } else {
                 $set = array_values(array_filter($units, fn ($u) => array_reduce($ytdMonths, fn ($ok, $m) => $ok && $has($u, $m), true)));
                 $official = $set === [] ? null : array_sum(array_map(fn ($m) => (float) $officialVal($set, $m), $ytdMonths));
@@ -212,7 +219,9 @@ class BusinessTrendBuilder
             $reconciliations[] = ['key' => $spec['key'], 'mode' => $spec['mode'], 'unit' => $spec['unit'], 'official_name' => $spec['official_name'], 'companion_name' => $spec['companion_name'], 'monthly' => $monthly, 'ytd' => $ytd,
                 'note' => $spec['mode'] === 'net'
                     ? 'Pendamping dicatat menurut tanggal kejadian, laporan resmi menurut bulan buku: nilai per bulan bisa bergeser, jadi selisih dinilai kumulatif Januari sampai bulan akhir. Selisih = angka pendamping dikurangi tambahan bersih resmi (antara lain pelanggan berhenti dan koreksi data).'
-                    : 'Dua sumber dicatat menurut waktu kejadian yang bisa bergeser antar bulan, jadi selisih dinilai kumulatif (jumlah nilai bulanan Januari sampai bulan akhir). Selisih = angka pendamping dikurangi angka resmi.'];
+                    : ($spec['mode'] === 'yoy'
+                        ? 'Perkiraan, bukan angka resmi: daya PB tersambung 12 bulan terakhir (termasuk bulan itu) per kelompok tarif dikali penjualan per kVA aktual kelompok itu (Laporan 309). PB yang baru tersambung dihitung penuh sehingga sedikit melebihkan; PB di luar kelompok S, R, B, I, P tidak dihitung. Angka resmi = kenaikan dibanding bulan yang sama tahun lalu (kumulatif: Januari sampai bulan akhir). Selisih = perkiraan dikurangi kenaikan resmi; negatif berarti sebagian besar kenaikan bukan dari pelanggan baru (konsumsi pelanggan lama, tarif, atau musim).'
+                        : 'Dua sumber dicatat menurut waktu kejadian yang bisa bergeser antar bulan, jadi selisih dinilai kumulatif (jumlah nilai bulanan Januari sampai bulan akhir). Selisih = angka pendamping dikurangi angka resmi.')];
         }
 
         return ['companions' => ['source' => $c['source'], 'series' => $series], 'reconciliations' => $reconciliations];
@@ -255,6 +264,18 @@ class BusinessTrendBuilder
             default => number_format($v, 0, ',', '.'),
         };
         $head = sprintf('Kumulatif Januari sampai %s: %s %s %s, %s %s %s (selisih %s)', $this->label($y['to_month']), strtolower($rec['official_name']), $f($y['official_net']), $unit, strtolower($rec['companion_name']), $f($y['companion']), $unit, $f($y['difference']));
+        if ($rec['mode'] === 'yoy') {
+            $head = sprintf('Kumulatif Januari sampai %s: %s %s %s; perkiraan sumbangan pelanggan baru %s %s', $this->label($y['to_month']), strtolower($rec['official_name']), $f($y['official_net']), $unit, $f($y['companion']), $unit);
+            if ($y['official_net'] <= 0) {
+                return $y['companion'] > 0 ? ['level' => 'perhatian', 'text' => $head.'. Angka resmi tidak naik walau ada pelanggan baru: konsumsi pelanggan lama turun atau ada kehilangan penjualan.'] : null;
+            }
+            $share = $y['companion'] / $y['official_net'] * 100;
+            if ($share > 100) {
+                return ['level' => 'perhatian', 'text' => sprintf('%s (%.0f%% dari kenaikan resmi). Perkiraan melebihi kenaikan resmi: konsumsi pelanggan lama kemungkinan turun, atau pelanggan baru belum memakai sebesar rata-rata kelompoknya.', $head, $share)];
+            }
+
+            return ['level' => 'info', 'text' => sprintf('%s: sekitar %.0f%% dari kenaikan resmi dapat dijelaskan pelanggan baru (perkiraan); sisanya dari pelanggan lama, tarif, atau musim.', $head, $share)];
+        }
         if ($rec['mode'] === 'flow') {
             if ($y['official_net'] <= 0) {
                 return $y['companion'] > 0 ? ['level' => 'perhatian', 'text' => $head.'. Laporan resmi nol tetapi data pendamping mencatat kejadian: periksa laporan atau data sumber.'] : null;

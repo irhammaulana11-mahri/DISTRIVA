@@ -42,9 +42,17 @@ class BusinessMetricService
                             'series' => [['key' => 'pb_kva', 'name' => 'Daya PB tersambung', 'unit' => 'MVA', 'num' => 'pb_kva', 'factor' => 1e-3], ['key' => 'pd_net_kva', 'name' => 'Perubahan daya (PD) neto', 'unit' => 'MVA', 'num' => 'pd_net_kva', 'factor' => 1e-3]],
                             'reconcile' => [['key' => 'daya', 'mode' => 'net', 'unit' => 'MVA', 'official_name' => 'Tambahan bersih (selisih daya tersambung Laporan 309)', 'official' => ['num' => ['daya_va'], 'factor' => 1e-6],
                                 'companion_name' => 'Daya PB + PD neto (permohonan)', 'companion' => ['num' => ['pb_kva', 'pd_net_kva'], 'factor' => 1e-3]]]]],        'kwh-jual' => ['name' => 'kWh jual', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif',
-                                    'series' => [['key' => 'kwh', 'name' => 'kWh jual', 'unit' => 'kWh', 'num' => 'kwh']]],
+                                    'series' => [['key' => 'kwh', 'name' => 'kWh jual', 'unit' => 'kWh', 'num' => 'kwh']],
+                                    'companion' => ['source' => 'Permohonan EIS (daya PB tersambung per kelompok tarif) dikali kWh per kVA aktual kelompok itu dari Laporan 309 (perkiraan, bukan angka resmi)', 'forecast' => null,
+                                        'series' => [['key' => 'est_kwh', 'name' => 'Perkiraan kWh dari pelanggan baru (PB 12 bulan terakhir)', 'unit' => 'kWh', 'num' => 'est_kwh']],
+                                        'reconcile' => [['key' => 'kwh', 'mode' => 'yoy', 'unit' => 'kWh', 'official_name' => 'Kenaikan kWh jual dibanding tahun lalu (Laporan 309)', 'official' => ['num' => ['kwh']],
+                                            'companion_name' => 'Perkiraan sumbangan pelanggan baru', 'companion' => ['num' => ['est_kwh']]]]]],
         'pendapatan' => ['name' => 'Pendapatan', 'source' => 'Laporan 309 (rupiah JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif',
-            'series' => [['key' => 'rp', 'name' => 'Pendapatan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'rp_per_kwh', 'name' => 'Harga jual rata-rata', 'unit' => 'Rp/kWh', 'num' => 'rp', 'den' => 'kwh']]],
+            'series' => [['key' => 'rp', 'name' => 'Pendapatan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'rp_per_kwh', 'name' => 'Harga jual rata-rata', 'unit' => 'Rp/kWh', 'num' => 'rp', 'den' => 'kwh']],
+            'companion' => ['source' => 'Permohonan EIS (daya PB tersambung per kelompok tarif) dikali rupiah per kVA aktual kelompok itu dari Laporan 309 (perkiraan, bukan angka resmi)', 'forecast' => null,
+                'series' => [['key' => 'est_rp', 'name' => 'Perkiraan pendapatan dari pelanggan baru (PB 12 bulan terakhir)', 'unit' => 'Rp', 'num' => 'est_rp']],
+                'reconcile' => [['key' => 'rp', 'mode' => 'yoy', 'unit' => 'Rp', 'official_name' => 'Kenaikan pendapatan dibanding tahun lalu (Laporan 309)', 'official' => ['num' => ['rp']],
+                    'companion_name' => 'Perkiraan sumbangan pelanggan baru', 'companion' => ['num' => ['est_rp']]]]]],
         'piutang-prabayar' => ['name' => 'Piutang prabayar', 'source' => 'PIUTANGLPB_EIS (BARU, BERJALAN, TUNGGAKAN)', 'family' => 'PIUTANGLPB_EIS', 'polarity' => 'down', 'ytd' => 'last', 'breakdown' => 'Status piutang',
             'series' => [['key' => 'saldo', 'name' => 'Saldo piutang', 'unit' => 'Rp', 'num' => 'saldo'], ['key' => 'lembar', 'name' => 'Jumlah lembar', 'unit' => 'lbr', 'num' => 'lembar']]],
         'piutang-pascabayar' => ['name' => 'Piutang pascabayar', 'source' => 'AKHIEPERIODE_EIS (per kogol)', 'family' => 'AKHIEPERIODE_EIS', 'polarity' => 'down', 'ytd' => 'last', 'breakdown' => 'Kogol',
@@ -105,6 +113,7 @@ class BusinessMetricService
             'rpt-rct-keluhan' => $this->eis('KLHALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_jam', 'selesai_rata_jam')),
             'rpt-rct-gangguan' => $this->eis('GGNALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_menit', 'recovery_rata_menit')),
             'saidi-saifi', 'ens' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifi($lines, $summary)),
+            'grup-309' => $this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->fromGroups309($lines)),
             'difi-gangguan' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifiCount($lines, $summary)),
             'kwh-p2tl' => $this->eis('TAGSUS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
             'gangguan' => $this->outages($units, $fromDate, $toDate),
@@ -301,6 +310,26 @@ class BusinessMetricService
         }
 
         return ['raw' => ['plg' => $plg, 'saidi_x_plg' => (float) $summary['saidi_menit'] * $plg, 'saifi_x_plg' => (float) $summary['saifi_kali'] * $plg, 'ens_kwh' => $ens], 'bd' => []];
+    }
+
+    /**
+     * Daya, kWh, dan rupiah per kelompok tarif laporan 309 (kunci `daya_R`, `kwh_R`, `rp_R`, dst.; huruf = S R B I P T C L), untuk menghitung kWh dan rupiah per kVA aktual tiap kelompok.
+     *
+     * @param  list<array{label: string, values: array<string, mixed>}>  $lines
+     */
+    private function fromGroups309(array $lines): ?array
+    {
+        $raw = [];
+        foreach ($lines as $l) {
+            if (preg_match('/^JUMLAH ([SRBIP])$/', $l['label'], $m) || preg_match('/^([TCL]) \//', $l['label'], $m)) {
+                $g = $m[1];
+                $raw["daya_{$g}"] = ($raw["daya_{$g}"] ?? 0) + (float) ($l['values']['daya_va'] ?? 0);
+                $raw["kwh_{$g}"] = ($raw["kwh_{$g}"] ?? 0) + (float) ($l['values']['kwh_jumlah'] ?? 0);
+                $raw["rp_{$g}"] = ($raw["rp_{$g}"] ?? 0) + (float) ($l['values']['rp_jumlah'] ?? 0);
+            }
+        }
+
+        return $raw === [] ? null : ['raw' => $raw, 'bd' => []];
     }
 
     /**
