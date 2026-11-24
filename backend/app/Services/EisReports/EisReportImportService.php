@@ -22,11 +22,12 @@ class EisReportImportService
 
     /**
      * @param  list<string>|null  $allowedUnitIds  null = semua unit; selain itu hanya unit ini yang boleh menerima impor
+     * @param  array{unit_code?: ?string, period?: ?string}  $hints  unit dan bulan pilihan pengunggah, hanya dipakai bila tidak tertulis di nama maupun isi berkas
      * @return array{status:string,id:?string,family:string,unit:string,period:string,lines:int,warnings:list<string>}
      */
-    public function import(string $path, string $originalName, ?User $actor = null, ?array $allowedUnitIds = null): array
+    public function import(string $path, string $originalName, ?User $actor = null, ?array $allowedUnitIds = null, array $hints = []): array
     {
-        $parsed = $this->parser->parse($path, $originalName);
+        $parsed = $this->parser->parse($path, $originalName, $hints);
         [$unit, $warnings] = $this->resolveUnit($parsed);
         if ($allowedUnitIds !== null && ! in_array($unit->id, $allowedUnitIds, true)) {
             throw new EisReportException("Anda tidak berwenang mengimpor laporan untuk {$unit->name}.");
@@ -58,7 +59,7 @@ class EisReportImportService
     }
 
     /**
-     * Kode pada nama berkas diutamakan; nama ULP/UP3 di dalam isi berkas harus sama. Kode yang tidak dikenal (salah ketik) dipulihkan dari nama di isi berkas, dengan peringatan.
+     * Kode unit (dari nama berkas, isi, atau pilihan pengunggah) diutamakan; nama ULP/UP3 di dalam isi berkas harus sama. Tanpa kode, unit dibaca dari nama di isi berkas. Kode yang tidak dikenal (salah ketik) dipulihkan dari nama di isi berkas, dengan peringatan.
      *
      * @param  array<string,mixed>  $parsed
      * @return array{0:object,1:list<string>}
@@ -69,7 +70,7 @@ class EisReportImportService
         $byName = fn (string $n) => $units->first(fn ($u) => mb_strtolower($u->name) === mb_strtolower($n));
         $ulp = $parsed['content_units']['ULP'] === null ? null : $byName('ULP '.$parsed['content_units']['ULP']);
         $up3 = $parsed['content_units']['UP3'] === null ? null : $byName('UP3 '.$parsed['content_units']['UP3']);
-        $file = $units->first(fn ($u) => strcasecmp($u->code, $parsed['file_unit_code']) === 0);
+        $file = $parsed['file_unit_code'] === null ? null : $units->first(fn ($u) => strcasecmp($u->code, $parsed['file_unit_code']) === 0);
         $warnings = [];
         if ($file !== null) {
             if ($parsed['content_units']['ULP'] !== null && $file->unit_type === 'ULP' && ($ulp === null || $ulp->id !== $file->id)) {
@@ -84,9 +85,12 @@ class EisReportImportService
         $fromContent = $ulp ?? ($parsed['content_units']['ULP'] === null ? $up3 : null);
         if ($fromContent === null) {
             $name = $parsed['content_units']['ULP'] ?? $parsed['content_units']['UP3'];
-            throw new EisReportException($name === null ? "Kode unit {$parsed['file_unit_code']} tidak dikenal dan isi berkas tidak menyebut unit." : "Unit {$name} tidak ada pada master unit aktif.");
+            throw new EisReportException($name === null ? 'Kode unit '.($parsed['file_unit_code'] ?? '-').' tidak dikenal dan isi berkas tidak menyebut unit.' : "Unit {$name} tidak ada pada master unit aktif.");
         }
-        $warnings[] = "Kode unit pada nama berkas ({$parsed['file_unit_code']}) tidak dikenal; unit dibaca dari isi berkas ({$fromContent->name}).";
+        if ($parsed['file_unit_code'] !== null) {
+            $where = ['nama' => 'nama berkas', 'isi' => 'isi berkas', 'pilihan' => 'pilihan unit'][$parsed['unit_source'] ?? 'nama'];
+            $warnings[] = "Kode unit pada {$where} ({$parsed['file_unit_code']}) tidak dikenal; unit dibaca dari nama unit di isi berkas ({$fromContent->name}).";
+        }
 
         return [$fromContent, $warnings];
     }

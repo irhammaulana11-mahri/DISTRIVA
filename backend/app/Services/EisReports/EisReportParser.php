@@ -7,7 +7,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * Pembaca laporan bulanan EIS/AP2T (docs/88). Murni berkas: tidak menyentuh database. Jenis, unit (kode), dan bulan dibaca dari nama berkas `JENIS-KODEUNIT-BBTTTT.xls(x)` dan
- * dicocokkan dengan isi berkas (bulan, nama ULP/UP3). Hasilnya baris bernama per jenis laporan; tata letak per tahun bisa berbeda (mis. baris tarif laporan 309), jadi baris disimpan
+ * dicocokkan dengan isi berkas (bulan, nama ULP/UP3); berkas dengan nama lain dikenali dari isinya (lihat parse()). Hasilnya baris bernama per jenis laporan; tata letak per tahun bisa berbeda (mis. baris tarif laporan 309), jadi baris disimpan
  * lengkap dengan nomor baris aslinya dan label, bukan dipetakan ke angka di sini.
  */
 final class EisReportParser
@@ -20,21 +20,26 @@ final class EisReportParser
     private array $rows = [];
 
     /**
-     * @return array{family:string,file_unit_code:string,content_units:array{ULP:?string,UP3:?string},period:string,summary:?array<string,float|null>,lines:list<array{line_no:int,group_label:?string,label:?string,code:?string,values:array<string,mixed>}>,warnings:list<string>}
+     * Jenis, unit, dan bulan diambil dari nama berkas bila berpola `JENIS-KODEUNIT-BBTTTT`; selain itu dari isi berkas (nama unduhan EIS apa adanya, mis. "Rekap (3).xls").
+     * Yang tidak tertulis di isi (bulan pada 309EIS dan PIUTANGLPB_EIS, unit pada UMURPIUTANG) diambil dari $hints pilihan pengunggah; tanpa itu berkas ditolak.
+     * `unit_source`: `nama` (kode dari nama berkas), `isi` (kode dari isi), `pilihan` (dari $hints), atau null (unit dibaca dari nama ULP/UP3 di isi).
+     *
+     * @param  array{unit_code?: ?string, period?: ?string}  $hints  period = YYYY-MM
+     * @return array{family:string,file_unit_code:?string,unit_source:?string,content_units:array{ULP:?string,UP3:?string},period:string,summary:?array<string,float|null>,lines:list<array{line_no:int,group_label:?string,label:?string,code:?string,values:array<string,mixed>}>,warnings:list<string>}
      */
-    public function parse(string $path, string $originalName): array
+    public function parse(string $path, string $originalName, array $hints = []): array
     {
-        if (! preg_match('/^([A-Za-z0-9_]+)-([A-Za-z0-9]{5})-(\d{2})(\d{4})\.xlsx?$/i', $originalName, $m)) {
-            throw new EisReportException('Nama berkas harus berpola JENIS-KODEUNIT-BBTTTT (contoh 309EIS-51453-042026.xls).');
-        }
-        $family = strtoupper($m[1]);
-        if (! in_array($family, self::FAMILIES, true)) {
-            throw new EisReportException("Jenis laporan {$family} belum dikenal.");
-        }
-        $month = (int) $m[3];
-        $year = (int) $m[4];
-        if ($month < 1 || $month > 12 || $year < 2000 || $year > 2100) {
-            throw new EisReportException('Bulan atau tahun pada nama berkas tidak valid.');
+        $named = preg_match('/^([A-Za-z0-9_]+)-([A-Za-z0-9]{5})-(\d{2})(\d{4})\.xlsx?$/i', $originalName, $m) === 1;
+        if ($named) {
+            $family = strtoupper($m[1]);
+            if (! in_array($family, self::FAMILIES, true)) {
+                throw new EisReportException("Jenis laporan {$family} belum dikenal.");
+            }
+            $month = (int) $m[3];
+            $year = (int) $m[4];
+            if ($month < 1 || $month > 12 || $year < 2000 || $year > 2100) {
+                throw new EisReportException('Bulan atau tahun pada nama berkas tidak valid.');
+            }
         }
         try {
             $reader = IOFactory::createReaderForFile($path);
@@ -43,8 +48,30 @@ final class EisReportParser
         } catch (\Throwable) {
             throw new EisReportException('Berkas tidak dapat dibaca sebagai lembar kerja Excel.');
         }
-        $period = sprintf('%04d-%02d-01', $year, $month);
-        $this->assertPeriod($period);
+        $found = $this->contentPeriod();
+        if ($named) {
+            $period = sprintf('%04d-%02d-01', $year, $month);
+            if ($found !== null && $found !== $period) {
+                throw new EisReportException('Bulan di dalam berkas ('.substr($found, 0, 7).') berbeda dengan nama berkas ('.substr($period, 0, 7).').');
+            }
+            $unitCode = strtoupper($m[2]);
+            $unitSource = 'nama';
+        } else {
+            $family = $this->detectFamily() ?? throw new EisReportException('Jenis laporan tidak dikenali dari isi berkas. Pastikan berkas adalah unduhan laporan EIS yang didukung, atau beri nama berpola JENIS-KODEUNIT-BBTTTT.');
+            $hintPeriod = isset($hints['period']) && preg_match('/^(20\d{2})-(0[1-9]|1[0-2])$/', (string) $hints['period']) ? $hints['period'].'-01' : null;
+            $period = $found ?? $hintPeriod ?? throw new EisReportException("Bulan laporan {$family} tidak tertulis di dalam berkas; pilih bulan pada form unggah atau beri nama berkas berpola JENIS-KODEUNIT-BBTTTT.");
+            $unitCode = $this->contentUnitCode();
+            $unitSource = $unitCode !== null ? 'isi' : null;
+        }
+        $contentUnits = $this->contentUnits($unitSource === null);
+        // Pilihan unit hanya mengisi berkas yang sama sekali tidak menyebut unit, supaya satu pilihan tidak salah menempel pada berkas ULP lain dalam unggahan yang sama.
+        if ($unitSource === null && $contentUnits['ULP'] === null && $contentUnits['UP3'] === null && ! empty($hints['unit_code'])) {
+            $unitCode = strtoupper((string) $hints['unit_code']);
+            $unitSource = 'pilihan';
+        }
+        if ($unitSource === null && $contentUnits['ULP'] === null && $contentUnits['UP3'] === null) {
+            throw new EisReportException("Unit laporan {$family} tidak tertulis di dalam berkas; pilih unit pada form unggah atau beri nama berkas berpola JENIS-KODEUNIT-BBTTTT.");
+        }
 
         $warnings = [];
         [$lines, $summary] = match ($family) {
@@ -65,7 +92,73 @@ final class EisReportParser
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
         }
 
-        return ['family' => $family, 'file_unit_code' => strtoupper($m[2]), 'content_units' => $this->contentUnits(), 'period' => $period, 'summary' => $summary, 'lines' => $lines, 'warnings' => $warnings];
+        return ['family' => $family, 'file_unit_code' => $unitCode, 'unit_source' => $unitSource, 'content_units' => $contentUnits, 'period' => $period, 'summary' => $summary, 'lines' => $lines, 'warnings' => $warnings];
+    }
+
+    /** Jenis laporan dari isi: judul kolom tabel datar EIS atau judul laporan pada kepala. */
+    private function detectFamily(): ?string
+    {
+        for ($r = 1; $r <= min(6, $this->rowCount()); $r++) {
+            $heads = array_map(fn ($c) => strtoupper(trim((string) $c)), $this->rows[$r - 1]);
+            $has = fn (string ...$names) => array_diff($names, $heads) === [];
+            $family = match (true) {
+                $has('UNIT', 'KODE', 'KETERANGAN', 'SUMBER_LAPORAN') => '309EIS',
+                $has('NAMAUPI', 'NAMAUP', 'KOGOL') => 'AKHIEPERIODE_EIS',
+                $has('UNITUPI', 'THBLLAP', 'JENIS_LAPORAN', 'KOGOL') => 'UMURPIUTANG',
+                $has('THBLLAP', 'UNITUP', 'JENIS_LAPORAN') => 'AKHIRBULAN_EIS',
+                $has('UNITUP', 'SKEMA_BAYAR', 'KET_PIUTANG') => 'PIUTANGLPB_EIS',
+                default => null,
+            };
+            if ($family !== null) {
+                return $family;
+            }
+        }
+        $text = '';
+        foreach (array_slice($this->rows, 0, 15) as $row) {
+            foreach ($row as $v) {
+                is_string($v) && $text .= ' '.$v;
+            }
+        }
+        $text = strtoupper((string) preg_replace('/\s+/', ' ', $text));
+        if (preg_match('/ANOMALI PENANGANAN PENGADUAN (GANGGUAN|KELUHAN)/', $text, $a)) {
+            $prefix = $a[1] === 'GANGGUAN' ? 'GGN' : 'KLH';
+            if (str_contains($text, 'RATING NEGATIF')) {
+                return $prefix.'NEGATIF';
+            }
+
+            return str_contains($text, 'BERULANG') ? $prefix.'BERULANG' : null;
+        }
+
+        return match (true) {
+            str_contains($text, 'LAPORAN PENJUALAN TENAGA LISTRIK') => '309',
+            str_contains($text, 'LAPORAN SAIDI SAIFI') => 'DIFI',
+            str_contains($text, 'TAGIHAN SUSULAN') => 'TAGSUS',
+            str_contains($text, 'REKAPITULASI GANGGUAN ALL') => 'GGNALL',
+            preg_match('/REKAPITULASI GANGGUAN (PER )?JENIS GANGGUAN/', $text) === 1 => 'GGNPERJENIS',
+            str_contains($text, 'REKAPITULASI KELUHAN ALL') => 'KLHALL',
+            default => null,
+        };
+    }
+
+    /** Kode unit 5 karakter dari kolom unit tabel datar (UNIT, UNITUP, atau NAMAUP "51453 - JOMBANG"); null bila tidak ada (UNITUPI hanya kode induk). */
+    private function contentUnitCode(): ?string
+    {
+        for ($r = 1; $r <= min(6, $this->rowCount()); $r++) {
+            $heads = array_map(fn ($c) => strtoupper(trim((string) $c)), $this->rows[$r - 1]);
+            foreach (['UNIT', 'UNITUP', 'NAMAUP'] as $h) {
+                $i = array_search($h, $heads, true);
+                if ($i === false) {
+                    continue;
+                }
+                $v = $this->rows[$r][$i] ?? null;
+                $v = is_float($v) && floor($v) === $v ? (string) (int) $v : trim((string) $v);
+                if (preg_match('/^([A-Za-z0-9]{5})(?:\s*-.*)?$/', $v, $mm)) {
+                    return strtoupper($mm[1]);
+                }
+            }
+        }
+
+        return null;
     }
 
     private function cell(int $row, string $col): mixed
@@ -114,32 +207,41 @@ final class EisReportParser
         return count($this->rows);
     }
 
-    private function assertPeriod(string $expected): void
+    /**
+     * Bulan laporan dari isi (Y-m-01): kolom THBLLAP (YYYYMM) pada tabel datar, atau teks "Januari 2023", "1-Januari-2023 SD ...", "BULAN JANUARI TAHUN 2023" di kepala laporan.
+     * Angka YYYYMM hanya dibaca di bawah judul THBLLAP supaya angka lain (mis. jumlah kWh) tidak tertebak sebagai bulan.
+     */
+    private function contentPeriod(): ?string
     {
-        $found = null;
-        foreach (array_slice($this->rows, 0, 16) as $row) {
-            foreach ($row as $v) {
-                $s = is_string($v) ? $v : (is_int($v) || is_float($v) ? (string) (int) $v : '');
-                if ($s === '') {
+        $months = 'januari|pebruari|februari|maret|april|mei|juni|juli|agustus|september|oktober|nopember|november|desember';
+        foreach (array_slice($this->rows, 0, 16) as $i => $row) {
+            foreach ($row as $c => $v) {
+                if (is_string($v) && strtoupper(trim($v)) === 'THBLLAP') {
+                    $below = $this->rows[$i + 1][$c] ?? null;
+                    $s = is_int($below) || is_float($below) ? (string) (int) $below : trim((string) $below);
+                    if (preg_match('/^(20\d{2})(0[1-9]|1[0-2])$/', $s, $mm)) {
+                        return "{$mm[1]}-{$mm[2]}-01";
+                    }
+                }
+                if (! is_string($v) || $v === '') {
                     continue;
                 }
-                if (preg_match('/^(20\d{2})(0[1-9]|1[0-2])$/', trim($s), $mm)) {
-                    $found = "{$mm[1]}-{$mm[2]}-01";
-                    break 2;
-                }
-                if (preg_match('/(?:\d{1,2}\s*-\s*)?\b(januari|pebruari|februari|maret|april|mei|juni|juli|agustus|september|oktober|nopember|november|desember)\b[\s-]+(20\d{2})/i', $s, $mm)) {
-                    $found = sprintf('%04d-%02d-01', $mm[2], self::MONTHS[strtolower($mm[1])]);
-                    break 2;
+                if (preg_match('/\bbulan\s+('.$months.')\s+tahun\s+(20\d{2})/i', $v, $mm)
+                    || preg_match('/(?:\d{1,2}\s*-\s*)?\b('.$months.')\b[\s-]+(20\d{2})/i', $v, $mm)) {
+                    return sprintf('%04d-%02d-01', $mm[2], self::MONTHS[strtolower($mm[1])]);
                 }
             }
         }
-        if ($found !== null && $found !== $expected) {
-            throw new EisReportException('Bulan di dalam berkas ('.substr($found, 0, 7).') berbeda dengan nama berkas ('.substr($expected, 0, 7).').');
-        }
+
+        return null;
     }
 
-    /** @return array{ULP:?string,UP3:?string} */
-    private function contentUnits(): array
+    /**
+     * Nama ULP dan UP3 pada kepala laporan. $deep: bila kepala tidak menyebut ULP (tata letak lama rekap gangguan/keluhan), cari di tabel; dipakai hanya bila satu ULP saja yang muncul.
+     *
+     * @return array{ULP:?string,UP3:?string}
+     */
+    private function contentUnits(bool $deep = false): array
     {
         $out = ['ULP' => null, 'UP3' => null];
         foreach (array_slice($this->rows, 0, 10) as $row) {
@@ -153,6 +255,17 @@ final class EisReportParser
                     }
                 }
             }
+        }
+        if ($deep && $out['ULP'] === null) {
+            $found = [];
+            foreach (array_slice($this->rows, 10, 30) as $row) {
+                foreach ($row as $v) {
+                    if (is_string($v) && preg_match('/^(?:POSKO\s+)?ULP\s+([A-Za-z][A-Za-z .]*?)\s*$/i', trim($v), $mm)) {
+                        $found[strtoupper(trim($mm[1]))] = true;
+                    }
+                }
+            }
+            count($found) === 1 && $out['ULP'] = array_key_first($found);
         }
 
         return $out;

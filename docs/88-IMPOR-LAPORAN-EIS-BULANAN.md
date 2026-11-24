@@ -4,7 +4,7 @@ Tahap pertama dari urutan *impor → definisi KPI berversi → hitung realisasi 
 Berlaku untuk semua unit: tiap ULP dan tiap UP3, tidak hanya UP3 Mojokerto. Rujukan nilai KPI untuk NKO adalah workbook `REALISASI UP3 MJK&ULP 2026 REV 3 (2 JUN 2026)`; SAIDI/SAIFI/ENS NKO diambil dari laporan DIFI yang diunggah, hasil hitung DISTRIVA (docs/87) hanya pembanding.
 
 ## 1. Berkas yang dikenali
-Nama berkas wajib `JENIS-KODEUNIT-BBTTTT.xls|xlsx` (kode unit 5 karakter, contoh `309EIS-51453-042026.xls`). Jenis:
+Nama berkas **tidak wajib** diganti. Unduhan EIS apa adanya (mis. `Rekap.xls`, `Rekap (3).xls`) dikenali dari isinya (§1a). Nama berpola `JENIS-KODEUNIT-BBTTTT.xls|xlsx` (kode unit 5 karakter, contoh `309EIS-51453-042026.xls`) tetap didukung dan diutamakan. Jenis:
 
 | Jenis | Isi | Catatan |
 |---|---|---|
@@ -18,6 +18,14 @@ Nama berkas wajib `JENIS-KODEUNIT-BBTTTT.xls|xlsx` (kode unit 5 karakter, contoh
 | `AKHIRBULAN_EIS`, `AKHIEPERIODE_EIS` | Rekening akhir bulan dan akhir periode | |
 | `TAGSUS` | Tagihan susulan | hanya ringkasan per golongan tarif; nama, alamat, dan nomor pelanggan tidak dibaca dan tidak disimpan |
 | `UMURPIUTANG` | Rekap tunggakan pascabayar per jumlah lembar (umur, bulan) dan kogol (pivot EIS jenis PERLEMBAR: UNITUPI, THBLLAP, JENIS_LAPORAN, LABEL, KOGOL, PLG, LBR, GABUNGAN, PAL, PPJ, ...) | isi hanya memuat UNITUPI, jadi unit dari kode pada nama berkas (`UMURPIUTANG-51453-102026.xls`; unduhan EIS bernama "Rekap.xls" perlu diganti nama); sel LABEL gabungan diisi dari baris sebelumnya; baris subtotal dan total tidak disimpan. Totalnya sama dengan AKHIRBULAN_EIS PERGOLONGAN bulan itu |
+
+## 1a. Pengenalan dari isi berkas (nama bebas)
+- **Jenis** dari judul kolom tabel datar (309EIS, AKHIEPERIODE_EIS, AKHIRBULAN_EIS, PIUTANGLPB_EIS, UMURPIUTANG) atau judul laporan pada kepala (309 "LAPORAN PENJUALAN TENAGA LISTRIK", DIFI "LAPORAN SAIDI SAIFI", TAGSUS "TAGIHAN SUSULAN", GGNALL, GGNPERJENIS, KLHALL, serta GGN/KLH BERULANG dan NEGATIF dari "ANOMALI PENANGANAN PENGADUAN GANGGUAN/KELUHAN" + jenis laporannya).
+- **Unit** dari kolom kode (UNIT, UNITUP, NAMAUP "51453 - JOMBANG") atau nama ULP/UP3 di kepala laporan; tata letak lama rekap gangguan/keluhan (kepala hanya menyebut UP3) memakai ULP di tabel bila hanya satu ULP yang muncul.
+- **Bulan** dari kolom THBLLAP atau teks bulan di kepala ("Oktober 2026", "1-Oktober-2026 SD ...", "BULAN OKTOBER TAHUN 2026").
+- **Tidak tertulis di isi:** bulan pada 309EIS, AKHIEPERIODE_EIS, PIUTANGLPB_EIS; unit pada UMURPIUTANG (isinya hanya kode induk 51). Untuk berkas ini bulan/unit diambil dari (berurutan) nama berkas berpola, **nama folder di dalam ZIP**, lalu pilihan `period`/`unit_id` pada form unggah. Tanpa salah satunya berkas ditolak dengan pesan "pilih bulan ..." atau "pilih unit ...".
+- Pilihan unit pada form hanya dipakai untuk berkas yang sama sekali tidak menyebut unit, supaya tidak salah menempel pada berkas ULP lain dalam unggahan yang sama. Pilihan bulan berlaku untuk semua berkas yang tidak menyebut bulan, jadi untuk unggahan beberapa bulan sekaligus pakai folder per bulan di dalam ZIP.
+- Diuji terhadap 615 arsip asli ULP Jombang 2023–2026 dengan nama dibuang: 480 dikenali penuh dari isi tanpa satu pun salah jenis, unit, atau bulan; 135 sisanya (tiga jenis tanpa bulan dan UMURPIUTANG tanpa unit) benar semua setelah bulan/unit diberikan.
 
 ## 2. Aturan impor
 - Unit dibaca dari kode pada nama berkas dan dicocokkan dengan nama ULP/UP3 di dalam berkas; tidak cocok berarti ditolak. Kode yang tidak dikenal (salah ketik, mis. `15453`) dipulihkan dari nama di isi berkas dengan peringatan.
@@ -35,13 +43,17 @@ Nama berkas wajib `JENIS-KODEUNIT-BBTTTT.xls|xlsx` (kode unit 5 karakter, contoh
 Semua di bawah `/api`, throttle `admin`, respons `{data, ...}`.
 - `GET /eis-reports?family=&unit_id=&up3_id=&from=YYYY-MM&to=YYYY-MM&status=AKTIF|DIGANTIKAN&per_page=` daftar berkas (`id, family, period, unit_id, unit_name, unit_type, original_name, status, line_count, warnings, imported_at`) dengan `meta` halaman dan `families`.
 - `GET /eis-reports/coverage?unit_id=&year=` matriks kelengkapan: `data.families.<JENIS>.<bulan 1..12>` true/false (berkas aktif).
+- `GET /eis-reports/coverage?up3_id=&year=` (tanpa `unit_id`) kelengkapan semua ULP aktif di bawah UP3 yang terlihat oleh pengguna (peran ULP hanya ULP-nya): `data {up3_id, up3_name, year, expected_until_month, families_list[], expected_total, missing_total, units[] {unit_id, unit_code, unit_name, families.<JENIS>.<bulan>: bool, missing_count, missing[] {family, month}}}`. `expected_until_month`: 12 untuk tahun lalu dan sebelumnya, bulan lalu untuk tahun berjalan, 0 untuk tahun depan; `missing` hanya menghitung bulan sampai batas itu. 404 bila UP3 tidak ada atau tidak ada ULP yang terlihat; 422 bila `unit_id` dan `up3_id` sama-sama kosong.
 - `GET /eis-reports/{file}/lines` isi: `file` (dengan `summary` untuk DIFI) dan `lines[] {line_no, group_label, label, code, values{...}}`.
-- `POST /eis-reports/import` multipart `files[]` (maks 60 berkas, 20 MB per berkas, xls/xlsx). Respons per berkas: `{name, ok, status: BARU|DUPLIKAT|DIGANTIKAN|SUDAH_DIGANTIKAN, family, unit, period, lines, warnings}` atau `{name, ok:false, message}`. HTTP 200 bila ada yang berhasil, 422 bila semua gagal. Unit tujuan dibaca dari berkas, bukan dipilih pengunggah.
+- `POST /eis-reports/import` multipart `files[]` (maks 60 berkas per permintaan; xls/xlsx maks 20 MB, **zip** maks 100 MB) dan opsional `unit_id` (uuid) serta `period` (YYYY-MM) untuk berkas yang tidak menyebut unit/bulan (§1a). `unit_id` di luar kewenangan: 403.
+  - **ZIP**: setiap .xls/.xlsx di dalamnya (termasuk subfolder) diimpor sebagai berkas tersendiri; nama folder dibaca sebagai unit (kode atau nama ULP, dengan/tanpa "ULP ") dan bulan (`2026-10`, `10-2026`, `102026`, `Oktober 2026`), folder terdalam menang. Contoh susunan satu UP3 sebulan: `UP3 MOJOKERTO/JOMBANG/2026-10/Rekap (1).xls`. Folder `__MACOSX` dan berkas tersembunyi dilewati diam-diam; berkas bukan Excel dilaporkan "Bukan berkas Excel; dilewati." Batas: 400 berkas Excel dan 500 MB setelah dibongkar per arsip.
+  - Respons per berkas: `{name, ok, status: BARU|DUPLIKAT|DIGANTIKAN|SUDAH_DIGANTIKAN, family, unit, period, lines, warnings}` atau `{name, ok:false, message}`; untuk isi ZIP `name` = `"<arsip>.zip › <jalur di dalam arsip>"`. HTTP 200 bila ada yang berhasil, 422 bila semua gagal. Unit tujuan dibaca dari berkas, bukan dipilih pengunggah (kecuali berkas tanpa unit seperti di atas).
+  - **Batas server**: PHP `max_file_uploads` (bawaan 20 berkas per permintaan), `upload_max_filesize`, dan `post_max_size` membatasi lebih dulu; berkas di atas `max_file_uploads` dibuang PHP tanpa galat. Karena itu frontend sebaiknya mengirim berkas lepas paling banyak 20 per permintaan (kirim bertahap) atau menyarankan ZIP.
 
 ## 5. Operasional
 - Impor massal dari folder: `php artisan distriva:eis-import "<folder atau berkas>"` (rekursif, idempoten).
 - Tabel: `eis_report_files` (berkas, jenis, unit, periode, sidik, status, `summary`, peringatan) dan `eis_report_lines` (baris bernama). Lapisan ini adalah normalisasi, bukan angka KPI.
-- Tes: `EisReportImportTest` dan `EisReportApiTest`.
+- Tes: `EisReportImportTest` dan `EisReportApiTest` (termasuk pengenalan isi, ZIP dengan folder, kelengkapan UP3).
 
 ## 6. Hasil muat contoh (DATA PENDUKUNG, ULP Jombang, 2023-01 s.d. 2026-07)
 652 berkas: 610 baru, 33 duplikat isi, 4 menggantikan versi (pasangan `TAGSUS-15453-*` dan `TAGSUS-51453-*` yang isinya berbeda; versi kode benar 51453 yang aktif), 5 ditolak karena data berkas bermasalah: `309-51453-072025` (isi bulan 2025-06), `DIFI-51453-102023` (isi bulan 2023-01), `TAGSUS-15453-012024` dan `TAGSUS-51453-012024` (isi bulan 2020-10), `TAGSUS-51540-122024` (unit Ponorogo belum ada di master). Berkas-berkas ini perlu diperiksa atau diunduh ulang dari EIS.

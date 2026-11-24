@@ -134,8 +134,6 @@ class EisReportImportTest extends PostgresTestCase
         } catch (EisReportException $e) {
             $this->assertStringContainsString('tidak cocok dengan isi berkas', $e->getMessage());
         }
-        $this->expectException(EisReportException::class);
-        $this->service()->import($this->report309(), 'laporan-april.xlsx');
     }
 
     #[Test]
@@ -143,7 +141,7 @@ class EisReportImportTest extends PostgresTestCase
     {
         $r = $this->service()->import($this->report309(), '309-15453-042026.xlsx');
         $this->assertSame('ULP Jombang', $r['unit']);
-        $this->assertStringContainsString('dibaca dari isi berkas', $r['warnings'][0]);
+        $this->assertStringContainsString('dibaca dari nama unit di isi berkas', $r['warnings'][0]);
         $this->expectException(EisReportException::class);
         $this->expectExceptionMessage('tidak ada pada master unit aktif');
         $this->service()->import($this->report309('ULP PONOROGO'), '309-51540-042026.xlsx');
@@ -221,5 +219,48 @@ class EisReportImportTest extends PostgresTestCase
         $this->assertEquals(60000, $v['rp_tunai']);
         $this->assertEquals(40000, $v['rp_angsuran']);
         $this->assertStringNotContainsString('RAHASIA', json_encode(DB::table('eis_report_lines')->get()));
+    }
+
+    #[Test]
+    public function unduhan_eis_bernama_bebas_dikenali_dari_isi_dan_pilihan_unit_atau_bulan_hanya_mengisi_yang_tidak_tertulis(): void
+    {
+        // 309: jenis dari judul, bulan dan ULP dari kepala laporan; pilihan unit lain diabaikan karena isi menyebut ULP
+        $r = $this->service()->import($this->report309(), 'Rekap (3).xlsx', null, null, ['unit_code' => '51454']);
+        $this->assertSame(['309', 'ULP Jombang', '2026-04'], [$r['family'], $r['unit'], $r['period']]);
+
+        // piutang prabayar: unit dari kolom UNITUP, bulan tidak tertulis sehingga wajib dipilih
+        $piutang = $this->book([
+            0 => [null, null, null, null, 'Grand Total'],
+            1 => ['UNITUP', 'GOLONGAN', 'SKEMA_BAYAR', 'KET_PIUTANG', 'JUMLAH', 'RPPTL'],
+            2 => [51454, 0, 'NO REGISTER', 'BARU', 144, 60696000],
+        ]);
+        try {
+            $this->service()->import($piutang, 'Rekap.xls');
+            $this->fail('bulan tidak tertulis harus ditolak tanpa pilihan bulan');
+        } catch (EisReportException $e) {
+            $this->assertStringContainsString('pilih bulan', $e->getMessage());
+        }
+        $r = $this->service()->import($piutang, 'Rekap.xls', null, null, ['period' => '2026-10']);
+        $this->assertSame(['PIUTANGLPB_EIS', 'ULP Ngoro', '2026-10'], [$r['family'], $r['unit'], $r['period']]);
+
+        // umur piutang: bulan dari THBLLAP, unit tidak tertulis (UNITUPI hanya kode induk) sehingga wajib dipilih
+        $umur = $this->book([
+            0 => [null, null, null, null, null, 'Grand Total'],
+            1 => ['UNITUPI', 'THBLLAP', 'JENIS_LAPORAN', 'LABEL', 'KOGOL', 'PLG', 'LBR', 'GABUNGAN'],
+            2 => [51, 202610, 'PERLEMBAR', 1, 0, 9, 9, 2021480],
+        ]);
+        try {
+            $this->service()->import($umur, 'Rekap (1).xls', null, null, ['period' => '2026-01']);
+            $this->fail('unit tidak tertulis harus ditolak tanpa pilihan unit');
+        } catch (EisReportException $e) {
+            $this->assertStringContainsString('pilih unit', $e->getMessage());
+        }
+        $r = $this->service()->import($umur, 'Rekap (1).xls', null, null, ['unit_code' => '51453', 'period' => '2026-01']);
+        $this->assertSame(['UMURPIUTANG', 'ULP Jombang', '2026-10'], [$r['family'], $r['unit'], $r['period']]);   // bulan dari isi, bukan pilihan
+
+        // isi yang bukan laporan EIS dikenal tetap ditolak
+        $this->expectException(EisReportException::class);
+        $this->expectExceptionMessage('tidak dikenali dari isi');
+        $this->service()->import($this->book([0 => ['Daftar hadir'], 1 => ['Nama', 'Jam']]), 'Rekap.xlsx', null, null, ['unit_code' => '51453', 'period' => '2026-10']);
     }
 }
