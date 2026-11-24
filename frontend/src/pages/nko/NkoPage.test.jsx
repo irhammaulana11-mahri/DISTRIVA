@@ -15,6 +15,7 @@ vi.mock('../../services/api.js', () => ({
     snapshot: vi.fn(),
     ranking: vi.fn(),
     inputs: vi.fn(),
+    gaps: vi.fn(),
     saveInputs: vi.fn(),
     calculate: vi.fn(),
   },
@@ -160,6 +161,99 @@ const MOCK_RANKING = {
   },
 }
 
+const MOCK_GAPS = {
+  data: {
+    year: 2026,
+    month: 5,
+    totals: {
+      empty_count: 2,
+      unvalidated_count: 1,
+    },
+    units: [
+      {
+        unit_id: 'u-1',
+        unit_name: 'ULP Jombang',
+        unit_type: 'ULP',
+        total_indicators: 23,
+        empty_count: 2,
+        unvalidated_count: 1,
+        items: [
+          {
+            code: 'SAIDI',
+            name: 'SAIDI (Menit/Pelanggan)',
+            group: 'KEANDALAN',
+            status: 'KOSONG',
+            system_source: true,
+          },
+          {
+            code: 'GGN_TM',
+            name: 'Gangguan TM',
+            group: 'KEANDALAN',
+            status: 'BELUM_TERVALIDASI',
+            system_source: true,
+          },
+        ],
+      },
+      {
+        unit_id: 'up3-1',
+        unit_name: 'UP3 Mojokerto',
+        unit_type: 'UP3',
+        total_indicators: 25,
+        empty_count: 0,
+        unvalidated_count: 0,
+        items: [],
+      },
+    ],
+  },
+}
+
+const MOCK_INPUTS_WITH_AUXILIARY = {
+  data: {
+    unit_id: 'u-1',
+    unit_name: 'ULP Jombang',
+    year: 2026,
+    month: 5,
+    items: [
+      {
+        code: 'SUSUT',
+        name: 'Susut Distribusi tanpa E-Min',
+        group: 'EFISIENSI',
+        unit_label: '%',
+        polarity: 1,
+        weight: 10,
+        target: 6.5,
+        editable: true,
+        auxiliary: false,
+        system_source: true,
+        system_validated: false,
+        value: 7.2,
+        source: 'SISTEM',
+        manual: null,
+        system: 7.2,
+        note: null,
+      },
+      {
+        code: 'kwh-beli',
+        name: 'kWh Beli (Kumulatif)',
+        group: 'Masukan pembantu: Susut distribusi tanpa E-Min',
+        unit_label: 'kWh',
+        polarity: null,
+        weight: null,
+        target: null,
+        editable: true,
+        auxiliary: true,
+        system_source: false,
+        system_validated: true,
+        value: 150000000,
+        source: 'MANUAL',
+        manual: 150000000,
+        system: null,
+        note: 'Data beli Mei',
+      },
+    ],
+  },
+}
+
 describe('NkoPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -202,5 +296,60 @@ describe('NkoPage', () => {
     expect(screen.getByText('ULP Jombang')).toBeInTheDocument()
     expect(screen.getByText('#1')).toBeInTheDocument()
     expect(screen.getByText('#2')).toBeInTheDocument()
+  })
+
+  it('4. menampilkan ringkasan kesiapan data dan daftar unit pada tab Kekurangan Realisasi (Gaps)', async () => {
+    nkoApi.snapshots.mockResolvedValue({ data: [] })
+    nkoApi.gaps.mockResolvedValue(MOCK_GAPS)
+
+    const user = userEvent.setup()
+    wrap(<NkoPage />)
+
+    const gapsTab = await screen.findByRole('tab', { name: /Kekurangan Realisasi \(Gaps\)/i })
+    await user.click(gapsTab)
+
+    expect(await screen.findByText('Total Unit Terdata')).toBeInTheDocument()
+    expect(screen.getByText('Indikator Kosong')).toBeInTheDocument()
+    expect(screen.getByText('Belum Tervalidasi')).toBeInTheDocument()
+    expect(screen.getByText('ULP Jombang')).toBeInTheDocument()
+    expect(screen.getByText('UP3 Mojokerto')).toBeInTheDocument()
+    expect(screen.getByText('Siap Dihitung')).toBeInTheDocument()
+    expect(screen.getByText('Perlu Masukan')).toBeInTheDocument()
+  })
+
+  it('5. tombol Buka Masukan pada tab Gaps mengalihkan ke tab Masukan Realisasi Manual', async () => {
+    nkoApi.snapshots.mockResolvedValue({ data: [] })
+    nkoApi.gaps.mockResolvedValue(MOCK_GAPS)
+    nkoApi.inputs.mockResolvedValue(MOCK_INPUTS_WITH_AUXILIARY)
+
+    const user = userEvent.setup()
+    wrap(<NkoPage />, { 'nko.view': true, 'nko.input': true })
+
+    const gapsTab = await screen.findByRole('tab', { name: /Kekurangan Realisasi \(Gaps\)/i })
+    await user.click(gapsTab)
+
+    const bukaMasukanButtons = await screen.findAllByRole('button', { name: /Buka Masukan/i })
+    expect(bukaMasukanButtons.length).toBeGreaterThan(0)
+    await user.click(bukaMasukanButtons[0])
+
+    // Seharusnya berpindah ke tab Masukan Realisasi Manual
+    expect(await screen.findByText('Masukan Realisasi Kumulatif (YTD)')).toBeInTheDocument()
+  })
+
+  it('6. menampilkan badge Masukan Pembantu dan status Perlu Validasi Workbook pada tab Masukan Realisasi Manual', async () => {
+    nkoApi.snapshots.mockResolvedValue({ data: [] })
+    nkoApi.inputs.mockResolvedValue(MOCK_INPUTS_WITH_AUXILIARY)
+
+    const user = userEvent.setup()
+    wrap(<NkoPage />, { 'nko.view': true, 'nko.input': true })
+
+    const inputsTab = await screen.findByRole('tab', { name: /Masukan Realisasi Manual/i })
+    await user.click(inputsTab)
+
+    expect(await screen.findByText('Susut Distribusi tanpa E-Min')).toBeInTheDocument()
+    expect(screen.getByText('Perlu Validasi Workbook')).toBeInTheDocument()
+    expect(screen.getByText('kWh Beli (Kumulatif)')).toBeInTheDocument()
+    expect(screen.getByText('Masukan Pembantu')).toBeInTheDocument()
+    expect(screen.getByText(/Komponen perhitungan susut distribusi kumulatif/i)).toBeInTheDocument()
   })
 })

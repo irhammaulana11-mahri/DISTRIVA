@@ -125,6 +125,26 @@ const reportsNav = [
   { to: '/reports/erp-anomalies', tabId: 'erpAnomalies', label: 'Anomali & Rekonsiliasi', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconAlertCircle },
 ]
 
+// 5. Analisa & Tren Pengusahaan (Indikator Pengusahaan)
+const pengusahaanNav = [
+  { to: '/pengusahaan', label: 'Semua Indikator (Ikhtisar)', capability: 'pengusahaan.view', icon: IconChart, end: true },
+  { to: '/pengusahaan/pelanggan', label: 'Pelanggan', capability: 'pengusahaan.view', icon: IconUsers },
+  { to: '/pengusahaan/daya', label: 'Daya Tersambung', capability: 'pengusahaan.view', icon: IconZap },
+  { to: '/pengusahaan/kwh-jual', label: 'kWh Jual', capability: 'pengusahaan.view', icon: IconActivity },
+  { to: '/pengusahaan/pendapatan', label: 'Pendapatan', capability: 'pengusahaan.view', icon: IconCalculator },
+  { to: '/pengusahaan/piutang-prabayar', label: 'Piutang Prabayar', capability: 'pengusahaan.view', icon: IconFileText },
+  { to: '/pengusahaan/piutang-pascabayar', label: 'Piutang Pascabayar', capability: 'pengusahaan.view', icon: IconFileText },
+  { to: '/pengusahaan/piutang-pascabayar-umur', label: 'Umur Piutang Pascabayar', capability: 'pengusahaan.view', icon: IconClock },
+  { to: '/pengusahaan/rpt-rct-keluhan', label: 'RPT-RCT Keluhan', capability: 'pengusahaan.view', icon: IconAlertCircle },
+  { to: '/pengusahaan/rpt-rct-gangguan', label: 'RPT-RCT Gangguan', capability: 'pengusahaan.view', icon: IconActivity },
+  { to: '/pengusahaan/saidi-saifi', label: 'SAIDI & SAIFI', capability: 'pengusahaan.view', icon: IconZap },
+  { to: '/pengusahaan/ens', label: 'ENS (Energi Tak Tersalur)', capability: 'pengusahaan.view', icon: IconZap },
+  { to: '/pengusahaan/kwh-p2tl', label: 'kWh P2TL', capability: 'pengusahaan.view', icon: IconShield },
+  { to: '/pengusahaan/gangguan', label: 'Gangguan Penyulang', capability: 'pengusahaan.view', icon: IconActivity },
+  { to: '/pengusahaan/hpl-bp', label: 'HPL Biaya Penyambungan', capability: 'pengusahaan.view', icon: IconTag },
+  { to: '/pengusahaan/susut', label: 'Susut Distribusi', capability: 'pengusahaan.view', icon: IconChart },
+]
+
 // 5. Administrasi (Pengguna, Unit, Mitra)
 const adminNav = [
   { to: '/admin/users', label: 'Pengguna', capability: 'users.view', icon: IconUsers },
@@ -203,6 +223,9 @@ const titles = {
 }
 
 const titleFor = (path, search = '') => {
+  if (path.startsWith('/pengusahaan')) {
+    return 'Laporan & Monitoring / Analisa Pengusahaan'
+  }
   if (path.startsWith('/reports')) {
     const slug = path.replace('/reports', '').replace(/^\//, '')
     const params = new URLSearchParams(search)
@@ -260,6 +283,7 @@ const titleFor = (path, search = '') => {
 // Helper to determine which sidebar section is active for a given pathname
 const getSectionForPath = (path) => {
   if (path.startsWith('/admin') || path.startsWith('/master-data/vendors')) return 'admin'
+  if (path.startsWith('/pengusahaan')) return 'pengusahaan'
   if (
     path.startsWith('/rkm') ||
     path.startsWith('/forecast') ||
@@ -309,6 +333,7 @@ export default function AppLayout() {
       planning: active === 'planning',
       masterData: active === 'masterData',
       reports: active === 'reports',
+      pengusahaan: active === 'pengusahaan',
       admin: active === 'admin',
       settings: active === 'settings',
       modules: active === 'modules',
@@ -324,6 +349,7 @@ export default function AppLayout() {
       planning: active === 'planning',
       masterData: active === 'masterData',
       reports: active === 'reports',
+      pengusahaan: active === 'pengusahaan',
       admin: active === 'admin',
       settings: active === 'settings',
       modules: active === 'modules',
@@ -340,6 +366,7 @@ export default function AppLayout() {
           planning: sectionKey === 'planning',
           masterData: sectionKey === 'masterData',
           reports: sectionKey === 'reports',
+          pengusahaan: sectionKey === 'pengusahaan',
           admin: sectionKey === 'admin',
           settings: sectionKey === 'settings',
           modules: sectionKey === 'modules',
@@ -456,6 +483,12 @@ export default function AppLayout() {
   const accessibleReportsItems = mustChangePassword
     ? []
     : reportsNav.filter(
+        (n) => (n.anyOf ? n.anyOf.some((c) => Boolean(can[c])) : can[n.capability]) && visibleForProfiles(n, userProfiles),
+      )
+
+  const accessiblePengusahaanItems = mustChangePassword
+    ? []
+    : pengusahaanNav.filter(
         (n) => (n.anyOf ? n.anyOf.some((c) => Boolean(can[c])) : can[n.capability]) && visibleForProfiles(n, userProfiles),
       )
 
@@ -779,6 +812,58 @@ export default function AppLayout() {
                       <NavLink
                         key={n.to}
                         to={n.to}
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                          active
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {Icon && <Icon size={16} className={active ? 'text-white' : 'text-slate-400'} />}
+                        <span className="truncate">{n.label}</span>
+                      </NavLink>
+                    )
+                  })}
+                </nav>
+              </div>
+            </div>
+          )}
+
+          {/* 6. Analisa & Tren Pengusahaan (Label Tersendiri & Indikator Pengusahaan) */}
+          {accessiblePengusahaanItems.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => toggleSection('pengusahaan')}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                aria-expanded={expandedSections.pengusahaan}
+              >
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Analisa &amp; Tren Pengusahaan</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessiblePengusahaanItems.length})</span>
+                  {getSectionForPath(pathname) === 'pengusahaan' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
+                  )}
+                </div>
+                <IconChevronDown
+                  size={14}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.pengusahaan ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                  expandedSections.pengusahaan ? 'max-h-[800px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
+                }`}
+              >
+                <nav aria-label="Navigasi analisa pengusahaan" className="space-y-1">
+                  {accessiblePengusahaanItems.map((n) => {
+                    const Icon = n.icon
+                    const active = isLinkActive(n)
+                    return (
+                      <NavLink
+                        key={n.to}
+                        to={n.to}
+                        end={n.end}
                         onClick={() => setOpen(false)}
                         className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
                           active

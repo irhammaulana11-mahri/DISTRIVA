@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * Grafik ringan (SVG/HTML, tanpa pustaka) untuk analisis tren, mengikuti panduan dataviz: batang tipis berujung bulat 4px di garis dasar, satu sumbu,
@@ -342,4 +342,402 @@ export function ForecastLine({ history, forecast, height = 220, format = fmtInt,
     </div>
   )
 }
+
+const YEAR_PALETTE = [
+  '#2563eb', // Blue-600 (Warna primer DISTRIVA untuk tahun terkini)
+  '#ea580c', // Orange-600
+  '#059669', // Emerald-600
+  '#7c3aed', // Purple-600
+  '#e11d48', // Rose-600
+  '#0891b2', // Cyan-600
+  '#d97706', // Amber-600
+  '#4f46e5', // Indigo-600
+  '#0d9488', // Teal-600
+  '#64748b', // Slate-500
+]
+
+/**
+ * Grafik perbandingan tahunan (Year-over-Year / YoY) dengan sumbu X tetap rentang 1 tahun (12 bulan: Jan - Des).
+ * Seri data dibedakan per tahun dengan warna legenda masing-masing.
+ * Mendukung mode Garis (Line) dan Batang Berkelompok (Grouped Bar), toggle visibilitas tahun interaktif,
+ * serta tooltip komparatif antar tahun.
+ */
+export function YearlyComparisonChart({
+  data = [],
+  valueKey = 'value',
+  getValue = null,
+  height = 240,
+  format = fmtInt,
+  ariaLabel = 'Perbandingan tahunan 12 bulan',
+  unit = '',
+  initialMode = 'line',
+  showModeSwitch = true,
+  className = '',
+}) {
+  const [ref, width] = useWidth()
+  const [mode, setMode] = useState(initialMode)
+  const [hiddenYears, setHiddenYears] = useState(new Set())
+  const [hover, setHover] = useState(null)
+
+  // 1. Ekstrak dan kelompokkan data bulanan per tahun (1..12)
+  const yearMap = useMemo(() => {
+    const map = {}
+    data.forEach((d) => {
+      if (!d.month) return
+      const [yStr, mStr] = String(d.month).split('-')
+      const y = Number(yStr)
+      const m = Number(mStr)
+      if (!y || !m || m < 1 || m > 12) return
+      if (!map[y]) map[y] = {}
+      const val = getValue ? getValue(d) : (d[valueKey] !== undefined ? d[valueKey] : d.value)
+      map[y][m] = {
+        value: typeof val === 'number' ? val : Number(val) || 0,
+        partial: Boolean(d.partial),
+        raw: d,
+      }
+    })
+    return map
+  }, [data, valueKey, getValue])
+
+  const allYears = useMemo(() => Object.keys(yearMap).map(Number).sort((a, b) => a - b), [yearMap])
+  const activeYears = useMemo(() => allYears.filter((y) => !hiddenYears.has(y)), [allYears, hiddenYears])
+
+  // Pemetaan warna tahun: tahun terbaru mendapat warna primer (#2563eb), tahun sebelumnya warna kontras lain
+  const yearColorMap = useMemo(() => {
+    const desc = [...allYears].sort((a, b) => b - a)
+    const map = {}
+    desc.forEach((y, idx) => {
+      map[y] = YEAR_PALETTE[idx % YEAR_PALETTE.length]
+    })
+    return map
+  }, [allYears])
+
+  const toggleYear = (yr) => {
+    setHiddenYears((prev) => {
+      const next = new Set(prev)
+      if (next.has(yr)) {
+        next.delete(yr)
+      } else {
+        if (allYears.length - next.size > 1) {
+          next.add(yr)
+        }
+      }
+      return next
+    })
+  }
+
+  const resetYears = () => setHiddenYears(new Set())
+
+  // Dimensi gambar SVG
+  const m = { l: 48, r: 12, t: 14, b: 28 }
+  const iw = Math.max(80, width - m.l - m.r)
+  const ih = Math.max(40, height - m.t - m.b)
+  const band = iw / 12
+  const cx = (mIdx) => m.l + band * mIdx + band / 2
+
+  // Nilai maksimum untuk skala sumbu Y
+  let maxVal = 0
+  activeYears.forEach((y) => {
+    for (let mNum = 1; mNum <= 12; mNum++) {
+      const v = yearMap[y]?.[mNum]?.value
+      if (v !== undefined && v > maxVal) maxVal = v
+    }
+  })
+  const top = niceMax(maxVal)
+  const ticks = [0, 1, 2, 3, 4].map((i) => (top * i) / 4)
+  const y = (v) => m.t + ih - (v / top) * ih
+
+  if (allYears.length === 0) {
+    return <p className="py-8 text-center text-sm text-slate-500">Belum ada data pada rentang ini.</p>
+  }
+
+  return (
+    <div ref={ref} className={`viz-root relative w-full ${className}`} onMouseLeave={() => setHover(null)}>
+      <VizStyles />
+
+      {/* Header Legenda Tahun & Pilihan Mode Tampilan */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {allYears.map((yr) => {
+            const isHidden = hiddenYears.has(yr)
+            const color = yearColorMap[yr]
+            return (
+              <button
+                key={yr}
+                type="button"
+                onClick={() => toggleYear(yr)}
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full border transition cursor-pointer select-none ${
+                  isHidden
+                    ? 'opacity-40 border-slate-200 dark:border-slate-800 line-through bg-slate-50 dark:bg-slate-800/40 text-slate-400'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:border-slate-300'
+                }`}
+                title={`Klik untuk menyembunyikan/menampilkan tahun ${yr}`}
+              >
+                <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ background: color }} />
+                <span>{yr}</span>
+              </button>
+            )
+          })}
+          {hiddenYears.size > 0 && (
+            <button
+              type="button"
+              onClick={resetYears}
+              className="text-[11px] text-blue-600 hover:underline dark:text-blue-400 ml-1 cursor-pointer"
+            >
+              Tampilkan semua
+            </button>
+          )}
+        </div>
+
+        {showModeSwitch && (
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[11px]">
+            <button
+              type="button"
+              onClick={() => setMode('line')}
+              className={`px-2 py-0.5 rounded font-medium transition cursor-pointer ${
+                mode === 'line'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Garis
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('bar')}
+              className={`px-2 py-0.5 rounded font-medium transition cursor-pointer ${
+                mode === 'bar'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Batang
+            </button>
+          </div>
+        )}
+      </div>
+
+      <svg width={width} height={height} role="img" aria-label={ariaLabel}>
+        {/* Garis Grid Horizontal & Angka Sumbu Y */}
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={m.l} x2={m.l + iw} y1={y(t)} y2={y(t)} stroke={t === 0 ? 'var(--viz-axis)' : 'var(--viz-grid)'} strokeWidth={1} />
+            <text x={m.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="var(--viz-muted)">{format(t)}</text>
+          </g>
+        ))}
+
+        {/* Highlight Kolom Bulan Saat Hover */}
+        {hover && (
+          <rect
+            x={m.l + band * hover.mIdx}
+            y={m.t}
+            width={band}
+            height={ih}
+            fill="var(--viz-grid)"
+            fillOpacity={0.35}
+            pointerEvents="none"
+          />
+        )}
+
+        {/* ── Mode 1: Garis Tren (Line Chart) ── */}
+        {mode === 'line' && activeYears.map((yr) => {
+          const color = yearColorMap[yr]
+          const isLatest = yr === Math.max(...allYears)
+
+          // Kumpulkan titik-titik bulan yang memiliki data
+          const pts = []
+          for (let mIdx = 0; mIdx < 12; mIdx++) {
+            const item = yearMap[yr]?.[mIdx + 1]
+            if (item !== undefined) {
+              pts.push({ mIdx, x: cx(mIdx), y: y(item.value), value: item.value, partial: item.partial })
+            }
+          }
+          if (pts.length === 0) return null
+
+          const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+
+          return (
+            <g key={yr}>
+              <path
+                d={pathD}
+                fill="none"
+                stroke={color}
+                strokeWidth={isLatest ? 2.5 : 1.75}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity={hover && !hover.entries.some((e) => e.year === yr) ? 0.35 : 1}
+              />
+              {pts.map((p) => (
+                <circle
+                  key={p.mIdx}
+                  cx={p.x}
+                  cy={p.y}
+                  r={hover?.mIdx === p.mIdx ? 4.5 : isLatest ? 3.5 : 2.5}
+                  fill={p.partial ? 'var(--viz-surface)' : color}
+                  stroke={color}
+                  strokeWidth={p.partial ? 2 : 1}
+                  strokeDasharray={p.partial ? '2 1' : undefined}
+                />
+              ))}
+            </g>
+          )
+        })}
+
+        {/* ── Mode 2: Batang Berkelompok (Grouped Bar) ── */}
+        {mode === 'bar' && Array.from({ length: 12 }, (_, mIdx) => {
+          const presentYears = activeYears.filter((yr) => yearMap[yr]?.[mIdx + 1] !== undefined)
+          const k = presentYears.length
+          if (k === 0) return null
+
+          const totalBarSpace = Math.min(band - 4, Math.max(k * 4, k * 14))
+          const bw = Math.max(2, Math.floor(totalBarSpace / k) - 1)
+          const startX = cx(mIdx) - totalBarSpace / 2
+
+          return (
+            <g key={mIdx}>
+              {presentYears.map((yr, yi) => {
+                const item = yearMap[yr][mIdx + 1]
+                const color = yearColorMap[yr]
+                const val = item.value
+                const bh = Math.max(0, (val / top) * ih)
+                const bx = startX + yi * (bw + 1)
+                const isHoverMonth = hover?.mIdx === mIdx
+
+                return (
+                  <path
+                    key={yr}
+                    d={barPath(bx, y(val), bw, bh, 3)}
+                    fill={color}
+                    fillOpacity={item.partial ? 0.35 : isHoverMonth ? 1 : hover ? 0.6 : 0.9}
+                    stroke={item.partial ? color : undefined}
+                    strokeWidth={item.partial ? 1 : undefined}
+                    strokeDasharray={item.partial ? '2 2' : undefined}
+                  />
+                )
+              })}
+            </g>
+          )
+        })}
+
+        {/* Label Sumbu X: 12 Bulan (Jan - Des) */}
+        {Array.from({ length: 12 }, (_, mIdx) => (
+          <text
+            key={mIdx}
+            x={cx(mIdx)}
+            y={height - 8}
+            textAnchor="middle"
+            fontSize="11"
+            fontWeight={hover?.mIdx === mIdx ? '600' : 'normal'}
+            fill={hover?.mIdx === mIdx ? 'var(--viz-text)' : 'var(--viz-muted)'}
+          >
+            {MONTHS[mIdx]}
+          </text>
+        ))}
+
+        {/* Area Interaktif Tangkapan Mouse per Bulan */}
+        {Array.from({ length: 12 }, (_, mIdx) => {
+          const mNum = mIdx + 1
+          const entries = activeYears
+            .filter((yr) => yearMap[yr]?.[mNum] !== undefined)
+            .map((yr) => ({
+              year: yr,
+              value: yearMap[yr][mNum].value,
+              partial: yearMap[yr][mNum].partial,
+              color: yearColorMap[yr],
+            }))
+            .sort((a, b) => b.year - a.year)
+
+          let delta = null
+          let latestYear = null
+          let prevYear = null
+          if (entries.length >= 2) {
+            latestYear = entries[0].year
+            prevYear = entries[1].year
+            const currVal = entries[0].value
+            const prevVal = entries[1].value
+            if (prevVal > 0) {
+              delta = ((currVal - prevVal) / prevVal) * 100
+            }
+          }
+
+          return (
+            <rect
+              key={mIdx}
+              x={m.l + band * mIdx}
+              y={m.t}
+              width={band}
+              height={ih}
+              fill="transparent"
+              tabIndex={0}
+              aria-label={`Bulan ${MONTHS[mIdx]}: ${entries.map((e) => `${e.year} ${format(e.value)}`).join(', ')}`}
+              onMouseMove={() =>
+                setHover({
+                  mIdx,
+                  x: Math.min(cx(mIdx) + 12, width - 180),
+                  y: m.t,
+                  entries,
+                  delta,
+                  latestYear,
+                  prevYear,
+                })
+              }
+              onFocus={() =>
+                setHover({
+                  mIdx,
+                  x: Math.min(cx(mIdx) + 12, width - 180),
+                  y: m.t,
+                  entries,
+                  delta,
+                  latestYear,
+                  prevYear,
+                })
+              }
+              onBlur={() => setHover(null)}
+            />
+          )
+        })}
+      </svg>
+
+      {/* Tooltip Interaktif Sumbu 12 Bulan */}
+      <Tooltip box={hover}>
+        {hover && (
+          <div className="space-y-1 min-w-[145px]">
+            <div className="font-bold text-xs text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1">
+              Bulan {MONTHS[hover.mIdx]}
+            </div>
+            {hover.entries.length === 0 ? (
+              <div className="text-xs text-slate-400">Tidak ada data</div>
+            ) : (
+              <div className="space-y-1 pt-0.5">
+                {hover.entries.map((ent) => (
+                  <div key={ent.year} className="flex items-center justify-between gap-3 text-xs">
+                    <span className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                      <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ background: ent.color }} />
+                      {ent.year}{ent.partial ? ' *' : ''}:
+                    </span>
+                    <span className="font-mono tabular-nums text-slate-900 dark:text-slate-100 font-semibold">
+                      {format(ent.value)}{unit ? ` ${unit}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {hover.delta !== null && (
+              <div className="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 flex items-center justify-between gap-2">
+                <span>YoY ({hover.latestYear} vs {hover.prevYear}):</span>
+                <span className={hover.delta > 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : hover.delta < 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'font-medium'}>
+                  {hover.delta > 0 ? `+${fmtNum(hover.delta, 1)}% ▲` : hover.delta < 0 ? `${fmtNum(hover.delta, 1)}% ▼` : '0%'}
+                </span>
+              </div>
+            )}
+            {hover.entries.some((e) => e.partial) && (
+              <div className="text-[10px] text-slate-400 italic pt-0.5">* Bulan berjalan (data belum lengkap)</div>
+            )}
+          </div>
+        )}
+      </Tooltip>
+    </div>
+  )
+}
+
 

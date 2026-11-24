@@ -41,6 +41,7 @@ const FAMILY_LABELS = {
   AKHIRBULAN_EIS: 'AKHIRBULAN_EIS (Rekening Akhir Bulan)',
   AKHIEPERIODE_EIS: 'AKHIEPERIODE_EIS (Rekening Akhir Periode)',
   TAGSUS: 'TAGSUS (Tagihan Susulan P2TL)',
+  UMURPIUTANG: 'UMURPIUTANG (Umur Tunggakan Pascabayar)',
 }
 
 const MONTH_NAMES = [
@@ -155,8 +156,9 @@ function UploadModal({ isOpen, onClose, onUploaded }) {
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
             <p className="font-semibold text-slate-800 dark:text-slate-200">Petunjuk Format Berkas:</p>
             <ul className="list-disc pl-4 space-y-0.5">
-              <li>Mendukung jenis: <span className="font-mono">309, 309EIS, DIFI, GGNALL, KLHALL, PIUTANGLPB_EIS, TAGSUS, dll.</span></li>
-              <li>Contoh: <span className="font-mono font-semibold">309-51453-042026.xls</span> atau <span className="font-mono font-semibold">DIFI-51453-052026.xlsx</span></li>
+              <li>Mendukung jenis: <span className="font-mono">309, 309EIS, DIFI, GGNALL, KLHALL, PIUTANGLPB_EIS, TAGSUS, UMURPIUTANG, dll.</span></li>
+              <li>Contoh: <span className="font-mono font-semibold">309-51453-042026.xls</span> atau <span className="font-mono font-semibold">UMURPIUTANG-51453-102026.xls</span></li>
+              <li>Khusus unduhan EIS <span className="font-mono font-semibold">Rekap.xls</span> (Umur Piutang) wajib diganti nama sesuai format <span className="font-mono font-semibold">UMURPIUTANG-&lt;kodeULP&gt;-&lt;BBTTTT&gt;.xls</span> sebelum diunggah.</li>
               <li>Unit tujuan dibaca otomatis dari kode dan isi berkas (tidak perlu dipilih manual).</li>
             </ul>
           </div>

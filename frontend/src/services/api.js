@@ -984,6 +984,17 @@ export const nkoApi = {
   snapshot: (id) => request(`/nko/snapshots/${id}`),
   ranking: (params = {}) => request(`/nko/ranking${qs(params)}`),
   inputs: (params = {}) => request(`/nko/inputs${qs(params)}`),
+  gaps: (params = {}) => request(`/nko/gaps${qs(params)}`),
   saveInputs: (body) => request('/nko/inputs', { method: 'PUT', body }),
   calculate: (body) => request('/nko/calculate', { method: 'POST', body }),
+}
+
+/** Analisa dan Tren Pengusahaan (docs/91): katalog metrik dan tren per ULP / UP3. */
+export const pengusahaanApi = {
+  metrics: () => request('/pengusahaan/metrics'),
+  metric: (code, params = {}) => request(`/pengusahaan/metrics/${code}${qs(params)}`),
+  inputs: (params = {}) => request(`/pengusahaan/inputs${qs(params)}`),
+  saveInputs: (body) => request('/pengusahaan/inputs', { method: 'PUT', body }),
+  template: (params = {}) => downloadBlob(`/pengusahaan/inputs/template${qs(params)}`),
+  importInputs: (formData) => request('/pengusahaan/inputs/import', { method: 'POST', body: formData }),
 }

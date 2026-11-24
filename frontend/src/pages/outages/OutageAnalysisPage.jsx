@@ -11,6 +11,7 @@ import {
   StackedColumns,
   ForecastLine,
   RankedBars,
+  YearlyComparisonChart,
   fmtInt,
   fmtNum,
   fmtPct,
@@ -103,10 +104,7 @@ function TrendTab({ data }) {
   const l = kpi.l12m
   const p = kpi.prev12m
   const c = kpi.change_pct || {}
-  const stacked = monthly.map((m) => ({ key: m.month, label: monthLabel(m.month), partial: m.partial, values: { permanent: m.permanent, temporary: m.temporary } }))
-  const ens = monthly.map((m) => ({ key: m.month, label: monthLabel(m.month), value: m.ens_kwh, partial: m.partial }))
-  const saifi = monthly.map((m) => ({ key: m.month, label: monthLabel(m.month), value: m.saifi, partial: m.partial }))
-  const saidi = monthly.map((m) => ({ key: m.month, label: monthLabel(m.month), value: m.saidi, partial: m.partial }))
+  const [gangguanType, setGangguanType] = useState('total') // 'total' | 'permanent' | 'temporary' | 'all'
   const hours = data.by_hour.map((h) => ({ key: String(h.hour), label: String(h.hour).padStart(2, '0'), value: h.events }))
   if (!l) return <Alert type="info">Belum ada bulan lengkap pada rentang ini.</Alert>
 
@@ -121,21 +119,111 @@ function TrendTab({ data }) {
         <Tile label="SAIDI (menit/plg)" value={fmtNum(l.saidi, 1)} delta={c.saidi} sub={`ambang ≥ ${data.settings.saidi_min_minutes} mnt${data.settings.saidi_only_permanent ? ', permanen' : ''}`} />
       </div>
 
-      <Section title="Gangguan per bulan" hint="Permanen dan temporer; kolom pucat = bulan berjalan (belum lengkap).">
-        <StackedColumns data={stacked} series={SERIES} ariaLabel="Gangguan permanen dan temporer per bulan" unit="kali" />
+      <Section
+        title="Gangguan per bulan"
+        hint="Perbandingan antar tahun (YoY) dengan sumbu rentang 1 tahun (Jan–Des). Warna legenda membedakan tiap tahun; kolom putus-putus = bulan berjalan."
+        actions={
+          <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
+            <button
+              type="button"
+              onClick={() => setGangguanType('total')}
+              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                gangguanType === 'total'
+                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              Total
+            </button>
+            <button
+              type="button"
+              onClick={() => setGangguanType('permanent')}
+              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                gangguanType === 'permanent'
+                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              Permanen
+            </button>
+            <button
+              type="button"
+              onClick={() => setGangguanType('temporary')}
+              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                gangguanType === 'temporary'
+                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              Temporer
+            </button>
+            <button
+              type="button"
+              onClick={() => setGangguanType('all')}
+              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                gangguanType === 'all'
+                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              Bandingkan Ketiganya
+            </button>
+          </div>
+        }
+      >
+        {gangguanType === 'total' && (
+          <YearlyComparisonChart
+            data={monthly}
+            valueKey="events"
+            unit="kali"
+            ariaLabel="Gangguan permanen dan temporer per bulan"
+          />
+        )}
+        {gangguanType === 'permanent' && (
+          <YearlyComparisonChart
+            data={monthly}
+            valueKey="permanent"
+            unit="kali"
+            ariaLabel="Gangguan permanen dan temporer per bulan"
+          />
+        )}
+        {gangguanType === 'temporary' && (
+          <YearlyComparisonChart
+            data={monthly}
+            valueKey="temporary"
+            unit="kali"
+            ariaLabel="Gangguan permanen dan temporer per bulan"
+          />
+        )}
+        {gangguanType === 'all' && (
+          <div className="grid gap-6 lg:grid-cols-3 pt-2">
+            <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Total Gangguan</h3>
+              <YearlyComparisonChart data={monthly} valueKey="events" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan permanen dan temporer per bulan" />
+            </div>
+            <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Gangguan Permanen</h3>
+              <YearlyComparisonChart data={monthly} valueKey="permanent" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan permanen per bulan" />
+            </div>
+            <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Gangguan Temporer</h3>
+              <YearlyComparisonChart data={monthly} valueKey="temporary" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan temporer per bulan" />
+            </div>
+          </div>
+        )}
       </Section>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Section title="SAIFI per bulan" hint="Rata-rata gangguan yang dialami pelanggan (kali per pelanggan).">
-          <ColumnChart data={saifi} format={(v) => fmtNum(v, 2)} ariaLabel="SAIFI per bulan" unit="kali/plg" />
+        <Section title="SAIFI per bulan" hint="Rata-rata gangguan yang dialami pelanggan (kali/pelanggan), sumbu 12 bulan (Jan–Des) per tahun.">
+          <YearlyComparisonChart data={monthly} valueKey="saifi" format={(v) => fmtNum(v, 2)} ariaLabel="SAIFI per bulan" unit="kali/plg" />
         </Section>
-        <Section title="SAIDI per bulan" hint="Rata-rata lama padam per pelanggan (menit).">
-          <ColumnChart data={saidi} color="var(--viz-s2)" format={(v) => fmtNum(v, 1)} ariaLabel="SAIDI per bulan" unit="menit/plg" />
+        <Section title="SAIDI per bulan" hint="Rata-rata lama padam per pelanggan (menit), sumbu 12 bulan (Jan–Des) per tahun.">
+          <YearlyComparisonChart data={monthly} valueKey="saidi" format={(v) => fmtNum(v, 1)} ariaLabel="SAIDI per bulan" unit="menit/plg" />
         </Section>
       </div>
 
-      <Section title="Energi tidak tersalur (ENS) per bulan" hint="kWh, dibaca apa adanya dari sheet.">
-        <ColumnChart data={ens} color="var(--viz-s3)" ariaLabel="ENS per bulan" unit="kWh" />
+      <Section title="Energi tidak tersalur (ENS) per bulan" hint="kWh, perbandingan tahun ke tahun (YoY) sumbu 12 bulan (Jan–Des).">
+        <YearlyComparisonChart data={monthly} valueKey="ens_kwh" format={fmtInt} ariaLabel="ENS per bulan" unit="kWh" />
       </Section>
 
       <Section title="Ringkasan per tahun">
@@ -201,6 +289,7 @@ function TrendTab({ data }) {
 
 function FeederDrawer({ feederId, params, onClose }) {
   const [state, setState] = useState({ loading: true, error: '', data: null })
+  const [feederGangguanType, setFeederGangguanType] = useState('total') // 'total' | 'permanent' | 'temporary'
   useEffect(() => {
     let alive = true
     setState({ loading: true, error: '', data: null })
@@ -226,10 +315,31 @@ function FeederDrawer({ feederId, params, onClose }) {
         {d && (
           <div className="mt-5 space-y-5">
             <div>
-              <h3 className="mb-2 text-sm font-semibold">Gangguan per bulan</h3>
-              <StackedColumns
-                data={d.monthly.map((m) => ({ key: m.month, label: monthLabel(m.month), values: { permanent: m.permanent, temporary: m.temporary } }))}
-                series={SERIES} height={180} ariaLabel={`Gangguan bulanan ${d.feeder.name}`} unit="kali"
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Gangguan per bulan</h3>
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[11px]">
+                  {[['total', 'Total'], ['permanent', 'Permanen'], ['temporary', 'Temporer']].map(([k, lbl]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setFeederGangguanType(k)}
+                      className={`px-2 py-0.5 rounded font-medium transition cursor-pointer ${
+                        feederGangguanType === k
+                          ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <YearlyComparisonChart
+                data={d.monthly}
+                valueKey={feederGangguanType === 'permanent' ? 'permanent' : feederGangguanType === 'temporary' ? 'temporary' : 'events'}
+                height={190}
+                ariaLabel={`Gangguan bulanan ${d.feeder.name}`}
+                unit="kali"
               />
             </div>
             <div>

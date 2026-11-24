@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
+import { Link } from 'react-router-dom'
 import { nkoApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -21,6 +22,9 @@ import {
   IconClock,
   IconX,
   IconInfo,
+  IconChevronDown,
+  IconChevronRight,
+  IconExclamation,
 } from '../../components/icons.jsx'
 
 const CARD = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs'
@@ -255,6 +259,7 @@ function CalculateModal({ isOpen, onClose, year, month, unitId, up3Id, onCalcula
 
 export default function NkoPage() {
   const { can } = useAccess()
+  const { notify } = useNotifications()
   const canCalculate = Boolean(can?.['nko.calculate'])
   const canInput = Boolean(can?.['nko.input'])
 
@@ -295,6 +300,10 @@ export default function NkoPage() {
   const [inputsState, setInputsState] = useState({ loading: false, error: '', data: null })
   const [inputsDraft, setInputsDraft] = useState({})
   const [savingInputs, setSavingInputs] = useState(false)
+  // Gaps state
+  const [gapsState, setGapsState] = useState({ loading: false, error: '', data: null })
+  const [expandedGaps, setExpandedGaps] = useState({})
+  const [gapsFilter, setGapsFilter] = useState('ALL') // 'ALL' | 'INCOMPLETE'
 
   // Modal calculate
   const [isCalculateOpen, setIsCalculateOpen] = useState(false)
@@ -397,17 +406,43 @@ export default function NkoPage() {
     }
   }, [unitId, year, month])
 
+  // 4. Load Gaps (for units data completeness & validation gaps)
+  const loadGaps = useCallback(async () => {
+    setGapsState((s) => ({ ...s, loading: true, error: '' }))
+    try {
+      const res = await nkoApi.gaps({
+        year,
+        month,
+        up3_id: targetUp3 || undefined,
+      })
+      setGapsState({
+        loading: false,
+        error: '',
+        data: res?.data || null,
+      })
+    } catch (err) {
+      setGapsState({
+        loading: false,
+        error: err?.message || 'Gagal memuat ringkasan kekurangan realisasi.',
+        data: null,
+      })
+    }
+  }, [targetUp3, year, month])
+
   useEffect(() => {
     loadSnapshot()
-  }, [loadSnapshot])
+    loadGaps()
+  }, [loadSnapshot, loadGaps])
 
   useEffect(() => {
     if (tab === 'ranking') {
       loadRanking()
     } else if (tab === 'inputs') {
       loadInputs()
+    } else if (tab === 'gaps') {
+      loadGaps()
     }
-  }, [tab, loadRanking, loadInputs])
+  }, [tab, loadRanking, loadInputs, loadGaps])
 
   const handleSaveInputs = async (e) => {
     e.preventDefault()
@@ -440,15 +475,27 @@ export default function NkoPage() {
         return
       }
 
-      await nkoApi.saveInputs({
+      const res = await nkoApi.saveInputs({
         unit_id: unitId,
         year,
         month,
         items,
       })
 
-      // Muat ulang inputs
+      notify({
+        type: 'success',
+        title: 'Masukan Disimpan',
+        desc:
+          res?.message ||
+          (res?.changed === 0
+            ? 'Tidak ada perubahan masukan.'
+            : `Berhasil menyimpan ${res?.changed ?? ''} masukan realisasi.`),
+        tag: 'NKO',
+      })
+
+      // Muat ulang inputs dan gaps
       await loadInputs()
+      loadGaps()
     } catch (err) {
       setInputsState((s) => ({ ...s, error: err?.message || 'Gagal menyimpan masukan manual.' }))
     } finally {
@@ -491,6 +538,7 @@ export default function NkoPage() {
                 loadSnapshot()
                 if (tab === 'ranking') loadRanking()
                 if (tab === 'inputs') loadInputs()
+                if (tab === 'gaps') loadGaps()
               }}
               aria-label="Segarkan"
             >
@@ -610,22 +658,41 @@ export default function NkoPage() {
           ['details', 'Rincian Indikator & Nilai'],
           ['ranking', 'Peringkat ULP'],
           ['inputs', 'Masukan Realisasi Manual'],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
-              tab === id
-                ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+          ['gaps', 'Kekurangan Realisasi (Gaps)'],
+        ].map(([id, label]) => {
+          const isGaps = id === 'gaps'
+          const emptyCount = gapsState.data?.totals?.empty_count ?? 0
+          const unvalidatedCount = gapsState.data?.totals?.unvalidated_count ?? 0
+
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
+                tab === id
+                  ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <span>{label}</span>
+              {isGaps && (emptyCount > 0 || unvalidatedCount > 0) && (
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    emptyCount > 0
+                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                  }`}
+                  title={`${emptyCount} kosong, ${unvalidatedCount} belum tervalidasi`}
+                >
+                  {emptyCount > 0 ? emptyCount : unvalidatedCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {/* Tab 1: Rincian Indikator & Nilai */}
@@ -901,28 +968,65 @@ export default function NkoPage() {
                     {inputsState.data.items.map((it) => {
                       const draft = inputsDraft[it.code] || { value: '', note: '' }
                       const isEditable = it.editable && canInput
+                      const isAuxiliary = Boolean(it.auxiliary)
 
                       return (
-                        <tr key={it.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                        <tr
+                          key={it.code}
+                          className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/40 ${
+                            isAuxiliary ? 'bg-purple-50/20 dark:bg-purple-950/10' : ''
+                          }`}
+                        >
                           <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span>{it.name}</span>
+                              {isAuxiliary && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                                  title="Masukan pembantu: bukan KPI langsung, melainkan komponen pendukung formula hitung realisasi"
+                                >
+                                  Masukan Pembantu
+                                </span>
+                              )}
                               {it.system_source && it.system_validated === false && (
                                 <span
                                   className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                                   title="Nilai sistem dimuat otomatis tetapi belum tervalidasi terhadap workbook (dapat dikoreksi manual dengan alasan)"
                                 >
-                                  Perlu Validasi
+                                  Perlu Validasi Workbook
                                 </span>
                               )}
                             </div>
                             {it.unit_label && (
-                              <span className="block text-[10px] font-normal text-slate-400">Satuan: {it.unit_label}</span>
+                              <span className="block text-[10px] font-normal text-slate-400">
+                                Satuan: {it.unit_label}
+                              </span>
+                            )}
+                            {isAuxiliary && (
+                              <span className="block text-[10px] font-normal text-purple-600/80 dark:text-purple-400/80">
+                                {it.code.startsWith('kwh-') || it.code === 'e-min' || it.code === 'pssd' ? (
+                                  <>
+                                    Komponen perhitungan susut distribusi kumulatif.{' '}
+                                    <Link
+                                      to="/pengusahaan/susut"
+                                      className="underline hover:text-purple-800 dark:hover:text-purple-200"
+                                    >
+                                      Bisa diisi bulanan di Analisa Pengusahaan &gt; Susut
+                                    </Link>
+                                  </>
+                                ) : (
+                                  'Komponen perhitungan pelunasan piutang kumulatif'
+                                )}
+                              </span>
                             )}
                           </td>
                           <td className="py-2.5 px-3 text-slate-500">{it.group || '-'}</td>
                           <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                            {typeof it.target === 'number' ? fmt(it.target) : it.target || '-'}
+                            {isAuxiliary
+                              ? '-'
+                              : typeof it.target === 'number'
+                              ? fmt(it.target)
+                              : it.target || '-'}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono tabular-nums">
                             {it.system != null ? fmt(it.system) : '-'}
@@ -943,7 +1047,13 @@ export default function NkoPage() {
                                     [it.code]: { ...prev[it.code], value: val },
                                   }))
                                 }}
-                                placeholder={it.system != null ? String(it.system) : 'Isi manual…'}
+                                placeholder={
+                                  it.system != null
+                                    ? String(it.system)
+                                    : isAuxiliary
+                                    ? 'Isi masukan pembantu…'
+                                    : 'Isi manual…'
+                                }
                                 className={`${filterControlCls} w-full font-mono tabular-nums`}
                               />
                             ) : (
@@ -964,7 +1074,13 @@ export default function NkoPage() {
                                     [it.code]: { ...prev[it.code], note: n },
                                   }))
                                 }}
-                                placeholder={it.system != null ? 'Alasan koreksi (wajib jika ubah sistem)' : 'Catatan masukan'}
+                                placeholder={
+                                  it.system != null
+                                    ? 'Alasan koreksi (wajib jika ubah sistem)'
+                                    : isAuxiliary
+                                    ? 'Catatan masukan pembantu'
+                                    : 'Catatan masukan'
+                                }
                                 className={`${filterControlCls} w-full`}
                               />
                             ) : (
@@ -978,6 +1094,271 @@ export default function NkoPage() {
                 </table>
               </div>
             </form>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Kekurangan Realisasi (Gaps) */}
+      {tab === 'gaps' && (
+        <div className={`${CARD} p-5 space-y-4`}>
+          {gapsState.loading ? (
+            <div className="py-20 flex justify-center">
+              <Spinner size="lg" label="Memeriksa kekurangan realisasi per unit..." />
+            </div>
+          ) : gapsState.error ? (
+            <Alert kind="error">{gapsState.error}</Alert>
+          ) : !gapsState.data?.units?.length ? (
+            <EmptyState
+              title="Tidak Ada Data Kesenjangan"
+              desc="Tidak ditemukan unit dengan definisi NKO aktif pada periode ini."
+            />
+          ) : (
+            <div className="space-y-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Unit Terdata</span>
+                  <div className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">
+                    {gapsState.data.units.length} Unit
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">ULP & UP3 dalam cakupan</p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20">
+                  <span className="text-[11px] font-medium text-rose-700 dark:text-rose-300">Indikator Kosong</span>
+                  <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 mt-1">
+                    {gapsState.data.totals?.empty_count ?? 0}
+                  </div>
+                  <p className="text-[11px] text-rose-500/80 mt-0.5">Belum ada nilai sistem maupun manual</p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20">
+                  <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Belum Tervalidasi</span>
+                  <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 mt-1">
+                    {gapsState.data.totals?.unvalidated_count ?? 0}
+                  </div>
+                  <p className="text-[11px] text-amber-500/80 mt-0.5">Otomatis sistem, belum cocok workbook</p>
+                </div>
+              </div>
+
+              {/* Controls and filters */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                    Kesiapan Data Realisasi Per Unit
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Evaluasi kesiapan data masukan sebelum perhitungan NKO ({MONTH_NAMES[month - 1]} {year}). Masukan pembantu tidak dihitung sebagai gap.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGapsFilter('ALL')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      gapsFilter === 'ALL'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    Semua ({gapsState.data.units.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGapsFilter('INCOMPLETE')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      gapsFilter === 'INCOMPLETE'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    Perlu Dilengkapi (
+                    {gapsState.data.units.filter((u) => u.empty_count > 0 || u.unvalidated_count > 0).length}
+                    )
+                  </button>
+                </div>
+              </div>
+
+              {/* Units Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="py-3 px-3 w-10 text-center"></th>
+                      <th className="py-3 px-3">Unit Organisasi</th>
+                      <th className="py-3 px-3 text-right">Total Indikator</th>
+                      <th className="py-3 px-3 text-right">Kosong</th>
+                      <th className="py-3 px-3 text-right">Belum Valid</th>
+                      <th className="py-3 px-3 text-center">Status Kesiapan</th>
+                      <th className="py-3 px-3 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {gapsState.data.units
+                      .filter((u) => gapsFilter === 'ALL' || u.empty_count > 0 || u.unvalidated_count > 0)
+                      .map((u) => {
+                        const isExpanded = Boolean(expandedGaps[u.unit_id])
+                        const isComplete = u.empty_count === 0 && u.unvalidated_count === 0
+
+                        return (
+                          <Fragment key={u.unit_id}>
+                            <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                              <td className="py-3 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedGaps((prev) => ({
+                                      ...prev,
+                                      [u.unit_id]: !prev[u.unit_id],
+                                    }))
+                                  }
+                                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded cursor-pointer"
+                                  title={isExpanded ? 'Sembunyikan rincian' : 'Lihat rincian'}
+                                >
+                                  {isExpanded ? (
+                                    <IconChevronDown size={16} />
+                                  ) : (
+                                    <IconChevronRight size={16} />
+                                  )}
+                                </button>
+                              </td>
+                              <td className="py-3 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                                <div className="flex items-center gap-2">
+                                  <span>{u.unit_name}</span>
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                                      u.unit_type === 'UP3'
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    {u.unit_type}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
+                                {u.total_indicators}
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono tabular-nums">
+                                {u.empty_count > 0 ? (
+                                  <span className="font-bold text-rose-600 dark:text-rose-400">
+                                    {u.empty_count}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">0</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono tabular-nums">
+                                {u.unvalidated_count > 0 ? (
+                                  <span className="font-bold text-amber-600 dark:text-amber-400">
+                                    {u.unvalidated_count}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">0</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                {isComplete ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                                    Siap Dihitung
+                                  </span>
+                                ) : u.empty_count > 0 ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+                                    Perlu Masukan
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                                    Perlu Validasi
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => {
+                                    setUnitId(u.unit_id)
+                                    setTab('inputs')
+                                  }}
+                                >
+                                  Buka Masukan
+                                </Button>
+                              </td>
+                            </tr>
+
+                            {/* Accordion detail items */}
+                            {isExpanded && (
+                              <tr className="bg-slate-50/70 dark:bg-slate-900/60">
+                                <td colSpan={7} className="p-3 sm:px-6">
+                                  {u.items.length === 0 ? (
+                                    <div className="py-3 text-center text-xs text-slate-500">
+                                      Tidak ada kekurangan pada unit ini. Seluruh indikator telah terisi dan tervalidasi.
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                        Rincian Indikator Bermasalah ({u.items.length}):
+                                      </div>
+                                      <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+                                        <table className="w-full text-left text-[11px]">
+                                          <thead className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 border-b border-slate-200 dark:border-slate-800">
+                                            <tr>
+                                              <th className="py-2 px-3">Indikator</th>
+                                              <th className="py-2 px-3">Kelompok</th>
+                                              <th className="py-2 px-3 text-center">Status</th>
+                                              <th className="py-2 px-3 text-center">Sumber Sistem</th>
+                                              <th className="py-2 px-3">Tindak Lanjut Rekomendasi</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {u.items.map((it, idx) => (
+                                              <tr key={it.code || idx}>
+                                                <td className="py-2 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                                                  {it.name}
+                                                </td>
+                                                <td className="py-2 px-3 text-slate-500">{it.group || '-'}</td>
+                                                <td className="py-2 px-3 text-center">
+                                                  {it.status === 'KOSONG' ? (
+                                                    <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                                                      KOSONG
+                                                    </span>
+                                                  ) : (
+                                                    <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                                                      BELUM TERVALIDASI
+                                                    </span>
+                                                  )}
+                                                </td>
+                                                <td className="py-2 px-3 text-center">
+                                                  {it.system_source ? (
+                                                    <span className="text-blue-600 font-medium">Tersedia (DIFI/309/EIS)</span>
+                                                  ) : (
+                                                    <span className="text-slate-400">Manual</span>
+                                                  )}
+                                                </td>
+                                                <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
+                                                  {it.status === 'KOSONG'
+                                                    ? 'Belum ada realisasi. Isi manual atau unggah berkas EIS/DIFI yang bersangkutan.'
+                                                    : 'Nilai dihitung otomatis namun belum cocok workbook. Dapat dikoreksi manual dengan alasan.'}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        )
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </div>
       )}
