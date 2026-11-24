@@ -78,18 +78,18 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
 
   it('tanpa akun EIS tersimpan tombol sinkronkan dinonaktifkan', async () => {
     eisSyncApi.show.mockResolvedValue({ data: { settings: { ...settings, eis_username: null, has_password: false }, runs: [] } })
-    render(<EisSyncDrawer open onClose={() => {}} />)
-    expect(await screen.findAllByText(/Simpan user dan password EIS terlebih dulu/)).toHaveLength(2)
+    render(<EisSyncDrawer open mode="permohonan" onClose={() => {}} />)
+    expect(await screen.findByText(/Simpan user dan password EIS terlebih dulu/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sinkronkan Sekarang' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Tarik Piutang' })).toBeDisabled()
   })
 
   it('kartu Tarik Laporan Piutang mengirim parameter kind piutang, periode bulan, dan jenis laporan', async () => {
     eisSyncApi.start.mockResolvedValue({ data: { id: 'r2', kind: 'piutang', status: 'QUEUED', log: null, created_at: '2026-11-24T12:00:00Z' } })
     eisSyncApi.run.mockResolvedValue({ data: { id: 'r2', kind: 'piutang', status: 'OK', log: '=== Bulan 2026-10 ===\nOK GOLONGAN JOMBANG 2026-10 (4500 byte)', created_at: '2026-11-24T12:00:00Z' } })
-    render(<EisSyncDrawer open onClose={() => {}} />)
+    render(<EisSyncDrawer open mode="piutang" onClose={() => {}} />)
 
     expect(await screen.findByText('Tarik Laporan Piutang')).toBeInTheDocument()
+    expect(screen.getByText('Sinkronisasi Saldo Piutang EIS')).toBeInTheDocument()
     const toInput = screen.getByLabelText('Bulan akhir piutang')
     const fromInput = screen.getByLabelText('Bulan awal piutang')
     fireEvent.change(toInput, { target: { value: '2026-10' } })
@@ -116,5 +116,18 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
 
     expect(await screen.findByText('Hasil Sinkronisasi EIS')).toBeInTheDocument()
     expect(screen.getByText('Saldo Piutang')).toBeInTheDocument()
+  })
+
+  it('dapat beralih tab antara Permohonan Pelanggan dan Laporan Saldo Piutang jika mode umum', async () => {
+    render(<EisSyncDrawer open onClose={() => {}} />)
+    expect(await screen.findByRole('button', { name: 'Permohonan Pelanggan' })).toBeInTheDocument()
+    const piutangTabBtn = screen.getByRole('button', { name: 'Laporan Saldo Piutang' })
+    expect(piutangTabBtn).toBeInTheDocument()
+    expect(screen.getByText('Tarik Permohonan dari EIS Langsung')).toBeInTheDocument()
+    expect(screen.queryByText('Tarik Laporan Piutang')).not.toBeInTheDocument()
+
+    await userEvent.click(piutangTabBtn)
+    expect(await screen.findByText('Tarik Laporan Piutang')).toBeInTheDocument()
+    expect(screen.queryByText('Tarik Permohonan dari EIS Langsung')).not.toBeInTheDocument()
   })
 })

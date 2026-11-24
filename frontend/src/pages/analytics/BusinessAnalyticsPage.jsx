@@ -1780,6 +1780,7 @@ export default function BusinessAnalyticsPage() {
       {/* Drawer Sinkronisasi Data EIS */}
       <EisSyncDrawer
         open={syncDrawerOpen}
+        mode={activeCode.startsWith('piutang') ? 'piutang' : (activeCode === 'pelanggan' || activeCode === 'daya' ? 'permohonan' : null)}
         onClose={() => setSyncDrawerOpen(false)}
         onSynced={() => {
           loadCatalog()

@@ -48,7 +48,9 @@ export function ApplicationImportPage() {
 
 export function EisSyncPage() {
   const navigate = useNavigate()
-  return <EisSyncDrawer open asPage onClose={() => navigate('/permohonan')} onSynced={() => {}} />
+  const [searchParams] = useSearchParams()
+  const mode = searchParams.get('mode') || 'permohonan'
+  return <EisSyncDrawer open asPage mode={mode} onClose={() => navigate(-1)} onSynced={() => {}} />
 }
 
 export function ApplicationDetailPage() {

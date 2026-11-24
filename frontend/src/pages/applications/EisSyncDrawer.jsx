@@ -42,9 +42,14 @@ function Field({ label, hint, children }) {
 /**
  * Sinkronisasi EIS dari DISTRIVA:
  * Antarmuka proporsional, interaktif, user-friendly, aman, dan responsif
- * untuk penarikan permohonan pelanggan PB/PD langsung dari server EIS PLN.
+ * untuk penarikan data langsung dari server EIS PLN.
+ *
+ * Mendukung mode kontekstual via prop `mode`:
+ * - 'permohonan': hanya menampilkan form penarikan Permohonan Pelanggan (PB/PD).
+ * - 'piutang': hanya menampilkan form penarikan Laporan Saldo Piutang (Golongan, Lembar, Kogol).
+ * - 'all' / null: menampilkan selector/tab atau mode kontekstual.
  */
-export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced }) {
+export default function EisSyncDrawer({ open, asPage = false, mode = null, onClose, onSynced }) {
   const [settings, setSettings] = useState(null)
   const [form, setForm] = useState(null)
   const [runs, setRuns] = useState([])
@@ -59,6 +64,18 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // Tab internal jika mode = 'all' atau tidak ditentukan
+  const [activeTab, setActiveTab] = useState(mode === 'piutang' ? 'piutang' : 'permohonan')
+
+  // Sinkronkan activeTab bila prop mode berubah
+  useEffect(() => {
+    if (mode === 'piutang') {
+      setActiveTab('piutang')
+    } else if (mode === 'permohonan') {
+      setActiveTab('permohonan')
+    }
+  }, [mode])
 
   // State untuk penarikan piutang
   const nowMonth = new Date().toISOString().slice(0, 7)
@@ -214,14 +231,26 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
   // Metrik Ringkasan KPI
   const lastRun = runs[0] || null
 
+  // Tentukan mode aktif: jika prop mode spesifik ('permohonan' | 'piutang'), kunci ke mode itu.
+  // Jika tidak ('all' / null), ikuti activeTab yang bisa di-switch pengguna.
+  const isPermohonan = mode === 'permohonan' || (!mode && activeTab === 'permohonan')
+  const isPiutang = mode === 'piutang' || (!mode && activeTab === 'piutang')
+
+  const titleText = isPiutang && !isPermohonan
+    ? 'Sinkronisasi Saldo Piutang EIS'
+    : 'Sinkronisasi EIS'
+  const subtitleText = isPiutang && !isPermohonan
+    ? 'Tarik laporan saldo piutang bulanan langsung dari server EIS ke DISTRIVA'
+    : 'Tarik permohonan pelanggan PB/PD langsung dari server EIS ke DISTRIVA'
+
   return (
     <PanelShell
       asPage={asPage}
       onBack={onClose}
       open={open}
       onClose={onClose}
-      title="Sinkronisasi EIS"
-      subtitle="Tarik permohonan dari EIS langsung dari DISTRIVA"
+      title={titleText}
+      subtitle={subtitleText}
       size={asPage ? 'max-w-6xl' : 'max-w-2xl'}
       width={asPage ? 'max-w-6xl' : 'max-w-2xl'}
     >
@@ -311,7 +340,36 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
           {!settingsOpen && error && <Alert kind="error">{error}</Alert>}
           {!settingsOpen && notice && <Alert kind="success">{notice}</Alert>}
 
+          {/* Tab Navigasi bila mode tidak dikunci ('all' atau null) */}
+          {!mode && (
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('permohonan')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeTab === 'permohonan'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                Permohonan Pelanggan
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('piutang')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeTab === 'piutang'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                Laporan Saldo Piutang
+              </button>
+            </div>
+          )}
+
           <div className="space-y-6">
+            {isPermohonan && (
               <section className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
@@ -426,8 +484,10 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                   )}
                 </div>
               </section>
+            )}
 
-              {/* KARTU BARU: Tarik Laporan Piutang dari EIS */}
+            {/* KARTU: Tarik Laporan Piutang dari EIS */}
+            {isPiutang && (
               <section className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
@@ -516,10 +576,38 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                   </div>
                 </div>
 
-                {/* Info Unit terpilih */}
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Unit yang ditarik mengikuti pilihan di atas ({selected.length} dari {units.length} unit).
-                </p>
+                {/* Pilih unit yang disinkronkan untuk piutang (hanya bila kartu permohonan tidak tampil) */}
+                {!isPermohonan && units.length > 0 && (
+                  <fieldset className="space-y-2 pt-1" aria-label="Unit yang disinkronkan">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                        Unit yang disinkronkan <span className="font-normal text-slate-500">({selected.length} dari {units.length}, diproses berurutan dari atas)</span>
+                      </legend>
+                      <div className="flex gap-3 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {units.map((u) => (
+                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
+                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Sinkronkan ${u.code} ${u.name}`} />
+                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Unit dipilih di EIS satu per satu; tiap unit diunduh dan diunggah dulu sebelum lanjut ke unit berikutnya.
+                    </p>
+                  </fieldset>
+                )}
+
+                {/* Info Unit terpilih bila kartu permohonan tampil bersamaan */}
+                {isPermohonan && (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Unit yang ditarik mengikuti pilihan di atas ({selected.length} dari {units.length} unit).
+                  </p>
+                )}
 
                 {/* Tombol Eksekusi Penarikan Piutang */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -542,6 +630,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                   )}
                 </div>
               </section>
+            )}
             <EisRunResults run={current} units={units} />
           </div>
 
