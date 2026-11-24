@@ -6,8 +6,8 @@ use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 
 /**
  * Sinkronisasi data gangguan dari Google Sheet (docs/87). Satu proses pendek: unduh CSV tiap tab, rapikan, cocokkan penyulang dan ULP, lalu upsert idempoten menurut kunci sumber.
