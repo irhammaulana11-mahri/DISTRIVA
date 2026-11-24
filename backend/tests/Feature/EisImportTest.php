@@ -889,20 +889,20 @@ class EisImportTest extends PostgresTestCase
         $this->as($this->sysAdmin)->putJson('/api/eis-sync/settings', $this->syncBody())->assertOk();
         $args = fn () => json_decode((string) file_get_contents($dir.'/seen.json'), true)['args'];
 
-        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'from_month' => '2026-01', 'to_month' => '2026-10', 'reports' => ['KOGOL', 'GOLONGAN', 'KOGOL'], 'units' => ['51453']])->assertStatus(202)->json('data');
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'from_month' => '2026-01', 'to_month' => '2026-10', 'reports' => ['KOGOL', 'PRABAYAR', 'GOLONGAN', 'KOGOL'], 'units' => ['51453']])->assertStatus(202)->json('data');
         $this->assertSame('piutang', $run['kind']);
-        $this->assertEquals(['from_month' => '2026-01', 'to_month' => '2026-10', 'reports' => ['KOGOL', 'GOLONGAN']], $run['options']);
+        $this->assertEquals(['from_month' => '2026-01', 'to_month' => '2026-10', 'reports' => ['KOGOL', 'PRABAYAR', 'GOLONGAN']], $run['options']);
         $seen = $args();
         $this->assertSame('piutang', $seen[0]);
         $this->assertSame('2026-01', $seen[array_search('--dari', $seen, true) + 1]);
         $this->assertSame('2026-10', $seen[array_search('--sampai', $seen, true) + 1]);
-        $this->assertSame('KOGOL,GOLONGAN', $seen[array_search('--laporan', $seen, true) + 1]);
+        $this->assertSame('KOGOL,PRABAYAR,GOLONGAN', $seen[array_search('--laporan', $seen, true) + 1]);
         $this->assertSame('51453', $seen[array_search('--unit', $seen, true) + 1]);
         $this->assertNotContains('--per-unit', $seen);
 
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10'])->assertStatus(202);                          // a month alone, all reports, all units
         $seen = $args();
-        $this->assertSame(['2026-10', '2026-10', 'GOLONGAN,LEMBAR,KOGOL'], [$seen[array_search('--dari', $seen, true) + 1], $seen[array_search('--sampai', $seen, true) + 1], $seen[array_search('--laporan', $seen, true) + 1]]);
+        $this->assertSame(['2026-10', '2026-10', 'GOLONGAN,LEMBAR,KOGOL,PRABAYAR'], [$seen[array_search('--dari', $seen, true) + 1], $seen[array_search('--sampai', $seen, true) + 1], $seen[array_search('--laporan', $seen, true) + 1]]);
         $this->assertNotContains('--unit', $seen);
 
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang'])->assertUnprocessable();                                              // the last month is required

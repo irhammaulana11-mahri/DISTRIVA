@@ -77,7 +77,7 @@ final class EisReportParser
         [$lines, $summary] = match ($family) {
             '309' => [$this->report309(), null],
             '309EIS' => [$this->flat(['unit', 'nomor', 'kode', 'keterangan', 'sumber_laporan', 'pembukuan'], [], 'keterangan', 'kode', 'UNIT'), null],
-            'PIUTANGLPB_EIS' => [$this->flat(['unitup', 'golongan', 'skema_bayar', 'ket_piutang'], ['unitup', 'golongan', 'skema_bayar'], 'ket_piutang', 'skema_bayar', 'UNITUP'), null],
+            'PIUTANGLPB_EIS' => [$this->flat(['unitup', 'golongan', 'tarif_lap', 'skema_bayar', 'ket_piutang'], ['unitup', 'golongan', 'tarif_lap', 'skema_bayar'], 'ket_piutang', 'skema_bayar', 'UNITUP'), null],   // GOLONGAN (rekap per golongan) atau TARIF_LAP (rekap per tarif)
             'AKHIRBULAN_EIS' => [$this->flat(['thbllap', 'unitup', 'jenis_laporan', 'label'], [], 'label', 'jenis_laporan', 'THBLLAP'), null],
             'AKHIEPERIODE_EIS' => [$this->flat(['namaupi', 'namaap', 'namaup', 'kogol'], [], 'kogol', null, 'NAMAUPI'), null],
             'DIFI' => $this->difi(),

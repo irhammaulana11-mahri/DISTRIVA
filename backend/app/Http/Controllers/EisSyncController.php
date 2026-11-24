@@ -39,7 +39,7 @@ class EisSyncController extends Controller
 
     /**
      * POST /eis-sync/runs — starts a manual run; answers at once, the run goes on in its own process. `kind` = permohonan (default; optionally of a given Range Mohon) or piutang
-     * (the monthly receivable reports per golongan / per lembar / kogol for `from_month`..`to_month` into the EIS report import, docs/88).
+     * (the monthly receivable reports per golongan / per lembar / kogol / saldo prabayar for `from_month`..`to_month` into the EIS report import, docs/88).
      */
     public function start(Request $request): JsonResponse
     {
@@ -49,7 +49,7 @@ class EisSyncController extends Controller
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
         $rules = ['kind' => ['sometimes', 'in:permohonan,piutang'], 'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']];
         $rules += $piutang
-            ? ['from_month' => ['nullable', 'date_format:Y-m'], 'to_month' => ['required', 'date_format:Y-m', 'after_or_equal:from_month'], 'reports' => ['sometimes', 'array', 'min:1'], 'reports.*' => ['in:GOLONGAN,LEMBAR,KOGOL']]
+            ? ['from_month' => ['nullable', 'date_format:Y-m'], 'to_month' => ['required', 'date_format:Y-m', 'after_or_equal:from_month'], 'reports' => ['sometimes', 'array', 'min:1'], 'reports.*' => ['in:GOLONGAN,LEMBAR,KOGOL,PRABAYAR']]
             : ['from' => ['nullable', 'date_format:Y-m-d', 'required_with:to'], 'to' => ['nullable', 'date_format:Y-m-d', 'required_with:from', 'after_or_equal:from'], 'complete_old' => ['sometimes', 'boolean']];
         $d = Validator::make($request->all(), $rules)->validate();
         $units = isset($d['units']) ? array_values(array_unique($d['units'])) : null;
@@ -61,7 +61,7 @@ class EisSyncController extends Controller
             if (Carbon::createFromFormat('!Y-m', $from)->diffInMonths(Carbon::createFromFormat('!Y-m', $d['to_month'])) >= 24) {
                 throw new AssignmentRuleViolation('Paling banyak 24 bulan per penarikan.');
             }
-            $options = ['from_month' => $from, 'to_month' => $d['to_month'], 'reports' => array_values(array_unique($d['reports'] ?? ['GOLONGAN', 'LEMBAR', 'KOGOL']))];
+            $options = ['from_month' => $from, 'to_month' => $d['to_month'], 'reports' => array_values(array_unique($d['reports'] ?? ['GOLONGAN', 'LEMBAR', 'KOGOL', 'PRABAYAR']))];
             $id = $this->sync->start('MANUAL', $request->user(), null, null, $units, false, 'PIUTANG', $options);
         } else {
             $id = $this->sync->start('MANUAL', $request->user(), $d['from'] ?? null, $d['to'] ?? null, $units, (bool) ($d['complete_old'] ?? false));

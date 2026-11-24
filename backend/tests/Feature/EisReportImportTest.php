@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\OrganizationalUnit;
+use App\Services\Analytics\BusinessTrendBuilder;
 use App\Services\EisReports\EisReportException;
 use App\Services\EisReports\EisReportImportService;
 use Illuminate\Support\Facades\DB;
@@ -216,6 +217,37 @@ class EisReportImportTest extends PostgresTestCase
         $this->assertSame(3140.0, $fix());
         $this->artisan('distriva:eis-reparse')->expectsOutputToContain('1 sama')->assertSuccessful();   // sudah benar: tidak ada yang berubah
         $this->assertSame(1, DB::table('eis_report_files')->where('id', $r['id'])->where('status', 'AKTIF')->count());   // berkas tetap yang sama
+    }
+
+    #[Test]
+    public function saldo_prabayar_per_tarif_dibaca_dengan_tarifnya_dan_metrik_piutang_prabayar_menjumlahkan_tanpa_baris_total(): void
+    {
+        // tata letak "PERTARIF" (saldo prabayar bulan lalu): UNITUP, TARIF_LAP, SKEMA_BAYAR, KET_PIUTANG, JUMLAH, RPPTL, RPTAG; baris subtotal "NO REGISTER Total" dan total unit tanpa KET_PIUTANG
+        $path = $this->book([
+            1 => [null, null, null, null, 'Grand Total'],
+            2 => ['UNITUP', 'TARIF_LAP', 'SKEMA_BAYAR', 'KET_PIUTANG', 'JUMLAH', 'RPPTL', 'RPTAG'],
+            3 => ['51453', 'B1', 'NO REGISTER', 'BERJALAN', 1, 2316000, 2316000],
+            4 => [null, null, null, 'TUNGGAKAN', 10, 1476928, 1476928],
+            5 => [null, null, 'NO REGISTER Total', null, 11, 3792928, 3792928],
+            6 => [null, 'R1', 'NO REGISTER', 'BARU', 51, 0, 21496500],
+            7 => [null, null, null, 'BERJALAN', 7, 770704, 770704],
+            8 => [null, null, null, 'TUNGGAKAN', 50, 2545789, 2899000],
+            9 => [null, null, 'NO REGISTER Total', null, 108, 3316493, 25166204],
+            10 => ['51453 Total', null, null, null, 119, 7109421, 28959132],
+        ]);
+
+        $r = $this->service()->import($path, 'Rekap.xlsx', null, null, ['unit_code' => '51453', 'period' => '2026-10']);
+
+        $this->assertSame(['PIUTANGLPB_EIS', '2026-10'], [$r['family'], $r['period']]);
+        $baru = DB::table('eis_report_lines')->where('file_id', $r['id'])->where('label', 'BARU')->first();
+        $v = json_decode((string) $baru->values, true);
+        $this->assertSame(['R1', 'NO REGISTER', 'BARU'], [$v['tarif_lap'], $v['skema_bayar'], $v['ket_piutang']]);        // tarif ikut disimpan dan dibawa ke baris berikutnya
+        $berjalan = json_decode((string) DB::table('eis_report_lines')->where('file_id', $r['id'])->where('label', 'BERJALAN')->orderByDesc('line_no')->value('values'), true);
+        $this->assertSame('R1', $berjalan['tarif_lap']);
+        $d = app(BusinessTrendBuilder::class)->build('piutang-prabayar', [$this->ulp->id], [], '2026-10', '2026-10');
+        $this->assertEquals(2316000 + 1476928 + 21496500 + 770704 + 2899000, $d['summary'][0]['latest']);                     // saldo tagihan BARU + BERJALAN + TUNGGAKAN; baris total tidak ikut
+        $this->assertEquals(1 + 10 + 51 + 7 + 50, $d['summary'][1]['latest']);                                                // lembar
+        $this->assertEquals(21496500, collect($d['breakdown']['rows'])->firstWhere('key', 'Baru')['value']);
     }
 
     #[Test]

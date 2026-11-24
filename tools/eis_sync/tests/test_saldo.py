@@ -78,9 +78,13 @@ class MycubeTest(unittest.TestCase):
         self.assertEqual((sent["listExportFormatx"], sent["btnSave"], sent["__VIEWSTATE"], sent["GV$CallbackState"], sent["cbo"]), ("Excel", "Save", "VS", "CB", "b"))
         for other in ("btnLoad", "btnExport", "imgGo", "btnX"):                         # tombol lain tidak boleh ikut: EIS menganggapnya tombol yang diklik
             self.assertNotIn(other, sent)
+        sh.fetch_mycube(s, "PRABAYAR", "51453", "2026-10")
+        self.assertIn("jenis=saldo_lalu_ap3t_tarif_up", s.gets[1])
+        self.assertEqual(unquote(s.gets[1].split("parameter=")[1]), "'51453';'51MJK';'51';'202610'")      # ULP; AP (UP3); UPI; bulan
         sh.fetch_mycube(s, "GOLONGAN", "51454", "2026-01")
-        self.assertIn("jenis=saldo_lalu_eis&", s.gets[1])
-        self.assertIn("PERGOLONGAN", unquote(s.gets[1]))
+        self.assertIn("jenis=saldo_lalu_eis&", s.gets[2])
+        self.assertIn("PERGOLONGAN", unquote(s.gets[2]))
+        self.assertEqual(sh.LAPORAN, ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR"))
 
 
 class KogolTest(unittest.TestCase):

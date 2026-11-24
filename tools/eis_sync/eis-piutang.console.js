@@ -5,6 +5,7 @@
  *   GOLONGAN : Saldo Akhir Bulan > Saldo > Saldo Lancar > Saldo Bulan Lalu > per golongan   (jenis impor AKHIRBULAN_EIS)
  *   LEMBAR   : Saldo Akhir Bulan > ... > per lembar                                         (jenis impor UMURPIUTANG)
  *   KOGOL    : Saldo Akhir Periode > Saldo > Saldo Lancar > Saldo PAL tanggal 20 > kogol    (jenis impor AKHIEPERIODE_EIS)
+ *   PRABAYAR : Piutang > Saldo > Saldo Prabayar Lancar > Saldo Bulan Lalu > per tarif       (jenis impor PIUTANGLPB_EIS)
  *
  * PAKAI (manual, sebulan sekali)
  *  1. Login ke EIS seperti biasa dan biarkan satu halaman EIS terbuka (alamat eis.ap2t.pln.co.id). Skrip ini TIDAK login dan TIDAK menyentuh password:
@@ -22,7 +23,8 @@
     uji: '51453',                    // ULP untuk mode uji
     dari: null,                      // 'YYYY-MM'; null = 11 bulan sebelum "sampai" (12 bulan)
     sampai: null,                    // 'YYYY-MM'; null = bulan lalu
-    pakai: ['GOLONGAN', 'LEMBAR', 'KOGOL'],   // laporan yang diambil
+    pakai: ['GOLONGAN', 'LEMBAR', 'KOGOL', 'PRABAYAR'],   // laporan yang diambil
+    up3: '51MJK', upi: '51',         // kode AP (UP3) dan UPI pada parameter laporan saldo prabayar
     minByte: 2000,                   // Excel lebih kecil dari ini dianggap kosong (biasanya sesi habis)
     jedaMs: 1000,                    // jeda antar permintaan supaya tidak membebani EIS
     ulp: { '51450': 'MOJOAGUNG', '51452': 'MOJOKERTO', '51453': 'JOMBANG', '51454': 'NGORO', '51455': 'PLOSO', '51456': 'MOJOSARI', '51457': 'PACET', '51458': 'KERTOSONO', '51459': 'WARUJAYENG', '51460': 'NGANJUK' },
@@ -32,6 +34,7 @@
   const LAPORAN = {
     GOLONGAN: { jenis: 'saldo_lalu_eis', parameter: (ulp, ym) => `'${ulp}';'${ym}';'PERGOLONGAN'` },   // terverifikasi dari tangkapan jaringan
     LEMBAR: { jenis: 'saldo_lalu_eis_lbr', parameter: (ulp, ym) => `'${ulp}';'${ym}';'PERLEMBAR'` },    // dari alamat menu per lembar
+    PRABAYAR: { jenis: 'saldo_lalu_ap3t_tarif_up', parameter: (ulp, ym) => `'${ulp}';'${CONFIG.up3}';'${CONFIG.upi}';'${ym}'` },   // terverifikasi dari tangkapan jaringan
     // KOGOL: halaman saldo_pal_20.aspx tanpa parameter alamat; unit dan bulan dipilih lewat bilah atas EIS (lihat fetchKogol di bawah)
   };
 

@@ -13,7 +13,7 @@
   python main.py sync --metode http --unit 51453 [--unit 51454]   hanya unit itu (kode ULP)
   python main.py sync --sumber grid              ... baca tabel hasil di layar (tanpa Export Excel) menjadi CSV yang diimpor DISTRIVA
   python main.py sync --berkas FILE              skip the EIS and upload a file that was exported before
-  python main.py piutang --dari 2026-01 --sampai 2026-10 [--unit 51453] [--laporan GOLONGAN,LEMBAR,KOGOL]   laporan saldo piutang (per golongan, per lembar, kogol) per ULP per bulan -> ZIP -> impor laporan EIS DISTRIVA
+  python main.py piutang --dari 2026-01 --sampai 2026-10 [--unit 51453] [--laporan GOLONGAN,LEMBAR,KOGOL,PRABAYAR]   laporan saldo piutang (per golongan, per lembar, kogol, saldo prabayar) per ULP per bulan -> ZIP -> impor laporan EIS DISTRIVA
   python main.py schedule [--jam 18:13]          run `sync` every day at that time (add --konfirmasi to apply)
 The old receivables ("piutang", MongoDB) job is unchanged: python piutang.py
 Dates: dd/mm/yyyy or yyyy-mm-dd.
@@ -278,7 +278,7 @@ def main(argv=None):
     pp.add_argument("--dari", help="bulan awal YYYY-MM (bawaan: sama dengan --sampai)")
     pp.add_argument("--sampai", required=True, help="bulan akhir YYYY-MM")
     pp.add_argument("--unit", action="append", help="hanya unit ini (kode ULP); boleh diulang atau dipisah koma; bawaan semua unit di kotak UP EIS")
-    pp.add_argument("--laporan", help="GOLONGAN,LEMBAR,KOGOL (bawaan: ketiganya)")
+    pp.add_argument("--laporan", help="GOLONGAN,LEMBAR,KOGOL,PRABAYAR (bawaan: semuanya)")
     pp.add_argument("--simpan-zip", dest="simpan_zip", help="folder untuk menyimpan ZIP tiap bulan (bawaan: tidak disimpan)")
     args = ap.parse_args(argv)
     if args.cmd is None:                                # `python main.py` alone: show how to use it (nothing is run, no login, no upload)

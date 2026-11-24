@@ -4,6 +4,7 @@ Tiga laporan (menu EIS "Saldo Akhir Bulan" dan "Saldo Akhir Periode"):
   GOLONGAN  mycube.aspx?jenis=saldo_lalu_eis&parameter='<ULP>';'<YYYYMM>';'PERGOLONGAN'       jenis impor AKHIRBULAN_EIS
   LEMBAR    mycube.aspx?jenis=saldo_lalu_eis_lbr&parameter='<ULP>';'<YYYYMM>';'PERLEMBAR'      jenis impor UMURPIUTANG
   KOGOL     saldo_pal_20.aspx (tanpa parameter alamat; unit dan bulan mengikuti bilah atas)    jenis impor AKHIEPERIODE_EIS
+  PRABAYAR  mycube.aspx?jenis=saldo_lalu_ap3t_tarif_up&parameter='<ULP>';'<AP>';'<UPI>';'<YYYYMM>'   jenis impor PIUTANGLPB_EIS (Saldo Prabayar Bulan Lalu, per tarif)
 
 Halaman mycube: GET halaman, lalu POST seluruh isian halaman dengan listExportFormatx=Excel dan btnSave=Save. Halaman KOGOL: pilih bulan (setTahun, setBulan) dan unit (finalUP) di bilah atas
 seperti kotaknya, GET halaman, POST btnLoad, cek judul laporan (unit dan bulan harus sama dengan yang diminta), lalu POST btnExport. Hasil satu bulan menjadi satu ZIP berfolder `ULP/BULAN/<LAPORAN>.xls`
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import time
 import zipfile
@@ -25,8 +27,15 @@ from bs4 import BeautifulSoup
 from app import permohonan_http as eis
 from app.config import LOGIN_URL
 
-LAPORAN = ("GOLONGAN", "LEMBAR", "KOGOL")
-MYCUBE = {"GOLONGAN": ("saldo_lalu_eis", "PERGOLONGAN"), "LEMBAR": ("saldo_lalu_eis_lbr", "PERLEMBAR")}
+LAPORAN = ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR")
+UP3_CODE = os.getenv("EIS_UP3_CODE", "51MJK")         # kode AP (UP3) dan UPI pada parameter laporan saldo prabayar; semua ULP yang disinkron berada di bawah UP3 ini
+UPI_CODE = os.getenv("EIS_UPI_CODE", "51")
+# laporan halaman mycube.aspx: jenis halaman dan pembuat parameter alamat (ULP, YYYYMM)
+MYCUBE = {
+    "GOLONGAN": ("saldo_lalu_eis", lambda ulp, ym: f"'{ulp}';'{ym}';'PERGOLONGAN'"),
+    "LEMBAR": ("saldo_lalu_eis_lbr", lambda ulp, ym: f"'{ulp}';'{ym}';'PERLEMBAR'"),
+    "PRABAYAR": ("saldo_lalu_ap3t_tarif_up", lambda ulp, ym: f"'{ulp}';'{UP3_CODE}';'{UPI_CODE}';'{ym}'"),     # Saldo Prabayar Bulan Lalu, per tarif (PIUTANGLPB_EIS)
+}
 NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 MIN_BYTES = 2000                    # Excel yang lebih kecil dianggap kosong (EIS membuat berkas kosong bila sesi tidak sah)
 PAUSE = 1.0                         # jeda antar permintaan supaya tidak membebani EIS
@@ -116,8 +125,8 @@ def page_form(session: requests.Session, url: str, step: str):
 
 
 def fetch_mycube(session: requests.Session, report: str, ulp: str, month: str) -> tuple[bytes, str]:
-    jenis, tipe = MYCUBE[report]
-    parameter = f"'{ulp}';'{month.replace('-', '')}';'{tipe}'"
+    jenis, make_parameter = MYCUBE[report]
+    parameter = make_parameter(ulp, month.replace("-", ""))
     url = f"{base()}/mycube.aspx?jenis={jenis}&parameter={quote(parameter, safe='')}"
     _response, payload = page_form(session, url, f"GET {report}")
     payload.update({"__EVENTTARGET": "", "__EVENTARGUMENT": "", "listExportFormatx": "Excel", "ASPxPopupControl1$DropDownList2": "Excel", "btnSave": "Save"})
