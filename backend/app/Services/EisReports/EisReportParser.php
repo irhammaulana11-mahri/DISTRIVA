@@ -84,7 +84,8 @@ final class EisReportParser
             'GGNALL' => [$this->ggnAll(), null],
             'KLHALL' => [$this->klhAll(), null],
             'GGNPERJENIS' => [$this->isV1Layout() ? $this->perJenisV1() : $this->perJenis(), null],
-            'GGNBERULANG', 'GGNNEGATIF', 'KLHBERULANG', 'KLHNEGATIF' => [$this->fixedByLetter(), null],
+            'GGNBERULANG', 'GGNNEGATIF' => [$this->fixedByLetter('GGN'), null],
+            'KLHBERULANG', 'KLHNEGATIF' => [$this->fixedByLetter('KLH'), null],
             'TAGSUS' => [$this->tagsus(), null],
             'UMURPIUTANG' => [$this->umurPiutang(), null],
         };
@@ -427,8 +428,9 @@ final class EisReportParser
      *
      * @param  array<string,string>  $cols  huruf kolom => nama nilai
      * @param  list<string>  $durations  huruf kolom berisi durasi "h - j : m : d" (disimpan dalam menit)
+     * @param  list<string>  $counts  huruf kolom berisi angka cacah (tata letak lama: titik ribuan tanpa nol di belakang)
      */
-    private function fixed(string $anchor, array $cols, array $durations): array
+    private function fixed(string $anchor, array $cols, array $durations, array $counts = []): array
     {
         $head = null;
         for ($r = 1; $r <= min(30, $this->rowCount()); $r++) {
@@ -448,7 +450,7 @@ final class EisReportParser
             }
             $v = [];
             foreach ($cols as $c => $name) {
-                $n = in_array($c, $durations, true) ? $this->minutes($this->cell($r, $c)) : $this->num($this->cell($r, $c));
+                $n = in_array($c, $durations, true) ? $this->minutes($this->cell($r, $c)) : (in_array($c, $counts, true) ? $this->count($this->cell($r, $c)) : $this->num($this->cell($r, $c)));
                 $n !== null && $v[$name] = $n;
             }
             $lines[] = ['line_no' => $r, 'group_label' => null, 'label' => mb_substr($label, 0, 200), 'code' => null, 'values' => $v];
@@ -586,15 +588,20 @@ final class EisReportParser
         return $lines;
     }
 
-    /** Laporan berulang/rating negatif: kolom disimpan menurut huruf (c_B ... c_R); makna kolom ada pada docs/88. */
-    private function fixedByLetter(): array
+    /**
+     * Laporan berulang/rating negatif: kolom disimpan menurut huruf (c_B ... c_R); makna kolom ada pada docs/88. Kolom jumlah (GGN: B..L, KLH: B..I) dibaca sebagai angka cacah, karena berkas sampai
+     * September 2025 menulisnya dengan titik ribuan tanpa nol di belakang ("3.14" = 3.140); kolom persen (GGN: M..R, KLH: J..L) dibaca apa adanya.
+     *
+     * @param  'GGN'|'KLH'  $kind
+     */
+    private function fixedByLetter(string $kind): array
     {
         $cols = [];
         foreach (range('B', 'R') as $c) {
             $cols[$c] = 'c_'.$c;
         }
 
-        return $this->fixed('Nama Unit', $cols, []);
+        return $this->fixed('Nama Unit', $cols, [], range('B', $kind === 'GGN' ? 'L' : 'I'));
     }
 
     /** Rekap gangguan per jenis (peralatan): baris bertanda ": 111 (...)" menjadi judul kelompok. */

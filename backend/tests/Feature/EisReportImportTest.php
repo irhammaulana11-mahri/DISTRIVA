@@ -160,6 +160,64 @@ class EisReportImportTest extends PostgresTestCase
         $this->assertSame('ULP Mojokerto', $r['unit']);
     }
 
+    /** Laporan anomali penanganan pengaduan (GGN: kolom B..R, KLH: B..L); $v = nilai baris data ULP. */
+    private function anomalyReport(string $title, string $jenis, array $v, string $month, bool $twoTables = false): string
+    {
+        $rows = [
+            2 => ['UNIT PELAKSANA PELAYANAN PELANGGAN : UP3 MOJOKERTO'], 3 => ['UNIT LAYANAN PELANGGAN : ULP JOMBANG'], 4 => ["JENIS LAPORAN : {$jenis}"], 6 => [$title], 7 => ["PERIODE TANGGAL : 1-{$month} SD TGL 31-{$month}"],
+            9 => ['Nama Unit', 'Total WO'], 10 => [null, 'CC 123', 'PLN Mobile', 'Loket', 'Lainnya', 'Total'],
+            11 => array_merge(['ULP JOMBANG'], $v),
+        ];
+        if ($twoTables) {
+            $rows[13] = ['Nama Unit', 'Total WO PLN Mobile'];
+            $rows[14] = ['ULP JOMBANG', '1.366', null, null, null, null, 0, null, null, 0];
+        }
+
+        return $this->book($rows);
+    }
+
+    #[Test]
+    public function laporan_anomali_tata_letak_lama_membaca_cacah_dengan_titik_ribuan_dan_baru_dengan_koma_tanpa_mengubah_persen(): void
+    {
+        $title = 'LAPORAN ANOMALI PENANGANAN PENGADUAN GANGGUAN';
+        // tata letak lama: "1.104" = 1104, "3.14" = 3140 (nol di belakang hilang); persen "0.09%" apa adanya; tabel kedua (hanya PLN Mobile) menyusul
+        $old = $this->anomalyReport($title, 'LAPORAN RATING NEGATIF', ['1.104', '1.828', 1, 207, '3.14', 0, 0, 0, 2, 0, 2, 0, 0, 0, '0.09%', 0, '0.09%'], 'Maret-2025', true);
+        $r = $this->service()->import($old, 'GGNNEGATIF-51453-032025.xlsx');
+        $this->assertSame('GGNNEGATIF', $r['family']);
+        $row = DB::table('eis_report_lines')->where('file_id', $r['id'])->orderBy('line_no')->first();
+        $v = json_decode((string) $row->values, true);
+        $this->assertEquals([1104, 1828, 1, 207, 3140, 2, 2], [$v['c_B'], $v['c_C'], $v['c_D'], $v['c_E'], $v['c_F'], $v['c_J'], $v['c_L']]);
+        $this->assertEqualsWithDelta(0.09, $v['c_P'], 1e-9);                                       // kolom persen tidak dikalikan seribu
+        // tata letak baru: teks dengan koma ribuan
+        $new = $this->anomalyReport($title, 'LAPORAN BERULANG UNIT', ['775', '1,755', 0, 99, '2,629', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'Oktober-2026');
+        $n = $this->service()->import($new, 'GGNBERULANG-51453-102026.xlsx');
+        $this->assertEquals([775, 1755, 2629], array_values(array_intersect_key(json_decode((string) DB::table('eis_report_lines')->where('file_id', $n['id'])->value('values'), true), array_flip(['c_B', 'c_C', 'c_F']))));
+        // keluhan: kolom jumlah B..I, persen J..L
+        $klh = $this->anomalyReport('LAPORAN ANOMALI PENANGANAN PENGADUAN KELUHAN', 'LAPORAN RATING NEGATIF', ['54', '1.283', 0, 52, '1.389', 13, 2, 15, '3.34', '0.51', '3.85'], 'Oktober-2026');
+        $k = json_decode((string) DB::table('eis_report_lines')->where('file_id', $this->service()->import($klh, 'KLHNEGATIF-51453-102026.xlsx')['id'])->value('values'), true);
+        $this->assertEquals([1283, 1389, 15], [$k['c_C'], $k['c_F'], $k['c_I']]);
+        $this->assertEqualsWithDelta(3.34, $k['c_J'], 1e-9);
+    }
+
+    #[Test]
+    public function baca_ulang_arsip_memperbaiki_baris_lama_di_tempat_dan_dry_run_tidak_mengubah(): void
+    {
+        $path = $this->anomalyReport('LAPORAN ANOMALI PENANGANAN PENGADUAN GANGGUAN', 'LAPORAN RATING NEGATIF', ['1.104', '1.828', 1, 207, '3.14', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'Maret-2025');
+        $r = $this->service()->import($path, 'GGNNEGATIF-51453-032025.xlsx');
+        $fix = fn () => (float) json_decode((string) DB::table('eis_report_lines')->where('file_id', $r['id'])->value('values'), true)['c_F'];
+        $this->assertSame(3140.0, $fix());
+        $wrong = json_decode((string) DB::table('eis_report_lines')->where('file_id', $r['id'])->value('values'), true);
+        $wrong['c_F'] = 3.14;                                                                         // keadaan sebelum perbaikan parser
+        DB::table('eis_report_lines')->where('file_id', $r['id'])->update(['values' => json_encode($wrong)]);
+
+        $this->artisan('distriva:eis-reparse', ['family' => ['GGNNEGATIF'], '--dry-run' => true])->expectsOutputToContain('akan diperbarui')->assertSuccessful();
+        $this->assertSame(3.14, $fix());                                                              // dry-run: tidak berubah
+        $this->artisan('distriva:eis-reparse', ['family' => ['GGNNEGATIF']])->expectsOutputToContain('1 diperbarui')->assertSuccessful();
+        $this->assertSame(3140.0, $fix());
+        $this->artisan('distriva:eis-reparse')->expectsOutputToContain('1 sama')->assertSuccessful();   // sudah benar: tidak ada yang berubah
+        $this->assertSame(1, DB::table('eis_report_files')->where('id', $r['id'])->where('status', 'AKTIF')->count());   // berkas tetap yang sama
+    }
+
     #[Test]
     public function an_actor_outside_the_unit_scope_cannot_import_for_that_unit(): void
     {

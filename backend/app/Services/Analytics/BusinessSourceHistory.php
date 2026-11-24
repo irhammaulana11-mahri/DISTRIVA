@@ -22,20 +22,27 @@ class BusinessSourceHistory
     {
         $def = BusinessMetricService::CATALOG[$code];
         $family = $def['family'] ?? null;
+        $families = $def['families'] ?? ($family === null ? [] : [$family]);
         $months = [];
         for ($i = self::COVERAGE_MONTHS - 1; $i >= 0; $i--) {
             $months[] = date('Y-m', strtotime($latestMonth.'-01 -'.$i.' month'));
         }
-        $out = ['family' => $family, 'latest_month' => $latestMonth, 'months' => $months, 'files' => [], 'coverage' => null, 'inputs' => []];
+        $out = ['family' => $family, 'families' => $families, 'latest_month' => $latestMonth, 'months' => $months, 'files' => [], 'coverage' => null, 'inputs' => []];
         if ($family !== null) {
             $out['files'] = DB::table('eis_report_files as f')->leftJoin('users as u', 'u.id', '=', 'f.uploaded_by')->join('organizational_units as o', 'o.id', '=', 'f.organizational_unit_id')
-                ->where('f.family', $family)->whereIn('f.organizational_unit_id', array_keys($ulps))->orderByDesc('f.imported_at')->limit(self::FILE_LIMIT)
+                ->whereIn('f.family', $families)->whereIn('f.organizational_unit_id', array_keys($ulps))->orderByDesc('f.imported_at')->limit(self::FILE_LIMIT)
                 ->get(['f.id', 'f.family', 'f.period', 'f.organizational_unit_id', 'o.name as unit_name', 'f.original_name', 'f.status', 'f.line_count', 'f.warnings', 'f.imported_at', 'u.name as uploaded_by'])
                 ->map(fn ($r) => ['id' => $r->id, 'family' => $r->family, 'period' => substr((string) $r->period, 0, 7), 'unit_id' => $r->organizational_unit_id, 'unit_name' => $r->unit_name, 'original_name' => $r->original_name, 'status' => $r->status,
                     'line_count' => (int) $r->line_count, 'warnings_count' => count(json_decode((string) ($r->warnings ?? '[]'), true) ?: []), 'imported_at' => $r->imported_at, 'uploaded_by' => $r->uploaded_by])->all();
-            $have = DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->whereIn('organizational_unit_id', array_keys($ulps))
-                ->whereBetween('period', [$months[0].'-01', end($months).'-01'])->get(['organizational_unit_id', 'period'])
-                ->groupBy('organizational_unit_id')->map(fn ($rows) => $rows->map(fn ($r) => substr((string) $r->period, 0, 7))->all());
+            $have = [];
+            foreach ($families as $fam) {                                                                     // bulan lengkap hanya bila semua jenis laporan metrik ada
+                $perUnit = DB::table('eis_report_files')->where('family', $fam)->where('status', 'AKTIF')->whereIn('organizational_unit_id', array_keys($ulps))
+                    ->whereBetween('period', [$months[0].'-01', end($months).'-01'])->get(['organizational_unit_id', 'period'])
+                    ->groupBy('organizational_unit_id')->map(fn ($rows) => $rows->map(fn ($r) => substr((string) $r->period, 0, 7))->all());
+                foreach (array_keys($ulps) as $u) {
+                    $have[$u] = isset($have[$u]) ? array_values(array_intersect($have[$u], $perUnit[$u] ?? [])) : ($perUnit[$u] ?? []);
+                }
+            }
             $out['coverage'] = $this->coverage($ulps, $months, fn (string $u) => $have[$u] ?? []);
         } elseif ($code === 'susut') {
             $have = DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', array_keys($ulps))->whereBetween('period', [$months[0].'-01', end($months).'-01'])

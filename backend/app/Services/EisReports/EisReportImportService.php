@@ -59,6 +59,46 @@ class EisReportImportService
     }
 
     /**
+     * Membaca ulang berkas asli yang diarsipkan dengan parser terbaru dan, bila isinya berbeda, mengganti baris berkas itu di tempat (berkas, unit, bulan, dan sidik jari tetap). Dipakai setelah aturan
+     * baca diperbaiki (mis. angka cacah tata letak lama) agar data lama ikut benar tanpa unggah ulang. Berkas arsip yang hilang atau tidak terbaca dilaporkan tanpa mengubah data.
+     *
+     * @return array{status: 'SAMA'|'DIPERBARUI'|'ARSIP_HILANG'|'GAGAL', message?: string}
+     */
+    public function reparse(object $file, bool $dryRun = false): array
+    {
+        $key = self::storageKey($file);
+        if (! Storage::disk('documents')->exists($key)) {
+            return ['status' => 'ARSIP_HILANG', 'message' => $key];
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'eis');
+        file_put_contents($tmp, Storage::disk('documents')->get($key));
+        try {
+            $parsed = $this->parser->parse($tmp, (string) $file->original_name, ['unit_code' => $file->unit_code, 'period' => substr((string) $file->period, 0, 7)]);
+        } catch (EisReportException $e) {
+            return ['status' => 'GAGAL', 'message' => $e->getMessage()];
+        } finally {
+            @unlink($tmp);
+        }
+        $norm = fn (array $l) => json_encode([(int) $l['line_no'], (string) ($l['label'] ?? ''), json_decode(json_encode($l['values']), true)], JSON_UNESCAPED_UNICODE);
+        $old = DB::table('eis_report_lines')->where('file_id', $file->id)->orderBy('line_no')->get(['line_no', 'label', 'values'])->map(fn ($l) => $norm(['line_no' => $l->line_no, 'label' => $l->label, 'values' => json_decode((string) $l->values, true)]))->all();
+        $new = array_map($norm, $parsed['lines']);
+        if ($old === $new) {
+            return ['status' => 'SAMA'];
+        }
+        if (! $dryRun) {
+            DB::transaction(function () use ($file, $parsed) {
+                DB::table('eis_report_lines')->where('file_id', $file->id)->delete();
+                foreach (array_chunk($parsed['lines'], 500) as $chunk) {
+                    DB::table('eis_report_lines')->insert(array_map(fn ($l) => ['file_id' => $file->id, 'line_no' => $l['line_no'], 'group_label' => $l['group_label'], 'label' => $l['label'], 'code' => $l['code'], 'values' => json_encode($l['values'], JSON_UNESCAPED_UNICODE)], $chunk));
+                }
+                DB::table('eis_report_files')->where('id', $file->id)->update(['line_count' => count($parsed['lines']), 'summary' => $parsed['summary'] === null ? null : json_encode($parsed['summary']), 'updated_at' => now()]);
+            });
+        }
+
+        return ['status' => 'DIPERBARUI'];
+    }
+
+    /**
      * Kode unit (dari nama berkas, isi, atau pilihan pengunggah) diutamakan; nama ULP/UP3 di dalam isi berkas harus sama. Tanpa kode, unit dibaca dari nama di isi berkas. Kode yang tidak dikenal (salah ketik) dipulihkan dari nama di isi berkas, dengan peringatan.
      *
      * @param  array<string,mixed>  $parsed

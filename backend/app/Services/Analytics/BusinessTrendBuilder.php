@@ -88,7 +88,7 @@ class BusinessTrendBuilder
         $breakdown = $def['breakdown'] === null ? null : ['dimension' => $def['breakdown'], 'period' => $to, 'rows' => $rowsOf('bd', $def['breakdown_keys'] ?? null)];
         $breakdownSecondary = isset($def['breakdown2']) ? ['dimension' => $def['breakdown2'], 'period' => $to, 'rows' => $rowsOf('bd2', null)] : null;
         $matrix = null;
-        if (isset($def['breakdown2'])) {
+        if (isset($def['breakdown2']) && empty($def['no_matrix'])) {
             $cells = $combined($to)['bdm'] ?? [];
             $rowKeys = array_column($breakdownSecondary['rows'], 'key');
             sort($rowKeys);
