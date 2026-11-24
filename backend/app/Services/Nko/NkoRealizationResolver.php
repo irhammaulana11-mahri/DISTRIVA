@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\DB;
 class NkoRealizationResolver
 {
     /** kode indikator => jenis sumber sistem */
-    public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh', 'penambahan-pelanggan' => 'pelanggan_309', 'daya-tersambung' => 'daya_309'];
+    public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh', 'penambahan-pelanggan' => 'pelanggan_309', 'daya-tersambung' => 'daya_309',
+        'gangguan-tm' => 'gangguan_penyulang', 'response-time-atas-gangguan-diluar-clear-tamper' => 'response_ggnall', 'feedback-rating-negatif-pada-pln-mobile-gangguan' => 'rating_negatif_ggn'];
+
+    /** sumber sistem yang dimuat otomatis tetapi belum cocok dengan angka workbook (dapat dikoreksi dengan masukan manual disertai alasan) */
+    public const UNVALIDATED_CODES = ['gangguan-tm', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
 
     /**
      * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string}> menurut kode indikator
@@ -37,7 +41,7 @@ class NkoRealizationResolver
      */
     public function systemValues(string $unitId, int $year, int $month): array
     {
-        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month);
+        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($unitId, $year, $month);
     }
 
     /**
@@ -66,6 +70,57 @@ class NkoRealizationResolver
             'penambahan-pelanggan' => (float) $now['pelanggan'] - (float) $base['pelanggan'],
             'daya-tersambung' => ((float) $now['daya_va'] - (float) $base['daya_va']) / 1000000,
         ];
+    }
+
+    /**
+     * Gangguan TM = jumlah kejadian penyulang (data gangguan tersinkron, permanen dan temporer) Januari sampai bulan berjalan; UP3 menjumlahkan ULP di bawahnya.
+     * Belum cocok dengan angka workbook (selisih beberapa kejadian), sehingga dapat dikoreksi dengan masukan manual disertai alasan.
+     *
+     * @return array<string, float>
+     */
+    private function outageValues(string $unitId, int $year, int $month): array
+    {
+        $units = DB::table('organizational_units')->where('id', $unitId)->orWhere('parent_id', $unitId)->pluck('id')->all();
+        $query = DB::table('outage_events')->whereIn('organizational_unit_id', $units)->whereNull('source_removed_at');
+        if (! (clone $query)->whereRaw("(occurred_at at time zone 'Asia/Jakarta') >= ?", ["{$year}-01-01"])->exists()) {
+            return [];
+        }
+        $end = date('Y-m-d', strtotime(sprintf('%04d-%02d-01 +1 month', $year, $month)));
+
+        return ['gangguan-tm' => (float) $query->whereRaw("(occurred_at at time zone 'Asia/Jakarta') >= ?", ["{$year}-01-01"])->whereRaw("(occurred_at at time zone 'Asia/Jakarta') < ?", [$end])->count()];
+    }
+
+    /**
+     * Dari laporan gangguan (GGNALL, GGNNEGATIF) semua bulan Januari sampai bulan berjalan: response time = rata-rata respons tertimbang jumlah gangguan; rating negatif = jumlah kolom total negatif.
+     * Belum cocok dengan workbook (Clear Tamper tidak dipisah pada laporan), sehingga dapat dikoreksi dengan masukan manual disertai alasan.
+     *
+     * @return array<string, float>
+     */
+    private function ggnValues(string $unitId, int $year, int $month): array
+    {
+        $lines = function (string $family) use ($unitId, $year, $month): ?array {
+            $files = DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
+                ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->pluck('id');
+            if ($files->count() !== $month) {
+                return null;
+            }
+
+            return DB::table('eis_report_lines')->whereIn('file_id', $files)->pluck('values')->map(fn ($v) => json_decode($v, true) ?: [])->all();
+        };
+        $out = [];
+        $all = $lines('GGNALL');
+        if ($all !== null) {
+            $weight = array_sum(array_map(fn ($v) => (float) ($v['total'] ?? 0), $all));
+            if ($weight > 0) {
+                $out['response-time-atas-gangguan-diluar-clear-tamper'] = array_sum(array_map(fn ($v) => (float) ($v['response_rata_menit'] ?? 0) * (float) ($v['total'] ?? 0), $all)) / $weight;
+            }
+        }
+        $neg = $lines('GGNNEGATIF');
+        if ($neg !== null) {
+            $out['feedback-rating-negatif-pada-pln-mobile-gangguan'] = array_sum(array_map(fn ($v) => (float) ($v['c_L'] ?? 0), $neg));
+        }
+
+        return $out;
     }
 
     /**

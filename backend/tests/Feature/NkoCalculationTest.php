@@ -63,7 +63,7 @@ class NkoCalculationTest extends PostgresTestCase
     private function input(OrganizationalUnit $unit, array $values, int $month = 1): void
     {
         $this->as($this->planner)->putJson('/api/nko/inputs', ['unit_id' => $unit->id, 'year' => 2026, 'month' => $month,
-            'items' => array_map(fn ($c, $v) => ['code' => $c, 'value' => $v], array_keys($values), $values)])->assertOk();
+            'items' => array_map(fn ($c, $v) => ['code' => $c, 'value' => $v, 'note' => 'Alasan uji'], array_keys($values), $values)])->assertOk();
     }
 
     #[Test]
@@ -213,6 +213,40 @@ class NkoCalculationTest extends PostgresTestCase
             ['file_id' => $id, 'line_no' => 1, 'label' => 'JUMLAH S', 'values' => json_encode(['pelanggan' => 1, 'daya_va' => 1])],
             ['file_id' => $id, 'line_no' => 2, 'label' => 'JUMLAH', 'values' => json_encode(['pelanggan' => $pelanggan, 'daya_va' => $dayaVa])],
         ]);
+    }
+
+    #[Test]
+    public function koreksi_atas_nilai_otomatis_wajib_beralasan_dan_menyimpan_nilai_sistem_tanpa_mengubah_data_sumber(): void
+    {
+        $this->difi($this->ulpA, '2026-01-01', 2.0, 0.1, 3000);
+        $body = fn (array $item) => ['unit_id' => $this->ulpA->id, 'year' => 2026, 'month' => 1, 'items' => [$item]];
+
+        $this->as($this->planner)->putJson('/api/nko/inputs', $body(['code' => 'saidi', 'value' => 9.0]))->assertStatus(422);   // tanpa alasan
+        $this->as($this->planner)->putJson('/api/nko/inputs', $body(['code' => 'saidi', 'value' => 9.0, 'note' => 'Koreksi gangguan GI']))->assertOk();
+
+        $row = DB::table('kpi_manual_inputs')->first();
+        $this->assertSame('Koreksi gangguan GI', $row->note);
+        $this->assertEqualsWithDelta(2.0, $row->system_value, 1e-9);   // nilai sistem asli terekam
+        $this->assertEqualsWithDelta(2.0, (float) json_decode(DB::table('eis_report_files')->where('family', 'DIFI')->value('summary'), true)['saidi_menit'], 1e-9);   // data sumber utuh
+
+        $items = array_column($this->as($this->planner)->getJson("/api/nko/inputs?unit_id={$this->ulpA->id}&year=2026&month=1")->json('data.items'), null, 'code');
+        $this->assertSame('MANUAL', $items['saidi']['source']);
+        $this->assertEqualsWithDelta(2.0, $items['saidi']['system'], 1e-9);
+        $this->assertTrue($items['saidi']['system_validated']);
+    }
+
+    #[Test]
+    public function gangguan_penyulang_dari_data_gangguan_dimuat_otomatis_dan_ditandai_belum_tervalidasi(): void
+    {
+        $event = fn (string $at, string $type) => DB::table('outage_events')->insert(['id' => (string) Str::uuid(), 'source_key' => (string) Str::uuid(), 'row_hash' => 'h', 'sheet_gid' => 1, 'gi_name' => 'GI', 'device_group' => 'PMT', 'feeder_name' => 'PENYULANG', 'occurred_at' => $at, 'organizational_unit_id' => $this->ulpA->id, 'outage_type' => $type, 'created_at' => now(), 'updated_at' => now()]);
+        $event('2026-01-10 03:00:00+00', 'PERMANEN');
+        $event('2026-02-05 03:00:00+00', 'TEMPORER');
+        $event('2025-12-30 03:00:00+00', 'PERMANEN');   // tahun lalu: tidak dihitung
+
+        $resolver = app(NkoRealizationResolver::class);
+        $this->assertEqualsWithDelta(1.0, $resolver->resolve($this->ulpA->id, 2026, 1)['gangguan-tm']['value'], 1e-9);
+        $this->assertEqualsWithDelta(2.0, $resolver->resolve($this->ulpA->id, 2026, 2)['gangguan-tm']['value'], 1e-9);
+        $this->assertContains('gangguan-tm', NkoRealizationResolver::UNVALIDATED_CODES);
     }
 
     private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, float $kwh): void

@@ -148,7 +148,7 @@ class NkoController extends Controller
             $r = $resolved[$n['code']] ?? null;
             $t = $targets[$n['id']] ?? null;
             $items[] = ['code' => $n['code'], 'name' => $meta[$n['id']]->name, 'group' => $meta[$n['id']]->parent_name, 'unit_label' => $n['unit_label'], 'polarity' => $n['polarity'], 'weight' => $n['weight'],
-                'target' => $t === null ? null : ($t->target_value !== null ? (float) $t->target_value : $t->target_text), 'editable' => $needs, 'system_source' => isset(NkoRealizationResolver::SYSTEM_CODES[$n['code']]),
+                'target' => $t === null ? null : ($t->target_value !== null ? (float) $t->target_value : $t->target_text), 'editable' => $needs, 'system_source' => isset(NkoRealizationResolver::SYSTEM_CODES[$n['code']]), 'system_validated' => ! in_array($n['code'], NkoRealizationResolver::UNVALIDATED_CODES, true),
                 'value' => $r['value'] ?? null, 'source' => $r['source'] ?? null, 'manual' => $r['manual'] ?? null, 'system' => $r['system'] ?? null, 'note' => $r['note'] ?? null];
         }
 
@@ -174,7 +174,12 @@ class NkoController extends Controller
             throw new AdministrationDenied('Indikator tidak dapat diisi manual pada bulan ini: '.implode(', ', $bad).'.', 422);
         }
         $period = sprintf('%04d-%02d-01', $d['year'], $d['month']);
-        DB::transaction(function () use ($d, $period, $request) {
+        $system = $this->resolver->systemValues($d['unit_id'], (int) $d['year'], (int) $d['month']);
+        $noReason = array_values(array_filter($d['items'], fn ($it) => ($it['value'] ?? null) !== null && isset($system[$it['code']]) && trim((string) ($it['note'] ?? '')) === ''));
+        if ($noReason !== []) {
+            throw new AdministrationDenied('Koreksi atas nilai otomatis wajib disertai alasan (note): '.implode(', ', array_column($noReason, 'code')).'.', 422);
+        }
+        DB::transaction(function () use ($d, $period, $request, $system) {
             foreach ($d['items'] as $it) {
                 $where = ['definition_code' => $it['code'], 'organizational_unit_id' => $d['unit_id'], 'period' => $period];
                 if (! array_key_exists('value', $it) || $it['value'] === null) {
@@ -183,7 +188,7 @@ class NkoController extends Controller
                     continue;
                 }
                 $existing = DB::table('kpi_manual_inputs')->where($where)->first();
-                $data = ['value' => $it['value'], 'note' => $it['note'] ?? null, 'entered_by' => $request->user()->id, 'updated_at' => now()];
+                $data = ['value' => $it['value'], 'note' => $it['note'] ?? null, 'system_value' => $system[$it['code']] ?? null, 'entered_by' => $request->user()->id, 'updated_at' => now()];
                 $existing === null
                     ? DB::table('kpi_manual_inputs')->insert($where + $data + ['id' => (string) Str::uuid7(), 'created_at' => now()])
                     : DB::table('kpi_manual_inputs')->where('id', $existing->id)->update($data);
