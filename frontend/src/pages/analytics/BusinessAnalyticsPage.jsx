@@ -9,6 +9,7 @@ import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
+import OutageSyncDrawer from '../outages/OutageSyncDrawer.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
@@ -790,6 +791,7 @@ export default function BusinessAnalyticsPage() {
   // State sub-tab untuk metrik gangguan & keandalan ('eis' | 'trend' | 'feeders' | 'forecast')
   const [outageTab, setOutageTab] = useState('eis')
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false)
+  const [outageSyncDrawerOpen, setOutageSyncDrawerOpen] = useState(false)
 
   // State katalog metrik & unit
   const [catalogState, setCatalogState] = useState({ loading: true, error: '', data: null })
@@ -800,6 +802,11 @@ export default function BusinessAnalyticsPage() {
   const [selectedUnitId, setSelectedUnitId] = useState('')
   const [fromMonth, setFromMonth] = useState('')
   const [toMonth, setToMonth] = useState('')
+
+  // Metrik klasifikasi untuk aksi sinkronisasi spesifik
+  const isOutageMetric = activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'rpt-rct-gangguan'
+  const isPiutangMetric = activeCode.startsWith('piutang')
+  const isEisMetric = isPiutangMetric || activeCode === 'pelanggan' || activeCode === 'daya'
 
   // Efektif unit_id: jika ada selectedUnitId (ULP) pakai itu, jika tidak gunakan up3Id
   const effectiveUnitId = selectedUnitId || up3Id
@@ -1133,14 +1140,38 @@ export default function BusinessAnalyticsPage() {
             >
               Segarkan
             </Button>
-            <Button
-              variant="primary"
-              onClick={() => setSyncDrawerOpen(true)}
-              icon={IconRefresh}
-              aria-label="Sinkronisasi Data"
-            >
-              Sinkronisasi Data
-            </Button>
+            {isOutageMetric ? (
+              <Button
+                variant="primary"
+                onClick={() => setOutageSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Sinkronisasi Gangguan"
+              >
+                Sinkronisasi Gangguan
+              </Button>
+            ) : isEisMetric ? (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label={
+                  isPiutangMetric
+                    ? 'Sinkronisasi Piutang EIS'
+                    : 'Sinkronisasi Permohonan EIS'
+                }
+              >
+                {isPiutangMetric ? 'Sinkronisasi Piutang EIS' : 'Sinkronisasi Permohonan EIS'}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Sinkronisasi Data"
+              >
+                Sinkronisasi Data
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -2426,6 +2457,16 @@ export default function BusinessAnalyticsPage() {
       )}
       </>
       )}
+
+      {/* Drawer Sinkronisasi Data Gangguan */}
+      <OutageSyncDrawer
+        open={outageSyncDrawerOpen}
+        onClose={() => setOutageSyncDrawerOpen(false)}
+        onSynced={() => {
+          loadCatalog()
+          loadMetricData()
+        }}
+      />
 
       {/* Drawer Sinkronisasi Data EIS */}
       <EisSyncDrawer

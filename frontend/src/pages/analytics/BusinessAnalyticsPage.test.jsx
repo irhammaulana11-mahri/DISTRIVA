@@ -253,7 +253,8 @@ describe('BusinessAnalyticsPage', () => {
     wrap(<BusinessAnalyticsPage />)
 
     expect(await screen.findByText('Analisa & Tren Pengusahaan')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sinkronisasi Data' })).toBeInTheDocument()
+    // Tombol sinkronisasi kontekstual: default metrik pelanggan menampilkan "Sinkronisasi Permohonan EIS"
+    expect(screen.getByRole('button', { name: /Sinkronisasi Permohonan EIS/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Segarkan' })).toBeInTheDocument()
     expect(screen.getByLabelText('Pilih Unit UP3')).toBeInTheDocument()
     expect(screen.getByLabelText('Pilih Unit ULP')).toBeInTheDocument()
@@ -536,6 +537,9 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('Rincian Gangguan (APKT)')).toBeInTheDocument()
     expect(screen.getByText('Penyulang & Gardu')).toBeInTheDocument()
     expect(screen.getByText('Prakiraan Keandalan')).toBeInTheDocument()
+
+    // Tombol sinkronisasi kontekstual metrik gangguan adalah "Sinkronisasi Gangguan"
+    expect(screen.getByRole('button', { name: 'Sinkronisasi Gangguan' })).toBeInTheDocument()
 
     // Klik tab Rincian Gangguan (APKT)
     await user.click(screen.getByText('Rincian Gangguan (APKT)'))

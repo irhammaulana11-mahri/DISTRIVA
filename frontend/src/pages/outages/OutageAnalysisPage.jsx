@@ -4,7 +4,7 @@ import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
-import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
+import OutageSyncDrawer from './OutageSyncDrawer.jsx'
 import { filterControlCls } from '../../components/filterStyles.js'
 import { IconActivity, IconRefresh, IconDownload, IconX } from '../../components/icons.jsx'
 import {
@@ -712,8 +712,8 @@ export function OutageAnalysisContent({
         <ul className="list-disc space-y-1 pl-5 text-xs text-slate-500 dark:text-slate-400">{d.notes.map((n) => <li key={n}>{n}</li>)}</ul>
       )}
 
-      {/* Drawer Sinkronisasi EIS */}
-      <EisSyncDrawer
+      {/* Drawer Sinkronisasi Data Gangguan */}
+      <OutageSyncDrawer
         open={syncDrawerOpen}
         onClose={() => setSyncDrawerOpen(false)}
         onSynced={load}
