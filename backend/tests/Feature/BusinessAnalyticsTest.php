@@ -82,14 +82,18 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertEquals([150, 150], $d['series'][0]['previous_year']);
         $s = $d['summary'][0];
         $this->assertEquals(120, $s['latest']);
-        $this->assertEqualsWithDelta(-20.0, $s['yoy_pct'], 1e-9);
+        $this->assertEqualsWithDelta(20.0, $s['yoy_pct'], 1e-9);   // setara: hanya ULP A (ULP B belum melapor Februari 2026): 120 lawan 100, bukan 120 lawan 150
+        $this->assertSame([2, 1], $d['units_reporting']);
+        $this->assertSame(2, $d['units_expected']);
         $this->assertEquals(290, $s['ytd']);   // kumulatif memakai bulan yang ada; ULP B Februari kosong dilaporkan pada kelengkapan
         $this->assertEquals(300, $s['ytd_previous_year']);
+        $this->assertEqualsWithDelta(20.0, $s['ytd_pct'], 1e-9);   // setara: ULP A 240 lawan 200
         $this->assertSame('Rumah tangga', $d['breakdown']['rows'][0]['key']);
         $this->assertEqualsWithDelta(75.0, $d['breakdown']['rows'][0]['share_pct'], 1e-9);
         $this->assertSame(['ULP A', 'ULP B'], array_column($d['comparison'], 'unit_name'));
         $this->assertSame([['unit_id' => $this->ulpB->id, 'unit_name' => 'ULP B', 'months' => ['2026-02']]], $d['coverage']['missing']);
         $this->assertSame('perhatian', $d['insights'][0]['level']);
+        $this->assertStringContainsString('hanya mencakup 1 dari 2 ULP', $d['insights'][0]['text']);
     }
 
     #[Test]

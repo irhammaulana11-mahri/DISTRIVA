@@ -47,8 +47,10 @@ Peta izin frontend: `GET /planning/access` memuat `pengusahaan.view`.
 
 Respons `GET /metrics/{code}` (`data`):
 - `unit` (`id, name, unit_type`); `metric` (`code, name, source, polarity, ytd_mode`); `from`, `to`, `months[]`.
+- `units_expected` (jumlah ULP yang digabung; 1 untuk ULP) dan `units_reporting[]` (sejajar `months`: jumlah ULP yang punya data bulan itu). Bila `units_reporting` < `units_expected`, angka UP3 bulan itu **belum utuh**: tampilkan penanda (mis. "1/10 ULP") pada grafik dan kartu.
+- `comparison_basis` (`mom`, `yoy`, `ytd`): jumlah ULP yang dipakai untuk menghitung persentase perubahan.
 - `series[]`: `key, name, unit, values[]` (sejajar `months`), dan `previous_year[]` (bulan yang sama tahun lalu). Nilai `null` berarti tidak ada data, bukan nol.
-- `summary[]` per seri: `latest`, `previous_month`, `mom_pct`, `same_month_last_year`, `yoy_pct`, `ytd`, `ytd_previous_year`, `ytd_pct`. Arti `ytd` mengikuti `ytd_mode`:
+- `summary[]` per seri: `latest`, `previous_month`, `mom_pct`, `same_month_last_year`, `yoy_pct`, `ytd`, `ytd_previous_year`, `ytd_pct`. Nilai (`latest`, `ytd`, dst.) memakai semua ULP yang melapor; **persentase (`mom_pct`, `yoy_pct`, `ytd_pct`) dihitung setara**, hanya dari ULP yang punya data di kedua periode (jumlahnya pada `comparison_basis`), sehingga persentase bisa berbeda dari selisih dua angka yang tampil. Persentase null bila tidak ada ULP yang setara. Arti `ytd` mengikuti `ytd_mode`:
   - `last`: posisi akhir bulan;
   - `sum`: jumlah nilai bulanan;
   - `ratio`: jumlah angka mentah Januari sampai `to` lalu dihitung (rata-rata tertimbang).
@@ -57,6 +59,7 @@ Respons `GET /metrics/{code}` (`data`):
 - `comparison[]` (hanya bila unit UP3): per ULP `unit_id, unit_name, latest, yoy_pct, ytd` untuk seri pertama, urut `latest` turun.
 - `coverage`: `months_expected`, dan `missing[]` (`unit_id, unit_name, months[]`) berisi bulan yang laporannya belum diunggah per ULP. Hanya untuk metrik berbasis laporan EIS. Bulan kosong tidak dihitung nol: angka UP3 bulan itu hanya memuat ULP yang ada datanya.
 - `insights[]`: `level` (`baik`, `perhatian`, `info`) dan `text`. Catatan otomatis berbasis aturan:
+  - angka UP3 belum utuh (berapa dari berapa ULP melapor pada bulan terakhir);
   - kelengkapan laporan;
   - perubahan tahunan bulan terakhir ≥ 5%;
   - naik atau turun ≥ 3 bulan berturut-turut;

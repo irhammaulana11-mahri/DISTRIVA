@@ -38,22 +38,38 @@ class BusinessTrendBuilder
         $zeroFill = $def['family'] === null;
         $combined = fn (string $m, ?array $only = null) => $this->combine($raw, $only ?? $units, $m, $zeroFill);
 
+        $reporting = fn (string $m) => $zeroFill ? $units : array_values(array_filter($units, fn ($u) => isset($raw[$u][$m])));
+        /** ULP yang punya data pada semua bulan yang dibandingkan (perbandingan setara: ULP yang belum melapor di salah satu periode tidak ikut). */
+        $common = function (array $ms) use ($reporting, $units): array {
+            $set = $units;
+            foreach ($ms as $m) {
+                $set = array_values(array_intersect($set, $reporting($m)));
+            }
+
+            return $set;
+        };
+
         $series = [];
         foreach ($def['series'] as $s) {
             $series[] = ['key' => $s['key'], 'name' => $s['name'], 'unit' => $s['unit'],
                 'values' => array_map(fn ($m) => $this->value($s, $combined($m)), $months),
                 'previous_year' => array_map(fn ($m) => $this->value($s, $combined($this->shift($m, -12))), $months)];
         }
+        $unitsReporting = array_map(fn ($m) => count($reporting($m)), $months);
 
+        $prevTo = $this->shift($to, -12);
+        $ytdMonths = [...$this->months(substr($to, 0, 4).'-01', $to), ...$this->months(substr($prevTo, 0, 4).'-01', $prevTo)];
+        $basis = ['mom' => $common([$to, $this->shift($to, -1)]), 'yoy' => $common([$to, $prevTo]), 'ytd' => $common($ytdMonths)];
         $summary = [];
         foreach ($def['series'] as $s) {
+            $on = fn (array $only) => fn (string $m) => $combined($m, $only);
             $latest = $this->value($s, $combined($to));
-            $prevMonth = $this->value($s, $combined($this->shift($to, -1)));
-            $lastYear = $this->value($s, $combined($this->shift($to, -12)));
             $ytd = $this->ytd($s, $def['ytd'], $combined, $to);
-            $ytdPrev = $this->ytd($s, $def['ytd'], $combined, $this->shift($to, -12));
-            $summary[] = ['key' => $s['key'], 'latest' => $latest, 'previous_month' => $prevMonth, 'mom_pct' => $this->pct($latest, $prevMonth), 'same_month_last_year' => $lastYear, 'yoy_pct' => $this->pct($latest, $lastYear),
-                'ytd' => $ytd, 'ytd_previous_year' => $ytdPrev, 'ytd_pct' => $this->pct($ytd, $ytdPrev)];
+            $pct = fn (array $only, string $a, string $b) => $only === [] ? null : $this->pct($this->value($s, $combined($a, $only)), $this->value($s, $combined($b, $only)));
+            $summary[] = ['key' => $s['key'], 'latest' => $latest, 'previous_month' => $this->value($s, $combined($this->shift($to, -1))), 'mom_pct' => $pct($basis['mom'], $to, $this->shift($to, -1)),
+                'same_month_last_year' => $this->value($s, $combined($prevTo)), 'yoy_pct' => $pct($basis['yoy'], $to, $prevTo),
+                'ytd' => $ytd, 'ytd_previous_year' => $this->ytd($s, $def['ytd'], $combined, $prevTo),
+                'ytd_pct' => $basis['ytd'] === [] ? null : $this->pct($this->ytd($s, $def['ytd'], $on($basis['ytd']), $to), $this->ytd($s, $def['ytd'], $on($basis['ytd']), $prevTo))];
         }
 
         $breakdown = null;
@@ -81,8 +97,9 @@ class BusinessTrendBuilder
         $coverage = ['months_expected' => count($months), 'missing' => array_map(fn ($u, $ms) => ['unit_id' => $u, 'unit_name' => $unitNames[$u] ?? null, 'months' => $ms], array_keys($missing), $missing)];
 
         return ['metric' => ['code' => $code, 'name' => $def['name'], 'source' => $def['source'], 'polarity' => $def['polarity'], 'ytd_mode' => $def['ytd']],
-            'from' => $from, 'to' => $to, 'months' => $months, 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'comparison' => $comparison, 'coverage' => $coverage,
-            'insights' => $this->insights($def, $series[0] ?? null, $summary[0] ?? null, $breakdown, $comparison, $coverage, $months, $to)];
+            'from' => $from, 'to' => $to, 'months' => $months, 'units_expected' => count($units), 'units_reporting' => $unitsReporting,
+            'comparison_basis' => array_map('count', $basis), 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'comparison' => $comparison, 'coverage' => $coverage,
+            'insights' => $this->insights($def, $series[0] ?? null, $summary[0] ?? null, $breakdown, $comparison, $coverage, $months, $to, count($units), end($unitsReporting) ?: 0, $unitNames)];
     }
 
     /**
@@ -163,9 +180,13 @@ class BusinessTrendBuilder
      *
      * @return list<array{level: string, text: string}>
      */
-    private function insights(array $def, ?array $series, ?array $summary, ?array $breakdown, array $comparison, array $coverage, array $months, string $to): array
+    private function insights(array $def, ?array $series, ?array $summary, ?array $breakdown, array $comparison, array $coverage, array $months, string $to, int $expected = 1, int $reportingLatest = 1, array $unitNames = []): array
     {
         $out = [];
+        if ($series !== null && $expected > 1 && $reportingLatest < $expected) {
+            $named = array_column(array_filter($comparison, fn ($c) => $c['latest'] !== null), 'unit_name');
+            $out[] = ['level' => 'perhatian', 'text' => sprintf('Angka UP3 %s hanya mencakup %d dari %d ULP%s; persentase perubahan dihitung setara (hanya ULP yang punya data di kedua periode).', $this->label($to), $reportingLatest, $expected, $named !== [] && count($named) <= 3 ? ' ('.implode(', ', $named).')' : '')];
+        }
         if ($series === null || $summary === null) {
             return [['level' => 'info', 'text' => 'Metrik ini belum memiliki sumber data: '.$def['source'].'.']];
         }
