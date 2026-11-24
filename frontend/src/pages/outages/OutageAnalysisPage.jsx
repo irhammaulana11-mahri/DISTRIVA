@@ -4,6 +4,7 @@ import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import { filterControlCls } from '../../components/filterStyles.js'
 import { IconActivity, IconRefresh, IconDownload, IconX } from '../../components/icons.jsx'
 import {
@@ -99,139 +100,191 @@ function Breakdown({ rows, label }) {
   return <RankedBars items={items} ariaLabel={label} />
 }
 
-function TrendTab({ data }) {
+function TrendTab({ data, forcedMetric = null }) {
   const { kpi, monthly, yearly } = data
   const l = kpi.l12m
   const p = kpi.prev12m
   const c = kpi.change_pct || {}
   const [gangguanType, setGangguanType] = useState('total') // 'total' | 'permanent' | 'temporary' | 'all'
-  const hours = data.by_hour.map((h) => ({ key: String(h.hour), label: String(h.hour).padStart(2, '0'), value: h.events }))
+  const hours = (data.by_hour || []).map((h) => ({ key: String(h.hour), label: String(h.hour).padStart(2, '0'), value: h.events }))
   if (!l) return <Alert type="info">Belum ada bulan lengkap pada rentang ini.</Alert>
+
+  const tiles = (
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+      {forcedMetric === 'saidi-saifi' ? (
+        <>
+          <Tile label="SAIFI (kali/plg)" value={fmtNum(l.saifi, 2)} delta={c.saifi} sub={`CAIDI ${kpi.caidi_l12m ? fmtNum(kpi.caidi_l12m, 0) : '-'} mnt`} />
+          <Tile label="SAIDI (menit/plg)" value={fmtNum(l.saidi, 1)} delta={c.saidi} sub={`ambang ≥ ${data.settings.saidi_min_minutes} mnt${data.settings.saidi_only_permanent ? ', permanen' : ''}`} />
+          <Tile label="Total Gangguan 12 bln" value={fmtInt(l.events)} delta={c.events} sub={`s.d. ${monthLong(kpi.last_full_month)}`} />
+          <Tile label="Permanen" value={fmtInt(l.permanent)} delta={c.permanent} sub={p ? `sebelumnya ${fmtInt(p.permanent)}` : undefined} />
+          <Tile label="Temporer" value={fmtInt(l.temporary)} delta={c.temporary} sub={p ? `sebelumnya ${fmtInt(p.temporary)}` : undefined} />
+          <Tile label="ENS (kWh)" value={fmtInt(l.ens_kwh)} delta={c.ens_kwh} sub="energi tidak tersalur" />
+        </>
+      ) : forcedMetric === 'ens' ? (
+        <>
+          <Tile label="ENS (kWh)" value={fmtInt(l.ens_kwh)} delta={c.ens_kwh} sub="energi tidak tersalur" />
+          <Tile label="Total Gangguan 12 bln" value={fmtInt(l.events)} delta={c.events} sub={`s.d. ${monthLong(kpi.last_full_month)}`} />
+          <Tile label="Permanen" value={fmtInt(l.permanent)} delta={c.permanent} sub={p ? `sebelumnya ${fmtInt(p.permanent)}` : undefined} />
+          <Tile label="Temporer" value={fmtInt(l.temporary)} delta={c.temporary} sub={p ? `sebelumnya ${fmtInt(p.temporary)}` : undefined} />
+          <Tile label="SAIFI (kali/plg)" value={fmtNum(l.saifi, 2)} delta={c.saifi} sub={`CAIDI ${kpi.caidi_l12m ? fmtNum(kpi.caidi_l12m, 0) : '-'} mnt`} />
+          <Tile label="SAIDI (menit/plg)" value={fmtNum(l.saidi, 1)} delta={c.saidi} sub={`ambang ≥ ${data.settings.saidi_min_minutes} mnt`} />
+        </>
+      ) : (
+        <>
+          <Tile label="Gangguan 12 bln terakhir" value={fmtInt(l.events)} delta={c.events} sub={`s.d. ${monthLong(kpi.last_full_month)}`} />
+          <Tile label="Permanen" value={fmtInt(l.permanent)} delta={c.permanent} sub={p ? `sebelumnya ${fmtInt(p.permanent)}` : undefined} />
+          <Tile label="Temporer" value={fmtInt(l.temporary)} delta={c.temporary} sub={p ? `sebelumnya ${fmtInt(p.temporary)}` : undefined} />
+          <Tile label="ENS (kWh)" value={fmtInt(l.ens_kwh)} delta={c.ens_kwh} sub="energi tidak tersalur" />
+          <Tile label="SAIFI (kali/plg)" value={fmtNum(l.saifi, 2)} delta={c.saifi} sub={`CAIDI ${kpi.caidi_l12m ? fmtNum(kpi.caidi_l12m, 0) : '-'} mnt`} />
+          <Tile label="SAIDI (menit/plg)" value={fmtNum(l.saidi, 1)} delta={c.saidi} sub={`ambang ≥ ${data.settings.saidi_min_minutes} mnt${data.settings.saidi_only_permanent ? ', permanen' : ''}`} />
+        </>
+      )}
+    </div>
+  )
+
+  const saidiSaifiSection = (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <Section title="SAIFI per bulan" hint="Rata-rata frekuensi padam (kali/pelanggan), sumbu 12 bulan (Jan–Des) per tahun.">
+        <YearlyComparisonChart data={monthly} valueKey="saifi" format={(v) => fmtNum(v, 2)} ariaLabel="SAIFI per bulan" unit="kali/plg" />
+      </Section>
+      <Section title="SAIDI per bulan" hint="Rata-rata lama padam (menit/pelanggan), sumbu 12 bulan (Jan–Des) per tahun.">
+        <YearlyComparisonChart data={monthly} valueKey="saidi" format={(v) => fmtNum(v, 1)} ariaLabel="SAIDI per bulan" unit="menit/plg" />
+      </Section>
+    </div>
+  )
+
+  const ensSection = (
+    <Section title="Energi tidak tersalur (ENS) per bulan" hint="kWh, perbandingan tahun ke tahun (YoY) sumbu 12 bulan (Jan–Des).">
+      <YearlyComparisonChart data={monthly} valueKey="ens_kwh" format={fmtInt} ariaLabel="ENS per bulan" unit="kWh" />
+    </Section>
+  )
+
+  const gangguanSection = (
+    <Section
+      title="Gangguan per bulan"
+      hint="Perbandingan antar tahun (YoY) dengan sumbu rentang 1 tahun (Jan–Des). Warna legenda membedakan tiap tahun; kolom putus-putus = bulan berjalan."
+      actions={
+        <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
+          <button
+            type="button"
+            onClick={() => setGangguanType('total')}
+            className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+              gangguanType === 'total'
+                ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            Total
+          </button>
+          <button
+            type="button"
+            onClick={() => setGangguanType('permanent')}
+            className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+              gangguanType === 'permanent'
+                ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            Permanen
+          </button>
+          <button
+            type="button"
+            onClick={() => setGangguanType('temporary')}
+            className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+              gangguanType === 'temporary'
+                ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            Temporer
+          </button>
+          <button
+            type="button"
+            onClick={() => setGangguanType('all')}
+            className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+              gangguanType === 'all'
+                ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            Bandingkan Ketiganya
+          </button>
+        </div>
+      }
+    >
+      {gangguanType === 'total' && (
+        <YearlyComparisonChart
+          data={monthly}
+          valueKey="events"
+          unit="kali"
+          ariaLabel="Gangguan permanen dan temporer per bulan"
+        />
+      )}
+      {gangguanType === 'permanent' && (
+        <YearlyComparisonChart
+          data={monthly}
+          valueKey="permanent"
+          unit="kali"
+          ariaLabel="Gangguan permanen dan temporer per bulan"
+        />
+      )}
+      {gangguanType === 'temporary' && (
+        <YearlyComparisonChart
+          data={monthly}
+          valueKey="temporary"
+          unit="kali"
+          ariaLabel="Gangguan permanen dan temporer per bulan"
+        />
+      )}
+      {gangguanType === 'all' && (
+        <div className="grid gap-6 lg:grid-cols-3 pt-2">
+          <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Total Gangguan</h3>
+            <YearlyComparisonChart data={monthly} valueKey="events" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan permanen dan temporer per bulan" />
+          </div>
+          <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Gangguan Permanen</h3>
+            <YearlyComparisonChart data={monthly} valueKey="permanent" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan permanen per bulan" />
+          </div>
+          <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Gangguan Temporer</h3>
+            <YearlyComparisonChart data={monthly} valueKey="temporary" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan temporer per bulan" />
+          </div>
+        </div>
+      )}
+    </Section>
+  )
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Tile label="Gangguan 12 bln terakhir" value={fmtInt(l.events)} delta={c.events} sub={`s.d. ${monthLong(kpi.last_full_month)}`} />
-        <Tile label="Permanen" value={fmtInt(l.permanent)} delta={c.permanent} sub={p ? `sebelumnya ${fmtInt(p.permanent)}` : undefined} />
-        <Tile label="Temporer" value={fmtInt(l.temporary)} delta={c.temporary} sub={p ? `sebelumnya ${fmtInt(p.temporary)}` : undefined} />
-        <Tile label="ENS (kWh)" value={fmtInt(l.ens_kwh)} delta={c.ens_kwh} sub="energi tidak tersalur" />
-        <Tile label="SAIFI (kali/plg)" value={fmtNum(l.saifi, 2)} delta={c.saifi} sub={`CAIDI ${kpi.caidi_l12m ? fmtNum(kpi.caidi_l12m, 0) : '-'} mnt`} />
-        <Tile label="SAIDI (menit/plg)" value={fmtNum(l.saidi, 1)} delta={c.saidi} sub={`ambang ≥ ${data.settings.saidi_min_minutes} mnt${data.settings.saidi_only_permanent ? ', permanen' : ''}`} />
-      </div>
+      {tiles}
 
-      <Section
-        title="Gangguan per bulan"
-        hint="Perbandingan antar tahun (YoY) dengan sumbu rentang 1 tahun (Jan–Des). Warna legenda membedakan tiap tahun; kolom putus-putus = bulan berjalan."
-        actions={
-          <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
-            <button
-              type="button"
-              onClick={() => setGangguanType('total')}
-              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                gangguanType === 'total'
-                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Total
-            </button>
-            <button
-              type="button"
-              onClick={() => setGangguanType('permanent')}
-              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                gangguanType === 'permanent'
-                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Permanen
-            </button>
-            <button
-              type="button"
-              onClick={() => setGangguanType('temporary')}
-              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                gangguanType === 'temporary'
-                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Temporer
-            </button>
-            <button
-              type="button"
-              onClick={() => setGangguanType('all')}
-              className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                gangguanType === 'all'
-                  ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              Bandingkan Ketiganya
-            </button>
-          </div>
-        }
-      >
-        {gangguanType === 'total' && (
-          <YearlyComparisonChart
-            data={monthly}
-            valueKey="events"
-            unit="kali"
-            ariaLabel="Gangguan permanen dan temporer per bulan"
-          />
-        )}
-        {gangguanType === 'permanent' && (
-          <YearlyComparisonChart
-            data={monthly}
-            valueKey="permanent"
-            unit="kali"
-            ariaLabel="Gangguan permanen dan temporer per bulan"
-          />
-        )}
-        {gangguanType === 'temporary' && (
-          <YearlyComparisonChart
-            data={monthly}
-            valueKey="temporary"
-            unit="kali"
-            ariaLabel="Gangguan permanen dan temporer per bulan"
-          />
-        )}
-        {gangguanType === 'all' && (
-          <div className="grid gap-6 lg:grid-cols-3 pt-2">
-            <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Total Gangguan</h3>
-              <YearlyComparisonChart data={monthly} valueKey="events" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan permanen dan temporer per bulan" />
-            </div>
-            <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Gangguan Permanen</h3>
-              <YearlyComparisonChart data={monthly} valueKey="permanent" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan permanen per bulan" />
-            </div>
-            <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/40 dark:bg-slate-800/30">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Gangguan Temporer</h3>
-              <YearlyComparisonChart data={monthly} valueKey="temporary" unit="kali" height={210} showModeSwitch={false} ariaLabel="Gangguan temporer per bulan" />
-            </div>
-          </div>
-        )}
-      </Section>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Section title="SAIFI per bulan" hint="Rata-rata gangguan yang dialami pelanggan (kali/pelanggan), sumbu 12 bulan (Jan–Des) per tahun.">
-          <YearlyComparisonChart data={monthly} valueKey="saifi" format={(v) => fmtNum(v, 2)} ariaLabel="SAIFI per bulan" unit="kali/plg" />
-        </Section>
-        <Section title="SAIDI per bulan" hint="Rata-rata lama padam per pelanggan (menit), sumbu 12 bulan (Jan–Des) per tahun.">
-          <YearlyComparisonChart data={monthly} valueKey="saidi" format={(v) => fmtNum(v, 1)} ariaLabel="SAIDI per bulan" unit="menit/plg" />
-        </Section>
-      </div>
-
-      <Section title="Energi tidak tersalur (ENS) per bulan" hint="kWh, perbandingan tahun ke tahun (YoY) sumbu 12 bulan (Jan–Des).">
-        <YearlyComparisonChart data={monthly} valueKey="ens_kwh" format={fmtInt} ariaLabel="ENS per bulan" unit="kWh" />
-      </Section>
+      {forcedMetric === 'saidi-saifi' ? (
+        <>
+          {saidiSaifiSection}
+          {gangguanSection}
+          {ensSection}
+        </>
+      ) : forcedMetric === 'ens' ? (
+        <>
+          {ensSection}
+          {gangguanSection}
+          {saidiSaifiSection}
+        </>
+      ) : (
+        <>
+          {gangguanSection}
+          {saidiSaifiSection}
+          {ensSection}
+        </>
+      )}
 
       <Section title="Ringkasan per tahun">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-100 dark:border-slate-800"><Th>Tahun</Th><Th right>Gangguan</Th><Th right>Permanen</Th><Th right>Temporer</Th><Th right>ENS (kWh)</Th><Th right>SAIFI</Th><Th right>SAIDI (mnt)</Th><Th right>Perubahan gangguan</Th></tr></thead>
             <tbody>
-              {yearly.map((y) => (
+              {(yearly || []).map((y) => (
                 <tr key={y.year} className="border-b border-slate-50 dark:border-slate-800/60">
                   <td className="py-2 pr-3 font-medium">{y.year}{y.partial || y.months < 12 ? <span className="ml-1 text-xs text-slate-400">({y.months} bln)</span> : null}</td>
                   <td className="py-2 pr-3 text-right tabular-nums">{fmtInt(y.events)}</td>
@@ -249,23 +302,23 @@ function TrendTab({ data }) {
       </Section>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Section title="Penyebab gangguan"><Breakdown rows={data.by_cause} label="Gangguan menurut penyebab" /></Section>
-        <Section title="Cuaca saat gangguan"><Breakdown rows={data.by_weather} label="Gangguan menurut cuaca" /></Section>
+        <Section title="Penyebab gangguan"><Breakdown rows={data.by_cause || []} label="Gangguan menurut penyebab" /></Section>
+        <Section title="Cuaca saat gangguan"><Breakdown rows={data.by_weather || []} label="Gangguan menurut cuaca" /></Section>
         <Section title="Jenis peralatan">
-          <Breakdown rows={data.by_device.map((r) => ({ ...r, label: DEVICE[r.label] || r.label }))} label="Gangguan menurut peralatan" />
+          <Breakdown rows={(data.by_device || []).map((r) => ({ ...r, label: DEVICE[r.label] || r.label }))} label="Gangguan menurut peralatan" />
         </Section>
         <Section title="Jam kejadian" hint="Jumlah gangguan menurut jam (WIB).">
           <ColumnChart data={hours} height={180} ariaLabel="Gangguan menurut jam" unit="kali" labelEvery={3} />
         </Section>
       </div>
 
-      {data.by_unit.length > 0 && (
+      {(data.by_unit?.length || 0) > 0 && (
         <Section title="Per ULP" hint="Jumlah gangguan dan ENS menurut RAYON di sheet; SAIFI/SAIDI memakai pelanggan ULP pada penyulang terdampak.">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-100 dark:border-slate-800"><Th>ULP</Th><Th>UP3</Th><Th right>Gangguan</Th><Th right>Permanen</Th><Th right>Temporer</Th><Th right>ENS (kWh)</Th><Th right>Pelanggan</Th><Th right>SAIFI</Th><Th right>SAIDI (mnt)</Th></tr></thead>
               <tbody>
-                {data.by_unit.map((u) => (
+                {(data.by_unit || []).map((u) => (
                   <tr key={u.unit_id} className="border-b border-slate-50 dark:border-slate-800/60">
                     <td className="py-2 pr-3 font-medium">{u.unit_name}</td>
                     <td className="py-2 pr-3 text-slate-500">{u.up3_name || '-'}</td>
@@ -502,15 +555,27 @@ function ForecastTab({ params }) {
   )
 }
 
-/** Laporan & Monitoring > Analisis Gangguan: tren, penyulang & gardu, dan prakiraan gangguan. */
-export default function OutageAnalysisPage() {
-  const [tab, setTab] = useState('trend')
+/** Komponen inti Analisis Gangguan Penyulang, dapat digunakan mandiri maupun disematkan dalam indikator pengusahaan */
+export function OutageAnalysisContent({
+  defaultTab = 'trend',
+  hideHeader = false,
+  hideTabs = false,
+  forcedMetric = null, // null | 'events' | 'saidi-saifi' | 'ens'
+}) {
+  const [tab, setTab] = useState(defaultTab)
   const [up3Id, setUp3Id] = useState('')
   const [unitId, setUnitId] = useState('')
   const [fromM, setFromM] = useState('')
   const [toM, setToM] = useState('')
   const [state, setState] = useState({ loading: true, error: '', data: null })
   const [exporting, setExporting] = useState(false)
+  const [syncDrawerOpen, setSyncDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    if (defaultTab) {
+      setTab(defaultTab)
+    }
+  }, [defaultTab])
 
   const params = useMemo(() => ({
     from: fromM ? `${fromM}-01` : undefined,
@@ -548,34 +613,65 @@ export default function OutageAnalysisPage() {
 
   return (
     <div className="space-y-5 w-full">
-      <div className={`${CARD} p-5 sm:p-6`}>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span className="rounded-xl bg-rose-50 dark:bg-rose-950/40 p-2.5 text-rose-600"><IconActivity size={22} /></span>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Analisis Gangguan Penyulang</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Tren gangguan permanen dan temporer, ENS, SAIFI, SAIDI, kaitan dengan gardu, dan prakiraan. Sumber: Data Gangguan (Sinkron).
-              </p>
+      {!hideHeader && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs p-5 sm:p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-rose-600 flex items-center justify-center text-white shadow-xs shrink-0">
+                <IconActivity size={26} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                    Analisis Gangguan Penyulang
+                  </h1>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                    Keandalan Sistem
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Sinkron APKT / EIS
+                  </span>
+                </div>
+                <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                  Tren gangguan permanen dan temporer, ENS, SAIFI, SAIDI, kaitan dengan gardu, dan prakiraan statistik 12 bulan ke depan.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-start md:self-auto shrink-0 flex-wrap">
+              <Button variant="secondary" icon={IconRefresh} onClick={load} loading={state.loading}>
+                Segarkan
+              </Button>
+              <Button
+                variant="primary"
+                icon={IconRefresh}
+                onClick={() => setSyncDrawerOpen(true)}
+              >
+                Sinkronisasi Data
+              </Button>
+              <Button variant="secondary" icon={IconDownload} onClick={exportXlsx} loading={exporting} disabled={!d}>
+                Ekspor Excel
+              </Button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" icon={IconRefresh} onClick={load} loading={state.loading}>Muat ulang</Button>
-            <Button variant="secondary" icon={IconDownload} onClick={exportXlsx} loading={exporting} disabled={!d}>Ekspor Excel</Button>
-          </div>
         </div>
-      </div>
+      )}
 
-      <div className={`${CARD} p-4 flex flex-wrap items-center gap-3`}>
+      {/* Filter Bar Terstandarisasi */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-wrap items-center gap-3">
         <HierarchicalUnitFilter permission="outages.view" up3Id={up3Id} onUp3Change={setUp3Id} unitId={unitId} onUnitChange={setUnitId} unitAriaLabel="Filter Unit ULP" />
-        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
-          Dari
-          <input type="month" value={fromM} onChange={(e) => setFromM(e.target.value)} aria-label="Dari bulan" className={`${filterControlCls} w-32`} />
-        </label>
-        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
-          Sampai
-          <input type="month" value={toM} onChange={(e) => setToM(e.target.value)} aria-label="Sampai bulan" className={`${filterControlCls} w-32`} />
-        </label>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Dari bulan</label>
+          <input type="month" value={fromM} onChange={(e) => setFromM(e.target.value)} aria-label="Dari bulan" className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs" />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Sampai bulan</label>
+          <input type="month" value={toM} onChange={(e) => setToM(e.target.value)} aria-label="Sampai bulan" className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs" />
+        </div>
+        {(fromM || toM) && (
+          <Button variant="ghost" size="sm" onClick={() => { setFromM(''); setToM('') }}>
+            Semua periode
+          </Button>
+        )}
         {cov && cov.events > 0 && (
           <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">
             {fmtInt(cov.events)} peristiwa{cov.unmatched_feeder_events > 0 ? ` · ${fmtInt(cov.unmatched_feeder_events)} belum terpetakan ke penyulang` : ''}
@@ -583,25 +679,50 @@ export default function OutageAnalysisPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800" role="tablist" aria-label="Bagian analisis">
-        {TABS.map((t) => (
-          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} title={t.hint} onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition ${tab === t.key ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {!hideTabs && (
+        <div className="flex flex-wrap gap-6 border-b border-slate-200 dark:border-slate-800" role="tablist" aria-label="Bagian analisis">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              title={t.hint}
+              onClick={() => setTab(t.key)}
+              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                tab === t.key
+                  ? 'border-rose-600 text-rose-600 dark:text-rose-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {state.error && <Alert type="error">{state.error}</Alert>}
       {state.loading && !d && <div className="flex justify-center py-16"><Spinner /></div>}
       {d && cov.events === 0 && <Alert type="info">Belum ada data gangguan pada cakupan ini. Jalankan sinkronisasi di Master Data &rsaquo; Data Gangguan (Sinkron).</Alert>}
-      {d && cov.events > 0 && tab === 'trend' && <TrendTab data={d} />}
+      {d && cov.events > 0 && tab === 'trend' && <TrendTab data={d} forcedMetric={forcedMetric} />}
       {d && cov.events > 0 && tab === 'feeders' && <FeedersTab data={d} params={params} />}
       {tab === 'forecast' && <ForecastTab params={params} />}
 
       {d && tab === 'trend' && d.notes?.length > 0 && (
         <ul className="list-disc space-y-1 pl-5 text-xs text-slate-500 dark:text-slate-400">{d.notes.map((n) => <li key={n}>{n}</li>)}</ul>
       )}
+
+      {/* Drawer Sinkronisasi EIS */}
+      <EisSyncDrawer
+        open={syncDrawerOpen}
+        onClose={() => setSyncDrawerOpen(false)}
+        onSynced={load}
+      />
     </div>
   )
+}
+
+/** Laporan & Monitoring > Analisis Gangguan: tren, penyulang & gardu, dan prakiraan gangguan. */
+export default function OutageAnalysisPage() {
+  return <OutageAnalysisContent />
 }

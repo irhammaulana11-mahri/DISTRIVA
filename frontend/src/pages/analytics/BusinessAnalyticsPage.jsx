@@ -10,6 +10,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
+import { OutageAnalysisContent } from '../outages/OutageAnalysisPage.jsx'
 import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 import {
   IconChart,
@@ -445,6 +446,8 @@ export default function BusinessAnalyticsPage() {
   const [susutViewMode, setSusutViewMode] = useState('trend')
   // State sub-tab untuk metrik pelanggan & daya ('trend' | 'forecast')
   const [customerTab, setCustomerTab] = useState('trend')
+  // State sub-tab untuk metrik gangguan & keandalan ('eis' | 'trend' | 'feeders' | 'forecast')
+  const [outageTab, setOutageTab] = useState('eis')
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false)
 
   // State katalog metrik & unit
@@ -508,6 +511,7 @@ export default function BusinessAnalyticsPage() {
   useEffect(() => {
     if (metricCode) {
       setActiveCode(metricCode)
+      setOutageTab('eis')
     }
   }, [metricCode])
 
@@ -804,6 +808,62 @@ export default function BusinessAnalyticsPage() {
         </div>
       )}
 
+      {/* Tab Switcher Khusus Metrik Keandalan & Gangguan (Realisasi Laporan EIS vs Rincian APKT / Penyulang) */}
+      {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && (
+        <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setOutageTab('eis')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              outageTab === 'eis'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Tren &amp; Analisis (Laporan EIS)
+          </button>
+          <button
+            type="button"
+            onClick={() => setOutageTab('trend')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              outageTab === 'trend'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            {activeCode === 'saidi-saifi'
+              ? 'Rincian SAIDI & SAIFI (APKT)'
+              : activeCode === 'ens'
+              ? 'Rincian ENS (APKT)'
+              : 'Rincian Gangguan (APKT)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOutageTab('feeders')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              outageTab === 'feeders'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Penyulang &amp; Gardu
+          </button>
+          {activeCode === 'gangguan' && (
+            <button
+              type="button"
+              onClick={() => setOutageTab('forecast')}
+              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                outageTab === 'forecast'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              Prakiraan Gangguan
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Tab Switcher Khusus Metrik Susut (Tren & Analisis vs Masukan kWh Beli) */}
       {activeCode === 'susut' && (
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
@@ -837,8 +897,17 @@ export default function BusinessAnalyticsPage() {
         </div>
       )}
 
-      {/* Tampilan Prakiraan Permintaan (Demand Forecast) saat tab forecast aktif untuk Pelanggan/Daya */}
-      {(activeCode === 'pelanggan' || activeCode === 'daya') && customerTab === 'forecast' ? (
+      {/* Tampilan Khusus Analitika Gangguan APKT saat sub-tab APKT/penyulang aktif */}
+      {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && outageTab !== 'eis' ? (
+        <div className="pt-2">
+          <OutageAnalysisContent
+            hideHeader={true}
+            hideTabs={true}
+            defaultTab={outageTab}
+            forcedMetric={activeCode}
+          />
+        </div>
+      ) : (activeCode === 'pelanggan' || activeCode === 'daya') && customerTab === 'forecast' ? (
         <div className="pt-2">
           <DemandForecast
             key={activeCode}
@@ -1240,17 +1309,25 @@ export default function BusinessAnalyticsPage() {
         <div className="space-y-6">
           {/* Warning Banner: Angka UP3 belum utuh */}
           {isLatestIncomplete && (
-            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
-              <IconAlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
-              <div>
-                <span className="font-bold">
-                  Perhatian: Angka UP3 pada bulan {fmtMonth(d.to)} belum utuh
-                </span>
-                <p className="mt-0.5 text-amber-700 dark:text-amber-400">
-                  Data bulan ini baru mencakup <strong>{unitsReportingLatest} dari {unitsExpected} ULP</strong>.
-                  Persentase perubahan dihitung setara hanya dari unit yang memiliki laporan lengkap di kedua periode.
-                </p>
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex items-start gap-2.5">
+                <IconAlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <span className="font-bold">
+                    Perhatian: Angka UP3 pada bulan {fmtMonth(d.to)} belum utuh
+                  </span>
+                  <p className="mt-0.5 text-amber-700 dark:text-amber-400">
+                    Data bulan ini baru mencakup <strong>{unitsReportingLatest} dari {unitsExpected} ULP</strong>.
+                    Persentase perubahan dihitung setara hanya dari unit yang memiliki laporan lengkap di kedua periode.
+                  </p>
+                </div>
               </div>
+              <Link
+                to={`/master-data/laporan-eis?tab=coverage&up3_id=${up3Id || d?.unit?.id || ''}&year=${d?.to ? d.to.slice(0, 4) : new Date().getFullYear()}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs shrink-0 self-center"
+              >
+                Lihat Matriks Kelengkapan UP3 &rarr;
+              </Link>
             </div>
           )}
 
@@ -1271,10 +1348,10 @@ export default function BusinessAnalyticsPage() {
                 ))}
                 .{' '}
                 <Link
-                  to="/master-data/laporan-eis"
+                  to={`/master-data/laporan-eis?tab=coverage&up3_id=${up3Id || d?.unit?.id || ''}&year=${d?.to ? d.to.slice(0, 4) : new Date().getFullYear()}`}
                   className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline ml-1"
                 >
-                  Unggah Berkas Laporan EIS &rarr;
+                  Buka Matriks Kelengkapan &rarr;
                 </Link>
               </div>
             </div>

@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { eisReportsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import { useScopedUnits } from '../../utils/unitScope.js'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
@@ -22,6 +24,7 @@ import {
   IconCalendar,
   IconBuilding,
   IconClock,
+  IconFolder,
 } from '../../components/icons.jsx'
 
 const CARD = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs'
@@ -76,19 +79,36 @@ function StatusBadge({ status }) {
   )
 }
 
-/** Modal untuk mengunggah satu atau banyak berkas laporan EIS bulanan */
+/** Modal untuk mengunggah satu atau banyak berkas laporan EIS bulanan (nama bebas, ZIP, folder, pengiriman bertahap) */
 function UploadModal({ isOpen, onClose, onUploaded }) {
   const { notify } = useNotifications()
+  const unitInfo = useScopedUnits('eis_reports.import')
   const [files, setFiles] = useState([])
+  const [selectedUnitId, setSelectedUnitId] = useState('')
+  const [selectedPeriod, setSelectedPeriod] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState(null) // { current, total, percent, message }
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
 
+  const fileInputRef = useRef(null)
+  const folderInputRef = useRef(null)
+
   const handleFileChange = (e) => {
     const chosen = Array.from(e.target.files || [])
-    setFiles(chosen)
+    if (chosen.length > 0) {
+      setFiles((prev) => [...prev, ...chosen])
+      setResults(null)
+      setError('')
+    }
+    e.target.value = ''
+  }
+
+  const handleClearFiles = () => {
+    setFiles([])
     setResults(null)
     setError('')
+    setProgress(null)
   }
 
   const handleSubmit = async (e) => {
@@ -100,30 +120,83 @@ function UploadModal({ isOpen, onClose, onUploaded }) {
 
     setUploading(true)
     setError('')
-    try {
-      const fd = new FormData()
-      files.forEach((f) => fd.append('files[]', f))
+    setProgress(null)
 
-      const res = await eisReportsApi.importFiles(fd)
-      setResults(res?.data || [])
+    // Kirim berkas lepas paling banyak 20 per permintaan (batas PHP max_file_uploads, kelebihan dibuang diam-diam)
+    const CHUNK_SIZE = 20
+    const chunks = []
+    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+      chunks.push(files.slice(i, i + CHUNK_SIZE))
+    }
+
+    let allResults = []
+    let anySuccess = false
+    let lastErrorMsg = ''
+
+    for (let i = 0; i < chunks.length; i++) {
+      const currentBatch = i + 1
+      const totalBatches = chunks.length
+      const batchFiles = chunks[i]
+      setProgress({
+        current: currentBatch,
+        total: totalBatches,
+        percent: Math.round((currentBatch / totalBatches) * 100),
+        message: totalBatches > 1
+          ? `Mengunggah kumpulan ${currentBatch} dari ${totalBatches} (${batchFiles.length} berkas)...`
+          : `Mengunggah ${batchFiles.length} berkas...`,
+      })
+
+      const fd = new FormData()
+      batchFiles.forEach((f) => fd.append('files[]', f))
+      if (selectedPeriod) fd.append('period', selectedPeriod)
+      if (selectedUnitId) fd.append('unit_id', selectedUnitId)
+
+      try {
+        const res = await eisReportsApi.importFiles(fd)
+        if (res?.data) {
+          allResults = allResults.concat(res.data)
+          anySuccess = true
+        }
+      } catch (err) {
+        lastErrorMsg = err?.message || 'Gagal mengunggah berkas laporan EIS.'
+        if (err?.data?.data) {
+          allResults = allResults.concat(err.data.data)
+        } else {
+          batchFiles.forEach((f) => {
+            allResults.push({
+              name: f.name,
+              ok: false,
+              message: err?.message || 'Gagal diproses oleh server.',
+            })
+          })
+        }
+      }
+    }
+
+    setResults(allResults)
+    setUploading(false)
+    setProgress(null)
+
+    const successCount = allResults.filter((r) => r.ok).length
+    const failCount = allResults.filter((r) => !r.ok).length
+
+    if (anySuccess) {
       notify({
         type: 'success',
         title: 'Impor Selesai',
-        desc: res?.message || 'Proses impor berkas EIS selesai.',
+        desc: `Selesai memproses ${allResults.length} berkas (${successCount} berhasil${failCount > 0 ? `, ${failCount} gagal` : ''}).`,
         tag: 'EIS_REPORT',
       })
       onUploaded?.()
-    } catch (err) {
-      setError(err?.message || 'Gagal mengunggah berkas laporan EIS.')
-      if (err?.data?.data) {
-        setResults(err.data.data)
-      }
-    } finally {
-      setUploading(false)
+    } else if (lastErrorMsg) {
+      setError(lastErrorMsg)
     }
   }
 
   if (!isOpen) return null
+
+  const ulpUnits = unitInfo?.ulp_units || []
+  const up3Units = unitInfo?.up3_units || []
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -135,17 +208,17 @@ function UploadModal({ isOpen, onClose, onUploaded }) {
             </span>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Unggah Laporan EIS Bulanan
+                Unggah Laporan APKT / EIS / AP2T
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Format penamaan wajib: <code className="font-mono text-blue-600">JENIS-KODEUNIT-BBTTTT.xls|xlsx</code>
+                Nama berkas bebas (dikenali otomatis dari isi), mendukung Excel, ZIP, dan Folder.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg cursor-pointer"
             aria-label="Tutup"
           >
             <IconX size={20} />
@@ -153,70 +226,240 @@ function UploadModal({ isOpen, onClose, onUploaded }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4">
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
-            <p className="font-semibold text-slate-800 dark:text-slate-200">Petunjuk Format Berkas:</p>
-            <ul className="list-disc pl-4 space-y-0.5">
-              <li>Mendukung jenis: <span className="font-mono">309, 309EIS, DIFI, GGNALL, KLHALL, PIUTANGLPB_EIS, TAGSUS, UMURPIUTANG, dll.</span></li>
-              <li>Contoh: <span className="font-mono font-semibold">309-51453-042026.xls</span> atau <span className="font-mono font-semibold">UMURPIUTANG-51453-102026.xls</span></li>
-              <li>Khusus unduhan EIS <span className="font-mono font-semibold">Rekap.xls</span> (Umur Piutang) wajib diganti nama sesuai format <span className="font-mono font-semibold">UMURPIUTANG-&lt;kodeULP&gt;-&lt;BBTTTT&gt;.xls</span> sebelum diunggah.</li>
-              <li>Unit tujuan dibaca otomatis dari kode dan isi berkas (tidak perlu dipilih manual).</li>
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
+            <p className="font-semibold text-slate-800 dark:text-slate-200">Petunjuk Unggah &amp; Format Berkas:</p>
+            <ul className="list-disc pl-4 space-y-1">
+              <li>
+                <strong>Nama berkas bebas:</strong> Unduhan resmi EIS/AP2T apa adanya (seperti <span className="font-mono">Rekap.xls</span>, <span className="font-mono">Rekap (1).xls</span>) otomatis dikenali jenis, unit, dan bulannya dari isi dokumen.
+              </li>
+              <li>
+                Format lama berpola <span className="font-mono font-semibold">JENIS-KODEUNIT-BBTTTT.xls|xlsx</span> (contoh <span className="font-mono">309-51453-042026.xls</span>) tetap didukung penuh.
+              </li>
+              <li>
+                <strong>Arsip ZIP &amp; Folder:</strong> Mendukung berkas <span className="font-mono font-semibold">.zip</span> atau pilih folder langsung. Contoh susunan folder ZIP satu UP3: <span className="font-mono font-semibold">JOMBANG/2026-10/Rekap.xls</span> (nama folder dibaca otomatis sebagai unit dan bulan).
+              </li>
+              <li>
+                Mendukung jenis: <span className="font-mono">309, 309EIS, DIFI, GGNALL, KLHALL, PIUTANGLPB_EIS, AKHIRBULAN_EIS, AKHIEPERIODE_EIS, TAGSUS, UMURPIUTANG</span>.
+              </li>
             </ul>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Pilih Berkas (maks. 60 berkas, 20 MB/berkas)
+          {/* Tombol Pemilihan Berkas & Folder */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Pilih Berkas atau Folder Laporan
             </label>
+            <div className="flex flex-wrap gap-2.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={IconFileText}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                Pilih Berkas (.xls, .xlsx, .zip)
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={IconFolder}
+                onClick={() => folderInputRef.current?.click()}
+                disabled={uploading}
+              >
+                Pilih Folder (Banyak Berkas)
+              </Button>
+              {files.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFiles}
+                  disabled={uploading}
+                >
+                  Kosongkan ({files.length})
+                </Button>
+              )}
+            </div>
+
             <input
+              ref={fileInputRef}
               type="file"
               multiple
-              accept=".xls,.xlsx"
+              accept=".xls,.xlsx,.zip"
               onChange={handleFileChange}
               disabled={uploading}
-              className="block w-full text-xs text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-950 dark:file:text-blue-300 cursor-pointer"
+              className="hidden"
+              aria-label="Pilih Berkas"
             />
-            {files.length > 0 && (
-              <p className="mt-1 text-xs text-slate-500">
-                {files.length} berkas dipilih untuk diunggah.
+            <input
+              ref={folderInputRef}
+              type="file"
+              webkitdirectory=""
+              directory=""
+              multiple
+              onChange={handleFileChange}
+              disabled={uploading}
+              className="hidden"
+              aria-label="Pilih Folder"
+            />
+
+            {files.length > 0 ? (
+              <div className="p-2.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/40 text-xs text-blue-900 dark:text-blue-300 flex items-center justify-between">
+                <div>
+                  <strong>{files.length} berkas</strong> siap diunggah.
+                  {files.length > 20 && (
+                    <span className="block text-[11px] text-blue-700 dark:text-blue-400 mt-0.5">
+                      Berkas akan dikirim bertahap dalam {Math.ceil(files.length / 20)} kali pengiriman (@ maks 20 berkas per permintaan sesuai batas server PHP).
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-400">
+                Belum ada berkas yang dipilih. Anda dapat memilih beberapa berkas Excel/ZIP atau seluruh folder sekaligus.
               </p>
             )}
           </div>
+
+          {/* Opsi Opsional: Bulan dan Unit */}
+          <div className="p-3 bg-slate-50/70 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Pilihan Opsional (Pelengkap Berkas Tanpa Info)
+              </span>
+              <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.2 rounded font-medium">
+                Opsional
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              Hanya dipakai untuk laporan yang tidak menyebut bulan/unit di dalam isinya: <span className="font-mono">309EIS, AKHIEPERIODE_EIS, PIUTANGLPB_EIS</span> (tidak menyebut bulan) dan <span className="font-mono">UMURPIUTANG</span> (tidak menyebut unit).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Bulan Laporan (Opsional)
+                </label>
+                <input
+                  type="month"
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  disabled={uploading}
+                  aria-label="Pilihan bulan opsional"
+                  className={`${filterControlCls} w-full`}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Unit ULP / UP3 (Opsional)
+                </label>
+                <select
+                  value={selectedUnitId}
+                  onChange={(e) => setSelectedUnitId(e.target.value)}
+                  disabled={uploading}
+                  aria-label="Pilihan unit opsional"
+                  className={`${filterSelectCls} w-full`}
+                >
+                  <option value="">Otomatis (dari isi berkas / folder ZIP)</option>
+                  {up3Units.length > 0 && (
+                    <optgroup label="UP3">
+                      {up3Units.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.code ? `${u.code} - ${u.name}` : u.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {ulpUnits.length > 0 && (
+                    <optgroup label="ULP">
+                      {ulpUnits.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.code ? `${u.code} - ${u.name}` : u.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Indikator Kemajuan Upload Bertahap */}
+          {progress && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900/50 space-y-1.5">
+              <div className="flex justify-between text-xs font-semibold text-blue-900 dark:text-blue-200">
+                <span>{progress.message}</span>
+                <span>{progress.percent}%</span>
+              </div>
+              <div className="w-full bg-blue-200 dark:bg-blue-900/60 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress.percent}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {error && <Alert kind="error">{error}</Alert>}
 
           {results && results.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Hasil Pemrosesan Berkas ({results.length})
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Hasil Pemrosesan Berkas ({results.length})
+                </h3>
+                <span className="text-[11px] text-slate-500">
+                  {results.filter((r) => r.ok).length} Berhasil · {results.filter((r) => !r.ok).length} Gagal
+                </span>
+              </div>
               <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-500 border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="py-2 px-3">Nama Berkas</th>
                       <th className="py-2 px-3">Status</th>
-                      <th className="py-2 px-3">Keterangan</th>
+                      <th className="py-2 px-3">Jenis / Unit / Bulan</th>
+                      <th className="py-2 px-3">Keterangan / Galat</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {results.map((r, i) => (
                       <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                        <td className="py-2 px-3 font-mono text-[11px] text-slate-800 dark:text-slate-200 truncate max-w-xs">
-                          {r.name}
+                        <td className="py-2 px-3 font-mono text-[11px] text-slate-800 dark:text-slate-200 max-w-xs break-all">
+                          {r.name?.includes(' › ') ? (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block font-sans">{r.name.split(' › ')[0]} ›</span>
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">{r.name.split(' › ')[1]}</span>
+                            </div>
+                          ) : (
+                            r.name
+                          )}
                         </td>
                         <td className="py-2 px-3">
                           <StatusBadge status={r.ok ? r.status : 'GAGAL'} />
                         </td>
                         <td className="py-2 px-3 text-[11px] text-slate-600 dark:text-slate-400">
                           {r.ok ? (
-                            <>
-                              {r.family} · {r.period} · {r.lines ? `${r.lines} baris` : ''}
-                              {r.warnings && r.warnings.length > 0 && (
-                                <span className="text-amber-600 block">Peringatan: {r.warnings.join(', ')}</span>
-                              )}
-                            </>
+                            <div>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">{r.family}</span>
+                              {r.unit && <span className="text-slate-500"> · {r.unit}</span>}
+                              {r.period && <span className="font-mono text-slate-500"> · {r.period}</span>}
+                              {r.lines ? <span className="text-slate-400"> · {r.lines} baris</span> : ''}
+                            </div>
                           ) : (
-                            <span className="text-rose-600">{r.message}</span>
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-[11px]">
+                          {r.ok ? (
+                            r.warnings && r.warnings.length > 0 ? (
+                              <span className="text-amber-600 dark:text-amber-400">Peringatan: {r.warnings.join(', ')}</span>
+                            ) : (
+                              <span className="text-emerald-600 dark:text-emerald-400">Berhasil diproses</span>
+                            )
+                          ) : (
+                            <span className="text-rose-600 dark:text-rose-400">{r.message || 'Gagal diproses'}</span>
                           )}
                         </td>
                       </tr>
@@ -232,7 +475,7 @@ function UploadModal({ isOpen, onClose, onUploaded }) {
               Tutup
             </Button>
             <Button type="submit" variant="primary" loading={uploading} disabled={files.length === 0}>
-              Unggah Sekarang
+              {uploading ? (progress?.message || 'Mengunggah...') : `Unggah Sekarang (${files.length})`}
             </Button>
           </div>
         </form>
@@ -376,13 +619,396 @@ function FileLinesDrawer({ fileId, onClose }) {
   )
 }
 
+/** Tampilan Matriks Kelengkapan untuk Seluruh ULP di Bawah Satu UP3 */
+function Up3CoverageView({ data, onSelectUlp }) {
+  const [viewMode, setViewMode] = useState('summary') // 'summary' | 'matrix'
+  const [filterFamily, setFilterFamily] = useState('')
+
+  const expectedUntil = data.expected_until_month || 0
+  const expectedMonthName = expectedUntil > 0 ? MONTH_NAMES[expectedUntil - 1] : '-'
+  const pctComplete = data.expected_total > 0
+    ? Math.round(((data.expected_total - data.missing_total) / data.expected_total) * 100)
+    : 100
+
+  const familiesList = data.families_list || Object.keys(FAMILY_LABELS)
+  const filteredFamilies = filterFamily ? [filterFamily] : familiesList
+
+  return (
+    <div className="space-y-5">
+      {/* Header & KPI Summary */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-linear-to-r from-blue-50/50 via-indigo-50/30 to-white dark:from-slate-800/60 dark:via-slate-800/40 dark:to-slate-900 border border-blue-100 dark:border-slate-800 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+                Kelengkapan Laporan Semua ULP — {data.up3_name}
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                Tahun {data.year}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Kelengkapan 15 jenis laporan bulanan EIS dari seluruh ULP di bawah {data.up3_name}.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('summary')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                viewMode === 'summary'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              Ringkasan per ULP
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('matrix')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                viewMode === 'matrix'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              Matriks Rinci Semua ULP
+            </button>
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3.5 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+              Batas Bulan Diharapkan
+            </span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                s.d. Bulan {expectedMonthName} ({expectedUntil})
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              Bulan setelahnya belum jatuh tempo &amp; tidak dihitung kurang.
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+              Laporan Masuk (Realisasi)
+            </span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                {data.expected_total - data.missing_total} / {data.expected_total}
+              </span>
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                {pctComplete}%
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              Dari total berkas yang diharapkan s.d. bulan berjalan
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+              Laporan Belum Masuk
+            </span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className={`text-xl font-bold tabular-nums ${
+                data.missing_total === 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}>
+                {data.missing_total} berkas
+              </span>
+              {data.missing_total === 0 ? (
+                <span className="text-xs font-semibold text-emerald-600">Lengkap</span>
+              ) : (
+                <span className="text-xs font-semibold text-rose-600">Perlu Diunggah</span>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              {data.missing_total === 0
+                ? 'Seluruh ULP telah memenuhi berkas laporan.'
+                : 'Laporan yang perlu segera diunggah oleh ULP terkait.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Mode 1: Ringkasan per ULP */}
+      {viewMode === 'summary' && (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="py-2.5 px-4 w-48">Unit ULP</th>
+                <th className="py-2.5 px-3 w-36">Status</th>
+                <th className="py-2.5 px-4">Laporan Belum Masuk (Missing)</th>
+                <th className="py-2.5 px-3 text-right w-36">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {data.units.map((u) => {
+                const isComplete = u.missing_count === 0
+                return (
+                  <tr key={u.unit_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {u.unit_name}
+                      </div>
+                      <span className="font-mono text-[10px] text-slate-400">
+                        Kode: {u.unit_code}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3">
+                      {isComplete ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          <IconCheckCircle size={12} />
+                          Lengkap
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                          <IconAlertCircle size={12} />
+                          {u.missing_count} Kurang
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      {isComplete ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                          Seluruh laporan s.d. bulan {expectedMonthName} lengkap.
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                          {u.missing.map((m, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 font-mono"
+                            >
+                              {m.family} ({MONTH_NAMES[m.month - 1]})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        onClick={() => onSelectUlp(u.unit_id)}
+                      >
+                        Matriks ULP &rarr;
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Mode 2: Matriks Rinci Lengkap Semua ULP */}
+      {viewMode === 'matrix' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Matriks Baris ULP &times; Jenis Laporan per Bulan (Jan–Des)
+            </span>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-500">Filter Jenis:</label>
+              <select
+                value={filterFamily}
+                onChange={(e) => setFilterFamily(e.target.value)}
+                className={`${filterSelectCls} text-xs`}
+              >
+                <option value="">Semua Jenis Laporan ({familiesList.length})</option>
+                {familiesList.map((f) => (
+                  <option key={f} value={f}>{f} - {FAMILY_LABELS[f] || f}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 max-h-[70vh]">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-xs text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 z-10">
+                <tr>
+                  <th className="py-2.5 px-3 w-40">ULP</th>
+                  <th className="py-2.5 px-3 w-44">Jenis Laporan</th>
+                  {MONTH_NAMES.map((m, idx) => (
+                    <th key={idx} className="py-2.5 px-1.5 text-center w-10">{m}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {data.units.map((u) => {
+                  return filteredFamilies.map((fam, fIdx) => {
+                    const rowMonths = u.families?.[fam] || {}
+                    return (
+                      <tr key={`${u.unit_id}-${fam}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                        {fIdx === 0 && (
+                          <td
+                            rowSpan={filteredFamilies.length}
+                            className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100 align-top border-r border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30"
+                          >
+                            <div>{u.unit_name}</div>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              Kode {u.unit_code}
+                            </span>
+                            <div className="mt-2">
+                              {u.missing_count === 0 ? (
+                                <span className="text-[10px] text-emerald-600 font-semibold">Lengkap</span>
+                              ) : (
+                                <span className="text-[10px] text-rose-600 font-semibold">{u.missing_count} kurang</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                        <td className="py-2 px-3 font-medium text-slate-700 dark:text-slate-300">
+                          {fam}
+                          <span className="block text-[10px] text-slate-400 font-normal truncate max-w-[170px]" title={FAMILY_LABELS[fam]}>
+                            {FAMILY_LABELS[fam]}
+                          </span>
+                        </td>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((mNum) => {
+                          const isPresent = Boolean(rowMonths[mNum])
+                          const isExpected = mNum <= expectedUntil
+
+                          return (
+                            <td key={mNum} className="py-2 px-1 text-center">
+                              {isPresent ? (
+                                <span
+                                  className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]"
+                                  title={`Bulan ${mNum}: Berkas aktif tersedia`}
+                                >
+                                  ✓
+                                </span>
+                              ) : isExpected ? (
+                                <span
+                                  className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-[10px]"
+                                  title={`Bulan ${mNum}: Belum ada berkas (Kurang)`}
+                                >
+                                  !
+                                </span>
+                              ) : (
+                                <span
+                                  className="inline-block text-slate-300 dark:text-slate-600 text-[11px]"
+                                  title={`Bulan ${mNum}: Belum jatuh tempo`}
+                                >
+                                  —
+                                </span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Tampilan Matriks Kelengkapan untuk Satu ULP Spesifik */
+function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3 }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 flex-wrap gap-2">
+        <div>
+          <h3 className="font-bold text-slate-900 dark:text-slate-100">
+            Matriks Kelengkapan Laporan Tahun {data.year}
+          </h3>
+          <p className="text-xs text-slate-500">
+            Status keberadaan 15 jenis berkas laporan bulanan aktif (Januari - Desember) untuk unit terpilih.
+          </p>
+        </div>
+        {onBackToUp3 && (
+          <Button variant="secondary" size="xs" onClick={onBackToUp3}>
+            &larr; Kembali ke Ringkasan UP3
+          </Button>
+        )}
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+            <tr>
+              <th className="py-2.5 px-3">Jenis Laporan</th>
+              {MONTH_NAMES.map((m, idx) => (
+                <th key={idx} className="py-2.5 px-2 text-center w-12">{m}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {Object.keys(FAMILY_LABELS).map((fam) => {
+              const rowMonths = data?.families?.[fam] || {}
+              return (
+                <tr key={fam} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                  <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                    {fam}
+                    <span className="block text-[10px] font-normal text-slate-400">
+                      {FAMILY_LABELS[fam]}
+                    </span>
+                  </td>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((mNum) => {
+                    const isPresent = Boolean(rowMonths[mNum])
+                    const isExpected = mNum <= expectedUntil
+                    return (
+                      <td key={mNum} className="py-2.5 px-2 text-center">
+                        {isPresent ? (
+                          <span
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]"
+                            title="Berkas aktif tersedia"
+                          >
+                            ✓
+                          </span>
+                        ) : isExpected ? (
+                          <span
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-[10px]"
+                            title="Belum ada berkas (Kurang)"
+                          >
+                            !
+                          </span>
+                        ) : (
+                          <span className="inline-block text-slate-300 dark:text-slate-600 text-[11px]" title="Belum jatuh tempo">
+                            —
+                          </span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export default function EisReportsPage() {
   const { can } = useAccess()
   const canImport = Boolean(can?.['eis_reports.import'])
 
-  const [tab, setTab] = useState('files') // 'files' | 'coverage'
-  const [up3Id, setUp3Id] = useState('')
-  const [unitId, setUnitId] = useState('')
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') || 'files'
+  const initialUp3Id = searchParams.get('up3_id') || ''
+  const initialUnitId = searchParams.get('unit_id') || ''
+  const initialYear = Number(searchParams.get('year')) || new Date().getFullYear()
+
+  const [tab, setTab] = useState(initialTab)
+  const [up3Id, setUp3Id] = useState(initialUp3Id)
+  const [unitId, setUnitId] = useState(initialUnitId)
   const [family, setFamily] = useState('')
   const [fromMonth, setFromMonth] = useState('')
   const [toMonth, setToMonth] = useState('')
@@ -393,7 +1019,7 @@ export default function EisReportsPage() {
   // Data state
   const [filesState, setFilesState] = useState({ loading: true, error: '', rows: [], meta: null, families: [] })
   const [covState, setCovState] = useState({ loading: false, error: '', data: null })
-  const [covYear, setCovYear] = useState(new Date().getFullYear())
+  const [covYear, setCovYear] = useState(initialYear)
 
   // Modal / Drawer state
   const [isUploadOpen, setIsUploadOpen] = useState(false)
@@ -429,10 +1055,22 @@ export default function EisReportsPage() {
   }, [up3Id, unitId, family, fromMonth, toMonth, status, page, perPage])
 
   const loadCoverage = useCallback(async () => {
-    if (!unitId) return
+    const targetUnitId = unitId
+    const targetUp3Id = !unitId ? up3Id : undefined
+    if (!targetUnitId && !targetUp3Id) {
+      setCovState({ loading: false, error: '', data: null })
+      return
+    }
+
     setCovState({ loading: true, error: '', data: null })
     try {
-      const res = await eisReportsApi.coverage({ unit_id: unitId, year: covYear })
+      const params = { year: covYear }
+      if (targetUnitId) {
+        params.unit_id = targetUnitId
+      } else if (targetUp3Id) {
+        params.up3_id = targetUp3Id
+      }
+      const res = await eisReportsApi.coverage(params)
       setCovState({ loading: false, error: '', data: res?.data || null })
     } catch (err) {
       setCovState({
@@ -441,7 +1079,7 @@ export default function EisReportsPage() {
         data: null,
       })
     }
-  }, [unitId, covYear])
+  }, [unitId, up3Id, covYear])
 
   useEffect(() => {
     loadFiles()
@@ -776,75 +1414,37 @@ export default function EisReportsPage() {
       {/* Konten Tab 2: Matriks Kelengkapan */}
       {tab === 'coverage' && (
         <div className={`${CARD} p-5 space-y-4`}>
-          {!unitId ? (
+          {!unitId && !up3Id ? (
             <Alert kind="info">
               Pilih satu ULP atau UP3 pada bilah filter di atas untuk melihat matriks kelengkapan berkas tahun {covYear}.
             </Alert>
           ) : covState.loading ? (
             <div className="py-20 flex justify-center">
-              <Spinner size="lg" label="Memuat matriks kelengkapan unit..." />
+              <Spinner size="lg" label="Memuat matriks kelengkapan..." />
             </div>
           ) : covState.error ? (
             <Alert kind="error">{covState.error}</Alert>
           ) : !covState.data ? (
             <p className="text-center text-slate-500 text-xs py-10">Data tidak tersedia.</p>
+          ) : covState.data?.units ? (
+            <Up3CoverageView
+              data={covState.data}
+              onSelectUlp={(uid) => {
+                setUnitId(uid)
+              }}
+            />
           ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                    Matriks Kelengkapan Laporan Tahun {covYear}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Memeriksa keberadaan berkas laporan bulanan aktif (Januari - Desember) untuk unit terpilih.
-                  </p>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                    <tr>
-                      <th className="py-2.5 px-3">Jenis Laporan</th>
-                      {MONTH_NAMES.map((m, idx) => (
-                        <th key={idx} className="py-2.5 px-2 text-center w-12">{m}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {Object.keys(FAMILY_LABELS).map((fam) => {
-                      const rowMonths = covState.data?.families?.[fam] || {}
-                      return (
-                        <tr key={fam} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                          <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                            {fam}
-                            <span className="block text-[10px] font-normal text-slate-400">
-                              {FAMILY_LABELS[fam]}
-                            </span>
-                          </td>
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map((mNum) => {
-                            const isPresent = Boolean(rowMonths[mNum])
-                            return (
-                              <td key={mNum} className="py-2.5 px-2 text-center">
-                                {isPresent ? (
-                                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]" title="Berkas aktif tersedia">
-                                    ✓
-                                  </span>
-                                ) : (
-                                  <span className="inline-block text-slate-300 dark:text-slate-600 text-[11px]" title="Belum ada berkas">
-                                    —
-                                  </span>
-                                )}
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <SingleUnitCoverageView
+              data={covState.data}
+              expectedUntil={
+                covYear < new Date().getFullYear()
+                  ? 12
+                  : covYear === new Date().getFullYear()
+                  ? Math.max(0, new Date().getMonth())
+                  : 0
+              }
+              onBackToUp3={up3Id ? () => setUnitId('') : null}
+            />
           )}
         </div>
       )}

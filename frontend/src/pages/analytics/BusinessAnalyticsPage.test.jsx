@@ -15,6 +15,29 @@ vi.mock('../../services/api.js', () => ({
     inputs: vi.fn(),
     saveInputs: vi.fn(),
   },
+  outageApi: {
+    analysis: vi.fn().mockResolvedValue({
+      data: {
+        coverage: { events: 10, unmatched_feeder_events: 0 },
+        kpi: {
+          last_full_month: '2026-03',
+          l12m: { events: 10, permanent: 6, temporary: 4, ens_kwh: 1200, saifi: 0.12, saidi: 4.5 },
+          prev12m: { events: 12, permanent: 8, temporary: 4, ens_kwh: 1500, saifi: 0.15, saidi: 5.2 },
+          change_pct: { events: -16.7, permanent: -25.0, temporary: 0, ens_kwh: -20.0, saifi: -20.0, saidi: -13.5 },
+        },
+        monthly: [],
+        yearly: [],
+        by_cause: [],
+        by_weather: [],
+        by_device: [],
+        by_hour: [],
+        by_feeder: [],
+        settings: { saidi_min_minutes: 5, saidi_only_permanent: false },
+        notes: [],
+      },
+    }),
+    downloadAnalysisXlsx: vi.fn(),
+  },
   unitScopeApi: {
     get: vi.fn().mockResolvedValue({
       data: {
@@ -428,5 +451,62 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getAllByText('Kogol 2 (Rumah Tangga)').length).toBeGreaterThan(0)
     expect(screen.getAllByText('< 30 Hari').length).toBeGreaterThan(0)
     expect(screen.getAllByText('> 90 Hari').length).toBeGreaterThan(0)
+  })
+
+  it('mendukung tab sub-analisis gangguan dan integrasi APKT saat membuka metrik gangguan penyulang', async () => {
+    const user = userEvent.setup()
+    const gangguanCatalog = {
+      data: {
+        units: [{ id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3', parent_id: null }],
+        metrics: [
+          {
+            code: 'gangguan',
+            name: 'Gangguan Penyulang',
+            source: 'EIS DIFI',
+            polarity: 'down',
+            available: true,
+            series: [{ key: 'gangguan', name: 'Kali Gangguan', unit: 'kali' }],
+          },
+        ],
+      },
+    }
+
+    const gangguanDetail = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: {
+          code: 'gangguan',
+          name: 'Gangguan Penyulang',
+          source: 'EIS DIFI',
+          polarity: 'down',
+        },
+        months: ['2026-03'],
+        from: '2026-03',
+        to: '2026-03',
+        latest_period: '2026-03',
+        series: [{ key: 'gangguan', name: 'Kali Gangguan', unit: 'kali' }],
+        series_data: {
+          gangguan: { current: [12], previous: [15] },
+        },
+        summary: [{ key: 'gangguan', name: 'Kali Gangguan', unit: 'kali', latest: 12, yoy_pct: -20 }],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(gangguanCatalog)
+    pengusahaanApi.metric.mockResolvedValue(gangguanDetail)
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/gangguan'])
+
+    // Terdapat sub-tab untuk Laporan EIS, Rincian APKT, Penyulang & Gardu, dan Prakiraan
+    expect(await screen.findByText('Tren & Analisis (Laporan EIS)')).toBeInTheDocument()
+    expect(screen.getByText('Rincian Gangguan (APKT)')).toBeInTheDocument()
+    expect(screen.getByText('Penyulang & Gardu')).toBeInTheDocument()
+    expect(screen.getByText('Prakiraan Gangguan')).toBeInTheDocument()
+
+    // Klik tab Rincian Gangguan (APKT)
+    await user.click(screen.getByText('Rincian Gangguan (APKT)'))
+
+    // OutageAnalysisContent ter-render
+    expect(await screen.findByText(/Gangguan 12 bln terakhir/i)).toBeInTheDocument()
   })
 })
