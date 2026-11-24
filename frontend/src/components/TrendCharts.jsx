@@ -372,6 +372,7 @@ export function YearlyComparisonChart({
   unit = '',
   initialMode = 'line',
   showModeSwitch = true,
+  defaultCompareTwoYears = false,
   className = '',
 }) {
   const [ref, width] = useWidth()
@@ -400,6 +401,17 @@ export function YearlyComparisonChart({
   }, [data, valueKey, getValue])
 
   const allYears = useMemo(() => Object.keys(yearMap).map(Number).sort((a, b) => a - b), [yearMap])
+
+  // Inisialisasi hiddenYears jika defaultCompareTwoYears aktif (hanya tampilkan 2 tahun terakhir)
+  useEffect(() => {
+    if (defaultCompareTwoYears && allYears.length > 2) {
+      const desc = [...allYears].sort((a, b) => b - a)
+      const keep = new Set(desc.slice(0, 2))
+      const toHide = new Set(allYears.filter((y) => !keep.has(y)))
+      setHiddenYears(toHide)
+    }
+  }, [defaultCompareTwoYears, allYears])
+
   const activeYears = useMemo(() => allYears.filter((y) => !hiddenYears.has(y)), [allYears, hiddenYears])
 
   // Pemetaan warna tahun: tahun terbaru mendapat warna primer (#2563eb), tahun sebelumnya warna kontras lain

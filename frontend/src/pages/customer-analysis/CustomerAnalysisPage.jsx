@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { reportsApi, pengusahaanApi, triggerFileDownload } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
-import { useScopedUnits } from '../../utils/unitScope.js'
+import { useScopedUnits, useUnitScope } from '../../utils/unitScope.js'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -20,6 +20,7 @@ import {
   ColumnChart,
   DivergingColumns,
   RankedBars,
+  YearlyComparisonChart,
   fmtInt,
   fmtNum,
   fmtPct,
@@ -30,8 +31,8 @@ import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { buildInsights } from './insights.js'
 
 const TABS = [
-  { key: 'trend', label: 'Tren & analisis', hint: 'Realisasi penambahan pelanggan dan daya', cap: 'reports.view' },
-  { key: 'forecast', label: 'Prakiraan pelanggan & daya', hint: 'Sambungan baru per ULP, 12 bulan ke depan', cap: 'forecast.view' },
+  { key: 'trend', label: 'Tren & analisis', hint: 'Realisasi penambahan pelanggan baru', cap: 'reports.view' },
+  { key: 'forecast', label: 'Prakiraan pelanggan', hint: 'Sambungan baru per ULP, 12 bulan ke depan', cap: 'forecast.view' },
 ]
 
 const card = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs'
@@ -113,20 +114,25 @@ export function CustomerAnalysisContent({
   const [state, setState] = useState({ loading: true, error: '', data: null, metric309: null })
   const [exporting, setExporting] = useState(false)
 
+  // Selesaikan unit default berdasarkan peran pengguna (sysadmin: semua, UP3/ULP terkunci/default ke unitnya)
+  const scopeResolution = useUnitScope(scopedUnitsInfo, up3Id, unitId)
+  const effectiveUp3Id = scopeResolution.up3Value || up3Id
+  const effectiveUnitId = scopeResolution.ulpValue || unitId
+
   const params = useMemo(
     () => ({
       from: fromM ? `${fromM}-01` : undefined,
       to: toM ? lastDay(toM) : undefined,
-      up3_id: up3Id || undefined,
-      unit_id: unitId || undefined,
+      up3_id: effectiveUp3Id || undefined,
+      unit_id: effectiveUnitId || undefined,
     }),
-    [fromM, toM, up3Id, unitId]
+    [fromM, toM, effectiveUp3Id, effectiveUnitId]
   )
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: '' }))
     try {
-      const targetUnitId = unitId || up3Id || scopedUnitsInfo?.up3_units?.[0]?.id || scopedUnitsInfo?.ulp_units?.[0]?.id
+      const targetUnitId = effectiveUnitId || effectiveUp3Id || scopedUnitsInfo?.up3_units?.[0]?.id || scopedUnitsInfo?.ulp_units?.[0]?.id
       const growthPromise = reportsApi.customerGrowth(params)
       const metric309Promise = targetUnitId && pengusahaanApi?.metric
         ? pengusahaanApi.metric('pelanggan', {
@@ -147,11 +153,11 @@ export function CustomerAnalysisContent({
       setState((s) => ({
         ...s,
         loading: false,
-        error: err?.message || 'Gagal memuat analisis pelanggan dan daya.',
+        error: err?.message || 'Gagal memuat analisis pelanggan.',
         data: null,
       }))
     }
-  }, [params, unitId, up3Id, scopedUnitsInfo, fromM, toM])
+  }, [params, effectiveUnitId, effectiveUp3Id, scopedUnitsInfo, fromM, toM])
 
   useEffect(() => {
     if (activeTab === 'trend' && (can[permission] || can['reports.view'] || can['pengusahaan.view'])) load()
@@ -192,7 +198,7 @@ export function CustomerAnalysisContent({
                   </span>
                 </div>
                 <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                  Realisasi jumlah pelanggan dari Laporan 309 dan penambahan pelanggan baru (PB) serta perubahan daya (PD) dari Permohonan EIS per bulan dan tahun, komposisi tarif, perbandingan antar ULP, pola musiman, serta prakiraan 12 bulan ke depan.
+                  Realisasi jumlah pelanggan dari Laporan 309 dan penambahan pelanggan baru (PB) dari Permohonan EIS per bulan dan tahun, komposisi tarif, perbandingan antar ULP, pola musiman, serta prakiraan 12 bulan ke depan.
                 </p>
               </div>
             </div>
@@ -239,7 +245,7 @@ export function CustomerAnalysisContent({
 
       {/* 3. Konten Tab */}
       {activeTab === 'forecast' && can['forecast.view'] && (
-        <DemandForecast key="customers" kinds={['CUSTOMERS_ADDED', 'VA_ADDED']} onSelectMaterial={() => {}} />
+        <DemandForecast key="customers" kinds={['CUSTOMERS_ADDED']} onSelectMaterial={() => {}} />
       )}
       {activeTab === 'trend' && (can[permission] || can['reports.view'] || can['pengusahaan.view']) && (
         <TrendTab
@@ -266,18 +272,6 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
   const insights = useMemo(() => buildInsights(d), [d])
   const monthly = d?.monthly || []
 
-  const pbData = monthly.map((m) => ({
-    key: m.month,
-    label: monthLabel(m.month),
-    value: m.pb_count,
-    partial: m.partial,
-    lines: [
-      `Daya: ${fmtNum(m.pb_kva)} kVA`,
-      `MoM ${fmtPct(m.mom_pct)} · YoY ${fmtPct(m.yoy_pct)}`,
-      `Permohonan PB masuk: ${fmtInt(m.requests_pb)}`,
-    ],
-  }))
-
   const deltaMonthly = monthly.map((m, idx) => {
     const prev = monthly[idx - 1]
     const deltaVal = prev ? m.pb_count - prev.pb_count : 0
@@ -294,29 +288,6 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
       ],
     }
   })
-
-  const kvaData = monthly.map((m) => ({
-    key: m.month,
-    label: monthLabel(m.month),
-    value: m.pb_kva,
-    partial: m.partial,
-    lines: [
-      `${fmtInt(m.pb_count)} PB`,
-      m.avg_kva_per_pb ? `Rata-rata ${fmtNum(m.avg_kva_per_pb, 2)} kVA/PB` : 'Tanpa PB',
-    ],
-  }))
-
-  const pdData = monthly.map((m) => ({
-    key: m.month,
-    label: monthLabel(m.month),
-    up: m.pd_up_kva,
-    down: m.pd_down_kva,
-    partial: m.partial,
-    lines: [
-      `Neto ${fmtNum(m.pd_net_kva)} kVA`,
-      `${fmtInt(m.pd_up_count)} naik · ${fmtInt(m.pd_down_count)} turun · ${fmtInt(m.pd_same_count)} tarif saja`,
-    ],
-  }))
 
   const seasonal = (d?.seasonality?.months || []).map((s) => ({
     key: s.month,
@@ -440,14 +411,10 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
               colorClass="text-indigo-500"
             />
             <Tile
-              label="Tambahan daya PB, 12 bulan"
-              value={`${fmtInt(k.l12m?.pb_kva)} kVA`}
-              delta={
-                k.prev12m && k.prev12m.pb_kva > 0
-                  ? ((k.l12m.pb_kva - k.prev12m.pb_kva) / k.prev12m.pb_kva) * 100
-                  : undefined
-              }
-              sub={`Rata-rata ${fmtNum(k.avg_kva_per_pb, 2)} kVA/PB · PD neto ${fmtInt(k.l12m?.pd_net_kva)} kVA`}
+              label="Rata-rata pasang baru bulanan"
+              value={k.l12m?.pb_count ? `${fmtInt(Math.round(k.l12m.pb_count / 12))} PB/bln` : '-'}
+              delta={k.l12m_growth_pct}
+              sub={k.prev12m ? `12 bln lalu ${fmtInt(Math.round(k.prev12m.pb_count / 12))} PB/bln` : '12 bulan terakhir'}
               icon={IconActivity}
               colorClass="text-purple-500"
             />
@@ -459,15 +426,21 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
             </p>
           )}
 
-          {/* 1. Pelanggan baru (PB) per bulan */}
+          {/* 1. Pelanggan baru (PB) per bulan (Perbandingan Tahunan 12 Bulan) */}
           <Section
             title="Pelanggan baru (PB) per bulan"
-            hint="Sambungan baru yang selesai tiap bulan dari Permohonan EIS. Sorot batang untuk rincian, pertumbuhan MoM dan YoY."
+            hint="Perbandingan sambungan baru tiap bulan (Jan–Des) antar tahun dari Permohonan EIS. Memuat seluruh data historis, bawaan menampilkan tahun berjalan dibandingkan tahun sebelumnya (YoY). Sorot bulan atau titik data untuk melihat rincian angka."
           >
-            <ColumnChart data={pbData} ariaLabel="Grafik jumlah pelanggan baru per bulan" unit="PB" />
+            <YearlyComparisonChart
+              data={monthly}
+              valueKey="pb_count"
+              unit="PB"
+              ariaLabel="Grafik perbandingan tahunan pelanggan baru 12 bulan"
+              defaultCompareTwoYears={true}
+            />
           </Section>
 
-          {/* 2. Delta pelanggan bulanan & Perubahan daya */}
+          {/* 2. Delta pelanggan bulanan */}
           <Section
             title="Delta pelanggan bulanan"
             hint="Perubahan penambahan pelanggan baru (PB) dibandingkan bulan sebelumnya (MoM). Hijau di atas nol menandakan kenaikan PB dibanding bulan lalu."
@@ -481,51 +454,19 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
             />
           </Section>
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Section
-              title="Tambahan daya dari PB per bulan (kVA)"
-              hint="Daya sambungan baru; dibaca terpisah dari jumlah pelanggan karena daya per sambungan berubah dari tahun ke tahun."
-            >
-              <ColumnChart
-                data={kvaData}
-                color="var(--viz-s2)"
-                format={fmtInt}
-                ariaLabel="Grafik tambahan daya PB per bulan"
-                unit="kVA"
-              />
-            </Section>
-
-            <Section
-              title="Perubahan daya (PD) per bulan (kVA)"
-              hint="Naik daya di atas garis nol, turun daya di bawahnya. Perubahan tarif saja tidak tergambar."
-            >
-              <DivergingColumns
-                data={pdData}
-                upLabel="Naik daya"
-                downLabel="Turun daya"
-                ariaLabel="Grafik perubahan daya per bulan"
-                unit="kVA"
-              />
-            </Section>
-          </div>
-
           {/* 3. Ringkasan per tahun */}
           <Section
             title="Ringkasan per tahun"
             hint="Pertumbuhan tahunan hanya dihitung untuk tahun yang lengkap 12 bulan dan berurutan."
           >
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-              <table className="w-full min-w-176 text-left text-sm">
-                <caption className="sr-only">Ringkasan penambahan pelanggan dan daya per tahun</caption>
+              <table className="w-full min-w-140 text-left text-sm">
+                <caption className="sr-only">Ringkasan penambahan pelanggan per tahun</caption>
                 <thead className="bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/80">
                   <tr>
                     <th className="py-2.5 px-3">Tahun</th>
                     <th className="px-3 text-right">PB</th>
                     <th className="px-3 text-right">Pertumbuhan PB</th>
-                    <th className="px-3 text-right">Daya PB (kVA)</th>
-                    <th className="px-3 text-right">Pertumbuhan daya</th>
-                    <th className="px-3 text-right">kVA/PB</th>
-                    <th className="px-3 text-right">PD neto (kVA)</th>
                     <th className="px-3 text-right">Permohonan PB masuk</th>
                     <th className="px-3 text-right">Batal + restitusi</th>
                   </tr>
@@ -545,12 +486,6 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                       <td className="px-3 text-right">
                         <Delta value={y.yoy_pct} />
                       </td>
-                      <td className="px-3 text-right tabular-nums">{fmtInt(y.pb_kva)}</td>
-                      <td className="px-3 text-right">
-                        <Delta value={y.yoy_kva_pct} />
-                      </td>
-                      <td className="px-3 text-right tabular-nums">{fmtNum(y.avg_kva_per_pb, 2)}</td>
-                      <td className="px-3 text-right tabular-nums">{fmtInt(y.pd_net_kva)}</td>
                       <td className="px-3 text-right tabular-nums">{fmtInt(y.requests_pb)}</td>
                       <td className="px-3 text-right tabular-nums">{fmtInt(y.cancelled + y.refunded)}</td>
                     </tr>
@@ -573,7 +508,6 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                   label: g.group,
                   value: g.count,
                   text: `${fmtInt(g.count)} · ${fmtNum(g.share_pct)}%`,
-                  sub: `${fmtNum(g.kva, 0)} kVA, rata-rata ${fmtNum(g.avg_kva, 2)} kVA`,
                 }))}
               />
             </Section>
@@ -618,8 +552,7 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                         <th className="py-1.5 px-2">Tarif</th>
                         <th className="px-2">Kelompok</th>
                         <th className="px-2 text-right">PB</th>
-                        <th className="px-2 text-right">Daya (kVA)</th>
-                        <th className="px-2 text-right">kVA/PB</th>
+                        <th className="px-2 text-right">Porsi (%)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -628,8 +561,7 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                           <td className="py-1.5 px-2 font-mono font-semibold">{c.tariff}</td>
                           <td className="px-2">{c.group}</td>
                           <td className="px-2 text-right tabular-nums">{fmtInt(c.count)}</td>
-                          <td className="px-2 text-right tabular-nums">{fmtInt(c.kva)}</td>
-                          <td className="px-2 text-right tabular-nums">{fmtNum(c.avg_kva, 2)}</td>
+                          <td className="px-2 text-right tabular-nums">{fmtNum(c.share_pct, 1)}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -683,7 +615,7 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
               }))}
             />
             <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-              <table className="w-full min-w-240 text-left text-sm">
+              <table className="w-full min-w-200 text-left text-sm">
                 <caption className="sr-only">Penambahan pelanggan baru per ULP, per tahun</caption>
                 <thead className="bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/80">
                   <tr>
@@ -697,9 +629,6 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                     <th className="px-3 text-right">Total periode</th>
                     <th className="px-3 text-right">Rata-rata/tahun</th>
                     <th className="px-3 text-right">12 bulan terakhir</th>
-                    <th className="px-3 text-right">Daya 12 bln (kVA)</th>
-                    <th className="px-3 text-right">kVA/PB</th>
-                    <th className="px-3 text-right">PD neto (kVA)</th>
                     <th className="px-3 text-right">Basis aktif DIL</th>
                     <th className="px-3 text-right">12 bulan / basis</th>
                   </tr>
@@ -718,9 +647,6 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                       <td className="px-3 text-right tabular-nums">{fmtInt(u.pb_count)}</td>
                       <td className="px-3 text-right tabular-nums">{fmtInt(u.avg_pb_per_year)}</td>
                       <td className="px-3 text-right font-semibold tabular-nums">{fmtInt(u.l12m_pb)}</td>
-                      <td className="px-3 text-right tabular-nums">{fmtInt(u.l12m_kva)}</td>
-                      <td className="px-3 text-right tabular-nums">{fmtNum(u.avg_kva_per_pb, 2)}</td>
-                      <td className="px-3 text-right tabular-nums">{fmtInt(u.pd_net_kva)}</td>
                       <td className="px-3 text-right tabular-nums">{fmtInt(u.base_customers)}</td>
                       <td className="px-3 text-right tabular-nums">
                         {u.l12m_vs_base_pct === null ? '-' : `${fmtNum(u.l12m_vs_base_pct, 2)}%`}
@@ -772,19 +698,14 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                 Tampilkan tabel {monthly.length} bulan
               </summary>
               <div className="mt-3.5 max-h-96 overflow-auto rounded-lg border border-slate-200 dark:border-slate-800">
-                <table className="w-full min-w-208 text-left text-sm">
-                  <caption className="sr-only">Penambahan pelanggan dan daya per bulan</caption>
+                <table className="w-full min-w-160 text-left text-sm">
+                  <caption className="sr-only">Penambahan pelanggan per bulan</caption>
                   <thead className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-xs text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/80">
                     <tr>
                       <th className="py-2 px-3">Bulan</th>
                       <th className="px-3 text-right">PB</th>
-                      <th className="px-3 text-right">Daya PB (kVA)</th>
-                      <th className="px-3 text-right">kVA/PB</th>
                       <th className="px-3 text-right">MoM</th>
                       <th className="px-3 text-right">YoY</th>
-                      <th className="px-3 text-right">PD naik</th>
-                      <th className="px-3 text-right">PD turun</th>
-                      <th className="px-3 text-right">PD neto (kVA)</th>
                       <th className="px-3 text-right">Mohon PB</th>
                       <th className="px-3 text-right">Batal</th>
                       <th className="px-3 text-right">Restitusi</th>
@@ -802,13 +723,8 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
                           ) : null}
                         </td>
                         <td className="px-3 text-right tabular-nums">{fmtInt(m.pb_count)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtNum(m.pb_kva)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtNum(m.avg_kva_per_pb, 2)}</td>
                         <td className="px-3 text-right tabular-nums">{fmtPct(m.mom_pct)}</td>
                         <td className="px-3 text-right tabular-nums">{fmtPct(m.yoy_pct)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtInt(m.pd_up_count)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtInt(m.pd_down_count)}</td>
-                        <td className="px-3 text-right tabular-nums">{fmtNum(m.pd_net_kva)}</td>
                         <td className="px-3 text-right tabular-nums">{fmtInt(m.requests_pb)}</td>
                         <td className="px-3 text-right tabular-nums">{fmtInt(m.cancelled)}</td>
                         <td className="px-3 text-right tabular-nums">{fmtInt(m.refunded)}</td>
@@ -848,7 +764,7 @@ function TrendTab({ state, filters, onExport, exporting, onRetry, permission = '
           {/* 11. Catatan Data */}
           <Section title="Catatan data">
             <ul className="list-disc space-y-1.5 pl-5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              <li>Data pelanggan mencakup akumulasi jumlah pelanggan dari Laporan 309 dan realisasi penambahan pelanggan baru (PB) serta perubahan daya (PD) dari Permohonan EIS (status PEREMAJAAN).</li>
+              <li>Data pelanggan mencakup akumulasi jumlah pelanggan dari Laporan 309 dan realisasi penambahan pelanggan baru (PB) dari Permohonan EIS (status PEREMAJAAN).</li>
               {d.notes.map((n) => (
                 <li key={n}>{n}</li>
               ))}

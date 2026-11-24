@@ -557,7 +557,7 @@ describe('BusinessAnalyticsPage', () => {
     // 4 Card Statistik
     expect(screen.getByText('Jumlah pelanggan (Laporan 309)')).toBeInTheDocument()
     expect(screen.getByText('Pelanggan baru, 12 bulan terakhir')).toBeInTheDocument()
-    expect(screen.getByText('Tambahan daya PB, 12 bulan')).toBeInTheDocument()
+    expect(screen.getByText('Rata-rata pasang baru bulanan')).toBeInTheDocument()
 
     // Body: delta pelanggan bulanan, PB per bulan, ringkasan per tahun, temuan
     expect(screen.getByText('Pelanggan baru (PB) per bulan')).toBeInTheDocument()

@@ -54,7 +54,6 @@ describe('buildInsights', () => {
   it('menyusun temuan hanya dari angka yang ada dan tanpa klaim penyebab', () => {
     const texts = buildInsights({ ...PAYLOAD, yearly: [{ ...PAYLOAD.yearly[0], year: 2024, avg_kva_per_pb: 1.9, pb_count: 300, pb_kva: 570 }, PAYLOAD.yearly[0]] }).map((i) => i.text)
     expect(texts.some((t) => /12 bulan terakhir .*400 pelanggan baru, \+25,0%/.test(t))).toBe(true)
-    expect(texts.some((t) => /Daya rata-rata per pelanggan baru naik dari 1,90 kVA \(2024\) menjadi 2,81 kVA \(2025\)/.test(t))).toBe(true)
     expect(texts.some((t) => /puncak Desember \(indeks 1,40\)/.test(t))).toBe(true)
     expect(texts.some((t) => /ULP Jombang paling banyak menambah pelanggan baru dalam 12 bulan terakhir \(60 PB/.test(t))).toBe(true)
     expect(texts.some((t) => /Bulan menyimpang terbaru: Des 2025/.test(t) || /menyimpang terbaru/.test(t))).toBe(true)
@@ -65,7 +64,7 @@ describe('buildInsights', () => {
   })
 })
 
-describe('Analisis Pelanggan & Daya', () => {
+describe('Analisis Pelanggan', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     reportsApi.customerGrowth.mockResolvedValue({ data: PAYLOAD })
@@ -94,10 +93,11 @@ describe('Analisis Pelanggan & Daya', () => {
     expect(await screen.findByText('Pelanggan baru, 12 bulan terakhir')).toBeInTheDocument()
     expect(screen.getByText('400')).toBeInTheDocument()
     expect(screen.getByText('Jumlah pelanggan (Laporan 309)')).toBeInTheDocument()
+    expect(screen.getByText('Rata-rata pasang baru bulanan')).toBeInTheDocument()
     expect(screen.getAllByText(/\+25,0%/).length).toBeGreaterThan(0)
     expect(screen.getByText('Delta pelanggan bulanan')).toBeInTheDocument()
     expect(screen.getByText('Temuan')).toBeInTheDocument()
-    const yearly = screen.getByRole('table', { name: /Ringkasan penambahan pelanggan dan daya per tahun/ })
+    const yearly = screen.getByRole('table', { name: /Ringkasan penambahan pelanggan per tahun/ })
     expect(within(yearly).getByText('2026')).toBeInTheDocument()
     expect(within(yearly).getByText('(3 bulan)')).toBeInTheDocument()                          // an incomplete year says so
     expect(screen.getByText('Komposisi tarif pelanggan baru')).toBeInTheDocument()
@@ -110,9 +110,8 @@ describe('Analisis Pelanggan & Daya', () => {
     expect(screen.getByText('Bulan yang menyimpang')).toBeInTheDocument()
     expect(screen.getByText(/Penambahan dihitung dari permohonan yang sudah tersambung/)).toBeInTheDocument()
     expect(screen.getByText(/Bulan Nov 2026 masih berjalan/)).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Grafik jumlah pelanggan baru per bulan' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Grafik perubahan daya per bulan' })).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: /Penambahan pelanggan dan daya per bulan/, hidden: true })).toBeInTheDocument()   // the table view of the charts
+    expect(screen.getByRole('img', { name: 'Grafik perbandingan tahunan pelanggan baru 12 bulan' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: /Penambahan pelanggan per bulan/, hidden: true })).toBeInTheDocument()   // the table view of the charts
   })
 
   it('filter periode dan unit dikirim ke server dan ULP menyempit ke UP3 terpilih', async () => {
@@ -139,13 +138,11 @@ describe('Analisis Pelanggan & Daya', () => {
     expect(triggerFileDownload).toHaveBeenCalledWith(expect.any(Blob), 'ANALISIS.xlsx')
   })
 
-  it('tab prakiraan memuat forecast pelanggan dan daya (pindahan dari menu Forecasting)', async () => {
+  it('tab prakiraan memuat forecast pelanggan (pindahan dari menu Forecasting)', async () => {
     renderPage()
     await screen.findByText('Pelanggan baru, 12 bulan terakhir')
-    await userEvent.click(screen.getByRole('tab', { name: 'Prakiraan pelanggan & daya' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Prakiraan pelanggan' }))
     expect(await screen.findByText('Pelanggan baru (permohonan PB)', { selector: 'h3' })).toBeInTheDocument()
-    await userEvent.selectOptions(screen.getByLabelText('Yang diprakirakan'), 'VA_ADDED')
-    await waitFor(() => expect(forecastApi.series).toHaveBeenLastCalledWith('d-1', expect.objectContaining({ kind: 'VA_ADDED' })))
   })
 
   it('tab mengikuti izin: hanya forecast.view membuka prakiraan, hanya reports.view membuka tren', async () => {
@@ -156,6 +153,6 @@ describe('Analisis Pelanggan & Daya', () => {
     unmount()
     renderPage({ 'reports.view': true })
     expect(await screen.findByText('Pelanggan baru, 12 bulan terakhir')).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Prakiraan pelanggan & daya' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Prakiraan pelanggan' })).not.toBeInTheDocument()
   })
 })
