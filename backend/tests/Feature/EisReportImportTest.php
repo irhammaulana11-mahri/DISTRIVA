@@ -148,6 +148,19 @@ class EisReportImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function a_unit_written_with_another_name_in_the_content_is_matched_through_the_alias_list(): void
+    {
+        $mojokerto = $this->makeUnit('ULP', $this->up3);
+        $mojokerto->forceFill(['code' => '51452', 'name' => 'ULP Mojokerto'])->save();
+
+        $r = $this->service()->import($this->report309('ULP MOJOKERTO UTARA'), '309.xls', null, null, ['unit_code' => '51452']);
+        $this->assertSame(['ULP Mojokerto', '2026-04'], [$r['unit'], $r['period']]);
+
+        $r = $this->service()->import($this->report309('ULP MOJOKERTO UTARA', 'Mei 2026'), '309-51452-052026.xls');
+        $this->assertSame('ULP Mojokerto', $r['unit']);
+    }
+
+    #[Test]
     public function an_actor_outside_the_unit_scope_cannot_import_for_that_unit(): void
     {
         $this->expectException(EisReportException::class);

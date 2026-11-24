@@ -64,10 +64,20 @@ class EisReportImportService
      * @param  array<string,mixed>  $parsed
      * @return array{0:object,1:list<string>}
      */
+    /** Nama unit di isi berkas AP2T/EIS yang berbeda dari master (kunci huruf besar, tanpa awalan jenis unit): isi => nama master. */
+    private const NAME_ALIASES = [
+        'ULP MOJOKERTO UTARA' => 'ULP Mojokerto',
+    ];
+
     private function resolveUnit(array $parsed): array
     {
         $units = DB::table('organizational_units')->where('is_active', true)->get(['id', 'code', 'name', 'unit_type', 'parent_id']);
-        $byName = fn (string $n) => $units->first(fn ($u) => mb_strtolower($u->name) === mb_strtolower($n));
+        $byName = function (string $n) use ($units) {
+            $n = mb_strtolower($n);
+            $n = mb_strtolower(self::NAME_ALIASES[strtoupper($n)] ?? $n);
+
+            return $units->first(fn ($u) => mb_strtolower($u->name) === $n);
+        };
         $ulp = $parsed['content_units']['ULP'] === null ? null : $byName('ULP '.$parsed['content_units']['ULP']);
         $up3 = $parsed['content_units']['UP3'] === null ? null : $byName('UP3 '.$parsed['content_units']['UP3']);
         $file = $parsed['file_unit_code'] === null ? null : $units->first(fn ($u) => strcasecmp($u->code, $parsed['file_unit_code']) === 0);

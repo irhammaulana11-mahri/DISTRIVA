@@ -2,8 +2,8 @@
  * DISTRIVA — ambil laporan 309 (Penjualan Tenaga Listrik versi pusat TOTAL) dari AP2T, per ULP per bulan, menjadi satu ZIP.
  *
  * PAKAI
- *  1. Login ke AP2T seperti biasa (dengan program enkripsi) dan biarkan halaman AP2T terbuka. Skrip ini TIDAK login dan TIDAK menyentuh password:
- *     ia hanya memakai sesi peramban Anda yang sudah login, ke alamat AP2T yang sama (same-origin).
+ *  1. Login ke AP2T seperti biasa (dengan program enkripsi) dan biarkan halaman AP2T terbuka. Wajib: tanpa sesi login AP2T tetap membuat Excel tetapi KOSONG.
+ *     Skrip ini TIDAK login dan TIDAK menyentuh password: ia hanya memakai sesi peramban Anda yang sudah login, ke alamat AP2T yang sama (same-origin).
  *  2. Tekan F12 -> tab Console -> tempel seluruh isi berkas ini -> Enter. Isi USER ID AP2T Anda saat ditanya (hanya dipakai pada permintaan ke AP2T, tidak disimpan).
  *  3. Pertama kali berjalan dalam mode UJI (satu ULP, satu bulan). Bila berhasil dan ZIP terunduh, ubah UJI menjadi false untuk semua ULP.
  *  4. Unggah ZIP di DISTRIVA (Master Data > Laporan EIS > Unggah). Folder "ULP/BULAN" di dalam ZIP dibaca otomatis; jenis, ULP, dan bulan dikonfirmasi dari isi berkas.
@@ -17,6 +17,7 @@
     dari: null,                      // 'YYYY-MM'; null = bulan lalu
     sampai: null,                    // 'YYYY-MM'; null = sama dengan "dari"
     up3: '51MJK', upi: '51', jenis: 'TOTAL', pembukuan: 'plus',
+    minByte: 20000,                  // Excel 309 asli sekitar 45 KB; lebih kecil dari ini = kosong (biasanya sesi belum login)
     jedaMs: 1500,                    // jeda antar permintaan supaya tidak membebani AP2T
     ulp: { '51450': 'MOJOAGUNG', '51452': 'MOJOKERTO', '51453': 'JOMBANG', '51454': 'NGORO', '51455': 'PLOSO', '51456': 'MOJOSARI', '51457': 'PACET', '51458': 'KERTOSONO', '51459': 'WARUJAYENG', '51460': 'NGANJUK' },
   };
@@ -75,6 +76,8 @@
     if (!rep.ok || !(xls || xlsx)) {
       throw new Error(`hasil bukan Excel (HTTP ${rep.status}, ${rep.headers.get('content-type')}): ${new TextDecoder().decode(data.slice(0, 200)).replace(/\s+/g, ' ')}`);
     }
+
+    if (data.length < CONFIG.minByte) throw new Error(`berkas hanya ${data.length} byte (kemungkinan kosong): pastikan sudah login di AP2T`);
 
     return { data, ext: xlsx ? 'xlsx' : 'xls' };
   };
