@@ -7,6 +7,7 @@ use App\Http\Controllers\ApplicationImportController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BastpController;
+use App\Http\Controllers\BusinessAnalyticsController;
 use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DrawingController;
@@ -340,6 +341,10 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::post('/calculate', [NkoController::class, 'calculate']);
     });
 
+    Route::prefix('pengusahaan')->middleware('throttle:admin')->group(function () {
+        Route::get('/metrics', [BusinessAnalyticsController::class, 'index']);
+        Route::get('/metrics/{code}', [BusinessAnalyticsController::class, 'show'])->where('code', '[a-z0-9-]+');
+    });
     Route::prefix('eis-reports')->middleware('throttle:admin')->group(function () {
         Route::get('/', [EisReportController::class, 'index']);
         Route::get('/coverage', [EisReportController::class, 'coverage']);
