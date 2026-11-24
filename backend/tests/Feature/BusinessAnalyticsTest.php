@@ -180,6 +180,92 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertNull($kwh['forecast']);
     }
 
+    private int $seq = 0;
+
+    /** $n pelanggan aktif di $feeder pada $ulp (potret DIL), di belakang satu gardu. */
+    private function feederCustomers(string $feeder, OrganizationalUnit $ulp, int $n): void
+    {
+        $sub = (string) Str::uuid();
+        DB::table('substations')->insert(['id' => $sub, 'code' => 'G'.Str::random(6), 'name' => 'Gardu '.Str::random(3), 'organizational_unit_id' => $ulp->getKey(), 'feeder_id' => $feeder, 'capacity_kva' => 100, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('customer_connections')->insert(array_map(fn ($i) => ['id' => (string) Str::uuid(), 'idpel' => sprintf('%012d', ++$this->seq), 'organizational_unit_id' => $ulp->getKey(), 'substation_id' => $sub, 'status' => 'AKTIF', 'source' => 'TEST', 'created_at' => now(), 'updated_at' => now()], range(1, $n)));
+    }
+
+    private function feederOf(OrganizationalUnit $ulp, string $code): string
+    {
+        $id = (string) Str::uuid();
+        DB::table('distribution_feeders')->insert(['id' => $id, 'code' => $code, 'name' => 'FEEDER '.$code, 'gi_name' => 'GI X', 'owner_unit_id' => $ulp->getKey(), 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now()]);
+
+        return $id;
+    }
+
+    private function outage(string $feeder, OrganizationalUnit $unit, string $when, string $type, float $minutes, float $ens): void
+    {
+        DB::table('outage_events')->insert(['id' => (string) Str::uuid(), 'source_key' => Str::random(30), 'row_hash' => Str::random(20), 'occurred_at' => $when.' 08:00:00+07', 'duration_minutes' => $minutes, 'organizational_unit_id' => $unit->getKey(),
+            'gi_name' => 'GI X', 'feeder_name' => 'F', 'feeder_id' => $feeder, 'device_group' => 'RECLOSER', 'outage_type' => $type, 'ens_kwh' => $ens, 'category' => 'ROW', 'weather' => 'CERAH', 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    /** Laporan DIFI satu bulan: ringkasan (SAIDI menit, SAIFI) dan baris TOTAL KELOMPOK Distribusi (jumlah gangguan, ENS kWh). */
+    private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, int $count, float $ensKwh): void
+    {
+        $this->report($unit, 'DIFI', $period, [['TOTAL KELOMPOK Distribusi', ['jumlah_gangguan' => $count, 'kwh_tak_tersalurkan' => $ensKwh]]], ['pelanggan' => 150, 'saidi_menit' => $saidi, 'saifi_kali' => $saifi]);
+    }
+
+    #[Test]
+    public function saidi_saifi_ens_dan_gangguan_dibandingkan_dengan_data_gangguan_tersinkron_secara_kumulatif(): void
+    {
+        $f1 = $this->feederOf($this->ulpA, 'F1');
+        $f2 = $this->feederOf($this->ulpA, 'F2');
+        $this->feederCustomers($f1, $this->ulpA, 100);
+        $this->feederCustomers($f2, $this->ulpA, 50);
+        $this->outage($f1, $this->ulpA, '2026-01-10', 'PERMANEN', 60, 500);
+        $this->outage($f2, $this->ulpA, '2026-01-12', 'PERMANEN', 30, 200);
+        $this->outage($f1, $this->ulpA, '2026-02-03', 'TEMPORER', 10, 100);
+        foreach ([['2026-01-01', 40, 0.8, 2, 600], ['2026-02-01', 7, 0.7, 1, 100], ['2026-03-01', 0, 0, 0, 0]] as [$period, $saidi, $saifi, $count, $ens]) {
+            $this->difi($this->ulpA, $period, $saidi, $saifi, $count, $ens);
+        }
+        $url = fn (string $code) => "/api/pengusahaan/metrics/{$code}?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03";
+
+        $d = $this->as($this->planner)->getJson($url('saidi-saifi'))->assertOk()->json('data');
+        $this->assertSame(['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'], $d['forecast']);
+        $hitung = collect($d['companions']['series'])->keyBy('key');
+        $this->assertEqualsWithDelta(50.0, $hitung['saidi_hitung']['values'][0], 1e-6);                  // (100*60 + 50*30) / 150
+        $this->assertEqualsWithDelta(1000 / 150, $hitung['saidi_hitung']['values'][1], 1e-6);
+        $this->assertEqualsWithDelta(0.0, $hitung['saidi_hitung']['values'][2], 1e-9);                   // bulan tanpa gangguan = 0, bukan kosong
+        $this->assertSame(['saidi', 'saifi'], array_column($d['reconciliations'], 'key'));
+        $this->assertSame('saidi', $d['reconciliation']['key']);
+        $saidi = $d['reconciliations'][0]['ytd'];
+        $this->assertEqualsWithDelta(47.0, $saidi['official_net'], 1e-9);                                 // jumlah nilai bulanan DIFI
+        $this->assertEqualsWithDelta(50 + 1000 / 150, $saidi['companion'], 1e-6);
+        $this->assertSame([1, 1], [$saidi['units_compared'], $saidi['units_expected']]);
+        $this->assertSame('info', collect($d['insights'])->last()['level']);                              // 56,7 lawan 47: dalam kewajaran
+
+        $ens = $this->as($this->planner)->getJson($url('ens'))->assertOk()->json('data');
+        $this->assertEqualsWithDelta(0.7, $ens['reconciliation']['ytd']['official_net'], 1e-9);          // MWh
+        $this->assertEqualsWithDelta(0.8, $ens['reconciliation']['ytd']['companion'], 1e-9);
+
+        $g = $this->as($this->planner)->getJson($url('gangguan'))->assertOk()->json('data');
+        $this->assertEquals([3.0, 3.0, 0.0], [$g['reconciliation']['ytd']['official_net'], $g['reconciliation']['ytd']['companion'], $g['reconciliation']['ytd']['difference']]);   // bulan tanpa gangguan tetap dihitung (nol)
+        $this->assertSame('Jumlah gangguan Laporan DIFI', $g['reconciliation']['companion_name']);
+
+        $rpt = $this->as($this->planner)->getJson($url('rpt-rct-gangguan'))->assertOk()->json('data');
+        $this->assertNull($rpt['reconciliations']);                                                       // laporan pengaduan, bukan gangguan penyulang
+    }
+
+    #[Test]
+    public function selisih_besar_antara_laporan_resmi_dan_data_gangguan_menjadi_catatan_perhatian(): void
+    {
+        $f1 = $this->feederOf($this->ulpA, 'F1');
+        $this->feederCustomers($f1, $this->ulpA, 100);
+        $this->outage($f1, $this->ulpA, '2026-01-10', 'PERMANEN', 60, 1000);          // data tersinkron: 1 MWh
+        $this->difi($this->ulpA, '2026-01-01', 10, 0.1, 1, 100);                      // laporan resmi: 0,1 MWh
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/ens?unit_id={$this->ulpA->id}&from=2026-01&to=2026-01")->assertOk()->json('data');
+
+        $last = collect($d['insights'])->last();
+        $this->assertSame('perhatian', $last['level']);
+        $this->assertStringContainsString('1000% dari angka resmi', $last['text']);
+    }
+
     #[Test]
     public function waktu_respons_gangguan_tertimbang_jumlah_kejadian_tanpa_baris_total(): void
     {

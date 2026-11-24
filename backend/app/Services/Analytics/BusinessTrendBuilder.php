@@ -2,7 +2,6 @@
 
 namespace App\Services\Analytics;
 
-use App\Services\Reports\CustomerGrowthService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -13,7 +12,7 @@ class BusinessTrendBuilder
 {
     private const MONTHS = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-    public function __construct(private readonly BusinessMetricService $metrics, private readonly CustomerGrowthService $growth) {}
+    public function __construct(private readonly BusinessMetricService $metrics, private readonly BusinessCompanionService $companions) {}
 
     /** Bulan terakhir yang punya data untuk metrik ini pada unit-unit tersebut (YYYY-MM), atau bulan lalu bila tidak diketahui. */
     public function latestMonth(string $code, array $units): string
@@ -112,46 +111,59 @@ class BusinessTrendBuilder
         $missing = $this->metrics->missingMonths($code, $units, $months);
         $coverage = ['months_expected' => count($months), 'missing' => array_map(fn ($u, $ms) => ['unit_id' => $u, 'unit_name' => $unitNames[$u] ?? null, 'months' => $ms], array_keys($missing), $missing)];
 
-        $companion = isset($def['companion']) ? $this->companion($def['companion'], $units, $raw, $months, $to, $fetchFrom) : null;
+        $companion = isset($def['companion']) ? $this->companion($code, $def['companion'], $units, $raw, $months, $to, $fetchFrom, $zeroFill) : null;
         $insights = $this->insights($def, $series[0] ?? null, $summary[0] ?? null, $breakdown, $comparison, $coverage, $months, $to, count($units), end($unitsReporting) ?: 0, $unitNames);
-        $companion !== null && ($note = $this->reconciliationInsight($companion['reconciliation'], $def['companion']['reconcile'])) !== null && $insights[] = $note;
+        foreach ($companion['reconciliations'] ?? [] as $rec) {
+            ($note = $this->reconciliationInsight($rec)) !== null && $insights[] = $note;
+        }
 
         return ['metric' => ['code' => $code, 'name' => $def['name'], 'source' => $def['source'], 'polarity' => $def['polarity'], 'ytd_mode' => $def['ytd']],
             'from' => $from, 'to' => $to, 'months' => $months, 'units_expected' => count($units), 'units_reporting' => $unitsReporting,
             'comparison_basis' => array_map('count', $basis), 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'breakdown_secondary' => $breakdownSecondary, 'matrix' => $matrix, 'comparison' => $comparison, 'coverage' => $coverage,
-            'companions' => $companion['companions'] ?? null, 'reconciliation' => $companion['reconciliation'] ?? null, 'forecast' => isset($def['companion']) ? ['kind' => $def['companion']['forecast']] : null,
+            'companions' => $companion['companions'] ?? null, 'reconciliation' => $companion['reconciliations'][0] ?? null, 'reconciliations' => $companion['reconciliations'] ?? null, 'forecast' => $def['companion']['forecast'] ?? null,
             'insights' => $insights];
     }
 
     /**
-     * Data pendamping dari permohonan dan rekonsiliasinya dengan angka resmi Laporan 309 (docs/91). Permohonan dicatat menurut tanggal sambung sedangkan 309 menurut bulan buku, jadi selisih dinilai
-     * kumulatif Januari sampai bulan akhir; per bulan hanya informasi. Hanya ULP yang punya angka 309 di kedua ujung periode yang diperbandingkan, dan angka permohonannya diambil dari ULP yang sama.
+     * Data pendamping operasional dan rekonsiliasinya dengan angka resmi laporan EIS (docs/91). Dua mode: `net` (angka resmi berupa posisi/saldo seperti jumlah pelanggan: dibandingkan tambahan bersih
+     * antar bulan dengan angka operasional) dan `flow` (angka resmi berupa arus bulanan seperti ENS atau jumlah gangguan: dibandingkan langsung per bulan). Penilaian dilakukan pada kumulatif Januari sampai
+     * bulan akhir karena pencatatan kedua sumber dapat bergeser antar bulan. Hanya ULP yang punya angka resmi pada bulan yang dibandingkan (kedua ujung periode untuk `net`, semua bulan Januari sampai
+     * bulan akhir untuk kumulatif `flow`) yang diperbandingkan, dan angka pendampingnya diambil dari ULP yang sama.
      *
      * @param  array<string, mixed>  $c  definisi `companion` pada katalog
      * @param  list<string>  $units
      * @param  array<string, array<string, array{raw: array<string, float>, bd: array<string, float>}>>  $raw  angka resmi per ULP per bulan
      * @param  list<string>  $months
-     * @return array{companions: array<string, mixed>, reconciliation: array<string, mixed>}
+     * @return array{companions: array<string, mixed>, reconciliations: list<array<string, mixed>>}
      */
-    private function companion(array $c, array $units, array $raw, array $months, string $to, string $fetchFrom): array
+    private function companion(string $code, array $c, array $units, array $raw, array $months, string $to, string $fetchFrom, bool $zeroFill = false): array
     {
-        $data = $this->growth->monthlyByUnit($units, $fetchFrom, $to);
-        $cell = fn (string $u, string $m): array => $data[$u][$m] ?? [];
-        $sum = function (array $only, string $m) use ($cell): array {
+        $data = $this->companions->raw($code, $units, $fetchFrom, $to);
+        /** Jumlah angka mentah pendamping bernama atas ULP terpilih pada satu bulan. */
+        $sum = function (array $only, string $m) use ($data): array {
             $out = [];
             foreach ($only as $u) {
-                foreach ($cell($u, $m) as $k => $v) {
+                foreach ($data[$u][$m] ?? [] as $k => $v) {
                     $out[$k] = ($out[$k] ?? 0) + $v;
                 }
             }
 
             return $out;
         };
-        $valueOf = fn (array $s, string $m): float => (float) ($sum($units, $m)[$s['num']] ?? 0) * (float) ($s['factor'] ?? 1);
+        $ratio = function (array $row, array $spec): ?float {
+            $num = array_sum(array_map(fn ($k) => (float) ($row[$k] ?? 0), (array) $spec['num'])) * (float) ($spec['factor'] ?? 1);
+            if (! isset($spec['den'])) {
+                return $num;
+            }
+            $den = (float) ($row[$spec['den']] ?? 0);
+
+            return $den == 0 ? null : $num / $den;
+        };
+        $valueOf = fn (array $s, string $m): ?float => $ratio($sum($units, $m), $s);
         $ytdOf = function (array $s, string $end) use ($valueOf): float {
             $total = 0.0;
             foreach ($this->months(substr($end, 0, 4).'-01', $end) as $m) {
-                $total += $valueOf($s, $m);
+                $total += (float) $valueOf($s, $m);
             }
 
             return $total;
@@ -160,52 +172,100 @@ class BusinessTrendBuilder
         $series = array_map(fn (array $s) => ['key' => $s['key'], 'name' => $s['name'], 'unit' => $s['unit'], 'values' => array_map(fn ($m) => $valueOf($s, $m), $months),
             'previous_year' => array_map(fn ($m) => $valueOf($s, $this->shift($m, -12)), $months), 'latest' => $valueOf($s, $to), 'ytd' => $ytdOf($s, $to), 'ytd_previous_year' => $ytdOf($s, $prevTo)], $c['series']);
 
-        $r = $c['reconcile'];
-        $official = fn (string $u, string $m): ?float => isset($raw[$u][$m]) ? (float) ($raw[$u][$m]['raw'][$r['official']] ?? 0) * $r['official_factor'] : null;
-        $companionOf = function (array $only, string $m) use ($sum, $r): float {
-            $row = $sum($only, $m);
-
-            return array_sum(array_map(fn ($k) => (float) ($row[$k] ?? 0), $r['companion'])) * $r['companion_factor'];
-        };
-        $monthly = [];
-        foreach ($months as $m) {
-            $both = array_values(array_filter($units, fn ($u) => $official($u, $m) !== null && $official($u, $this->shift($m, -1)) !== null));
-            if ($both === []) {
-                $monthly[] = ['month' => $m, 'official_net' => null, 'companion' => $companionOf($units, $m), 'difference' => null, 'units_compared' => 0];
-
-                continue;
+        $reconciliations = [];
+        foreach ($c['reconcile'] as $spec) {
+            $off = $spec['official'];
+            $com = $spec['companion'] + ['factor' => 1];
+            $officialRow = fn (array $only, string $m): array => $this->sumRaw($raw, $only, $m);
+            $officialVal = fn (array $only, string $m): ?float => $ratio($officialRow($only, $m), $off);
+            $companionVal = fn (array $only, string $m): ?float => $ratio($sum($only, $m), $com);
+            $has = fn (string $u, string $m): bool => $zeroFill || isset($raw[$u][$m]);   // sumber tanpa laporan: bulan tanpa kejadian berarti nol
+            $monthly = [];
+            foreach ($months as $m) {
+                if ($spec['mode'] === 'net') {
+                    $set = array_values(array_filter($units, fn ($u) => $has($u, $m) && $has($u, $this->shift($m, -1))));
+                    $net = $set === [] ? null : (float) $officialVal($set, $m) - (float) $officialVal($set, $this->shift($m, -1));
+                } else {
+                    $set = array_values(array_filter($units, fn ($u) => $has($u, $m)));
+                    $net = $set === [] ? null : $officialVal($set, $m);
+                }
+                $comp = $set === [] ? $companionVal($units, $m) : $companionVal($set, $m);
+                $monthly[] = ['month' => $m, 'official_net' => $net, 'companion' => $comp, 'difference' => $net === null || $comp === null ? null : $comp - $net, 'units_compared' => count($set)];
             }
-            $net = array_sum(array_map(fn ($u) => $official($u, $m) - $official($u, $this->shift($m, -1)), $both));
-            $comp = $companionOf($both, $m);
-            $monthly[] = ['month' => $m, 'official_net' => $net, 'companion' => $comp, 'difference' => $comp - $net, 'units_compared' => count($both)];
-        }
-        $base = $this->shift(substr($to, 0, 4).'-01', -1);
-        $both = array_values(array_filter($units, fn ($u) => $official($u, $base) !== null && $official($u, $to) !== null));
-        $ytd = null;
-        if ($both !== []) {
-            $net = array_sum(array_map(fn ($u) => $official($u, $to) - $official($u, $base), $both));
-            $comp = 0.0;
-            foreach ($this->months(substr($to, 0, 4).'-01', $to) as $m) {
-                $comp += $companionOf($both, $m);
+            $from = substr($to, 0, 4).'-01';
+            $ytdMonths = $this->months($from, $to);
+            if ($spec['mode'] === 'net') {
+                $base = $this->shift($from, -1);
+                $set = array_values(array_filter($units, fn ($u) => $has($u, $base) && $has($u, $to)));
+                $official = $set === [] ? null : (float) $officialVal($set, $to) - (float) $officialVal($set, $base);
+                $baseMonth = $base;
+            } else {
+                $set = array_values(array_filter($units, fn ($u) => array_reduce($ytdMonths, fn ($ok, $m) => $ok && $has($u, $m), true)));
+                $official = $set === [] ? null : array_sum(array_map(fn ($m) => (float) $officialVal($set, $m), $ytdMonths));
+                $baseMonth = $from;
             }
-            $ytd = ['year' => (int) substr($to, 0, 4), 'base_month' => $base, 'to_month' => $to, 'official_net' => $net, 'companion' => $comp, 'difference' => $comp - $net, 'units_compared' => count($both), 'units_expected' => count($units)];
+            $ytd = null;
+            if ($set !== [] && $official !== null) {
+                $comp = array_sum(array_map(fn ($m) => (float) $companionVal($set, $m), $ytdMonths));
+                $ytd = ['year' => (int) substr($to, 0, 4), 'base_month' => $baseMonth, 'to_month' => $to, 'official_net' => $official, 'companion' => $comp, 'difference' => $comp - $official, 'units_compared' => count($set), 'units_expected' => count($units)];
+            }
+            $reconciliations[] = ['key' => $spec['key'], 'mode' => $spec['mode'], 'unit' => $spec['unit'], 'official_name' => $spec['official_name'], 'companion_name' => $spec['companion_name'], 'monthly' => $monthly, 'ytd' => $ytd,
+                'note' => $spec['mode'] === 'net'
+                    ? 'Pendamping dicatat menurut tanggal kejadian, laporan resmi menurut bulan buku: nilai per bulan bisa bergeser, jadi selisih dinilai kumulatif Januari sampai bulan akhir. Selisih = angka pendamping dikurangi tambahan bersih resmi (antara lain pelanggan berhenti dan koreksi data).'
+                    : 'Dua sumber dicatat menurut waktu kejadian yang bisa bergeser antar bulan, jadi selisih dinilai kumulatif (jumlah nilai bulanan Januari sampai bulan akhir). Selisih = angka pendamping dikurangi angka resmi.'];
         }
 
-        return ['companions' => ['source' => $c['source'], 'series' => $series],
-            'reconciliation' => ['unit' => $r['unit'], 'official_name' => $r['official_name'], 'companion_name' => $r['companion_name'], 'monthly' => $monthly, 'ytd' => $ytd,
-                'note' => 'Permohonan dicatat menurut tanggal sambung, Laporan 309 menurut bulan buku: nilai per bulan bisa bergeser, jadi selisih dinilai kumulatif Januari sampai bulan akhir. Selisih = angka permohonan dikurangi tambahan bersih 309 (antara lain pelanggan berhenti dan koreksi data).']];
+        return ['companions' => ['source' => $c['source'], 'series' => $series], 'reconciliations' => $reconciliations];
     }
 
-    /** Catatan otomatis dari rekonsiliasi kumulatif; null bila tidak ada yang layak dicatat. @param array<string, mixed> $rec @param array<string, mixed> $r */
-    private function reconciliationInsight(array $rec, array $r): ?array
+    /**
+     * Jumlah angka mentah resmi atas ULP terpilih pada satu bulan.
+     *
+     * @param  array<string, array<string, array{raw: array<string, float>, bd: array<string, float>}>>  $raw
+     * @param  list<string>  $only
+     * @return array<string, float>
+     */
+    private function sumRaw(array $raw, array $only, string $m): array
+    {
+        $out = [];
+        foreach ($only as $u) {
+            foreach ($raw[$u][$m]['raw'] ?? [] as $k => $v) {
+                $out[$k] = ($out[$k] ?? 0) + $v;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Catatan otomatis dari rekonsiliasi kumulatif; null bila tidak ada yang layak dicatat.
+     *
+     * @param  array<string, mixed>  $rec
+     */
+    private function reconciliationInsight(array $rec): ?array
     {
         $y = $rec['ytd'];
         if ($y === null) {
-            return ['level' => 'info', 'text' => 'Rekonsiliasi dengan permohonan belum dapat dihitung: Laporan 309 bulan Desember tahun sebelumnya dan bulan akhir belum ada pada ULP yang sama.'];
+            return ['level' => 'info', 'text' => 'Rekonsiliasi '.strtolower($rec['official_name']).' belum dapat dihitung: laporan resmi belum ada pada ULP yang sama di seluruh periode pembanding.'];
         }
         $unit = $rec['unit'];
-        $f = fn (float $v) => $unit === 'MVA' ? number_format($v, 2, ',', '.') : number_format($v, 0, ',', '.');
-        $head = sprintf('Kumulatif Januari sampai %s: tambahan bersih Laporan 309 %s %s, %s %s %s (selisih %s)', $this->label($y['to_month']), $f($y['official_net']), $unit, strtolower($rec['companion_name']), $f($y['companion']), $unit, $f($y['difference']));
+        $f = fn (float $v) => match (true) {
+            $unit === 'MVA' => number_format($v, 2, ',', '.'),
+            str_contains($unit, '/plg') => number_format($v, 3, ',', '.'),
+            default => number_format($v, 0, ',', '.'),
+        };
+        $head = sprintf('Kumulatif Januari sampai %s: %s %s %s, %s %s %s (selisih %s)', $this->label($y['to_month']), strtolower($rec['official_name']), $f($y['official_net']), $unit, strtolower($rec['companion_name']), $f($y['companion']), $unit, $f($y['difference']));
+        if ($rec['mode'] === 'flow') {
+            if ($y['official_net'] <= 0) {
+                return $y['companion'] > 0 ? ['level' => 'perhatian', 'text' => $head.'. Laporan resmi nol tetapi data pendamping mencatat kejadian: periksa laporan atau data sumber.'] : null;
+            }
+            $r = $y['companion'] / $y['official_net'];
+            if ($r < 0.5 || $r > 1.5) {
+                return ['level' => 'perhatian', 'text' => sprintf('%s. Data pendamping %.0f%% dari angka resmi: cakupan atau definisi kedua sumber berbeda, atau salah satu sumber belum lengkap.', $head, $r * 100)];
+            }
+
+            return ['level' => 'info', 'text' => $head.'.'];
+        }
         if ($y['companion'] > 0 && $y['official_net'] <= 0) {
             return ['level' => 'perhatian', 'text' => $head.'. Permohonan menambah tetapi Laporan 309 tidak bertambah: periksa pelanggan berhenti atau data laporan.'];
         }

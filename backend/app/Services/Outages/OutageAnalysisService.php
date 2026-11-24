@@ -69,6 +69,59 @@ class OutageAnalysisService
         ];
     }
 
+    /**
+     * Angka bulanan per ULP dari data gangguan tersinkron untuk menjelaskan angka resmi Laporan DIFI (docs/91): pembilang SAIFI dan SAIDI berbobot pelanggan dasar (potret DIL) ULP itu,
+     * ENS dan jumlah gangguan menurut ULP peristiwa (RAYON). Aturan sama dengan analysis(): hanya gangguan sepanjang ambang menit (dan permanen bila diatur) yang masuk SAIFI/SAIDI.
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array{base: float, saifi_x_base: float, saidi_x_base: float, ens_kwh: float, n: float}>> unit => bulan (YYYY-MM) => angka
+     */
+    public function monthlyByUnit(array $units, string $fromMonth, string $toMonth): array
+    {
+        $tz = $this->tz();
+        $set = DB::table('outage_sync_settings')->where('id', 1)->first();
+        $min = (int) $set->saidi_min_minutes;
+        $onlyPerm = (bool) $set->saidi_only_permanent;
+        $from = $fromMonth.'-01';
+        $to = date('Y-m-d', strtotime($toMonth.'-01 +1 month -1 day'));
+        $matrix = $this->customerMatrix();
+        $out = [];
+        $months = [];
+        for ($m = $fromMonth; $m <= $toMonth; $m = date('Y-m', strtotime($m.'-01 +1 month'))) {
+            $months[] = $m;
+        }
+        foreach ($units as $u) {
+            $base = $this->baseCustomers([$u], false);
+            if ($base <= 0) {
+                continue;
+            }
+            foreach ($months as $m) {
+                $out[$u][$m] = ['base' => (float) $base, 'saifi_x_base' => 0.0, 'saidi_x_base' => 0.0, 'ens_kwh' => 0.0, 'n' => 0.0];
+            }
+        }
+        $q = DB::table('outage_events as e')->whereNull('e.source_removed_at')->whereNotNull('e.feeder_id')->whereNotNull('e.duration_minutes')->where('e.duration_minutes', '>=', $min);
+        $onlyPerm && $q->where('e.outage_type', 'PERMANEN');
+        $this->range($q, $from, $to);
+        foreach ($q->selectRaw("e.feeder_id, to_char(e.occurred_at at time zone ?, 'YYYY-MM') as m, count(*) as n, sum(e.duration_minutes) as minutes", [$tz])->groupBy('e.feeder_id', 'm')->get() as $r) {
+            foreach ($units as $u) {
+                $c = $this->customersOf($matrix, $r->feeder_id, [$u]);
+                if ($c > 0 && isset($out[$u][$r->m])) {
+                    $out[$u][$r->m]['saifi_x_base'] += $c * (float) $r->n;
+                    $out[$u][$r->m]['saidi_x_base'] += $c * (float) $r->minutes;
+                }
+            }
+        }
+        $all = DB::table('outage_events as e')->whereNull('e.source_removed_at')->whereIn('e.organizational_unit_id', $units);
+        $this->range($all, $from, $to);
+        foreach ($all->selectRaw("e.organizational_unit_id as u, to_char(e.occurred_at at time zone ?, 'YYYY-MM') as m, count(*) as n, coalesce(sum(e.ens_kwh), 0) as ens", [$tz])->groupBy('u', 'm')->get() as $r) {
+            $out[$r->u][$r->m] ??= ['base' => 0.0, 'saifi_x_base' => 0.0, 'saidi_x_base' => 0.0, 'ens_kwh' => 0.0, 'n' => 0.0];
+            $out[$r->u][$r->m]['n'] = (float) $r->n;
+            $out[$r->u][$r->m]['ens_kwh'] = (float) $r->ens;
+        }
+
+        return $out;
+    }
+
     /** @param Builder $q */
     private function scoped($q, array $units, bool $withUnassigned, ?string $from, ?string $to)
     {

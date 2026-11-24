@@ -33,16 +33,16 @@ class BusinessMetricService
     public const CATALOG = [
         'pelanggan' => ['name' => 'Pelanggan', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'last', 'breakdown' => 'Kelompok tarif',
             'series' => [['key' => 'pelanggan', 'name' => 'Jumlah pelanggan', 'unit' => 'plg', 'num' => 'pelanggan']],
-            'companion' => ['source' => 'Permohonan EIS (tersambung menurut status PEREMAJAAN, permohonan masuk menurut tanggal masuk)', 'forecast' => 'CUSTOMERS_ADDED',
+            'companion' => ['source' => 'Permohonan EIS (tersambung menurut status PEREMAJAAN, permohonan masuk menurut tanggal masuk)', 'forecast' => ['kind' => 'CUSTOMERS_ADDED'],
                 'series' => [['key' => 'pb', 'name' => 'Pasang baru (PB) tersambung', 'unit' => 'plg', 'num' => 'pb'], ['key' => 'req_pb', 'name' => 'Permohonan PB masuk', 'unit' => 'permohonan', 'num' => 'req_pb']],
-                'reconcile' => ['official' => 'pelanggan', 'official_factor' => 1, 'official_name' => 'Tambahan bersih (selisih jumlah pelanggan Laporan 309)', 'companion' => ['pb'], 'companion_factor' => 1, 'companion_name' => 'PB tersambung (permohonan)', 'unit' => 'plg']]],
-        'daya' => ['name' => 'Daya tersambung', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'last', 'breakdown' => 'Kelompok tarif',
-            'series' => [['key' => 'daya', 'name' => 'Daya tersambung', 'unit' => 'MVA', 'num' => 'daya_va', 'factor' => 1e-6]],
-            'companion' => ['source' => 'Permohonan EIS (tersambung menurut status PEREMAJAAN)', 'forecast' => 'VA_ADDED',
-                'series' => [['key' => 'pb_kva', 'name' => 'Daya PB tersambung', 'unit' => 'MVA', 'num' => 'pb_kva', 'factor' => 1e-3], ['key' => 'pd_net_kva', 'name' => 'Perubahan daya (PD) neto', 'unit' => 'MVA', 'num' => 'pd_net_kva', 'factor' => 1e-3]],
-                'reconcile' => ['official' => 'daya_va', 'official_factor' => 1e-6, 'official_name' => 'Tambahan bersih (selisih daya tersambung Laporan 309)', 'companion' => ['pb_kva', 'pd_net_kva'], 'companion_factor' => 1e-3, 'companion_name' => 'Daya PB + PD neto (permohonan)', 'unit' => 'MVA']]],
-        'kwh-jual' => ['name' => 'kWh jual', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif',
-            'series' => [['key' => 'kwh', 'name' => 'kWh jual', 'unit' => 'kWh', 'num' => 'kwh']]],
+                'reconcile' => [['key' => 'pelanggan', 'mode' => 'net', 'unit' => 'plg', 'official_name' => 'Tambahan bersih (selisih jumlah pelanggan Laporan 309)', 'official' => ['num' => ['pelanggan']],
+                    'companion_name' => 'PB tersambung (permohonan)', 'companion' => ['num' => ['pb']]]]]],        'daya' => ['name' => 'Daya tersambung', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'last', 'breakdown' => 'Kelompok tarif',
+                        'series' => [['key' => 'daya', 'name' => 'Daya tersambung', 'unit' => 'MVA', 'num' => 'daya_va', 'factor' => 1e-6]],
+                        'companion' => ['source' => 'Permohonan EIS (tersambung menurut status PEREMAJAAN)', 'forecast' => ['kind' => 'VA_ADDED'],
+                            'series' => [['key' => 'pb_kva', 'name' => 'Daya PB tersambung', 'unit' => 'MVA', 'num' => 'pb_kva', 'factor' => 1e-3], ['key' => 'pd_net_kva', 'name' => 'Perubahan daya (PD) neto', 'unit' => 'MVA', 'num' => 'pd_net_kva', 'factor' => 1e-3]],
+                            'reconcile' => [['key' => 'daya', 'mode' => 'net', 'unit' => 'MVA', 'official_name' => 'Tambahan bersih (selisih daya tersambung Laporan 309)', 'official' => ['num' => ['daya_va'], 'factor' => 1e-6],
+                                'companion_name' => 'Daya PB + PD neto (permohonan)', 'companion' => ['num' => ['pb_kva', 'pd_net_kva'], 'factor' => 1e-3]]]]],        'kwh-jual' => ['name' => 'kWh jual', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif',
+                                    'series' => [['key' => 'kwh', 'name' => 'kWh jual', 'unit' => 'kWh', 'num' => 'kwh']]],
         'pendapatan' => ['name' => 'Pendapatan', 'source' => 'Laporan 309 (rupiah JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif',
             'series' => [['key' => 'rp', 'name' => 'Pendapatan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'rp_per_kwh', 'name' => 'Harga jual rata-rata', 'unit' => 'Rp/kWh', 'num' => 'rp', 'den' => 'kwh']]],
         'piutang-prabayar' => ['name' => 'Piutang prabayar', 'source' => 'PIUTANGLPB_EIS (BARU, BERJALAN, TUNGGAKAN)', 'family' => 'PIUTANGLPB_EIS', 'polarity' => 'down', 'ytd' => 'last', 'breakdown' => 'Status piutang',
@@ -62,13 +62,23 @@ class BusinessMetricService
             'series' => [['key' => 'rpt', 'name' => 'Response time rata-rata', 'unit' => 'menit', 'num' => 'rpt_x_n', 'den' => 'n'], ['key' => 'rct', 'name' => 'Recovery time rata-rata', 'unit' => 'menit', 'num' => 'rct_x_n', 'den' => 'n'],
                 ['key' => 'jumlah', 'name' => 'Jumlah gangguan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'rpt_sla', 'name' => 'Respons dalam SLA', 'unit' => '%', 'num' => 'rpt_in', 'den' => 'rpt_all', 'factor' => 100]]],
         'saidi-saifi' => ['name' => 'SAIDI dan SAIFI', 'source' => 'Laporan DIFI (ringkasan)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'sum', 'breakdown' => null,
-            'series' => [['key' => 'saidi', 'name' => 'SAIDI', 'unit' => 'menit/plg', 'num' => 'saidi_x_plg', 'den' => 'plg'], ['key' => 'saifi', 'name' => 'SAIFI', 'unit' => 'kali/plg', 'num' => 'saifi_x_plg', 'den' => 'plg']]],
+            'series' => [['key' => 'saidi', 'name' => 'SAIDI', 'unit' => 'menit/plg', 'num' => 'saidi_x_plg', 'den' => 'plg'], ['key' => 'saifi', 'name' => 'SAIFI', 'unit' => 'kali/plg', 'num' => 'saifi_x_plg', 'den' => 'plg']],
+            'companion' => ['source' => 'Data gangguan penyulang tersinkron (APKT): gangguan lebih dari ambang menit, pelanggan penyulang dari potret DIL (batas atas)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
+                'series' => [['key' => 'saidi_hitung', 'name' => 'SAIDI hitung DISTRIVA', 'unit' => 'menit/plg', 'num' => 'saidi_x_base', 'den' => 'base'], ['key' => 'saifi_hitung', 'name' => 'SAIFI hitung DISTRIVA', 'unit' => 'kali/plg', 'num' => 'saifi_x_base', 'den' => 'base']],
+                'reconcile' => [['key' => 'saidi', 'mode' => 'flow', 'unit' => 'menit/plg', 'official_name' => 'SAIDI Laporan DIFI', 'official' => ['num' => ['saidi_x_plg'], 'den' => 'plg'], 'companion_name' => 'SAIDI hitung DISTRIVA', 'companion' => ['num' => ['saidi_x_base'], 'den' => 'base']],
+                    ['key' => 'saifi', 'mode' => 'flow', 'unit' => 'kali/plg', 'official_name' => 'SAIFI Laporan DIFI', 'official' => ['num' => ['saifi_x_plg'], 'den' => 'plg'], 'companion_name' => 'SAIFI hitung DISTRIVA', 'companion' => ['num' => ['saifi_x_base'], 'den' => 'base']]]]],
         'ens' => ['name' => 'ENS', 'source' => 'Laporan DIFI (TOTAL KELOMPOK Distribusi)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
-            'series' => [['key' => 'ens', 'name' => 'Energi tak tersalurkan', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3]]],
+            'series' => [['key' => 'ens', 'name' => 'Energi tak tersalurkan', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3]],
+            'companion' => ['source' => 'Data gangguan penyulang tersinkron (kolom ENS sheet, menurut ULP peristiwa)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
+                'series' => [['key' => 'ens_sheet', 'name' => 'ENS data gangguan tersinkron', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3]],
+                'reconcile' => [['key' => 'ens', 'mode' => 'flow', 'unit' => 'MWh', 'official_name' => 'ENS Laporan DIFI', 'official' => ['num' => ['ens_kwh'], 'factor' => 1e-3], 'companion_name' => 'ENS data gangguan tersinkron', 'companion' => ['num' => ['ens_kwh'], 'factor' => 1e-3]]]]],
         'kwh-p2tl' => ['name' => 'kWh P2TL', 'source' => 'TAGSUS (golongan P1-P4, K2, tanpa golongan; tanpa TS kWh dan DKRP)', 'family' => 'TAGSUS', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Golongan pelanggaran',
             'series' => [['key' => 'kwh', 'name' => 'kWh P2TL', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp', 'name' => 'Rupiah tagihan susulan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah pelanggan', 'unit' => 'plg', 'num' => 'n']]],
         'gangguan' => ['name' => 'Gangguan penyulang', 'source' => 'Data gangguan tersinkron', 'family' => null, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => 'Jenis gangguan',
-            'series' => [['key' => 'jumlah', 'name' => 'Jumlah gangguan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'permanen', 'name' => 'Permanen', 'unit' => 'kali', 'num' => 'permanen'], ['key' => 'temporer', 'name' => 'Temporer', 'unit' => 'kali', 'num' => 'temporer']]],
+            'series' => [['key' => 'jumlah', 'name' => 'Jumlah gangguan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'permanen', 'name' => 'Permanen', 'unit' => 'kali', 'num' => 'permanen'], ['key' => 'temporer', 'name' => 'Temporer', 'unit' => 'kali', 'num' => 'temporer']],
+            'companion' => ['source' => 'Laporan DIFI (TOTAL KELOMPOK Distribusi, jumlah gangguan)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
+                'series' => [['key' => 'difi_jumlah', 'name' => 'Jumlah gangguan menurut Laporan DIFI', 'unit' => 'kali', 'num' => 'n']],
+                'reconcile' => [['key' => 'gangguan', 'mode' => 'flow', 'unit' => 'kali', 'official_name' => 'Jumlah gangguan data tersinkron', 'official' => ['num' => ['n']], 'companion_name' => 'Jumlah gangguan Laporan DIFI', 'companion' => ['num' => ['n']]]]]],
         'hpl-bp' => ['name' => 'HPL biaya penyambungan', 'source' => 'Permohonan PB/PD lunas (biaya, tanggal bayar)', 'family' => null, 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Jenis permohonan',
             'series' => [['key' => 'rp', 'name' => 'Biaya penyambungan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah permohonan lunas', 'unit' => 'permohonan', 'num' => 'n']]],
         'susut' => ['name' => 'Susut', 'source' => 'Masukan bulanan kWh beli, E-Min, PSSD (pengusahaan) dan kWh jual laporan 309', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
@@ -95,6 +105,7 @@ class BusinessMetricService
             'rpt-rct-keluhan' => $this->eis('KLHALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_jam', 'selesai_rata_jam')),
             'rpt-rct-gangguan' => $this->eis('GGNALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_menit', 'recovery_rata_menit')),
             'saidi-saifi', 'ens' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifi($lines, $summary)),
+            'difi-gangguan' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifiCount($lines, $summary)),
             'kwh-p2tl' => $this->eis('TAGSUS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
             'gangguan' => $this->outages($units, $fromDate, $toDate),
             'hpl-bp' => $this->connectionFees($units, $fromDate, $toDate),
@@ -290,6 +301,23 @@ class BusinessMetricService
         }
 
         return ['raw' => ['plg' => $plg, 'saidi_x_plg' => (float) $summary['saidi_menit'] * $plg, 'saifi_x_plg' => (float) $summary['saifi_kali'] * $plg, 'ens_kwh' => $ens], 'bd' => []];
+    }
+
+    /**
+     * Jumlah gangguan menurut laporan DIFI (baris TOTAL KELOMPOK Distribusi); pembanding data gangguan tersinkron, bukan metrik sendiri.
+     *
+     * @param  list<array{label: string, values: array<string, mixed>}>  $lines
+     * @param  array<string, mixed>  $summary
+     */
+    private function fromDifiCount(array $lines, array $summary): ?array
+    {
+        foreach ($lines as $l) {
+            if ($l['label'] === 'TOTAL KELOMPOK Distribusi') {
+                return ['raw' => ['n' => (float) ($l['values']['jumlah_gangguan'] ?? 0)], 'bd' => []];
+            }
+        }
+
+        return null;
     }
 
     /** @param list<array{label: string, values: array<string, mixed>}> $lines */
