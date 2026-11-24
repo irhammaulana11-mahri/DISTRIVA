@@ -10,13 +10,16 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
- * Analisa dan tren pengusahaan (docs/91). Butuh pengusahaan.view; ULP dalam cakupan peran, UP3 hanya bila perannya mencakup UP3 itu (atau sistem).
+ * Analisa dan tren pengusahaan (docs/91). Membaca butuh pengusahaan.view, mengisi masukan bulanan (kWh beli, E-Min, PSSD) butuh pengusahaan.input pada ULP itu; ULP dalam cakupan peran, UP3 hanya bila perannya mencakup UP3 itu (atau sistem).
  */
 class BusinessAnalyticsController extends Controller
 {
     private const PERMISSION = 'pengusahaan.view';
+
+    private const INPUT_PERMISSION = 'pengusahaan.input';
 
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder) {}
 
@@ -58,6 +61,84 @@ class BusinessAnalyticsController extends Controller
 
         return response()->json(['data' => ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type]]
             + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to)]);
+    }
+
+    /**
+     * GET /pengusahaan/inputs?unit_id=&year=: masukan bulanan kWh beli, E-Min, PSSD satu ULP setahun, beserta kWh jual (309) dan susut hasil hitung per bulan dan kumulatif.
+     */
+    public function inputs(Request $request): JsonResponse
+    {
+        $d = $request->validate(['unit_id' => ['required', 'uuid'], 'year' => ['required', 'integer', 'between:2000,2100']]);
+        $unit = $this->visibleUnits($request)->firstWhere('id', $d['unit_id']);
+        if ($unit === null || $unit->unit_type !== 'ULP') {
+            throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        }
+        $year = (int) $d['year'];
+        $rows = DB::table('business_monthly_inputs as i')->leftJoin('users as u', 'u.id', '=', 'i.entered_by')->where('i.organizational_unit_id', $unit->id)
+            ->whereBetween('i.period', ["{$year}-01-01", "{$year}-12-01"])->get(['i.period', 'i.code', 'i.value', 'i.note', 'u.name as entered_by_name', 'i.updated_at'])
+            ->groupBy(fn ($r) => substr((string) $r->period, 0, 7));
+        $metrics = app(BusinessMetricService::class);
+        $sales = $metrics->raw('kwh-jual', [$unit->id], "{$year}-01", "{$year}-12")[$unit->id] ?? [];
+        $losses = $metrics->losses([$unit->id], "{$year}-01-01", "{$year}-12-01")[$unit->id] ?? [];
+        $months = [];
+        $cum = ['beli_net' => 0.0, 'susut_kwh' => 0.0];
+        $cumComplete = true;
+        for ($m = 1; $m <= 12; $m++) {
+            $key = sprintf('%04d-%02d', $year, $m);
+            $values = [];
+            foreach (BusinessMetricService::INPUT_CODES as $code => $name) {
+                $r = ($rows[$key] ?? collect())->firstWhere('code', $code);
+                $values[$code] = $r === null ? null : ['value' => (float) $r->value, 'note' => $r->note, 'entered_by' => $r->entered_by_name, 'updated_at' => $r->updated_at];
+            }
+            $loss = $losses[$key]['raw'] ?? null;
+            if ($loss === null) {
+                $cumComplete = false;
+            } else {
+                $cum['beli_net'] += $loss['beli_net'];
+                $cum['susut_kwh'] += $loss['susut_kwh'];
+            }
+            $months[] = ['period' => $key, 'inputs' => $values, 'kwh_jual' => $sales[$key]['raw']['kwh'] ?? null,
+                'susut_pct' => $loss !== null && $loss['beli_net'] != 0 ? $loss['susut_kwh'] / $loss['beli_net'] * 100 : null,
+                'susut_kumulatif_pct' => $cumComplete && $cum['beli_net'] != 0 ? $cum['susut_kwh'] / $cum['beli_net'] * 100 : null];
+        }
+
+        return response()->json(['data' => ['unit' => ['id' => $unit->id, 'name' => $unit->name], 'year' => $year,
+            'codes' => array_map(fn ($c, $n) => ['code' => $c, 'name' => $n, 'unit' => 'kWh', 'required' => $c === 'kwh-beli'], array_keys(BusinessMetricService::INPUT_CODES), BusinessMetricService::INPUT_CODES),
+            'can_edit' => $this->authorizer->roleFor($request->user(), self::INPUT_PERMISSION) !== null, 'months' => $months]]);
+    }
+
+    /** PUT /pengusahaan/inputs {unit_id, items:[{period: YYYY-MM, code, value|null, note?}]}: nilai bulan itu (bukan kumulatif); null menghapus; butir yang tidak berubah dilewati. */
+    public function saveInputs(Request $request): JsonResponse
+    {
+        $d = $request->validate(['unit_id' => ['required', 'uuid'], 'items' => ['required', 'array', 'min:1', 'max:200'],
+            'items.*.period' => ['required', 'date_format:Y-m', 'before_or_equal:'.now()->format('Y-m')], 'items.*.code' => ['required', 'in:'.implode(',', array_keys(BusinessMetricService::INPUT_CODES))],
+            'items.*.value' => ['nullable', 'numeric', 'min:0', 'max:1000000000000'], 'items.*.note' => ['nullable', 'string', 'max:300']]);
+        $this->authorizer->authorizeOnUnit($request->user(), self::INPUT_PERMISSION, $d['unit_id']);
+        if (DB::table('organizational_units')->where('id', $d['unit_id'])->value('unit_type') !== 'ULP') {
+            throw new AdministrationDenied('Masukan bulanan hanya untuk ULP.', 422);
+        }
+        $changed = 0;
+        DB::transaction(function () use ($d, $request, &$changed) {
+            foreach ($d['items'] as $it) {
+                $where = ['organizational_unit_id' => $d['unit_id'], 'period' => $it['period'].'-01', 'code' => $it['code']];
+                if (! array_key_exists('value', $it) || $it['value'] === null) {
+                    $changed += DB::table('business_monthly_inputs')->where($where)->delete();
+
+                    continue;
+                }
+                $existing = DB::table('business_monthly_inputs')->where($where)->first();
+                if ($existing !== null && (float) $existing->value === (float) $it['value'] && trim((string) $existing->note) === trim((string) ($it['note'] ?? ''))) {
+                    continue;
+                }
+                $changed++;
+                $data = ['value' => $it['value'], 'note' => $it['note'] ?? null, 'entered_by' => $request->user()->id, 'updated_at' => now()];
+                $existing === null
+                    ? DB::table('business_monthly_inputs')->insert($where + $data + ['id' => (string) Str::uuid7(), 'created_at' => now()])
+                    : DB::table('business_monthly_inputs')->where('id', $existing->id)->update($data);
+            }
+        });
+
+        return response()->json(['message' => $changed === 0 ? 'Tidak ada perubahan masukan.' : "{$changed} masukan berubah.", 'changed' => $changed]);
     }
 
     /** ULP dalam cakupan peran dan UP3 yang perannya mencakup UP3 itu; semua untuk peran sistem. */

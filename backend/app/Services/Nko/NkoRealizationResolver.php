@@ -165,6 +165,7 @@ class NkoRealizationResolver
     /**
      * Susut distribusi tanpa E-Min (%, kumulatif) = (kWh beli - E-Min - PSSD - kWh jual) / (kWh beli - E-Min - PSSD) x 100.
      * kWh beli, E-Min, dan PSSD (kumulatif Januari sampai bulan berjalan) diisi manual; kWh jual = jumlah baris "JUMLAH" laporan 309 Januari sampai bulan berjalan (semua bulan harus ada).
+     * Bila masukan kumulatif NKO tidak diisi, dipakai jumlah masukan bulanan pengusahaan (kWh beli semua bulan harus ada).
      * Rumus berdasarkan penjelasan pemilik; belum divalidasi terhadap angka workbook karena belum ada data kWh beli.
      *
      * @return array<string, float>
@@ -173,6 +174,9 @@ class NkoRealizationResolver
     {
         $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))
             ->whereIn('definition_code', array_keys(self::SUSUT_INPUTS))->pluck('value', 'definition_code');
+        if (! isset($manual['kwh-beli'])) {
+            $manual = $this->monthlyLossInputs($unitId, $year, $month);
+        }
         if (! isset($manual['kwh-beli']) || (float) $manual['kwh-beli'] <= 0) {
             return [];
         }
@@ -192,6 +196,23 @@ class NkoRealizationResolver
         $base = (float) $manual['kwh-beli'] - (float) ($manual['e-min'] ?? 0) - (float) ($manual['pssd'] ?? 0);
 
         return $base <= 0 ? [] : [self::SUSUT_CODE => ($base - $jual) / $base * 100];
+    }
+
+    /**
+     * Kumulatif Januari sampai bulan berjalan dari masukan bulanan pengusahaan (business_monthly_inputs, docs/91), dipakai bila masukan kumulatif NKO tidak diisi.
+     * kWh beli harus ada untuk semua bulan; E-Min dan PSSD dijumlahkan dari bulan yang ada.
+     *
+     * @return array<string, float>
+     */
+    private function monthlyLossInputs(string $unitId, int $year, int $month): array
+    {
+        $rows = DB::table('business_monthly_inputs')->where('organizational_unit_id', $unitId)->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])
+            ->whereIn('code', array_keys(self::SUSUT_INPUTS))->get(['code', 'value']);
+        if ($rows->where('code', 'kwh-beli')->count() !== $month) {
+            return [];
+        }
+
+        return $rows->groupBy('code')->map(fn ($g) => (float) $g->sum('value'))->all();
     }
 
     /**

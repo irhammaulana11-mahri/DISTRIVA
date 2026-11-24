@@ -1,4 +1,4 @@
-# 91 — Analisa dan Tren Pengusahaan (Tahap 1) dan API
+# 91 — Analisa dan Tren Pengusahaan (Tahap 1–2) dan API
 
 Modul untuk melihat tren dan analisa indikator pengusahaan per ULP atau UP3 sesuai kewenangan. Satu katalog metrik di backend, satu pola halaman untuk semua menu. Dokumen ini menjadi kontrak API untuk agen frontend.
 
@@ -21,11 +21,12 @@ Semua angka bulanan per ULP. UP3 = gabungan semua ULP di bawahnya: angka arus da
 | `kwh-p2tl` | kWh P2TL | TAGSUS golongan P1-P4, K2, tanpa golongan (baris TS kWh dan DKRP tidak dipakai) | kWh; Rp; jumlah pelanggan | jumlah |
 | `gangguan` | Gangguan | data gangguan penyulang tersinkron; rincian permanen/temporer | jumlah; permanen; temporer | jumlah |
 | `hpl-bp` | HPL Biaya BP | permohonan PB/PD menurut tanggal lunas (`paid_at`, WIB), tanpa yang dibatalkan atau direstitusi; rincian PB/PD | Rp; jumlah permohonan | jumlah |
-| `susut` | Susut | belum tersedia (`available=false`): butuh kWh beli, E-Min, dan PSSD bulanan | - | - |
+| `susut` | Susut | masukan bulanan kWh beli, E-Min, PSSD (§3a) dan kWh jual 309 (baris JUMLAH); bulan dihitung hanya bila kWh beli dan laporan 309 ada | susut %; susut kWh; kWh beli; kWh jual | rasio jumlah (= rumus susut NKO) |
 
 Catatan sumber:
 - **HPL Biaya BP**: kolom `BP` pada AKHIRBULAN_EIS bernilai 0 di semua 46 bulan contoh, begitu pula baris "Penetapan Cicilan BP" pada 309EIS. Karena itu sumbernya adalah biaya permohonan yang sudah lunas (data untuk semua ULP sejak 2022).
 - **Umur piutang pascabayar**: laporan yang ada hanya memisahkan rekening baru dan saldo yang lewat tanggal 20 per kogol. Pemecahan umur bertingkat (mis. 1, 2, 3+ bulan) butuh laporan umur piutang tersendiri.
+- **Susut** = (kWh beli − E-Min − PSSD − kWh jual) / (kWh beli − E-Min − PSSD) × 100, per bulan dan kumulatif (jumlah susut kWh dibagi jumlah beli bersih). E-Min dan PSSD dianggap 0 bila kosong. Belum ada data kWh beli di sistem, jadi metrik ini kosong sampai masukan diisi.
 - Data EIS saat ini hanya ULP Jombang (Januari 2023 sampai Oktober 2026; DIFI 18 bulan). Tampilan UP3 lengkap setelah laporan semua ULP diimpor.
 
 ## 2. Izin
@@ -36,14 +37,18 @@ Catatan sumber:
 - SYS_ADMIN melihat semua unit;
 - unit di luar cakupan dijawab 404.
 
-Peta izin frontend: `GET /planning/access` memuat `pengusahaan.view`.
+`pengusahaan.input` (mengisi masukan bulanan kWh beli, E-Min, PSSD): PERENCANAAN, ASMAN_PERENCANAAN, SYS_ADMIN (MFA), sama dengan pengisi masukan NKO. Peran tingkat UP3 mengisi untuk ULP di bawahnya; masukan hanya per ULP (UP3 dijawab 404).
+
+Peta izin frontend: `GET /planning/access` memuat `pengusahaan.view` dan `pengusahaan.input`.
 
 ## 3. API (di bawah `/api/pengusahaan`, auth, throttle `admin`)
 
 | Metode dan jalur | Fungsi |
 |---|---|
 | `GET /metrics` | `metrics[]`: `code, name, source, polarity` (`up` = makin besar makin baik, `down` = sebaliknya), `available`, `breakdown` (nama dimensi atau null), `series[]` (`key, name, unit`). `units[]`: unit yang boleh dilihat (`id, name, unit_type, parent_id`) untuk filter |
-| `GET /metrics/{code}?unit_id=&from=YYYY-MM&to=YYYY-MM` | Analisa satu metrik. Bawaan `to` = bulan laporan terakhir (atau bulan lalu untuk sumber non-laporan); `from` = 23 bulan sebelum `to`. Rentang paling panjang 60 bulan |
+| `GET /metrics/{code}?unit_id=&from=YYYY-MM&to=YYYY-MM` | Analisa satu metrik. Bawaan `to` = bulan laporan terakhir (susut: bulan kWh beli terakhir; sumber non-laporan lain: bulan lalu); `from` = 23 bulan sebelum `to`. Rentang paling panjang 60 bulan |
+| `GET /inputs?unit_id=&year=` | Masukan bulanan satu ULP setahun (lihat §3a) |
+| `PUT /inputs` | Simpan masukan bulanan (lihat §3a), butuh `pengusahaan.input` |
 
 Respons `GET /metrics/{code}` (`data`):
 - `unit` (`id, name, unit_type`); `metric` (`code, name, source, polarity, ytd_mode`); `from`, `to`, `months[]`.
@@ -57,7 +62,7 @@ Respons `GET /metrics/{code}` (`data`):
   - `ytd` bernilai null bila ada bulan yang datanya kosong sama sekali.
 - `breakdown` (null bila metrik tanpa rincian): `dimension`, `period`, dan `rows[]` (`key, value, share_pct, same_month_last_year, yoy_pct`, urut dari terbesar). Rincian adalah komposisi seri pertama pada bulan `to`.
 - `comparison[]` (hanya bila unit UP3): per ULP `unit_id, unit_name, latest, yoy_pct, ytd` untuk seri pertama, urut `latest` turun.
-- `coverage`: `months_expected`, dan `missing[]` (`unit_id, unit_name, months[]`) berisi bulan yang laporannya belum diunggah per ULP. Hanya untuk metrik berbasis laporan EIS. Bulan kosong tidak dihitung nol: angka UP3 bulan itu hanya memuat ULP yang ada datanya.
+- `coverage`: `months_expected`, dan `missing[]` (`unit_id, unit_name, months[]`) berisi bulan yang laporannya belum diunggah per ULP. Untuk metrik berbasis laporan EIS dan susut (bulan tanpa kWh beli atau tanpa laporan 309). Bulan kosong tidak dihitung nol: angka UP3 bulan itu hanya memuat ULP yang ada datanya.
 - `insights[]`: `level` (`baik`, `perhatian`, `info`) dan `text`. Catatan otomatis berbasis aturan:
   - angka UP3 belum utuh (berapa dari berapa ULP melapor pada bulan terakhir);
   - kelengkapan laporan;
@@ -68,6 +73,15 @@ Respons `GET /metrics/{code}` (`data`):
   - ULP dengan perubahan tahunan terbaik dan terlemah.
 
   Baik atau buruk mengikuti `polarity`.
+
+### 3a. Masukan bulanan kWh beli, E-Min, PSSD
+
+Nilai **bulan itu** (bukan kumulatif), kWh, per ULP. Satu-satunya tempat mengisi kWh beli: dipakai analisa susut dan juga realisasi susut NKO (NKO menjumlahkan Januari sampai bulan berjalan bila masukan kumulatif NKO `kwh-beli` tidak diisi; masukan kumulatif NKO lama tetap diutamakan bila ada). Riwayat tahun sebelumnya boleh diisi supaya tren dan YoY susut terbentuk.
+
+- `GET /inputs?unit_id=&year=` (ULP saja, `pengusahaan.view`): `unit`, `year`, `codes[]` (`code, name, unit, required`; `kwh-beli` wajib untuk susut, `e-min` dan `pssd` opsional), `can_edit` (punya `pengusahaan.input`), dan `months[]` 12 bulan: `period` (YYYY-MM), `inputs` per kode (`null` atau `{value, note, entered_by, updated_at}`), `kwh_jual` (dari 309, null bila laporan belum ada), `susut_pct` (bulan itu), `susut_kumulatif_pct` (Januari sampai bulan itu, null bila ada bulan sebelumnya yang belum lengkap).
+- `PUT /inputs` body `{unit_id, items:[{period: "YYYY-MM", code, value, note?}]}` (maks 200 butir). `code` salah satu `kwh-beli`, `e-min`, `pssd`; `value` ≥ 0, null menghapus; `period` tidak boleh setelah bulan berjalan. Butir yang nilai dan catatannya sama dilewati. Respons `{message, changed}`. Galat: 403 tanpa izin, 404 unit di luar cakupan atau bukan ULP, 422 validasi.
+
+Saran layar: tabel 12 bulan × (kWh beli, E-Min, PSSD, kWh jual hanya-baca, susut bulan, susut kumulatif), pilih tahun dan ULP, simpan sekaligus. Tempatkan sebagai tab "Masukan kWh Beli" pada halaman metrik Susut (tampil hanya bila `can_edit`), dan tautkan dari butir pembantu susut di halaman masukan NKO.
 
 ## 4. Saran layar (agen frontend)
 
@@ -82,10 +96,10 @@ Analisa Gangguan (`/outages/analysis`) dan Analisa Pelanggan (`/reports/customer
 
 ## 5. Kode dan tes
 
-`app/Services/Analytics/BusinessMetricService.php` (katalog dan pengambilan angka mentah), `BusinessTrendBuilder.php` (deret, ringkasan, rincian, perbandingan, catatan), `app/Http/Controllers/BusinessAnalyticsController.php`; tes `tests/Feature/BusinessAnalyticsTest.php`. Angka dihitung saat diminta dari data sumber (tanpa tabel antara). Pada data Jombang tiap metrik selesai di bawah 0,3 detik.
+`app/Services/Analytics/BusinessMetricService.php` (katalog dan pengambilan angka mentah), `BusinessTrendBuilder.php` (deret, ringkasan, rincian, perbandingan, catatan), `app/Http/Controllers/BusinessAnalyticsController.php`; tabel `business_monthly_inputs`; tes `tests/Feature/BusinessAnalyticsTest.php`. Angka dihitung saat diminta dari data sumber (tanpa tabel antara). Pada data Jombang tiap metrik selesai di bawah 0,3 detik.
 
-## 6. Belum dikerjakan (tahap 2)
+## 6. Belum dikerjakan
 
-- Susut: masukan bulanan kWh beli, E-Min, dan PSSD (atau laporan sumbernya), lalu susut = (beli − E-Min − PSSD − jual) / (beli − E-Min − PSSD).
+- Impor kWh beli dari berkas (Excel) bila sumbernya tersedia; saat ini isian manual per bulan.
 - Umur piutang pascabayar bertingkat: menunggu laporan umur piutang.
 - Target NKO pada grafik untuk metrik yang punya indikator NKO padanan.

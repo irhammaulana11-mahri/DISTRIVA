@@ -18,7 +18,11 @@ class BusinessTrendBuilder
     public function latestMonth(string $code, array $units): string
     {
         $family = BusinessMetricService::CATALOG[$code]['family'] ?? null;
-        $latest = $family === null ? null : DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->max('period');
+        $latest = match (true) {
+            $code === 'susut' => DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->max('period'),
+            $family !== null => DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->max('period'),
+            default => null,
+        };
 
         return $latest !== null ? substr((string) $latest, 0, 7) : date('Y-m', strtotime('first day of last month'));
     }
@@ -35,7 +39,7 @@ class BusinessTrendBuilder
         $toYear = (int) substr($to, 0, 4);
         $fetchFrom = min($this->shift($from, -12), ($toYear - 1).'-01');
         $raw = $this->metrics->raw($code, $units, $fetchFrom, $to);
-        $zeroFill = $def['family'] === null;
+        $zeroFill = $def['zero_fill'] ?? $def['family'] === null;
         $combined = fn (string $m, ?array $only = null) => $this->combine($raw, $only ?? $units, $m, $zeroFill);
 
         $reporting = fn (string $m) => $zeroFill ? $units : array_values(array_filter($units, fn ($u) => isset($raw[$u][$m])));

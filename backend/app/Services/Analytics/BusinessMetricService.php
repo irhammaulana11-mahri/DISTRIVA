@@ -14,6 +14,9 @@ class BusinessMetricService
     /** Kelompok tarif laporan 309 (baris "JUMLAH x" untuk S/R/B/I/P, baris tunggal untuk T/C/L). */
     private const TARIFF_GROUPS = ['S' => 'Sosial', 'R' => 'Rumah tangga', 'B' => 'Bisnis', 'I' => 'Industri', 'P' => 'Pemerintah', 'T' => 'Traksi', 'C' => 'Curah', 'L' => 'Layanan khusus'];
 
+    /** Masukan bulanan (nilai bulan itu, bukan kumulatif) => nama. kWh beli wajib untuk susut; E-Min dan PSSD dianggap 0 bila kosong. */
+    public const INPUT_CODES = ['kwh-beli' => 'kWh beli', 'e-min' => 'E-Min', 'pssd' => 'PSSD'];
+
     /** Baris TAGSUS yang bukan P2TL: tagihan susulan kWh (TS kWh) dan koreksi rekening (DKRP). */
     private const NON_P2TL = ['KWH', 'DKRP'];
 
@@ -54,8 +57,9 @@ class BusinessMetricService
             'series' => [['key' => 'jumlah', 'name' => 'Jumlah gangguan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'permanen', 'name' => 'Permanen', 'unit' => 'kali', 'num' => 'permanen'], ['key' => 'temporer', 'name' => 'Temporer', 'unit' => 'kali', 'num' => 'temporer']]],
         'hpl-bp' => ['name' => 'HPL biaya penyambungan', 'source' => 'Permohonan PB/PD lunas (biaya, tanggal bayar)', 'family' => null, 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Jenis permohonan',
             'series' => [['key' => 'rp', 'name' => 'Biaya penyambungan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah permohonan lunas', 'unit' => 'permohonan', 'num' => 'n']]],
-        'susut' => ['name' => 'Susut', 'source' => 'Belum tersedia: butuh kWh beli, E-Min, dan PSSD bulanan', 'family' => null, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null, 'available' => false,
-            'series' => []],
+        'susut' => ['name' => 'Susut', 'source' => 'Masukan bulanan kWh beli, E-Min, PSSD (pengusahaan) dan kWh jual laporan 309', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
+            'series' => [['key' => 'susut', 'name' => 'Susut', 'unit' => '%', 'num' => 'susut_kwh', 'den' => 'beli_net', 'factor' => 100], ['key' => 'susut_kwh', 'name' => 'Susut', 'unit' => 'kWh', 'num' => 'susut_kwh'],
+                ['key' => 'beli', 'name' => 'kWh beli', 'unit' => 'kWh', 'num' => 'beli'], ['key' => 'jual', 'name' => 'kWh jual', 'unit' => 'kWh', 'num' => 'jual']]],
     ];
 
     /**
@@ -79,6 +83,7 @@ class BusinessMetricService
             'kwh-p2tl' => $this->eis('TAGSUS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
             'gangguan' => $this->outages($units, $fromDate, $toDate),
             'hpl-bp' => $this->connectionFees($units, $fromDate, $toDate),
+            'susut' => $this->losses($units, $fromDate, $toDate),
             default => [],
         };
     }
@@ -92,6 +97,14 @@ class BusinessMetricService
      */
     public function missingMonths(string $code, array $units, array $months): array
     {
+        if ($code === 'susut' && $months !== []) {
+            $have = [];
+            foreach ($this->losses($units, $months[0].'-01', end($months).'-01') as $u => $byMonth) {
+                $have[$u] = array_keys($byMonth);
+            }
+
+            return array_filter(array_combine($units, array_map(fn ($u) => array_values(array_diff($months, $have[$u] ?? [])), $units)));
+        }
         $family = self::CATALOG[$code]['family'] ?? null;
         if ($family === null || $months === []) {
             return [];
@@ -265,6 +278,35 @@ class BusinessMetricService
             $r->t === 'TEMPORER' && $cell['raw']['temporer'] += (float) $r->n;
             $cell['bd'][ucfirst(strtolower($r->t))] = ($cell['bd'][ucfirst(strtolower($r->t))] ?? 0) + (float) $r->n;
             unset($cell);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Susut bulanan = (kWh beli − E-Min − PSSD − kWh jual) / (kWh beli − E-Min − PSSD). kWh beli, E-Min, PSSD dari masukan bulanan; kWh jual dari baris JUMLAH laporan 309.
+     * Bulan dihitung hanya bila kWh beli dan laporan 309 ada. Kumulatif (rasio jumlah) sama dengan rumus susut NKO.
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array{raw: array<string, float>, bd: array<string, float>}>>
+     */
+    public function losses(array $units, string $from, string $to): array
+    {
+        $inputs = [];
+        foreach (DB::table('business_monthly_inputs')->whereIn('organizational_unit_id', $units)->whereBetween('period', [$from, $to])->get(['organizational_unit_id', 'period', 'code', 'value']) as $r) {
+            $inputs[$r->organizational_unit_id][substr((string) $r->period, 0, 7)][$r->code] = (float) $r->value;
+        }
+        $sales = $this->eis('309', $units, $from, $to, fn (array $lines) => $this->from309($lines, 'kwh-jual'));
+        $out = [];
+        foreach ($inputs as $u => $byMonth) {
+            foreach ($byMonth as $m => $v) {
+                if (! isset($v['kwh-beli'], $sales[$u][$m])) {
+                    continue;
+                }
+                $net = $v['kwh-beli'] - ($v['e-min'] ?? 0) - ($v['pssd'] ?? 0);
+                $jual = $sales[$u][$m]['raw']['kwh'];
+                $out[$u][$m] = ['raw' => ['beli' => $v['kwh-beli'], 'beli_net' => $net, 'jual' => $jual, 'susut_kwh' => $net - $jual], 'bd' => []];
+            }
         }
 
         return $out;
