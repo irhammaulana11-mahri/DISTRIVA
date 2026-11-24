@@ -335,6 +335,7 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/snapshots/{snapshot}', [NkoController::class, 'show'])->whereUuid('snapshot');
         Route::get('/ranking', [NkoController::class, 'ranking']);
         Route::get('/inputs', [NkoController::class, 'inputs']);
+        Route::get('/gaps', [NkoController::class, 'gaps']);
         Route::put('/inputs', [NkoController::class, 'saveInputs']);
         Route::post('/calculate', [NkoController::class, 'calculate']);
     });

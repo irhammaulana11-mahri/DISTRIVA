@@ -250,6 +250,30 @@ class NkoCalculationTest extends PostgresTestCase
     }
 
     #[Test]
+    public function ringkasan_kekurangan_melaporkan_indikator_kosong_dan_belum_tervalidasi_sesuai_cakupan_peran(): void
+    {
+        foreach (['2026-01-01' => 48000000, '2025-01-01' => 50000000] as $period => $kwh) {
+            $this->report309($this->ulpA, $period, 1, 1);
+            DB::table('eis_report_lines')->join('eis_report_files', 'eis_report_files.id', '=', 'eis_report_lines.file_id')
+                ->where('eis_report_files.period', $period)->where('eis_report_lines.label', 'JUMLAH')->update(['values' => json_encode(['pelanggan' => 1, 'daya_va' => 1, 'kwh_jumlah' => $kwh])]);
+        }
+
+        $all = $this->as($this->planner)->getJson('/api/nko/gaps?year=2026&month=1&up3_id='.$this->up3->id)->assertOk()->json('data');
+        $this->assertCount(3, $all['units']);
+        $jombang = collect($all['units'])->firstWhere('unit_id', $this->ulpA->id);
+        $status = collect($jombang['items'])->pluck('status', 'code');
+        $this->assertSame('BELUM_TERVALIDASI', $status['penjualan-tenaga-listrik']);
+        $this->assertSame('KOSONG', $status['saidi']);
+        $this->assertSame(1, $jombang['unvalidated_count']);
+        $this->assertSame($jombang['empty_count'] + $jombang['unvalidated_count'], count($jombang['items']));
+        $this->assertGreaterThan($jombang['empty_count'], collect($all['units'])->firstWhere('unit_id', $this->ulpB->id)['empty_count']);
+
+        $own = $this->as($this->viewer)->getJson('/api/nko/gaps?year=2026&month=1')->assertOk()->json('data.units');
+        $this->assertEqualsCanonicalizing([$this->ulpA->id, $this->up3->id], array_column($own, 'unit_id'));   // ULP sendiri dan UP3 induknya, tanpa ULP lain
+        $this->as($this->viewer)->getJson('/api/nko/gaps?year=2026&month=1&up3_id='.$this->ulpB->id)->assertNotFound();
+    }
+
+    #[Test]
     public function susut_dihitung_dari_kwh_beli_emin_pssd_manual_dan_kwh_jual_total_309(): void
     {
         $resolver = app(NkoRealizationResolver::class);

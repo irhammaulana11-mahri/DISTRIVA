@@ -135,16 +135,64 @@ class NkoController extends Controller
         $visible = $this->visibleUnits($request);
         $d = $request->validate(['unit_id' => ['required', 'uuid'], 'year' => ['required', 'integer', 'between:2000,2100'], 'month' => ['required', 'integer', 'between:1,12']]);
         $this->assertUnit($visible, $d['unit_id']);
-        [$unit, $set, $nodes] = $this->context($d['unit_id'], (int) $d['year']);
-        $resolved = $this->resolver->resolve($d['unit_id'], (int) $d['year'], (int) $d['month']);
+        [$unit, $items] = $this->inputItems($d['unit_id'], (int) $d['year'], (int) $d['month']);
+
+        return response()->json(['data' => ['unit_id' => $unit->id, 'unit_name' => $unit->name, 'year' => (int) $d['year'], 'month' => (int) $d['month'], 'items' => $items]]);
+    }
+
+    /**
+     * GET /nko/gaps?year=&month=&up3_id=: ringkasan kekurangan realisasi per unit (ULP, dan UP3 bila dilihat): indikator yang masih kosong
+     * dan yang terisi otomatis tetapi belum tervalidasi terhadap workbook. Masukan pembantu tidak dihitung.
+     */
+    public function gaps(Request $request): JsonResponse
+    {
+        $visible = $this->visibleUnits($request);
+        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100'], 'month' => ['required', 'integer', 'between:1,12'], 'up3_id' => ['nullable', 'uuid']]);
+        if (! empty($d['up3_id'])) {
+            $this->assertUnit($visible, $d['up3_id']);
+        }
+        $units = DB::table('organizational_units')->whereIn('unit_type', ['ULP', 'UP3'])
+            ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
+            ->when(! empty($d['up3_id']), fn ($q) => $q->where(fn ($x) => $x->where('parent_id', $d['up3_id'])->orWhere('id', $d['up3_id'])))
+            ->orderBy('unit_type', 'desc')->orderBy('name')->get(['id', 'name', 'unit_type']);
+        $result = [];
+        foreach ($units as $u) {
+            try {
+                [, $items] = $this->inputItems($u->id, (int) $d['year'], (int) $d['month']);
+            } catch (AdministrationDenied) {
+                continue;
+            }
+            $gaps = [];
+            $total = 0;
+            foreach ($items as $it) {
+                if (! $it['editable'] || ! empty($it['auxiliary'])) {
+                    continue;
+                }
+                $total++;
+                $status = $it['value'] === null ? 'KOSONG' : ($it['source'] === 'SISTEM' && ! $it['system_validated'] ? 'BELUM_TERVALIDASI' : null);
+                $status !== null && $gaps[] = ['code' => $it['code'], 'name' => $it['name'], 'group' => $it['group'], 'status' => $status, 'system_source' => $it['system_source']];
+            }
+            $empty = count(array_filter($gaps, fn ($g) => $g['status'] === 'KOSONG'));
+            $result[] = ['unit_id' => $u->id, 'unit_name' => $u->name, 'unit_type' => $u->unit_type, 'total_indicators' => $total, 'empty_count' => $empty, 'unvalidated_count' => count($gaps) - $empty, 'items' => $gaps];
+        }
+
+        return response()->json(['data' => ['year' => (int) $d['year'], 'month' => (int) $d['month'], 'units' => $result,
+            'totals' => ['empty_count' => array_sum(array_column($result, 'empty_count')), 'unvalidated_count' => array_sum(array_column($result, 'unvalidated_count'))]]]);
+    }
+
+    /** @return array{0: object, 1: list<array<string, mixed>>} unit dan butir masukan (indikator butuh realisasi + masukan pembantu) bulan itu */
+    private function inputItems(string $unitId, int $year, int $month): array
+    {
+        [$unit, $set, $nodes] = $this->context($unitId, $year);
+        $resolved = $this->resolver->resolve($unitId, $year, $month);
         $meta = DB::table('kpi_definitions as d')->leftJoin('kpi_definitions as p', 'p.id', '=', 'd.parent_id')->where('d.set_id', $set->id)->get(['d.id', 'd.name', 'd.source_sheet', 'p.name as parent_name'])->keyBy('id');
-        $targets = DB::table('kpi_targets')->where('organizational_unit_id', $d['unit_id'])->where('period', sprintf('%04d-%02d-01', $d['year'], $d['month']))->get(['definition_id', 'target_value', 'target_text'])->keyBy('definition_id');
+        $targets = DB::table('kpi_targets')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))->get(['definition_id', 'target_value', 'target_text'])->keyBy('definition_id');
         $items = [];
         foreach ($nodes as $n) {
             if (empty($n['source_sheet'])) {
                 continue;
             }
-            $needs = $this->snapshots->needsRealisasi($n, (int) $d['month']);
+            $needs = $this->snapshots->needsRealisasi($n, $month);
             $r = $resolved[$n['code']] ?? null;
             $t = $targets[$n['id']] ?? null;
             $items[] = ['code' => $n['code'], 'name' => $meta[$n['id']]->name, 'group' => $meta[$n['id']]->parent_name, 'unit_label' => $n['unit_label'], 'polarity' => $n['polarity'], 'weight' => $n['weight'],
@@ -165,7 +213,7 @@ class NkoController extends Controller
             }
         }
 
-        return response()->json(['data' => ['unit_id' => $unit->id, 'unit_name' => $unit->name, 'year' => (int) $d['year'], 'month' => (int) $d['month'], 'items' => $items]]);
+        return [$unit, $items];
     }
 
     /** PUT /nko/inputs: simpan masukan manual (value null = hapus). Realisasi kumulatif Januari sampai bulan itu. */
