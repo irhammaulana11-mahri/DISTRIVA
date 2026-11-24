@@ -1,32 +1,39 @@
-# DISTRIVA — Revised Documentation Package
+# README-REVISI — Daftar perubahan backend yang perlu ditindaklanjuti frontend
 
-Tanggal revisi: 22 November 2026
+Satu pintu bagi agen frontend. Setiap progres cukup membaca berkas ini: bagian **Terbuka** menunjuk apa yang perlu dibuat atau diperbaiki beserta dokumen kontraknya. Detail API tidak ditulis di sini, tetapi di dokumen yang ditunjuk.
 
-Paket ini mempertahankan seluruh dokumen yang tersedia di `docs.zip` (termasuk 114 file Markdown) dan memperbarui dokumen arah platform serta prompt pengembangan agar DISTRIVA dipahami sebagai platform terpadu lintas bagian.
+## Aturan pakai
 
-## Hasil pembacaan arsip
-- 114 file Markdown berhasil diekstrak dan diinventarisasi.
-- Dokumen aset/jaringan/pengukuran yang sudah ada diperiksa lebih lanjut: docs/80, docs/81, docs/83, serta roadmap dan peta pekerjaan docs/14, docs/62, docs/78.
-- Master gardu, penyulang, pelanggan, dan pengukuran OMT bukan fitur yang harus dibangun dari nol. Dokumentasi dan handoff yang ada harus menjadi dasar audit kesinambungan.
-- Dokumen lama tetap dipertahankan; tidak ada keputusan lama yang dihapus atau ditimpa.
+**Agen backend** — setiap kali membuat atau mengubah backend yang menyentuh frontend (endpoint baru atau berubah, kolom respons, izin, perilaku, galat, data contoh):
+1. Perbarui dokumen kontraknya (docs/NN atau PROMPT-FRONTEND-*) agar sesuai kode.
+2. Tambahkan satu baris pada tabel **Terbuka** di sini (tanggal, commit, apa yang berubah, dokumen rujukan, kebutuhan frontend). Perubahan murni internal tanpa dampak ke frontend tidak perlu dicatat.
+3. Jangan menghapus baris Terbuka milik orang lain; ubah statusnya hanya bila memang sudah dikerjakan.
 
-## Dokumen utama yang diperbarui
-- `docs/00-PROJECT-OVERVIEW.md`
-- `docs/01-BUSINESS-REQUIREMENTS.md`
-- `docs/14-DEVELOPMENT-ROADMAP.md`
-- `docs/PROJECT-CONTEXT-FOR-AI.md`
-- `docs/AI-HANDOFF.md`
+**Agen frontend** — kerjakan baris Terbuka dari atas ke bawah, baca dokumen rujukannya, lalu pindahkan baris ke **Selesai** dengan commit dan catatan singkat (tes yang ditambah). Bila kontrak tidak jelas atau respons tidak sesuai dokumen, tulis temuan pada kolom Catatan baris itu supaya backend memperbaikinya, jangan menebak.
 
-Dokumen baru:
-- `docs/86-ARAH-PLATFORM-TERPADU-DAN-PERLUASAN-DOMAIN.md`
+Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (menunggu backend atau keputusan pemilik).
 
-Prompt:
-- `PROMPT_MASTER_DISTRIVA_AI_DEVELOPMENT.md`
-- `PROMPT-AI-AGENT-DISTRIVA-FRONTEND-DESIGN.md`
+## Terbuka
 
-## Catatan sumber
-- Workbook NKO/TRP digunakan sebagai referensi struktur indikator, formula, bobot, target, realisasi, pencapaian, nilai, checkpoint dan ranking. Formula/aturan final tetap perlu validasi.
-- Spreadsheet Pengusahaan dari Google Sheets belum dapat dibaca dalam sesi ini. Isi dan struktur modul Pengusahaan belum diasumsikan. Lampirkan ekspor XLSX/CSV agar dapat dianalisis.
-- Analisis susut per penyulang/gardu belum diberi formula final; perlu pemetaan titik ukur dan rekonsiliasi energi terlebih dahulu.
+(Tidak ada tugas terbuka saat ini)
 
-Paket ini merupakan pembaruan dokumentasi dan prompt. Tidak mengubah source code, migration, database, atau deployment.
+## Selesai
+
+| # | Tanggal | Perubahan | Dikerjakan frontend (commit) |
+|---|---|---|---|
+| 1 | 2026-11-24 | Modul **Analisa Pengusahaan**: `GET /pengusahaan/metrics` & `GET /pengusahaan/metrics/{code}`; izin `pengusahaan.view` | Halaman terpadu `BusinessAnalyticsPage.jsx` dengan katalog 14 metrik, filter unit & rentang bulan, kartu ringkasan KPI, grafik SVG interaktif `MetricTrendChart` (deret berjalan vs tahun lalu), rincian komposisi (breakdown), perbandingan ULP (comparison), wawasan otomatis (insights), banner angka UP3 belum utuh, dan box kelengkapan laporan EIS. Rute `/pengusahaan` & navigasi sidebar ditambahkan. Tes: `BusinessAnalyticsPage.test.jsx` |
+| 2 | 2026-11-24 | Masukan pembantu NKO dibuat umum (`auxiliary=true` pada `GET /nko/inputs`) & pesan respons `PUT /inputs` | `NkoPage.jsx` menampilkan toast respon simpan (`changed` count / "Tidak ada perubahan masukan") dan keterangan/tautan pada masukan pembantu susut ke Analisa Pengusahaan > Susut. Tes: `NkoPage.test.jsx` |
+| 3 | 2026-11-24 | `GET /nko/gaps?year=&month=&up3_id=`: ringkasan kekurangan per unit | `NkoPage.jsx` memanggil `loadGaps()` saat halaman pertama kali dibuka sehingga lencana/badge jumlah kekurangan pada judul tab langsung terisi sejak awal. Tes: `NkoPage.test.jsx` |
+| 4 | 2026-11-24 | **Susut** pada Analisa Pengusahaan dari masukan bulanan kWh beli, E-Min, PSSD (`GET /pengusahaan/inputs`, `PUT /pengusahaan/inputs`, izin `pengusahaan.input`) | Tab "Masukan kWh Beli" di halaman Susut pada `BusinessAnalyticsPage.jsx`: tabel 12 bulan x (kWh beli, E-Min, PSSD, kWh jual 309, susut bulanan, susut kumulatif), pilihan ULP & tahun, simpan masukan batch, empty state ajakan mengisi bagi yang berwenang. Tes: `BusinessAnalyticsPage.test.jsx` |
+| 5 | 2026-11-24 | Redesain Chart Gangguan Penyulang sumbu 12 bulan (Jan–Des) dan pemisah tipe gangguan | Komponen `YearlyComparisonChart` di `TrendCharts.jsx` dengan sumbu tetap 12 bulan (Jan–Des), warna legenda berbeda tiap tahun, toggle tahun interaktif, mode garis/batang. Diterapkan pada `OutageAnalysisPage.jsx` untuk Gangguan per Bulan (Total, Permanen, Temporer, dan Bandingkan Ketiganya), SAIFI, SAIDI, ENS, serta rincian penyulang FeederDrawer. Tes: `Outage.test.jsx` (9 test lulus) |
+| 6 | 2026-11-24 | **Templat dan impor Excel kWh beli**: `GET /pengusahaan/inputs/template?year=&unit_id=` & `POST /pengusahaan/inputs/import` | Tombol **Unduh Templat** dan **Impor Excel** pada tab Masukan kWh Beli di `BusinessAnalyticsPage.jsx` (hanya bila `can_edit`), penanganan galat 422 dengan pesan rincian baris ditolak apa adanya, dan auto reload data masukan. API terdaftar di `api.js`. Tes: `BusinessAnalyticsPage.test.jsx` |
+| 7 | 2026-11-24 | **Umur piutang pascabayar**: jenis laporan EIS `UMURPIUTANG`, metrik `piutang-pascabayar-umur`, `breakdown_secondary` dan `matrix` | (a) `EisReportsPage.jsx`: label `UMURPIUTANG: 'UMURPIUTANG (Umur Tunggakan Pascabayar)'` dan petunjuk nama berkas `UMURPIUTANG-<kodeULP>-<BBTTTT>.xls` (unduhan Rekap.xls diganti nama). (b) `BusinessAnalyticsPage.jsx`: rincian sekunder `breakdown_secondary` dan tabel matriks silang `matrix` (heatmap warna proporsional Kogol x Umur Tunggakan) dengan total baris/kolom. Tes: `BusinessAnalyticsPage.test.jsx` & `EisReportsPage.test.jsx` |
+| 8 | 2026-11-24 | **Unggah laporan EIS dipermudah**: nama berkas bebas (unduhan EIS apa adanya dikenali dari isi), `POST /eis-reports/import` menerima **.zip** (unit/bulan dari nama folder) serta opsional `unit_id` dan `period`; `GET /eis-reports/coverage?up3_id=&year=` kelengkapan semua ULP satu UP3 dengan daftar yang belum masuk | (a) `EisReportsPage.jsx`: nama berkas bebas, unggah `.zip` & folder (`webkitdirectory`), pilihan opsional bulan & unit pada modal unggah, chunking 20 berkas per request dengan progress bar, tabel hasil pemrosesan per berkas (termasuk isi ZIP `arsip.zip › jalur`). (b) Komponen `Up3CoverageView` pada tab Kelengkapan Laporan: matriks kelengkapan seluruh ULP di bawah UP3 dengan batasan `expected_until_month`, KPI kekurangan, toggle matriks 12 bulan / ringkasan ULP, serta tautan langsung dari banner peringatan di `BusinessAnalyticsPage.jsx`. Tes: `EisReportsPage.test.jsx` (5 test lulus) |
+| 9 | 2026-11-24 | **Sinkronisasi saldo piutang EIS dari DISTRIVA**: `POST /eis-sync/runs` menerima `kind: "piutang"` (+ `to_month`, `from_month`, `reports`, `units`) | `EisSyncDrawer.jsx` kartu baru "Tarik Laporan Piutang", pilihan bulan akhir (wajib) & bulan awal, centang 3 laporan (GOLONGAN, LEMBAR, KOGOL), visualisasi badge jenis saldo piutang & label KPI di `EisRunResults.jsx`, serta label jenis & opsi di `EisRunHistory.jsx`. Tes: `EisSyncDrawer.test.jsx` (6 test lulus) |
+
+## Riwayat kontrak yang sudah ada (acuan)
+
+- NKO/KPI: docs/89 (master definisi), docs/90 (perhitungan, masukan, koreksi beralasan, peringkat, API).
+- Laporan EIS bulanan: docs/88. Data gangguan penyulang: docs/87.
+- Analisa pengusahaan: docs/91.
+- Prompt frontend sebelumnya: berkas `PROMPT-FRONTEND-*.md` di folder docs.

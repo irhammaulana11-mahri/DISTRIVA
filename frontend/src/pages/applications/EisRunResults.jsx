@@ -58,12 +58,29 @@ export default function EisRunResults({ run, units }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const isPiutang = run?.kind === 'piutang'
+
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs" aria-label="Hasil sinkronisasi EIS">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Hasil Sinkronisasi EIS</h3>
-          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Ringkasan status sinkronisasi permohonan per unit ULP.</p>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Hasil Sinkronisasi EIS
+            </h3>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              isPiutang
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+            }`}>
+              {isPiutang ? 'Saldo Piutang' : 'Permohonan PB/PD'}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {isPiutang
+              ? 'Ringkasan penarikan laporan saldo piutang (Per Golongan, Per Lembar, Kogol) per unit ULP.'
+              : 'Ringkasan status sinkronisasi permohonan per unit ULP.'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${PILL[run.status]?.[1]}`}>{PILL[run.status]?.[0] || run.status}</span>
@@ -106,8 +123,8 @@ export default function EisRunResults({ run, units }) {
           <Kpi label="Unit diproses" value={<>{r.doneUnits} / {r.totalUnits} <span className="text-[11px] font-normal text-emerald-600">sukses</span></>}
             hint={r.failedUnits ? `${r.failedUnits} unit gagal` : undefined} tone={r.failedUnits ? 'text-rose-600' : undefined} />
         )}
-        <Kpi label="Permohonan baru" value={nf(r.baru)} tone="text-emerald-600" />
-        <Kpi label="Cocok / diperbarui" value={nf(r.cocok)} />
+        <Kpi label={isPiutang ? 'Berkas baru' : 'Permohonan baru'} value={nf(r.baru)} tone="text-emerald-600" />
+        <Kpi label={isPiutang ? 'Berkas duplikat' : 'Cocok / diperbarui'} value={nf(r.cocok)} />
         <Kpi label="Ditolak" value={nf(r.ditolak)} tone={r.ditolak ? 'text-amber-600' : undefined} hint={r.luar ? `${nf(r.luar)} di luar cakupan` : undefined} />
       </div>
 

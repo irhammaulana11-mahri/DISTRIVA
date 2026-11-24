@@ -78,8 +78,9 @@ export default function EisRunHistory() {
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/60 text-[11px] font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                 <th className="py-3 px-4">Waktu Eksekusi</th>
+                <th className="py-3 px-4">Jenis</th>
                 <th className="py-3 px-4">Pemicu</th>
-                <th className="py-3 px-4">Rentang Tanggal</th>
+                <th className="py-3 px-4">Rentang / Periode</th>
                 <th className="py-3 px-4">Unit</th>
                 <th className="py-3 px-4">Dijalankan Oleh</th>
                 <th className="py-3 px-4">Status</th>
@@ -87,30 +88,57 @@ export default function EisRunHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-              {runs.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">{when(r.created_at)}</td>
-                  <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                    {r.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}
-                    {r.complete_old && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px] font-bold" title="Dengan pelengkapan permohonan lama (maks. 180 hari sebelum rentang)">+ pelengkapan</span>}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
-                    {r.range_from && r.range_to
-                      ? <span className="font-mono font-medium">{r.range_from} s/d {r.range_to}</span>
-                      : <span className="text-slate-400">Bawaan{state.lookback ? ` (${state.lookback} hari)` : ''}</span>}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
-                    {r.units && r.units.length > 0 ? <span className="font-mono">{r.units.join(', ')}</span> : <span className="text-slate-400">Semua unit</span>}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">{r.started_by || '-'}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS[r.status]?.[1] || 'bg-slate-100 text-slate-700'}`}>{STATUS[r.status]?.[0] || r.status}</span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button type="button" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer text-xs" onClick={() => openLog(r)}>Lihat log</button>
-                  </td>
-                </tr>
-              ))}
+              {runs.map((r) => {
+                const isPiutang = r.kind === 'piutang'
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">{when(r.created_at)}</td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                        isPiutang
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                          : 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
+                      }`}>
+                        {isPiutang ? 'Saldo Piutang' : 'Permohonan'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                      {r.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}
+                      {r.complete_old && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px] font-bold" title="Dengan pelengkapan permohonan lama (maks. 180 hari sebelum rentang)">+ pelengkapan</span>}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
+                      {isPiutang ? (
+                        <div className="space-y-0.5">
+                          <div className="font-mono font-medium">
+                            {r.options?.from_month === r.options?.to_month
+                              ? r.options?.to_month || '-'
+                              : `${r.options?.from_month || '-'} s/d ${r.options?.to_month || '-'}`}
+                          </div>
+                          {r.options?.reports && (
+                            <div className="text-[10px] text-slate-400">
+                              {r.options.reports.join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        r.range_from && r.range_to
+                          ? <span className="font-mono font-medium">{r.range_from} s/d {r.range_to}</span>
+                          : <span className="text-slate-400">Bawaan{state.lookback ? ` (${state.lookback} hari)` : ''}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
+                      {r.units && r.units.length > 0 ? <span className="font-mono">{r.units.join(', ')}</span> : <span className="text-slate-400">Semua unit</span>}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">{r.started_by || '-'}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS[r.status]?.[1] || 'bg-slate-100 text-slate-700'}`}>{STATUS[r.status]?.[0] || r.status}</span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button type="button" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer text-xs" onClick={() => openLog(r)}>Lihat log</button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

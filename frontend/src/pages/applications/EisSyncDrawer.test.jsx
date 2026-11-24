@@ -79,7 +79,42 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
   it('tanpa akun EIS tersimpan tombol sinkronkan dinonaktifkan', async () => {
     eisSyncApi.show.mockResolvedValue({ data: { settings: { ...settings, eis_username: null, has_password: false }, runs: [] } })
     render(<EisSyncDrawer open onClose={() => {}} />)
-    expect(await screen.findByText(/Simpan user dan password EIS terlebih dulu/)).toBeInTheDocument()
+    expect(await screen.findAllByText(/Simpan user dan password EIS terlebih dulu/)).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Sinkronkan Sekarang' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Tarik Piutang' })).toBeDisabled()
+  })
+
+  it('kartu Tarik Laporan Piutang mengirim parameter kind piutang, periode bulan, dan jenis laporan', async () => {
+    eisSyncApi.start.mockResolvedValue({ data: { id: 'r2', kind: 'piutang', status: 'QUEUED', log: null, created_at: '2026-11-24T12:00:00Z' } })
+    eisSyncApi.run.mockResolvedValue({ data: { id: 'r2', kind: 'piutang', status: 'OK', log: '=== Bulan 2026-10 ===\nOK GOLONGAN JOMBANG 2026-10 (4500 byte)', created_at: '2026-11-24T12:00:00Z' } })
+    render(<EisSyncDrawer open onClose={() => {}} />)
+
+    expect(await screen.findByText('Tarik Laporan Piutang')).toBeInTheDocument()
+    const toInput = screen.getByLabelText('Bulan akhir piutang')
+    const fromInput = screen.getByLabelText('Bulan awal piutang')
+    fireEvent.change(toInput, { target: { value: '2026-10' } })
+    fireEvent.change(fromInput, { target: { value: '2026-08' } })
+
+    // Uncheck Kogol
+    const kogolBox = screen.getByLabelText('Laporan Kogol')
+    expect(kogolBox).toBeChecked()
+    await userEvent.click(kogolBox)
+    expect(kogolBox).not.toBeChecked()
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik Piutang' })
+    expect(submitBtn).toBeEnabled()
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'piutang',
+        to_month: '2026-10',
+        from_month: '2026-08',
+        reports: ['GOLONGAN', 'LEMBAR'],
+      })
+    })
+
+    expect(await screen.findByText('Hasil Sinkronisasi EIS')).toBeInTheDocument()
+    expect(screen.getByText('Saldo Piutang')).toBeInTheDocument()
   })
 })

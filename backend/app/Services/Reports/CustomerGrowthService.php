@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,10 +31,7 @@ class CustomerGrowthService
 
             return $q;
         };
-        $realized = DB::table('applications as a')
-            ->leftJoinSub(DB::table('application_external_status_histories')->selectRaw('application_id, min(observed_at) as at')->whereRaw("upper(external_status_code) = 'PEREMAJAAN'")->groupBy('application_id'), 'h', 'h.application_id', '=', 'a.id')
-            ->where('a.current_status', 'CONNECTION_DONE')->whereIn('a.organizational_unit_id', $units)
-            ->selectRaw("a.application_type as t, a.organizational_unit_id as u, a.new_tariff_code as tariff, a.delta_power_kva::float as d, to_char(coalesce(h.at, a.last_external_status_at) at time zone ?, 'YYYY-MM') as m", [$tz]);
+        $realized = $this->realized($units, $tz);
 
         $rows = $inRange(DB::query()->fromSub($realized, 'r')->whereNotNull('m'))->groupBy('m')->orderBy('m')->selectRaw("m,
             count(*) filter (where t = 'PB') as pb_count, coalesce(sum(d) filter (where t = 'PB'), 0) as pb_kva,
@@ -83,6 +81,54 @@ class CustomerGrowthService
                 'Bulan berjalan belum lengkap (ditandai) dan tidak dipakai untuk pertumbuhan, musiman, maupun deteksi anomali.',
             ],
         ];
+    }
+
+    /**
+     * Permohonan yang sudah tersambung beserta bulan sambungnya (zona waktu bisnis): t = PB/PD, u = ULP, tariff, d = selisih daya (kVA), m = YYYY-MM.
+     *
+     * @param  list<string>  $units
+     */
+    private function realized(array $units, string $tz): Builder
+    {
+        return DB::table('applications as a')
+            ->leftJoinSub(DB::table('application_external_status_histories')->selectRaw('application_id, min(observed_at) as at')->whereRaw("upper(external_status_code) = 'PEREMAJAAN'")->groupBy('application_id'), 'h', 'h.application_id', '=', 'a.id')
+            ->where('a.current_status', 'CONNECTION_DONE')->whereIn('a.organizational_unit_id', $units)
+            ->selectRaw("a.application_type as t, a.organizational_unit_id as u, a.new_tariff_code as tariff, a.delta_power_kva::float as d, to_char(coalesce(h.at, a.last_external_status_at) at time zone ?, 'YYYY-MM') as m", [$tz]);
+    }
+
+    /**
+     * Angka bulanan per ULP untuk menjelaskan angka resmi Laporan 309 (docs/91 bagian pendamping): PB dan daya tersambung, perubahan daya, permohonan masuk.
+     * Dasar dan aturannya sama dengan trend().
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array{pb: float, pb_kva: float, pd_net_kva: float, req_pb: float, req_pd: float}>> unit => bulan (YYYY-MM) => angka
+     */
+    public function monthlyByUnit(array $units, string $fromMonth, string $toMonth): array
+    {
+        $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
+        $out = [];
+        $cell = function (string $u, string $m) use (&$out): void {
+            $out[$u][$m] ??= ['pb' => 0.0, 'pb_kva' => 0.0, 'pd_net_kva' => 0.0, 'req_pb' => 0.0, 'req_pd' => 0.0];
+        };
+        $rows = DB::query()->fromSub($this->realized($units, $tz), 'r')->whereNotNull('m')->whereBetween('m', [$fromMonth, $toMonth])->groupBy('u', 'm')
+            ->selectRaw("u, m, count(*) filter (where t = 'PB') as pb, coalesce(sum(d) filter (where t = 'PB'), 0) as pb_kva, coalesce(sum(d) filter (where t = 'PD'), 0) as pd_net_kva")->get();
+        foreach ($rows as $r) {
+            $cell($r->u, $r->m);
+            $out[$r->u][$r->m] = ['pb' => (float) $r->pb, 'pb_kva' => (float) $r->pb_kva, 'pd_net_kva' => (float) $r->pd_net_kva] + $out[$r->u][$r->m];
+        }
+        $received = DB::table('applications as a')->whereIn('a.organizational_unit_id', $units)
+            ->selectRaw("a.organizational_unit_id as u, to_char(coalesce(a.source_created_at, a.created_at) at time zone ?, 'YYYY-MM') as m, count(*) filter (where a.application_type = 'PB') as req_pb, count(*) filter (where a.application_type = 'PD') as req_pd", [$tz])
+            ->groupBy('u', 'm')->get();
+        foreach ($received as $r) {
+            if ($r->m < $fromMonth || $r->m > $toMonth) {
+                continue;
+            }
+            $cell($r->u, $r->m);
+            $out[$r->u][$r->m]['req_pb'] = (float) $r->req_pb;
+            $out[$r->u][$r->m]['req_pd'] = (float) $r->req_pd;
+        }
+
+        return $out;
     }
 
     /** @param list<string> $present @return list<string> bulan berurutan tanpa celah dari yang tertua sampai terbaru */

@@ -59,6 +59,15 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // State untuk penarikan piutang
+  const nowMonth = new Date().toISOString().slice(0, 7)
+  const [piutangFromMonth, setPiutangFromMonth] = useState('')
+  const [piutangToMonth, setPiutangToMonth] = useState(nowMonth)
+  const [piutangReports, setPiutangReports] = useState(['GOLONGAN', 'LEMBAR', 'KOGOL'])
+  const [piutangStarting, setPiutangStarting] = useState(false)
+  const [piutangError, setPiutangError] = useState('')
+
   const timer = useRef(null)
   const logRef = useRef(null)
 
@@ -169,6 +178,33 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
       setError(err?.message || 'Gagal memulai sinkronisasi.')
     } finally {
       setStarting(false)
+    }
+  }
+
+  const togglePiutangReport = (rep) => {
+    setPiutangReports((prev) =>
+      prev.includes(rep) ? prev.filter((r) => r !== rep) : [...prev, rep]
+    )
+  }
+
+  const startPiutang = async () => {
+    setPiutangStarting(true)
+    setPiutangError('')
+    setNotice('')
+    try {
+      const body = {
+        kind: 'piutang',
+        to_month: piutangToMonth,
+        from_month: piutangFromMonth || piutangToMonth,
+        reports: piutangReports,
+      }
+      if (units.length > 0 && selected.length < units.length) body.units = selected
+      const res = await eisSyncApi.start(body)
+      setCurrent(res?.data)
+    } catch (err) {
+      setPiutangError(err?.message || 'Gagal memulai penarikan saldo piutang.')
+    } finally {
+      setPiutangStarting(false)
     }
   }
 
@@ -369,7 +405,7 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                   </fieldset>
                 )}
 
-                {/* Tombol Eksekusi Penarikan */}
+                {/* Tombol Eksekusi Penarikan Permohonan */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <Button
                     onClick={start}
@@ -377,10 +413,10 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                     disabled={!ready || running || Boolean(range.from) !== Boolean(range.to) || (units.length > 0 && selected.length === 0)}
                     variant="primary"
                     size="md"
-                    className="w-full sm:w-auto"
+                    className="w-full sm:w-auto cursor-pointer"
                   >
-                    <IconRefresh size={14} className={running ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                    {running ? 'Sedang berjalan…' : 'Sinkronkan Sekarang'}
+                    <IconRefresh size={14} className={running && current?.kind !== 'piutang' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {running && current?.kind !== 'piutang' ? 'Sedang berjalan…' : 'Sinkronkan Sekarang'}
                   </Button>
 
                   {!ready && (
@@ -389,7 +425,122 @@ export default function EisSyncDrawer({ open, asPage = false, onClose, onSynced 
                     </span>
                   )}
                 </div>
+              </section>
 
+              {/* KARTU BARU: Tarik Laporan Piutang dari EIS */}
+              <section className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                      Tarik Laporan Piutang
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Tarik otomatis laporan saldo piutang bulanan (Per Golongan, Per Lembar, dan Kogol) langsung dari server EIS PLN.
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">
+                    Laporan EIS
+                  </span>
+                </div>
+
+                <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200/60 dark:border-emerald-900/40 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
+                  <p>
+                    Laporan saldo piutang diunduh dari EIS dan langsung masuk ke modul <b>Laporan Bulanan EIS</b> serta <b>Analisa &amp; Tren Pengusahaan</b>.
+                  </p>
+                </div>
+
+                {piutangError && <Alert kind="error">{piutangError}</Alert>}
+
+                {/* Filter Periode Bulan */}
+                <div className="space-y-3 pt-1">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                    Periode Bulan Laporan
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="Bulan akhir (wajib)" hint="Bulan mutasi target laporan">
+                      <input
+                        aria-label="Bulan akhir piutang"
+                        type="month"
+                        value={piutangToMonth}
+                        onChange={(e) => setPiutangToMonth(e.target.value)}
+                        className={inputCls}
+                        required
+                      />
+                    </Field>
+                    <Field label="Bulan awal (opsional)" hint="Kosongkan untuk hanya menarik bulan akhir saja">
+                      <input
+                        aria-label="Bulan awal piutang"
+                        type="month"
+                        value={piutangFromMonth}
+                        onChange={(e) => setPiutangFromMonth(e.target.value)}
+                        className={inputCls}
+                        placeholder={piutangToMonth}
+                      />
+                    </Field>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Bila bulan awal diisi, DISTRIVA akan menarik rentang bulan secara berurutan (paling banyak 24 bulan per sesi).
+                  </p>
+                </div>
+
+                {/* Centang Laporan */}
+                <div className="space-y-2 pt-1">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                    Laporan yang Ditarik
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
+                    {[
+                      { key: 'GOLONGAN', label: 'Per Golongan' },
+                      { key: 'LEMBAR', label: 'Per Lembar' },
+                      { key: 'KOGOL', label: 'Kogol' },
+                    ].map((rep) => (
+                      <label
+                        key={rep.key}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs cursor-pointer select-none transition ${
+                          piutangReports.includes(rep.key)
+                            ? 'border-emerald-300 bg-emerald-50/70 text-emerald-900 font-semibold dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={piutangReports.includes(rep.key)}
+                          onChange={() => togglePiutangReport(rep.key)}
+                          disabled={running}
+                          aria-label={`Laporan ${rep.label}`}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>{rep.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Info Unit terpilih */}
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Unit yang ditarik mengikuti pilihan di atas ({selected.length} dari {units.length} unit).
+                </p>
+
+                {/* Tombol Eksekusi Penarikan Piutang */}
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <Button
+                    onClick={startPiutang}
+                    loading={piutangStarting}
+                    disabled={!ready || running || !piutangToMonth || piutangReports.length === 0 || (units.length > 0 && selected.length === 0)}
+                    variant="primary"
+                    size="md"
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white cursor-pointer"
+                  >
+                    <IconRefresh size={14} className={running && current?.kind === 'piutang' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {running && current?.kind === 'piutang' ? 'Sedang menarik piutang…' : 'Tarik Piutang'}
+                  </Button>
+
+                  {!ready && (
+                    <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                      Simpan user dan password EIS terlebih dulu.
+                    </span>
+                  )}
+                </div>
               </section>
             <EisRunResults run={current} units={units} />
           </div>
