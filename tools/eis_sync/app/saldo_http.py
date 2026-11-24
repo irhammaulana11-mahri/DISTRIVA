@@ -30,6 +30,8 @@ MYCUBE = {"GOLONGAN": ("saldo_lalu_eis", "PERGOLONGAN"), "LEMBAR": ("saldo_lalu_
 NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 MIN_BYTES = 2000                    # Excel yang lebih kecil dianggap kosong (EIS membuat berkas kosong bila sesi tidak sah)
 PAUSE = 1.0                         # jeda antar permintaan supaya tidak membebani EIS
+TRANSIENT_RETRIES = 3               # galat sementara EIS (HTTP 5xx, koneksi putus) diulang sebanyak ini
+TRANSIENT_DELAY = 3.0               # detik; dikali nomor percobaan
 _HEAD = re.compile(r"UP\s*:\s*(\d+)\s*\(\s*MUTASI\s*:\s*(\d{2})/(\d{4})", re.I)
 
 
@@ -78,10 +80,36 @@ def check_excel(data: bytes, content_type: str, status: int) -> str:
     return kind
 
 
+def form_fields(html: str) -> dict[str, str]:
+    """Isian form halaman seperti yang dikirim skrip konsol: semua input, select, dan textarea bernama KECUALI tombol (submit, button, image, reset) dan berkas. Tombol lain tidak boleh ikut
+    terkirim: ASP.NET menganggapnya tombol yang diklik sehingga kejadian Save atau Load Data tertimpa dan halaman hanya digambar ulang (bukan Excel)."""
+    form = BeautifulSoup(html, "html.parser").find("form")
+    if form is None:
+        return {}
+    payload: dict[str, str] = {}
+    for el in form.find_all(["input", "select", "textarea"]):
+        name = el.get("name")
+        if not name:
+            continue
+        if el.name == "input":
+            kind = (el.get("type") or "text").lower()
+            if kind in ("submit", "button", "image", "reset", "file"):
+                continue
+            if kind in ("checkbox", "radio") and not el.has_attr("checked"):
+                continue
+            payload[name] = el.get("value", "")
+        elif el.name == "select":
+            option = el.find("option", selected=True) or el.find("option")
+            payload[name] = "" if option is None else option.get("value", option.get_text(strip=True))
+        else:
+            payload[name] = el.get_text()
+    return payload
+
+
 def page_form(session: requests.Session, url: str, step: str):
     response = session.get(url, timeout=(20, 90))
     eis._check_response(response, step)
-    payload = eis.form_payload(response.text)
+    payload = form_fields(response.text)
     if not payload.get("__VIEWSTATE"):
         raise SaldoError(f"{step}: halaman tidak memuat __VIEWSTATE (HTTP {response.status_code}): {re.sub(r'\s+', ' ', response.text[:200])}")
     return response, payload
@@ -127,7 +155,7 @@ def fetch_kogol(session: requests.Session, ulp: str, month: str) -> tuple[bytes,
         raise SaldoError(f"judul laporan KOGOL tidak ditemukan setelah Load Data (sesi habis?): {re.sub(r'\s+', ' ', loaded.text[:200])}")
     if (head.group(1), head.group(2), head.group(3)) != (ulp, mm, year):
         raise SaldoError(f"EIS menampilkan unit {head.group(1)} bulan {head.group(2)}/{head.group(3)}, bukan {ulp} {mm}/{year} (akun mungkin tidak boleh berpindah unit atau bulan)")
-    payload = eis.form_payload(loaded.text)
+    payload = form_fields(loaded.text)
     payload.update({"__EVENTTARGET": "btnExport", "__EVENTARGUMENT": "", "cbojenis_Value": "KOGOL", "cbojenis": "KOGOL", "cbojenis_SelIndex": "0"})
     answer = session.post(url, data=payload, timeout=(20, 180), headers={"Referer": url})
     eis._check_response(answer, "Export KOGOL")
@@ -150,15 +178,23 @@ def run(client, units: list[tuple[str, str]], months: list[str], reports: list[s
     uploaded = 0
 
     def attempt(label: str, action):
+        """Sesi berakhir: login ulang sekali. Galat sementara EIS (HTTP 5xx, putus): ulangi sampai 3 kali dengan jeda bertambah."""
         nonlocal session
-        for retry in (0, 1):
+        relogged = False
+        for retry in range(1, TRANSIENT_RETRIES + 2):
             try:
                 return action()
             except eis.EISSessionExpired as e:
-                if retry:
+                if relogged:
                     raise
+                relogged = True
                 print(f"Sesi EIS berakhir ({e}); login ulang ...", flush=True)
                 session = eis.http_session(fresh=True)
+            except (eis.EISTransientError, *eis.RETRYABLE_EXCEPTIONS) as e:
+                if retry > TRANSIENT_RETRIES:
+                    raise
+                print(f"{label}: {e} Ulangi {retry}/{TRANSIENT_RETRIES} ...", flush=True)
+                time.sleep(TRANSIENT_DELAY * retry)
         return None
 
     for month in months:

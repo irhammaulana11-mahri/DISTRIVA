@@ -27,7 +27,8 @@ class Reply:
 
 
 def form(extra="", head=""):
-    return f'<html><body><form><input type="hidden" name="__VIEWSTATE" value="VS"><input type="hidden" name="GV$CallbackState" value="CB">{extra}<span>{head}</span></form></body></html>'
+    buttons = '<input type="submit" name="btnLoad" value="Load"><input type="submit" name="btnExport" value="Export"><input type="image" name="imgGo" src="x.png"><input type="button" name="btnX" value="x">'
+    return f'<html><body><form><input type="hidden" name="__VIEWSTATE" value="VS"><input type="hidden" name="GV$CallbackState" value="CB"><select name="cbo"><option value="a">A</option><option value="b" selected>B</option></select>{buttons}{extra}<span>{head}</span></form></body></html>'
 
 
 class FakeSession:
@@ -74,7 +75,9 @@ class MycubeTest(unittest.TestCase):
         self.assertIn("jenis=saldo_lalu_eis_lbr", s.gets[0])
         self.assertEqual(unquote(s.gets[0].split("parameter=")[1]), "'51453';'202610';'PERLEMBAR'")
         sent = s.posts[0][1]
-        self.assertEqual((sent["listExportFormatx"], sent["btnSave"], sent["__VIEWSTATE"], sent["GV$CallbackState"]), ("Excel", "Save", "VS", "CB"))
+        self.assertEqual((sent["listExportFormatx"], sent["btnSave"], sent["__VIEWSTATE"], sent["GV$CallbackState"], sent["cbo"]), ("Excel", "Save", "VS", "CB", "b"))
+        for other in ("btnLoad", "btnExport", "imgGo", "btnX"):                         # tombol lain tidak boleh ikut: EIS menganggapnya tombol yang diklik
+            self.assertNotIn(other, sent)
         sh.fetch_mycube(s, "GOLONGAN", "51454", "2026-01")
         self.assertIn("jenis=saldo_lalu_eis&", s.gets[1])
         self.assertIn("PERGOLONGAN", unquote(s.gets[1]))
@@ -87,6 +90,9 @@ class KogolTest(unittest.TestCase):
         self.assertEqual(ext, "xls")
         self.assertEqual([p[1]["__EVENTTARGET"] for p in s.posts], ["btnLoad", "btnExport"])
         self.assertTrue(all(p[1]["cbojenis_Value"] == "KOGOL" for p in s.posts))
+        for _url, sent in s.posts:
+            self.assertNotIn("btnLoad", sent)
+            self.assertNotIn("btnExport", sent)
 
     def test_a_title_for_another_unit_or_month_is_refused_before_anything_is_exported(self):
         s = FakeSession(head="REKAP SALDO PAL PER TANGGAL 20 , UP : 51453 ( MUTASI : 08/2026)")
@@ -95,6 +101,47 @@ class KogolTest(unittest.TestCase):
         self.assertEqual([p[1]["__EVENTTARGET"] for p in s.posts], ["btnLoad"])
         with self.assertRaisesRegex(sh.SaldoError, "judul laporan KOGOL tidak ditemukan"):
             sh.fetch_kogol(FakeSession(head="tanpa judul"), "51453", "2026-10")
+
+
+class FormFieldsTest(unittest.TestCase):
+    def test_buttons_and_files_are_left_out_and_checked_boxes_selects_and_textareas_are_kept(self):
+        html = ('<form><input name="a" value="1"><input type="checkbox" name="c1" value="x" checked><input type="checkbox" name="c2" value="y">'
+                '<input type="radio" name="r" value="z"><select name="s"><option>P</option><option value="q" selected>Q</option></select><textarea name="t">isi</textarea>'
+                '<input type="submit" name="go" value="Go"><input type="file" name="f"><input type="reset" name="rs"></form>')
+        self.assertEqual(sh.form_fields(html), {"a": "1", "c1": "x", "s": "q", "t": "isi"})
+        self.assertEqual(sh.form_fields("<p>tanpa form</p>"), {})
+
+
+class RetryTest(unittest.TestCase):
+    def test_a_transient_eis_error_is_retried_and_other_files_continue_when_it_keeps_failing(self):
+        calls = {"n": 0}
+        original = sh.fetch_mycube
+
+        def flaky(sess, report, ulp, month):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise sh.eis.EISTransientError("EIS sementara menjawab HTTP 500.")
+            return XLS, "xls"
+
+        class Client:
+            def login(self):
+                pass
+
+            def import_eis_reports(self, name, content):
+                return {"results": []}
+
+        sh.fetch_mycube = flaky
+        saved = (sh.eis, sh.TRANSIENT_DELAY)
+        sh.TRANSIENT_DELAY = 0
+        sh.eis = types.SimpleNamespace(http_session=lambda fresh=False: FakeSession(), EISSessionExpired=saved[0].EISSessionExpired, EISTransientError=saved[0].EISTransientError, RETRYABLE_EXCEPTIONS=saved[0].RETRYABLE_EXCEPTIONS,
+                                       ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, form_payload=saved[0].form_payload, _check_response=lambda *a: None)
+        try:
+            code = sh.run(Client(), [("51453", "JOMBANG")], ["2026-10"], ["GOLONGAN"], pause=0)
+        finally:
+            sh.fetch_mycube = original
+            sh.eis, sh.TRANSIENT_DELAY = saved
+        self.assertEqual(code, 0)                       # berhasil pada percobaan ketiga
+        self.assertEqual(calls["n"], 3)
 
 
 class ZipTest(unittest.TestCase):
