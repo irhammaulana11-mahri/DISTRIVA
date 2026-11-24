@@ -147,6 +147,8 @@ const pengusahaanNav = [
   { to: '/pengusahaan/ens', label: 'ENS', capability: 'pengusahaan.view', icon: IconZap, group: 'Keandalan & Pelayanan', tooltip: 'Energy Not Supplied (Energi Tak Tersalur dalam MWh)' },
   { to: '/pengusahaan/rpt-rct-gangguan', label: 'RPT-RCT Gangguan', capability: 'pengusahaan.view', icon: IconActivity, group: 'Keandalan & Pelayanan', tooltip: 'Response Time & Recovery Time Gangguan Pelanggan' },
   { to: '/pengusahaan/rpt-rct-keluhan', label: 'RPT-RCT Keluhan', capability: 'pengusahaan.view', icon: IconAlertCircle, group: 'Keandalan & Pelayanan', tooltip: 'Response Time & Recovery Time Keluhan Pelanggan' },
+  { to: '/pengusahaan/anomali-gangguan', label: 'Anomali Gangguan', capability: 'pengusahaan.view', icon: IconAlertCircle, group: 'Keandalan & Pelayanan', tooltip: 'Gangguan berulang dan rating negatif penanganan gangguan' },
+  { to: '/pengusahaan/anomali-keluhan', label: 'Anomali Keluhan', capability: 'pengusahaan.view', icon: IconAlertCircle, group: 'Keandalan & Pelayanan', tooltip: 'Keluhan berulang dan rating negatif pengaduan pelanggan' },
 
   // Kelompok Susut & Penertiban
   { to: '/pengusahaan/susut', label: 'Susut Distribusi', capability: 'pengusahaan.view', icon: IconChart, group: 'Susut & Penertiban', tooltip: 'Susut jaringan distribusi (%) dari kWh beli vs kWh jual' },

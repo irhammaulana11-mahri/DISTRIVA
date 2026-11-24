@@ -19,6 +19,7 @@ class OutageSyncController extends Controller
     {
         $this->scoped->authorizeScope($request->user(), 'outages.view');
         $canSync = $this->catalog->allows($request->user(), 'outages.sync');
+        $this->sync->expireStale();                                                                           // sesi yang macet tidak boleh mengunci tombol
         $runs = DB::table('outage_sync_runs')->orderByDesc('created_at')->limit(15)->get()->map(fn ($r) => $this->sync->run($r))->all();
         $stats = DB::table('outage_events')->whereNull('source_removed_at')->selectRaw('count(*) as events, min(occurred_at) as first_at, max(occurred_at) as last_at, count(distinct feeder_id) as feeders, count(*) filter (where feeder_id is null) as unmatched_events')->first();
 

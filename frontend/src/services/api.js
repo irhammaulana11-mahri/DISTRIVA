@@ -993,6 +993,9 @@ export const nkoApi = {
 export const pengusahaanApi = {
   metrics: () => request('/pengusahaan/metrics'),
   metric: (code, params = {}) => request(`/pengusahaan/metrics/${code}${qs(params)}`),
+  forecast: (code, params = {}) => request(`/pengusahaan/metrics/${code}/forecast${qs(params)}`),
+  history: (code, params = {}) => request(`/pengusahaan/metrics/${code}/history${qs(params)}`),
+  export: (code, params = {}) => downloadBlob(`/pengusahaan/metrics/${code}/export${qs(params)}`),
   inputs: (params = {}) => request(`/pengusahaan/inputs${qs(params)}`),
   saveInputs: (body) => request('/pengusahaan/inputs', { method: 'PUT', body }),
   template: (params = {}) => downloadBlob(`/pengusahaan/inputs/template${qs(params)}`),

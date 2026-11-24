@@ -10,6 +10,8 @@ import EmptyState from '../../components/EmptyState.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import OutageSyncDrawer from '../outages/OutageSyncDrawer.jsx'
+import BusinessForecastTab from './BusinessForecastTab.jsx'
+import BusinessHistoryTab from './BusinessHistoryTab.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
@@ -501,8 +503,8 @@ function MetricTrendChart({
                   />
                 )}
 
-                {/* Label Bulan pada Sumbu X */}
-                {(months.length <= 16 || idx % 2 === 0 || isHovered) && (
+                {/* Label Bulan pada Sumbu X (dijarangkan mis. tiap 3 bulan bila banyak bulan agar tidak bertumpuk) */}
+                {(months.length <= 12 || (months.length <= 24 ? idx % 2 === 0 : idx % 3 === 0) || idx === months.length - 1 || isHovered) && (
                   <text
                     x={x}
                     y={padTop + chartH + (isIncomplete ? 32 : 20)}
@@ -784,6 +786,11 @@ export default function BusinessAnalyticsPage() {
 
   const canInput = Boolean(can?.['pengusahaan.input'])
 
+  // State tab utama standar (docs/91 §3c, Butir 14): 'trend' | 'details' | 'reconciliation' | 'forecast' | 'history'
+  // Metrik pelanggan mempertahankan sub-tab permohonan 'customer_details'
+  const [mainTab, setMainTab] = useState('trend')
+  const [exportingExcel, setExportingExcel] = useState(false)
+
   // State mode tampilan untuk Susut ('trend' | 'inputs')
   const [susutViewMode, setSusutViewMode] = useState('trend')
   // State sub-tab untuk metrik pelanggan & daya ('trend' | 'forecast')
@@ -860,8 +867,28 @@ export default function BusinessAnalyticsPage() {
     if (metricCode) {
       setActiveCode(metricCode)
       setOutageTab('eis')
+      setMainTab('trend')
     }
   }, [metricCode])
+
+  // Unduh Excel metrik dari /api/pengusahaan/metrics/{code}/export
+  const handleExportExcel = async () => {
+    if (!effectiveUnitId || !activeCode) return
+    setExportingExcel(true)
+    try {
+      const params = { unit_id: effectiveUnitId }
+      if (fromMonth) params.from = fromMonth
+      if (toMonth) params.to = toMonth
+      const blob = await pengusahaanApi.export(activeCode, params)
+      const filename = `PENGUSAHAAN-${activeCode.toUpperCase()}-${fromMonth || d?.from || ''}-${toMonth || d?.to || ''}.xlsx`
+      triggerFileDownload(blob, filename)
+      notify?.({ message: 'Berkas Excel berhasil diunduh.', type: 'success' })
+    } catch (err) {
+      notify?.({ message: err?.message || 'Gagal mengunduh berkas Excel.', type: 'error' })
+    } finally {
+      setExportingExcel(false)
+    }
+  }
 
   // 2. Muat data metrik yang sedang aktif
   const loadMetricData = useCallback(async () => {
@@ -985,10 +1012,10 @@ export default function BusinessAnalyticsPage() {
   // Muat data inputs ketika beralih ke mode inputs pada metrik susut
   useEffect(() => {
     const effectiveUlpId = inputsUlpId || (ulpUnitsList.length > 0 ? ulpUnitsList[0].id : '')
-    if (activeCode === 'susut' && susutViewMode === 'inputs' && effectiveUlpId && inputsYear) {
+    if (activeCode === 'susut' && (mainTab === 'susut_inputs' || susutViewMode === 'inputs') && effectiveUlpId && inputsYear) {
       loadInputsData(effectiveUlpId, inputsYear)
     }
-  }, [activeCode, susutViewMode, inputsUlpId, ulpUnitsList, inputsYear, loadInputsData])
+  }, [activeCode, mainTab, susutViewMode, inputsUlpId, ulpUnitsList, inputsYear, loadInputsData])
 
   const handleInputChange = (period, field, val) => {
     setInputsDraft((prev) => ({
@@ -1105,7 +1132,11 @@ export default function BusinessAnalyticsPage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  {metricCode === 'pelanggan' ? 'Analisa & Tren Pelanggan' : 'Analisa & Tren Pengusahaan'}
+                  {metricCode === 'pelanggan'
+                    ? 'Analisa & Tren Pelanggan'
+                    : d?.metric?.name
+                    ? `Analisa & Tren ${d.metric.name}`
+                    : 'Analisa & Tren Pengusahaan'}
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   Laporan &amp; Monitoring
@@ -1172,166 +1203,162 @@ export default function BusinessAnalyticsPage() {
                 Sinkronisasi Data
               </Button>
             )}
+            <Button
+              variant="secondary"
+              onClick={handleExportExcel}
+              loading={exportingExcel}
+              icon={IconDownload}
+              aria-label="Unduh Excel"
+            >
+              Unduh Excel
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Tab Switcher Khusus Metrik Pelanggan & Daya (Tren & Analisis vs Rincian vs Prakiraan) */}
-      {(activeCode === 'pelanggan' || activeCode === 'daya') && (
-        <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
+      {/* Susunan Tab Terstandarisasi di Setiap Menu (docs/91 §3c, Butir 14):
+          Tren · Rincian · Rekonsiliasi · Prakiraan · Histori Sinkronisasi
+          (Metrik Pelanggan mempertahankan tab "Rincian Permohonan (EIS)" sebagai tab tambahan)
+      */}
+      <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setMainTab('trend')}
+          className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+            mainTab === 'trend'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          Tren
+        </button>
+
+        {/* Tab Rincian: komposisi kelompok/kogol/umur, matriks, atau perbandingan ULP */}
+        {(d?.breakdown || d?.breakdown_secondary || d?.matrix || (isUp3 && d?.comparison?.length > 0)) && (
           <button
             type="button"
-            onClick={() => setCustomerTab('trend')}
+            onClick={() => setMainTab('details')}
             className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-              customerTab === 'trend'
+              mainTab === 'details'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
             }`}
           >
-            Tren &amp; Analisis
+            Rincian
           </button>
-          {activeCode === 'pelanggan' && (
+        )}
+
+        {/* Tab Rekonsiliasi: angka resmi vs data pendamping lapangan */}
+        {(d?.reconciliations?.length > 0 || d?.reconciliation || d?.companions) && (
+          <button
+            type="button"
+            onClick={() => setMainTab('reconciliation')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'reconciliation'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Rekonsiliasi
+          </button>
+        )}
+
+        {/* Tab Rincian Permohonan (EIS) khusus Pelanggan */}
+        {activeCode === 'pelanggan' && (
+          <button
+            type="button"
+            onClick={() => setMainTab('customer_details')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'customer_details'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Rincian Permohonan (EIS)
+          </button>
+        )}
+
+        {/* Tab Rincian APKT / Penyulang khusus metrik Gangguan */}
+        {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && (
+          <>
             <button
               type="button"
-              onClick={() => setCustomerTab('details')}
+              onClick={() => setMainTab('outage_apkt')}
               className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                customerTab === 'details'
+                mainTab === 'outage_apkt'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
-              Rincian Permohonan (EIS)
+              {activeCode === 'saidi-saifi'
+                ? 'Rincian SAIDI & SAIFI (APKT)'
+                : activeCode === 'ens'
+                ? 'Rincian ENS (APKT)'
+                : 'Rincian Gangguan (APKT)'}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setCustomerTab('forecast')}
-            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-              customerTab === 'forecast'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            {activeCode === 'daya' ? 'Prakiraan Daya Tersambung' : 'Prakiraan Pelanggan'}
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={() => setMainTab('outage_feeders')}
+              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                mainTab === 'outage_feeders'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              Penyulang &amp; Gardu
+            </button>
+          </>
+        )}
 
-      {/* Tab Switcher Khusus Metrik Keandalan & Gangguan (Realisasi Laporan EIS vs Rincian APKT / Penyulang / Prakiraan) */}
-      {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && (
-        <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
+        {/* Tab Masukan kWh Beli khusus Susut */}
+        {activeCode === 'susut' && (
           <button
             type="button"
-            onClick={() => setOutageTab('eis')}
-            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-              outageTab === 'eis'
+            onClick={() => setMainTab('susut_inputs')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+              mainTab === 'susut_inputs'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            Tren &amp; Analisis (Laporan DIFI/EIS)
-          </button>
-          <button
-            type="button"
-            onClick={() => setOutageTab('trend')}
-            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-              outageTab === 'trend'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            {activeCode === 'saidi-saifi'
-              ? 'Rincian SAIDI & SAIFI (APKT)'
-              : activeCode === 'ens'
-              ? 'Rincian ENS (APKT)'
-              : 'Rincian Gangguan (APKT)'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setOutageTab('feeders')}
-            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-              outageTab === 'feeders'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            Penyulang &amp; Gardu
-          </button>
-          <button
-            type="button"
-            onClick={() => setOutageTab('forecast')}
-            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-              outageTab === 'forecast'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            Prakiraan Keandalan
-          </button>
-        </div>
-      )}
-
-      {/* Tab Switcher Khusus Metrik Susut (Tren & Analisis vs Masukan kWh Beli) */}
-      {activeCode === 'susut' && (
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
-          <button
-            type="button"
-            onClick={() => setSusutViewMode('trend')}
-            className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition cursor-pointer ${
-              susutViewMode === 'trend'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            Tren & Analisis Susut
-          </button>
-          <button
-            type="button"
-            onClick={() => setSusutViewMode('inputs')}
-            className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 ${
-              susutViewMode === 'inputs'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <span>Masukan kWh Beli</span>
             {canInput && (
-              <span className="px-1.5 py-0.2 rounded bg-indigo-500/30 text-[10px] uppercase font-bold text-indigo-100">
+              <span className="px-1.5 py-0.2 rounded bg-blue-100 text-[10px] uppercase font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                 Input
               </span>
             )}
           </button>
-        </div>
-      )}
+        )}
 
-      {/* Tampilan Khusus Analitika Gangguan APKT saat sub-tab APKT/penyulang/prakiraan aktif */}
-      {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && outageTab === 'forecast' ? (
-        <div className="pt-2">
-          <OutageForecastTab
-            params={{
-              up3_id: up3Id || undefined,
-              unit_id: selectedUnitId || undefined,
-            }}
-          />
-        </div>
-      ) : (activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && outageTab !== 'eis' ? (
-        <div className="pt-2">
-          <OutageAnalysisContent
-            hideHeader={true}
-            hideTabs={true}
-            defaultTab={outageTab}
-            forcedMetric={activeCode}
-          />
-        </div>
-      ) : (activeCode === 'pelanggan' || activeCode === 'daya') && customerTab === 'forecast' ? (
-        <div className="pt-2">
-          <DemandForecast
-            key={activeCode}
-            kinds={activeCode === 'daya' ? ['VA_ADDED'] : ['CUSTOMERS_ADDED']}
-            onSelectMaterial={() => {}}
-          />
-        </div>
-      ) : activeCode === 'pelanggan' && customerTab === 'details' ? (
+        {/* Tab Prakiraan Terpadu */}
+        <button
+          type="button"
+          onClick={() => setMainTab('forecast')}
+          className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+            mainTab === 'forecast'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          Prakiraan
+        </button>
+
+        {/* Tab Histori Sinkronisasi */}
+        <button
+          type="button"
+          onClick={() => setMainTab('history')}
+          className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+            mainTab === 'history'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          Histori Sinkronisasi
+        </button>
+      </div>
+
+      {/* Tampilan Khusus Tab Rincian Permohonan EIS Pelanggan */}
+      {activeCode === 'pelanggan' && mainTab === 'customer_details' ? (
         <div className="pt-2">
           <CustomerAnalysisContent
             hideHeader={true}
@@ -1340,10 +1367,42 @@ export default function BusinessAnalyticsPage() {
             permission="pengusahaan.view"
           />
         </div>
+      ) : (activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && mainTab === 'outage_apkt' ? (
+        <div className="pt-2">
+          <OutageAnalysisContent
+            hideHeader={true}
+            hideTabs={true}
+            defaultTab="trend"
+            forcedMetric={activeCode}
+          />
+        </div>
+      ) : (activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && mainTab === 'outage_feeders' ? (
+        <div className="pt-2">
+          <OutageAnalysisContent
+            hideHeader={true}
+            hideTabs={true}
+            defaultTab="feeders"
+            forcedMetric={activeCode}
+          />
+        </div>
+      ) : mainTab === 'forecast' ? (
+        <div className="pt-2 space-y-6">
+          <BusinessForecastTab
+            metricCode={activeCode}
+            unitId={effectiveUnitId}
+          />
+        </div>
+      ) : mainTab === 'history' ? (
+        <div className="pt-2 space-y-6">
+          <BusinessHistoryTab
+            metricCode={activeCode}
+            unitId={effectiveUnitId}
+          />
+        </div>
       ) : (
       <>
-      {/* Filter Bar (HierarchicalUnitFilter, Dari bulan, Sampai bulan, Tombol Cepat) */}
-      {!(activeCode === 'susut' && susutViewMode === 'inputs') && (
+      {/* Filter Bar Terstandarisasi (UP3, ULP, Dari bulan, Sampai bulan) - Auto-reload tanpa tombol cepat & terapkan (docs/91 §3c, Butir 14) */}
+      {!(activeCode === 'susut' && mainTab === 'susut_inputs') && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <HierarchicalUnitFilter
@@ -1382,64 +1441,32 @@ export default function BusinessAnalyticsPage() {
               />
             </div>
 
-            {/* Tombol Cepat Rentang Waktu (docs/91 §4) */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            {(fromMonth || toMonth) && (
               <button
                 type="button"
-                onClick={() => handleRangePreset('ytd')}
-                className="px-2.5 py-1 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition"
+                onClick={() => {
+                  setFromMonth('')
+                  setToMonth('')
+                }}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
               >
-                Tahun Berjalan
+                Reset Bawaan
               </button>
-              <button
-                type="button"
-                onClick={() => handleRangePreset('12m')}
-                className="px-2.5 py-1 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition"
-              >
-                12 Bulan
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRangePreset('24m')}
-                className="px-2.5 py-1 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition"
-              >
-                24 Bulan
-              </button>
-              {(fromMonth || toMonth) && (
-                <button
-                  type="button"
-                  onClick={() => handleRangePreset('default')}
-                  className="px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-white dark:hover:bg-slate-700 transition"
-                  title="Kembalikan ke rentang bawaan server"
-                >
-                  Bawaan
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
             {d?.from && d?.to && (
-              <span className="text-xs font-mono text-slate-500 dark:text-slate-400 hidden xl:inline">
-                Rentang: {fmtMonth(d.from)} &ndash; {fmtMonth(d.to)}
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                Periode: {fmtMonth(d.from)} &ndash; {fmtMonth(d.to)}
               </span>
             )}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={loadMetricData}
-              loading={metricState.loading}
-              icon={IconRefresh}
-            >
-              Terapkan
-            </Button>
           </div>
         </div>
       )}
 
-      {/* Tampilan Tab 2: Masukan kWh Beli (Hanya saat activeCode === 'susut' && susutViewMode === 'inputs') */}
-      {activeCode === 'susut' && susutViewMode === 'inputs' ? (
+      {/* Tampilan Tab 2: Masukan kWh Beli (Hanya saat activeCode === 'susut' && (mainTab === 'susut_inputs' || susutViewMode === 'inputs')) */}
+      {activeCode === 'susut' && (mainTab === 'susut_inputs' || susutViewMode === 'inputs') ? (
         <div className="space-y-6">
           {/* Filter Bar Khusus Masukan Susut: ULP dan Tahun */}
           <div className={`${CARD} p-4`}>
@@ -2086,369 +2113,383 @@ export default function BusinessAnalyticsPage() {
             )
           })()}
 
-          {/* Tren Grafik Line / Comparison */}
-          <div className={`${CARD} p-5 space-y-4`}>
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  {`Tren Bulanan: ${d.metric?.name}`}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Periode {fmtMonth(d.from)} s/d {fmtMonth(d.to)} &bull; Sumber: {d.metric?.source}
-                </p>
-              </div>
-            </div>
-
-            <MetricTrendChart
-              months={d.months || []}
-              series={d.series || []}
-              activeSeriesKey={activeSeriesKey}
-              onSelectSeries={setActiveSeriesKey}
-              unitsExpected={d.units_expected || 1}
-              unitsReporting={d.units_reporting || []}
-              polarity={d.metric?.polarity || 'up'}
-            />
-          </div>
-
-          {/* Grid: Rincian (Breakdown) & Perbandingan Antar ULP (Comparison) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Rincian Komposisi Utama (Breakdown) */}
-            {d.breakdown && (
+          {/* Tab Konten: Sesuai mainTab ('trend' | 'details' | 'reconciliation') */}
+          {mainTab === 'trend' && (
+            <>
+              {/* Tren Grafik Line / Comparison */}
               <div className={`${CARD} p-5 space-y-4`}>
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {`Rincian: ${d.breakdown.dimension}`}
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                      {`Tren Bulanan: ${d.metric?.name}`}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Komposisi pada periode {fmtMonth(d.breakdown.period)}
+                      Periode {fmtMonth(d.from)} s/d {fmtMonth(d.to)} &bull; Sumber: {d.metric?.source}
                     </p>
                   </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="py-2.5 px-3">Kategori</th>
-                        <th className="py-2.5 px-3 text-right">Nilai</th>
-                        <th className="py-2.5 px-3 text-right">Porsi</th>
-                        <th className="py-2.5 px-3 text-right">Thn Lalu</th>
-                        <th className="py-2.5 px-3 text-right">YoY</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {d.breakdown.rows?.map((r) => (
-                        <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                          <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                            {r.key}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                            {fmtFloat(r.value)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                <div
-                                  className="h-full bg-indigo-600 rounded-full"
-                                  style={{ width: `${Math.min(100, Math.max(0, r.share_pct || 0))}%` }}
-                                />
-                              </div>
-                              <span className="font-mono tabular-nums text-[11px]">
-                                {fmtFloat(r.share_pct, 1)}%
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
-                            {r.same_month_last_year !== null ? fmtFloat(r.same_month_last_year) : '-'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <PolarityPctBadge pct={r.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <MetricTrendChart
+                  months={d.months || []}
+                  series={d.series || []}
+                  activeSeriesKey={activeSeriesKey}
+                  onSelectSeries={setActiveSeriesKey}
+                  unitsExpected={d.units_expected || 1}
+                  unitsReporting={d.units_reporting || []}
+                  polarity={d.metric?.polarity || 'up'}
+                />
               </div>
-            )}
 
-            {/* Rincian Komposisi Kedua (Breakdown Secondary, misal: Kogol pada Umur Piutang) */}
-            {d.breakdown_secondary && (
-              <div className={`${CARD} p-5 space-y-4`}>
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <div>
+              {/* Catatan Wawasan & Analisa Otomatis (Insights) */}
+              {d.insights && d.insights.length > 0 && (
+                <div className={`${CARD} p-5 space-y-3`}>
+                  <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <IconCheckCircle size={18} className="text-indigo-600" />
                     <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {`Rincian: ${d.breakdown_secondary.dimension}`}
+                      Wawasan & Catatan Analisa Otomatis ({d.insights.length})
                     </h3>
-                    <p className="text-xs text-slate-500">
-                      Komposisi pada periode {fmtMonth(d.breakdown_secondary.period)}
-                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {d.insights.map((ins, idx) => {
+                      const isGood = ins.level === 'baik'
+                      const isWarn = ins.level === 'perhatian'
+                      const borderCls = isGood
+                        ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/20'
+                        : isWarn
+                        ? 'border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40'
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${borderCls}`}
+                        >
+                          {isGood ? (
+                            <IconCheckCircle size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                          ) : isWarn ? (
+                            <IconAlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <IconInfo size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                          )}
+                          <span className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                            {ins.text}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
+              )}
+            </>
+          )}
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="py-2.5 px-3">Kategori</th>
-                        <th className="py-2.5 px-3 text-right">Nilai</th>
-                        <th className="py-2.5 px-3 text-right">Porsi</th>
-                        <th className="py-2.5 px-3 text-right">Thn Lalu</th>
-                        <th className="py-2.5 px-3 text-right">YoY</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {d.breakdown_secondary.rows?.map((r) => (
-                        <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                          <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                            {r.key}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                            {fmtFloat(r.value)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                <div
-                                  className="h-full bg-indigo-600 rounded-full"
-                                  style={{ width: `${Math.min(100, Math.max(0, r.share_pct || 0))}%` }}
-                                />
-                              </div>
-                              <span className="font-mono tabular-nums text-[11px]">
-                                {fmtFloat(r.share_pct, 1)}%
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
-                            {r.same_month_last_year !== null ? fmtFloat(r.same_month_last_year) : '-'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <PolarityPctBadge pct={r.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+          {/* Tab Rincian & Komposisi */}
+          {mainTab === 'details' && (
+            <div className="space-y-6">
+              {/* Grid: Rincian (Breakdown) & Perbandingan Antar ULP (Comparison) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Rincian Komposisi Utama (Breakdown) */}
+                {d.breakdown && (
+                  <div className={`${CARD} p-5 space-y-4`}>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          {`Rincian: ${d.breakdown.dimension}`}
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Komposisi pada periode {fmtMonth(d.breakdown.period)}
+                        </p>
+                      </div>
+                    </div>
 
-            {/* Perbandingan Antar ULP (Hanya untuk unit UP3) */}
-            {isUp3 && d.comparison && d.comparison.length > 0 && (
-              <div className={`${CARD} p-5 space-y-4`}>
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      Perbandingan Antar ULP
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Capaian bulan {fmtMonth(d.to)} diurutkan dari nilai terbesar
-                    </p>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="py-2.5 px-3 w-10 text-center">#</th>
-                        <th className="py-2.5 px-3">Unit Layanan (ULP)</th>
-                        <th className="py-2.5 px-3 text-right">Bulan Ini</th>
-                        <th className="py-2.5 px-3 text-right">YoY</th>
-                        <th className="py-2.5 px-3 text-right">Kumulatif YTD</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {d.comparison.map((c, idx) => (
-                        <tr key={c.unit_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                          <td className="py-2.5 px-3 text-center font-mono text-slate-400 text-[11px]">
-                            {idx + 1}
-                          </td>
-                          <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                            {c.unit_name}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                            {c.latest !== null ? fmtFloat(c.latest) : '-'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <PolarityPctBadge pct={c.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
-                            {c.ytd !== null ? fmtFloat(c.ytd) : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Matriks Silang (Matrix Heatmap, misal: Kogol x Umur Tunggakan) */}
-          {d.matrix && (
-            <div className={`${CARD} p-5 space-y-4`}>
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {`Matriks Silang: ${d.matrix.rows_dimension} × ${d.matrix.columns_dimension}`}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Distribusi saldo nilai pada periode {fmtMonth(d.matrix.period)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Tabel Matriks dengan Heatmap */}
-              {(() => {
-                const matrixValues = d.matrix.values || []
-                let maxMatrixVal = 0
-                matrixValues.forEach((row) => {
-                  row?.forEach((v) => {
-                    if (v > maxMatrixVal) maxMatrixVal = v
-                  })
-                })
-
-                return (
-                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                        <tr>
-                          <th className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-300">
-                            {d.matrix.rows_dimension} \ {d.matrix.columns_dimension}
-                          </th>
-                          {d.matrix.columns?.map((col) => (
-                            <th key={col} className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
-                              {col}
-                            </th>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                          <tr>
+                            <th className="py-2.5 px-3">Kategori</th>
+                            <th className="py-2.5 px-3 text-right">Nilai</th>
+                            <th className="py-2.5 px-3 text-right">Porsi</th>
+                            <th className="py-2.5 px-3 text-right">Thn Lalu</th>
+                            <th className="py-2.5 px-3 text-right">YoY</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {d.breakdown.rows?.map((r) => (
+                            <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                                {r.key}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono tabular-nums">
+                                {fmtFloat(r.value)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div
+                                      className="h-full bg-indigo-600 rounded-full"
+                                      style={{ width: `${Math.min(100, Math.max(0, r.share_pct || 0))}%` }}
+                                    />
+                                  </div>
+                                  <span className="font-mono tabular-nums text-[11px]">
+                                    {fmtFloat(r.share_pct, 1)}%
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
+                                {r.same_month_last_year !== null ? fmtFloat(r.same_month_last_year) : '-'}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <PolarityPctBadge pct={r.yoy_pct} polarity={d.metric?.polarity || 'up'} />
+                              </td>
+                            </tr>
                           ))}
-                          <th className="py-2.5 px-3 text-right font-bold text-slate-800 dark:text-slate-200 bg-slate-100/60 dark:bg-slate-800">
-                            Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {d.matrix.rows?.map((rowLabel, rIdx) => {
-                          const rowVals = matrixValues[rIdx] || []
-                          const rowTotal = rowVals.reduce((acc, v) => acc + (v || 0), 0)
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
-                          return (
-                            <tr key={rowLabel} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                                {rowLabel}
+                {/* Rincian Komposisi Kedua (Breakdown Secondary, misal: Kogol pada Umur Piutang atau anomali) */}
+                {d.breakdown_secondary && (
+                  <div className={`${CARD} p-5 space-y-4`}>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          {`Rincian: ${d.breakdown_secondary.dimension}`}
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Komposisi pada periode {fmtMonth(d.breakdown_secondary.period)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                          <tr>
+                            <th className="py-2.5 px-3">Kategori</th>
+                            <th className="py-2.5 px-3 text-right">Nilai</th>
+                            <th className="py-2.5 px-3 text-right">Porsi</th>
+                            <th className="py-2.5 px-3 text-right">Thn Lalu</th>
+                            <th className="py-2.5 px-3 text-right">YoY</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {d.breakdown_secondary.rows?.map((r) => (
+                            <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                                {r.key}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono tabular-nums">
+                                {fmtFloat(r.value)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div
+                                      className="h-full bg-indigo-600 rounded-full"
+                                      style={{ width: `${Math.min(100, Math.max(0, r.share_pct || 0))}%` }}
+                                    />
+                                  </div>
+                                  <span className="font-mono tabular-nums text-[11px]">
+                                    {fmtFloat(r.share_pct, 1)}%
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
+                                {r.same_month_last_year !== null ? fmtFloat(r.same_month_last_year) : '-'}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <PolarityPctBadge pct={r.yoy_pct} polarity={d.metric?.polarity || 'up'} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Perbandingan Antar ULP (Hanya untuk unit UP3) */}
+                {isUp3 && d.comparison && d.comparison.length > 0 && (
+                  <div className={`${CARD} p-5 space-y-4`}>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          Perbandingan Antar ULP
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Capaian bulan {fmtMonth(d.to)} diurutkan dari nilai terbesar
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                          <tr>
+                            <th className="py-2.5 px-3 w-10 text-center">#</th>
+                            <th className="py-2.5 px-3">Unit Layanan (ULP)</th>
+                            <th className="py-2.5 px-3 text-right">Bulan Ini</th>
+                            <th className="py-2.5 px-3 text-right">YoY</th>
+                            <th className="py-2.5 px-3 text-right">Kumulatif YTD</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {d.comparison.map((c, idx) => (
+                            <tr key={c.unit_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                              <td className="py-2.5 px-3 text-center font-mono text-slate-400 text-[11px]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                                {c.unit_name}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                                {c.latest !== null ? fmtFloat(c.latest) : '-'}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <PolarityPctBadge pct={c.yoy_pct} polarity={d.metric?.polarity || 'up'} />
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
+                                {c.ytd !== null ? fmtFloat(c.ytd) : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Matriks Silang (Matrix Heatmap, misal: Kogol x Umur Tunggakan) */}
+              {d.matrix && (
+                <div className={`${CARD} p-5 space-y-4`}>
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        {`Matriks Silang: ${d.matrix.rows_dimension} × ${d.matrix.columns_dimension}`}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Distribusi saldo nilai pada periode {fmtMonth(d.matrix.period)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tabel Matriks dengan Heatmap */}
+                  {(() => {
+                    const matrixValues = d.matrix.values || []
+                    let maxMatrixVal = 0
+                    matrixValues.forEach((row) => {
+                      row?.forEach((v) => {
+                        if (v > maxMatrixVal) maxMatrixVal = v
+                      })
+                    })
+
+                    return (
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                              <th className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-300">
+                                {d.matrix.rows_dimension} \ {d.matrix.columns_dimension}
+                              </th>
+                              {d.matrix.columns?.map((col) => (
+                                <th key={col} className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                                  {col}
+                                </th>
+                              ))}
+                              <th className="py-2.5 px-3 text-right font-bold text-slate-800 dark:text-slate-200 bg-slate-100/60 dark:bg-slate-800">
+                                Total
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {d.matrix.rows?.map((rowLabel, rIdx) => {
+                              const rowVals = matrixValues[rIdx] || []
+                              const rowTotal = rowVals.reduce((acc, v) => acc + (v || 0), 0)
+
+                              return (
+                                <tr key={rowLabel} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                                  <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                                    {rowLabel}
+                                  </td>
+                                  {d.matrix.columns?.map((colLabel, cIdx) => {
+                                    const val = rowVals[cIdx] || 0
+                                    const intensity = maxMatrixVal > 0 ? val / maxMatrixVal : 0
+
+                                    const heatBg = val > 0
+                                      ? `rgba(99, 102, 241, ${Math.min(0.7, Math.max(0.08, intensity * 0.65))})`
+                                      : undefined
+
+                                    return (
+                                      <td
+                                        key={colLabel}
+                                        style={{ backgroundColor: heatBg }}
+                                        className="py-2.5 px-3 text-right font-mono tabular-nums transition"
+                                      >
+                                        <span className={val > 0 ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-400'}>
+                                          {val !== 0 ? fmtFloat(val) : '-'}
+                                        </span>
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/40">
+                                    {fmtFloat(rowTotal)}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                          {/* Baris Total Kolom */}
+                          <tfoot className="bg-slate-50 dark:bg-slate-800/80 border-t-2 border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+                            <tr>
+                              <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200">
+                                Total
                               </td>
                               {d.matrix.columns?.map((colLabel, cIdx) => {
-                                const val = rowVals[cIdx] || 0
-                                const intensity = maxMatrixVal > 0 ? val / maxMatrixVal : 0
-
-                                // Warna heatmap lembut berdasarkan porsi terhadap nilai maksimum
-                                const heatBg = val > 0
-                                  ? `rgba(99, 102, 241, ${Math.min(0.7, Math.max(0.08, intensity * 0.65))})`
-                                  : undefined
+                                const colTotal = d.matrix.rows?.reduce((acc, _, rIdx) => {
+                                  return acc + (matrixValues[rIdx]?.[cIdx] || 0)
+                                }, 0) || 0
 
                                 return (
-                                  <td
-                                    key={colLabel}
-                                    style={{ backgroundColor: heatBg }}
-                                    className="py-2.5 px-3 text-right font-mono tabular-nums transition"
-                                  >
-                                    <span className={val > 0 ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-400'}>
-                                      {val !== 0 ? fmtFloat(val) : '-'}
-                                    </span>
+                                  <td key={colLabel} className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                                    {fmtFloat(colTotal)}
                                   </td>
                                 )
                               })}
-                              <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/40">
-                                {fmtFloat(rowTotal)}
+                              <td className="py-2.5 px-3 text-right font-mono tabular-nums text-indigo-700 dark:text-indigo-300 font-extrabold bg-slate-100 dark:bg-slate-800">
+                                {fmtFloat(
+                                  matrixValues.reduce((tot, row) => tot + row.reduce((rTot, v) => rTot + (v || 0), 0), 0)
+                                )}
                               </td>
                             </tr>
-                          )
-                        })}
-                      </tbody>
-                      {/* Baris Total Kolom */}
-                      <tfoot className="bg-slate-50 dark:bg-slate-800/80 border-t-2 border-slate-200 dark:border-slate-700 text-[11px] font-bold">
-                        <tr>
-                          <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200">
-                            Total
-                          </td>
-                          {d.matrix.columns?.map((colLabel, cIdx) => {
-                            const colTotal = d.matrix.rows?.reduce((acc, _, rIdx) => {
-                              return acc + (matrixValues[rIdx]?.[cIdx] || 0)
-                            }, 0) || 0
-
-                            return (
-                              <td key={colLabel} className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 dark:text-slate-100">
-                                {fmtFloat(colTotal)}
-                              </td>
-                            )
-                          })}
-                          <td className="py-2.5 px-3 text-right font-mono tabular-nums text-indigo-700 dark:text-indigo-300 font-extrabold bg-slate-100 dark:bg-slate-800">
-                            {fmtFloat(
-                              matrixValues.reduce((tot, row) => tot + row.reduce((rTot, v) => rTot + (v || 0), 0), 0)
-                            )}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )
-              })()}
+                          </tfoot>
+                        </table>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Data Penjelas Operasional (Companions) */}
-          {d.companions && (
-            <CompanionSection companions={d.companions} toMonth={d.to} />
-          )}
+          {/* Tab Rekonsiliasi: Data Penjelas & Rekonsiliasi Bulanan + Kumulatif + Note */}
+          {mainTab === 'reconciliation' && (
+            <div className="space-y-6">
+              {/* Data Penjelas Operasional (Companions) */}
+              {d.companions && (
+                <CompanionSection companions={d.companions} toMonth={d.to} />
+              )}
 
-          {/* Rekonsiliasi Angka Resmi vs Operasional */}
-          {(d.reconciliations?.length > 0 || d.reconciliation) && (
-            <ReconciliationSection
-              reconciliations={d.reconciliations || (d.reconciliation ? [d.reconciliation] : [])}
-              unitsExpected={unitsExpected}
-            />
-          )}
-
-          {/* Catatan Wawasan & Analisa Otomatis (Insights) */}
-          {d.insights && d.insights.length > 0 && (
-            <div className={`${CARD} p-5 space-y-3`}>
-              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <IconCheckCircle size={18} className="text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Wawasan & Catatan Analisa Otomatis ({d.insights.length})
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {d.insights.map((ins, idx) => {
-                  const isGood = ins.level === 'baik'
-                  const isWarn = ins.level === 'perhatian'
-                  const borderCls = isGood
-                    ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/20'
-                    : isWarn
-                    ? 'border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40'
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${borderCls}`}
-                    >
-                      {isGood ? (
-                        <IconCheckCircle size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                      ) : isWarn ? (
-                        <IconAlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <IconInfo size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                      )}
-                      <span className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                        {ins.text}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
+              {/* Rekonsiliasi Angka Resmi vs Operasional */}
+              {(d.reconciliations?.length > 0 || d.reconciliation) && (
+                <ReconciliationSection
+                  reconciliations={d.reconciliations || (d.reconciliation ? [d.reconciliation] : [])}
+                  unitsExpected={unitsExpected}
+                />
+              )}
             </div>
           )}
         </div>

@@ -95,11 +95,16 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     fireEvent.change(toInput, { target: { value: '2026-10' } })
     fireEvent.change(fromInput, { target: { value: '2026-08' } })
 
-    // Uncheck Kogol
+    // Uncheck Kogol & Saldo Prabayar
     const kogolBox = screen.getByLabelText('Laporan Kogol')
     expect(kogolBox).toBeChecked()
     await userEvent.click(kogolBox)
     expect(kogolBox).not.toBeChecked()
+
+    const prabayarBox = screen.getByLabelText('Laporan Saldo Prabayar')
+    expect(prabayarBox).toBeChecked()
+    await userEvent.click(prabayarBox)
+    expect(prabayarBox).not.toBeChecked()
 
     const submitBtn = screen.getByRole('button', { name: 'Tarik Piutang' })
     expect(submitBtn).toBeEnabled()

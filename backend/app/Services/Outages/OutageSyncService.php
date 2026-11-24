@@ -61,8 +61,7 @@ class OutageSyncService
         if ($s->sheet_id === null || (array) json_decode((string) $s->gids, true) === []) {
             throw new AssignmentRuleViolation('Alamat Google Sheet dan tab (gid) belum diisi pada pengaturan.');
         }
-        DB::table('outage_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.outage.timeout_seconds') * 4 + 300))
-            ->update(['status' => 'FAILED', 'finished_at' => now(), 'message' => 'Dihentikan: proses tidak selesai.']);
+        $this->expireStale();
         if (DB::table('outage_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists()) {
             throw new AssignmentRuleViolation('Sinkronisasi gangguan sedang berjalan; tunggu sampai selesai.');
         }
@@ -72,14 +71,30 @@ class OutageSyncService
         return $id;
     }
 
+    /**
+     * Run yang tidak pernah selesai (proses mati atau tidak pernah mulai) ditandai gagal, supaya tidak mengunci tombol sinkron selamanya. Dipanggil saat membaca status dan saat memulai run baru.
+     */
+    public function expireStale(): void
+    {
+        DB::table('outage_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.outage.timeout_seconds') * 4 + 300))
+            ->update(['status' => 'FAILED', 'finished_at' => now(), 'message' => 'Dihentikan: proses tidak selesai.']);
+    }
+
+    /** Menyerahkan run terdaftar ke proses terpisah. Bila proses tidak dapat dimulai, run ditandai gagal (bukan dibiarkan Menunggu) dan galatnya diteruskan. */
     public function launch(string $runId): void
     {
-        if (config('distriva.outage.run_inline')) {
-            Artisan::call('distriva:outage-sync-execute', ['id' => $runId]);
+        try {
+            if (config('distriva.outage.run_inline')) {
+                Artisan::call('distriva:outage-sync-execute', ['id' => $runId]);
 
-            return;
+                return;
+            }
+            Process::fromShellCommandline(sprintf('nohup %s artisan distriva:outage-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId)), base_path())->run();
+        } catch (\Throwable $e) {
+            DB::table('outage_sync_runs')->where('id', $runId)->whereIn('status', ['QUEUED', 'RUNNING'])->update(['status' => 'FAILED', 'finished_at' => now(), 'message' => mb_substr('Proses sinkronisasi tidak dapat dimulai: '.$e->getMessage(), 0, 500)]);
+
+            throw $e;
         }
-        Process::fromShellCommandline(sprintf('nohup %s artisan distriva:outage-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId)), base_path())->run();
     }
 
     /** Dipanggil tiap menit oleh penjadwal: menjalankan sinkronisasi harian bila sudah waktunya (sekali sehari, juga bila gagal). */

@@ -15,11 +15,15 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-| # | Tanggal | Commit | Perubahan | Rujukan | Kebutuhan frontend | Status | Catatan |
-|---|---|---|---|---|---|---|---|
-| 16 | 2026-11-24 | (belum di-commit) | **Sinkronisasi saldo prabayar EIS**: laporan keempat **PRABAYAR** (Piutang › Saldo Prabayar › Saldo Bulan Lalu, per tarif; jenis impor `PIUTANGLPB_EIS`) pada penarikan piutang. `POST /eis-sync/runs {kind:"piutang"}`: `reports` kini menerima `PRABAYAR` dan **bawaan (tanpa `reports`) mencakup keempatnya**; respons dan `options.reports` ikut | docs/88 §5 | Kartu **Tarik Laporan Piutang** (butir 9): tambahkan pilihan **"Saldo Prabayar"** (nilai `PRABAYAR`) di samping Per Golongan, Per Lembar, dan Kogol; centang bawaan keempatnya; riwayat sesi menampilkan nama laporan dari `options.reports`. Setelah sinkron, halaman Piutang Prabayar (Analisa & Tren Pengusahaan) dan Laporan EIS memuat berkas `PIUTANGLPB_EIS` bulan itu | BARU | |
+(Tidak ada tugas terbuka saat ini)
 
 ## Selesai
+
+| # | Tanggal | Perubahan | Dikerjakan frontend (commit) |
+|---|---|---|---|
+| 16 | 2026-11-24 | **Sinkronisasi saldo prabayar EIS**: laporan keempat **PRABAYAR** (Piutang › Saldo Prabayar › Saldo Bulan Lalu, per tarif; jenis impor `PIUTANGLPB_EIS`) pada penarikan piutang. `POST /eis-sync/runs {kind:"piutang"}`: `reports` kini menerima `PRABAYAR` dan **bawaan (tanpa `reports`) mencakup keempatnya**; respons dan `options.reports` ikut | `EisSyncDrawer.jsx` menambahkan pilihan "Saldo Prabayar" (nilai `PRABAYAR`) di samping Per Golongan, Per Lembar, dan Kogol dengan kondisi tercentang default (4 pilihan laporan). `options.reports` otomatis terkirim dan riwayat sesi menampilkan nama laporan dari opsi tersebut. Tes: `EisSyncDrawer.test.jsx` (7 test lulus) |
+| 15 | 2026-11-24 | **Dua menu baru: Anomali Keluhan dan Anomali Gangguan** (`anomali-keluhan`, `anomali-gangguan`) pada `GET /pengusahaan/metrics`; data dari laporan KLHBERULANG+KLHNEGATIF dan GGNBERULANG+GGNNEGATIF | (a) Menu "Anomali Gangguan" dan "Anomali Keluhan" ditambahkan di sidebar grup Keandalan & Pelayanan. (b) 4 kartu KPI standar, penanganan `polarity: 'down'` (kenaikan berwarna merah/rose). (c) Tab Rincian menampilkan porsi breakdown kanal pengaduan masuk & breakdown secondary jenis/penandaan. (d) Tab Histori menampilkan peringatan penggabungan dua berkas laporan EIS (`families`). Tes: `BusinessAnalyticsPage.test.jsx` |
+| 14 | 2026-11-24 | **Prakiraan, histori sinkronisasi, dan unduh Excel untuk semua menu Analisa & Tren Pengusahaan**: `GET /pengusahaan/metrics/{code}/forecast`, `/history`, `/export` | (a) Susunan tab terstandarisasi di setiap menu: **Tren · Rincian · Rekonsiliasi · Prakiraan · Histori Sinkronisasi** (dengan sub-tab kontekstual pelanggan dan gangguan). (b) Filter disederhanakan hanya UP3, ULP, Dari bulan, Sampai bulan dengan auto-reload langsung saat input berubah dan tombol reset bawaan. (c) Tombol Unduh Excel di header terhubung ke endpoint `/export`. (d) Tab Prakiraan terintegrasi komponen `BusinessForecastTab` dengan pita p10-p90, target period, model quality, dan wawasan otomatis. (e) Tab Histori Sinkronisasi terintegrasi `BusinessHistoryTab` dengan matriks kelengkapan 24 bulan, daftar berkas impor, riwayat masukan kWh beli susut, dan riwayat sesi penarikan sinkronisasi. (f) Penjarangan label sumbu X grafik tren. Tes: `BusinessAnalyticsPage.test.jsx` |
 
 | # | Tanggal | Perubahan | Dikerjakan frontend (commit) |
 |---|---|---|---|

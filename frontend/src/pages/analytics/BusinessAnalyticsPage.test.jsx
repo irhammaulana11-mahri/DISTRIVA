@@ -48,6 +48,43 @@ vi.mock('../../services/api.js', () => ({
     metric: vi.fn(),
     inputs: vi.fn(),
     saveInputs: vi.fn(),
+    forecast: vi.fn().mockResolvedValue({
+      data: {
+        status: 'OK',
+        metric: { code: 'pelanggan', name: 'Pelanggan', polarity: 'up' },
+        series: [
+          {
+            key: 'pelanggan',
+            name: 'Jumlah Pelanggan',
+            unit: 'pelanggan',
+            status: 'OK',
+            history_months: 24,
+            history: [{ month: '2026-09', value: 1400000 }, { month: '2026-10', value: 1403000 }],
+            forecast: [{ month: '2026-11', p10: 1404000, p50: 1406000, p90: 1408000 }],
+            target: { month: '2027-10', p50: 1430000, change_pct: 1.9 },
+            quality: { wape: 0.02, naive_wape: 0.05, gain_vs_naive_pct: 60.0 },
+          },
+        ],
+        insights: [{ level: 'baik', text: 'Model prakiraan memiliki akurasi lebih baik 60% dibanding naif.' }],
+      },
+    }),
+    history: vi.fn().mockResolvedValue({
+      data: {
+        family: '309',
+        months: ['2026-09', '2026-10'],
+        coverage: {
+          units: [
+            { unit_id: 'u-1', unit_name: 'ULP Jombang', months: [true, true], missing: [], missing_count: 0 },
+          ],
+        },
+        files: [
+          { id: 'f-1', period: '2026-10', unit_name: 'ULP Jombang', original_name: '309-51453-202610.xls', status: 'AKTIF', line_count: 50, warnings_count: 0, imported_at: '2026-11-01' },
+        ],
+        inputs: [],
+        syncs: null,
+      },
+    }),
+    export: vi.fn().mockResolvedValue(new Blob(['excel-data'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })),
   },
   outageApi: {
     analysis: vi.fn().mockResolvedValue({
@@ -278,9 +315,20 @@ describe('BusinessAnalyticsPage', () => {
     pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
     pengusahaanApi.metric.mockResolvedValue(MOCK_METRIC_DETAIL)
 
+    const user = userEvent.setup()
     wrap(<BusinessAnalyticsPage />)
 
-    // Tunggu data metrik termuat
+    // Tunggu data metrik termuat pada tab default Tren
+    expect(await screen.findByText(/Tren Bulanan:/i)).toBeInTheDocument()
+
+    // Wawasan otomatis tampil di tab Tren
+    expect(screen.getByText(/Wawasan & Catatan Analisa Otomatis/i)).toBeInTheDocument()
+    expect(screen.getByText(/Pertumbuhan penjualan kumulatif meningkat/i)).toBeInTheDocument()
+
+    // Beralih ke tab Rincian untuk memeriksa breakdown dan perbandingan ULP
+    const rincianTab = screen.getByRole('button', { name: /^Rincian$/i })
+    await user.click(rincianTab)
+
     expect(await screen.findByText('Perbandingan Antar ULP')).toBeInTheDocument()
 
     // Rincian breakdown
@@ -291,10 +339,6 @@ describe('BusinessAnalyticsPage', () => {
     // Perbandingan antar ULP
     expect(screen.getAllByText(/ULP Jombang/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/ULP Mojokerto Kota/i).length).toBeGreaterThan(0)
-
-    // Wawasan otomatis
-    expect(screen.getByText(/Wawasan & Catatan Analisa Otomatis/i)).toBeInTheDocument()
-    expect(screen.getByText(/Pertumbuhan penjualan kumulatif meningkat/i)).toBeInTheDocument()
   })
 
   it('4. dapat memuat metrik dari parameter URL rute', async () => {
@@ -363,12 +407,17 @@ describe('BusinessAnalyticsPage', () => {
     }
 
     pengusahaanApi.metrics.mockResolvedValue(susutCatalog)
-    pengusahaanApi.metric.mockResolvedValue({
-      ...MOCK_METRIC_DETAIL,
-      data: {
-        ...MOCK_METRIC_DETAIL.data,
-        metric: { code: 'susut', name: 'Susut', polarity: 'down', source: '309 & Beli' },
-      },
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'susut') {
+        return Promise.resolve({
+          ...MOCK_METRIC_DETAIL,
+          data: {
+            ...MOCK_METRIC_DETAIL.data,
+            metric: { code: 'susut', name: 'Susut', polarity: 'down', source: '309 & Beli' },
+          },
+        })
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
     })
     pengusahaanApi.inputs.mockResolvedValue(susutInputsData)
     pengusahaanApi.saveInputs.mockResolvedValue({ message: '1 masukan berubah.', changed: 1 })
@@ -405,6 +454,7 @@ describe('BusinessAnalyticsPage', () => {
   })
 
   it('6. menampilkan matriks umur piutang pascabayar dan rincian sekunder jika tersedia', async () => {
+    const user = userEvent.setup()
     const piutangCatalog = {
       data: {
         ...MOCK_METRICS_CATALOG.data,
@@ -480,6 +530,10 @@ describe('BusinessAnalyticsPage', () => {
 
     wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/piutang-pascabayar-umur'])
 
+    // Klik tab Rincian untuk melihat matriks dan breakdown secondary
+    const rincianTab = await screen.findByRole('button', { name: /^Rincian$/i })
+    await user.click(rincianTab)
+
     // Periksa tabel matriks silang
     expect(await screen.findByText(/Matriks Silang/i)).toBeInTheDocument()
     expect(screen.getAllByText('Kogol 1 (Sosial)').length).toBeGreaterThan(0)
@@ -532,17 +586,18 @@ describe('BusinessAnalyticsPage', () => {
 
     wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/gangguan'])
 
-    // Terdapat sub-tab untuk Laporan EIS, Rincian APKT, Penyulang & Gardu, dan Prakiraan
-    expect(await screen.findByText('Tren & Analisis (Laporan DIFI/EIS)')).toBeInTheDocument()
-    expect(screen.getByText('Rincian Gangguan (APKT)')).toBeInTheDocument()
-    expect(screen.getByText('Penyulang & Gardu')).toBeInTheDocument()
-    expect(screen.getByText('Prakiraan Keandalan')).toBeInTheDocument()
+    // Terdapat sub-tab untuk Tren, Rincian Gangguan (APKT), Penyulang & Gardu, Prakiraan, dan Histori
+    expect(await screen.findByRole('button', { name: /^Tren$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Rincian Gangguan \(APKT\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Penyulang & Gardu/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Prakiraan$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Histori Sinkronisasi$/i })).toBeInTheDocument()
 
     // Tombol sinkronisasi kontekstual metrik gangguan adalah "Sinkronisasi Gangguan"
     expect(screen.getByRole('button', { name: 'Sinkronisasi Gangguan' })).toBeInTheDocument()
 
     // Klik tab Rincian Gangguan (APKT)
-    await user.click(screen.getByText('Rincian Gangguan (APKT)'))
+    await user.click(screen.getByRole('button', { name: /Rincian Gangguan \(APKT\)/i }))
 
     // OutageAnalysisContent ter-render
     expect(await screen.findByText(/Gangguan 12 bln terakhir/i)).toBeInTheDocument()
@@ -602,7 +657,12 @@ describe('BusinessAnalyticsPage', () => {
     }
 
     pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
-    pengusahaanApi.metric.mockResolvedValue(pelangganDetailWithReconciliation)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'pelanggan') {
+        return Promise.resolve(pelangganDetailWithReconciliation)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
 
     const user = userEvent.setup()
     wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelanggan'])
@@ -611,10 +671,15 @@ describe('BusinessAnalyticsPage', () => {
     expect(await screen.findByText('Analisa & Tren Pelanggan')).toBeInTheDocument()
     expect(screen.getByText('Laporan 309 & Permohonan EIS')).toBeInTheDocument()
 
-    // Tab switcher: Tren & Analisis, Rincian Permohonan (EIS), Prakiraan Pelanggan
-    expect(screen.getByText('Tren & Analisis')).toBeInTheDocument()
-    expect(screen.getByText('Rincian Permohonan (EIS)')).toBeInTheDocument()
-    expect(screen.getByText('Prakiraan Pelanggan')).toBeInTheDocument()
+    // Susunan tab standar butir 14: Tren, Rekonsiliasi, Rincian Permohonan (EIS), Prakiraan, Histori Sinkronisasi
+    expect(await screen.findByRole('button', { name: /^Rekonsiliasi$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Tren$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Rincian Permohonan \(EIS\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Prakiraan$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Histori Sinkronisasi$/i })).toBeInTheDocument()
+
+    // Beralih ke tab Rekonsiliasi
+    await user.click(screen.getByRole('button', { name: /^Rekonsiliasi$/i }))
 
     // Data Penjelas Operasional
     expect(await screen.findByText('Data Penjelas Operasional')).toBeInTheDocument()
@@ -627,10 +692,115 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getAllByText(/309 adalah posisi akhir bulan/i).length).toBeGreaterThan(0)
 
     // Klik tab Rincian Permohonan (EIS)
-    await user.click(screen.getByText('Rincian Permohonan (EIS)'))
+    await user.click(screen.getByRole('button', { name: /Rincian Permohonan \(EIS\)/i }))
 
     // Komponen CustomerAnalysisContent tampil
     expect(await screen.findByText('Pelanggan baru (PB) per bulan')).toBeInTheDocument()
     expect(screen.getByText('Delta pelanggan bulanan')).toBeInTheDocument()
+  })
+
+  it('9. mendukung Butir 14: unduh Excel, tab Prakiraan, dan tab Histori Sinkronisasi', async () => {
+    pengusahaanApi.metrics.mockResolvedValue(MOCK_METRICS_CATALOG)
+    pengusahaanApi.metric.mockResolvedValue(MOCK_METRIC_DETAIL)
+
+    const user = userEvent.setup()
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelanggan'])
+
+    // Tombol Unduh Excel di header
+    const exportBtn = await screen.findByRole('button', { name: /Unduh Excel/i })
+    expect(exportBtn).toBeInTheDocument()
+    await user.click(exportBtn)
+    expect(pengusahaanApi.export).toHaveBeenCalledWith('pelanggan', expect.any(Object))
+
+    // Klik tab Prakiraan
+    const forecastTabBtn = screen.getByRole('button', { name: /^Prakiraan$/i })
+    await user.click(forecastTabBtn)
+    expect(pengusahaanApi.forecast).toHaveBeenCalledWith('pelanggan', expect.any(Object))
+    expect(await screen.findByRole('heading', { name: /Prakiraan 12 Bulan ke Depan/i })).toBeInTheDocument()
+
+    // Klik tab Histori Sinkronisasi
+    const historyTabBtn = screen.getByRole('button', { name: /^Histori Sinkronisasi$/i })
+    await user.click(historyTabBtn)
+    expect(pengusahaanApi.history).toHaveBeenCalledWith('pelanggan', expect.any(Object))
+    expect(await screen.findByText(/Matriks Kelengkapan 24 Bulan Terakhir/i)).toBeInTheDocument()
+    expect(screen.getByText(/309-51453-202610\.xls/i)).toBeInTheDocument()
+  })
+
+  it('10. mendukung Butir 15: menu Anomali Gangguan dan Anomali Keluhan dengan polarity down', async () => {
+    const anomaliCatalog = {
+      data: {
+        units: [{ id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3', parent_id: null }],
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'anomali-gangguan',
+            name: 'Anomali Gangguan',
+            source: 'EIS GGNBERULANG & GGNNEGATIF',
+            polarity: 'down',
+            available: true,
+            breakdown: 'Kanal Pengaduan Masuk',
+            series: [{ key: 'wo', name: 'Total Pengaduan (WO)', unit: 'laporan' }],
+          },
+        ],
+      },
+    }
+
+    const anomaliDetail = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: {
+          code: 'anomali-gangguan',
+          name: 'Anomali Gangguan',
+          source: 'EIS GGNBERULANG & GGNNEGATIF',
+          polarity: 'down',
+        },
+        months: ['2026-10'],
+        from: '2026-10',
+        to: '2026-10',
+        series: [
+          { key: 'wo', name: 'Total Pengaduan (WO)', unit: 'laporan', values: [500] },
+          { key: 'berulang', name: 'Gangguan Berulang', unit: 'laporan', values: [25] },
+          { key: 'negatif', name: 'Rating Negatif', unit: 'laporan', values: [10] },
+          { key: 'negatif_nonmarking', name: 'Rating Negatif Non-Marking', unit: 'laporan', values: [4] },
+        ],
+        summary: [
+          { key: 'wo', latest: 500, mom_pct: 10, yoy_pct: 5, ytd: 4500 },
+          { key: 'berulang', latest: 25, mom_pct: 5, yoy_pct: -2, ytd: 200 },
+          { key: 'negatif', latest: 10, mom_pct: -1, yoy_pct: -3, ytd: 90 },
+          { key: 'negatif_nonmarking', latest: 4, mom_pct: 0, yoy_pct: 0, ytd: 30 },
+        ],
+        breakdown: {
+          dimension: 'Kanal Pengaduan Masuk',
+          period: '2026-10',
+          rows: [
+            { key: 'PLN Mobile', value: 350, share_pct: 70, same_month_last_year: null, yoy_pct: null },
+            { key: 'CC 123', value: 150, share_pct: 30, same_month_last_year: null, yoy_pct: null },
+          ],
+        },
+        insights: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(anomaliCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'anomali-gangguan') {
+        return Promise.resolve(anomaliDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    const user = userEvent.setup()
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/anomali-gangguan'])
+
+    // Tunggu detail anomali-gangguan selesai dimuat
+    expect(await screen.findByText(/Analisa & Tren Anomali Gangguan/i)).toBeInTheDocument()
+    expect(screen.getAllByText('Anomali Gangguan').length).toBeGreaterThan(0)
+
+    // Tab Rincian menampilkan porsi breakdown kanal
+    const rincianTab = screen.getByRole('button', { name: /^Rincian$/i })
+    await user.click(rincianTab)
+    expect(await screen.findByText(/Rincian: Kanal Pengaduan Masuk/i)).toBeInTheDocument()
+    expect(screen.getByText('PLN Mobile')).toBeInTheDocument()
+    expect(screen.getByText('70,0%')).toBeInTheDocument()
   })
 })

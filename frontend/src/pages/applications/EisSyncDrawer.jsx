@@ -81,7 +81,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
   const nowMonth = new Date().toISOString().slice(0, 7)
   const [piutangFromMonth, setPiutangFromMonth] = useState('')
   const [piutangToMonth, setPiutangToMonth] = useState(nowMonth)
-  const [piutangReports, setPiutangReports] = useState(['GOLONGAN', 'LEMBAR', 'KOGOL'])
+  const [piutangReports, setPiutangReports] = useState(['GOLONGAN', 'LEMBAR', 'KOGOL', 'PRABAYAR'])
   const [piutangStarting, setPiutangStarting] = useState(false)
   const [piutangError, setPiutangError] = useState('')
 
@@ -553,6 +553,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
                       { key: 'GOLONGAN', label: 'Per Golongan' },
                       { key: 'LEMBAR', label: 'Per Lembar' },
                       { key: 'KOGOL', label: 'Kogol' },
+                      { key: 'PRABAYAR', label: 'Saldo Prabayar' },
                     ].map((rep) => (
                       <label
                         key={rep.key}
