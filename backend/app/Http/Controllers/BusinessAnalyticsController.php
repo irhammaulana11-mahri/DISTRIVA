@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
+use App\Services\Analytics\BusinessForecastService;
 use App\Services\Analytics\BusinessInputWorkbook;
 use App\Services\Analytics\BusinessMetricService;
+use App\Services\Analytics\BusinessMetricWorkbook;
+use App\Services\Analytics\BusinessSourceHistory;
 use App\Services\Analytics\BusinessTrendBuilder;
 use App\Services\Authorization\ApplicationAuthorizer;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +26,8 @@ class BusinessAnalyticsController extends Controller
 
     private const INPUT_PERMISSION = 'pengusahaan.input';
 
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $workbook) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $inputWorkbook, private readonly BusinessMetricWorkbook $workbook,
+        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history) {}
 
     /** GET /pengusahaan/metrics: katalog metrik dan unit yang boleh dilihat. */
     public function index(Request $request): JsonResponse
@@ -37,13 +41,56 @@ class BusinessAnalyticsController extends Controller
         ]]);
     }
 
-    /** GET /pengusahaan/metrics/{code}?unit_id=&from=YYYY-MM&to=YYYY-MM: deret, ringkasan, rincian, perbandingan ULP, kelengkapan, catatan analisa. */
+    /** GET /pengusahaan/metrics/{code}?unit_id=&from=YYYY-MM&to=YYYY-MM: deret, ringkasan, rincian, perbandingan ULP, kelengkapan, catatan analisa, pendamping dan rekonsiliasi. */
     public function show(Request $request, string $code): JsonResponse
+    {
+        return response()->json(['data' => $this->analysis($request, $code)]);
+    }
+
+    /** GET /pengusahaan/metrics/{code}/forecast?unit_id=: prakiraan 12 bulan tiap seri beserta analisa teksnya (hanya dari riwayat lengkap berurutan, minimal 24 bulan). */
+    public function forecast(Request $request, string $code): JsonResponse
+    {
+        [$unit, $ulps, $ids] = $this->target($request, $code);
+
+        return response()->json(['data' => ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type]] + $this->forecaster->forecast($code, $ids)]);
+    }
+
+    /**
+     * GET /pengusahaan/metrics/{code}/history?unit_id=: histori sumber data: berkas laporan yang masuk, kelengkapan ULP x 24 bulan, masukan bulanan (susut), dan sesi sinkronisasi terkait
+     * (`syncs`: null bila pemakai tidak berwenang melihatnya).
+     */
+    public function history(Request $request, string $code): JsonResponse
+    {
+        [$unit, $ulps, $ids] = $this->target($request, $code);
+        $latest = $this->builder->latestMonth($code, $ids);
+        $data = $this->history->history($code, $ulps, $latest);
+        $data['syncs'] = $this->syncs($request, $code);
+
+        return response()->json(['data' => ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type], 'metric' => ['code' => $code, 'name' => BusinessMetricService::CATALOG[$code]['name'], 'source' => BusinessMetricService::CATALOG[$code]['source']]] + $data]);
+    }
+
+    /** GET /pengusahaan/metrics/{code}/export?unit_id=&from=&to=: unduhan Excel dengan angka yang sama dengan layar (seri, rincian, perbandingan ULP, rekonsiliasi, pendamping, prakiraan, catatan). */
+    public function export(Request $request, string $code): BinaryFileResponse
+    {
+        $d = $this->analysis($request, $code);
+        [, , $ids] = $this->target($request, $code);
+        $path = storage_path('app/pengusahaan-'.Str::uuid().'.xlsx');
+        $this->workbook->write($d, $this->forecaster->forecast($code, $ids), $path);
+
+        return response()->download($path, strtoupper('PENGUSAHAAN-'.$code.'-'.$d['from'].'-'.$d['to']).'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Metrik dan unit yang diminta: 404 untuk metrik tidak dikenal atau unit di luar cakupan.
+     *
+     * @return array{0: object, 1: array<string, string>, 2: list<string>} unit, ULP (id => nama; bila UP3 semua ULP di bawahnya), id ULP
+     */
+    private function target(Request $request, string $code): array
     {
         if (! isset(BusinessMetricService::CATALOG[$code])) {
             throw new AdministrationDenied('Metrik tidak dikenal.', 404);
         }
-        $d = $request->validate(['unit_id' => ['required', 'uuid'], 'from' => ['nullable', 'date_format:Y-m'], 'to' => ['nullable', 'date_format:Y-m']]);
+        $d = $request->validate(['unit_id' => ['required', 'uuid']]);
         $unit = $this->visibleUnits($request)->firstWhere('id', $d['unit_id']);
         if ($unit === null) {
             throw new AdministrationDenied('Data tidak ditemukan.', 404);
@@ -51,7 +98,15 @@ class BusinessAnalyticsController extends Controller
         $ulps = $unit->unit_type === 'UP3'
             ? DB::table('organizational_units')->where('parent_id', $unit->id)->where('unit_type', 'ULP')->orderBy('name')->pluck('name', 'id')->all()
             : [$unit->id => $unit->name];
-        $ids = array_keys($ulps);
+
+        return [$unit, $ulps, array_keys($ulps)];
+    }
+
+    /** Analisa lengkap satu metrik untuk unit dan rentang yang diminta (dipakai tampilan dan unduhan). @return array<string, mixed> */
+    private function analysis(Request $request, string $code): array
+    {
+        [$unit, $ulps, $ids] = $this->target($request, $code);
+        $d = $request->validate(['from' => ['nullable', 'date_format:Y-m'], 'to' => ['nullable', 'date_format:Y-m']]);
         $to = $d['to'] ?? $this->builder->latestMonth($code, $ids);
         $from = $d['from'] ?? date('Y-m', strtotime("{$to}-01 -23 month"));
         if ($from > $to) {
@@ -61,8 +116,41 @@ class BusinessAnalyticsController extends Controller
             throw new AdministrationDenied('Rentang paling panjang 60 bulan.', 422);
         }
 
-        return response()->json(['data' => ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type]]
-            + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to)]);
+        return ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type]]
+            + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to);
+    }
+
+    /**
+     * Sesi sinkronisasi yang memasok metrik ini: penarikan piutang EIS (piutang), penarikan permohonan EIS (pelanggan, daya, HPL BP), sinkron gangguan (keandalan). Tanpa izin: null.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    private function syncs(Request $request, string $code): ?array
+    {
+        $user = $request->user();
+        $eis = ['pelanggan' => 'PERMOHONAN', 'daya' => 'PERMOHONAN', 'hpl-bp' => 'PERMOHONAN', 'piutang-prabayar' => 'PIUTANG', 'piutang-pascabayar' => 'PIUTANG', 'piutang-pascabayar-umur' => 'PIUTANG'][$code] ?? null;
+        if ($eis !== null) {
+            if ($this->authorizer->roleFor($user, 'eis_sync.manage') === null) {
+                return null;
+            }
+
+            return DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.kind', $eis)->orderByDesc('r.created_at')->limit(20)
+                ->get(['r.id', 'r.trigger', 'r.status', 'r.kind', 'r.options', 'r.range_from', 'r.range_to', 'r.exit_code', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
+                ->map(fn ($r) => ['source' => 'eis-sync', 'id' => $r->id, 'kind' => strtolower((string) $r->kind), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'options' => $r->options === null ? null : json_decode((string) $r->options, true),
+                    'range_from' => $r->range_from, 'range_to' => $r->range_to, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
+        }
+        if (in_array($code, ['gangguan', 'saidi-saifi', 'ens'], true)) {
+            if ($this->authorizer->roleFor($user, 'outages.view') === null) {
+                return null;
+            }
+
+            return DB::table('outage_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->orderByDesc('r.created_at')->limit(20)
+                ->get(['r.id', 'r.trigger', 'r.status', 'r.counts', 'r.message', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
+                ->map(fn ($r) => ['source' => 'outage-sync', 'id' => $r->id, 'kind' => 'gangguan', 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'counts' => $r->counts === null ? null : json_decode((string) $r->counts, true),
+                    'message' => $r->message, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
+        }
+
+        return [];
     }
 
     /**
@@ -156,7 +244,7 @@ class BusinessAnalyticsController extends Controller
             throw new AdministrationDenied('Data tidak ditemukan.', 404);
         }
         $path = storage_path('app/kwh-beli-'.Str::uuid().'.xlsx');
-        $this->workbook->template($units, (int) $d['year'], $path);
+        $this->inputWorkbook->template($units, (int) $d['year'], $path);
 
         return response()->download($path, "KWH-BELI-{$d['year']}.xlsx", ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
     }
@@ -166,7 +254,7 @@ class BusinessAnalyticsController extends Controller
     {
         $request->validate(['file' => ['required', 'file', 'max:5120', 'extensions:xlsx,xls']]);
         $this->authorizer->authorizeScope($request->user(), self::INPUT_PERMISSION);
-        $r = $this->workbook->import($request->file('file')->getRealPath(), $request->user());
+        $r = $this->inputWorkbook->import($request->file('file')->getRealPath(), $request->user());
 
         return response()->json(['data' => $r, 'message' => "{$r['rows']} nilai dibaca, {$r['changed']} berubah, {$r['unchanged']} sama."]);
     }

@@ -344,6 +344,9 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::prefix('pengusahaan')->middleware('throttle:admin')->group(function () {
         Route::get('/metrics', [BusinessAnalyticsController::class, 'index']);
         Route::get('/metrics/{code}', [BusinessAnalyticsController::class, 'show'])->where('code', '[a-z0-9-]+');
+        Route::get('/metrics/{code}/forecast', [BusinessAnalyticsController::class, 'forecast'])->where('code', '[a-z0-9-]+');
+        Route::get('/metrics/{code}/history', [BusinessAnalyticsController::class, 'history'])->where('code', '[a-z0-9-]+');
+        Route::get('/metrics/{code}/export', [BusinessAnalyticsController::class, 'export'])->where('code', '[a-z0-9-]+');
         Route::get('/inputs', [BusinessAnalyticsController::class, 'inputs']);
         Route::put('/inputs', [BusinessAnalyticsController::class, 'saveInputs']);
         Route::get('/inputs/template', [BusinessAnalyticsController::class, 'template']);

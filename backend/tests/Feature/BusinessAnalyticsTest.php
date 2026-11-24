@@ -312,6 +312,99 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertSame('Rp', $p['reconciliation']['unit']);
     }
 
+    /** @return list<array{string, int}> $n bulan berurutan dari $first dengan jumlah pelanggan naik $step per bulan dari $start */
+    private function growing(string $first, int $n, int $start, int $step): array
+    {
+        $out = [];
+        for ($i = 0; $i < $n; $i++) {
+            $out[] = [date('Y-m', strtotime($first.'-01 +'.$i.' month')).'-01', $start + $step * $i];
+        }
+
+        return $out;
+    }
+
+    #[Test]
+    public function prakiraan_memakai_riwayat_lengkap_berurutan_dan_menolak_riwayat_pendek_atau_ulp_yang_belum_lengkap(): void
+    {
+        $this->customers309($this->ulpA, $this->growing('2024-05', 30, 1000, 10));                        // 2024-05 .. 2026-10, naik 10 per bulan
+        $this->customers309($this->ulpB, $this->growing('2025-11', 12, 500, 5));                          // ULP B hanya 12 bulan terakhir
+
+        $a = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan/forecast?unit_id={$this->ulpA->id}")->assertOk()->json('data');
+        $s = $a['series'][0];
+        $this->assertSame(['OK', 30, 'last', '2026-10'], [$a['status'], $s['history_months'], $s['aggregate'], $a['last_month']]);
+        $this->assertCount(12, $s['forecast']);
+        $this->assertSame('2026-11', $s['forecast'][0]['month']);
+        $this->assertGreaterThan(1290, $s['forecast'][0]['p50']);                                        // di atas nilai terakhir 1290 (tren naik) ...
+        $this->assertLessThan(1320, $s['forecast'][0]['p50']);                                           // ... dan wajar untuk satu bulan ke depan
+        foreach ($s['forecast'] as $f) {
+            $this->assertTrue($f['p10'] <= $f['p50'] && $f['p50'] <= $f['p90']);
+        }
+        $this->assertSame(['year_end', '2026-12'], [$s['period']['kind'], $s['period']['month']]);
+        $this->assertEquals(1000 + 10 * 19, $s['period']['previous']);                                    // Desember 2025 = bulan ke-20 dari 2024-05
+        $this->assertGreaterThan(0, $s['period']['change_pct']);
+        $this->assertSame('baik', $s['insights'][0]['level']);                                            // pelanggan naik: baik (polarity up)
+        $this->assertStringContainsString('diprakirakan naik', $s['insights'][0]['text']);
+        $this->assertNotNull($s['quality']['gain_vs_naive_pct']);
+
+        $b = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan/forecast?unit_id={$this->ulpB->id}")->assertOk()->json('data');
+        $this->assertSame(['INSUFFICIENT', 'INSUFFICIENT'], [$b['status'], $b['series'][0]['status']]);
+        $this->assertStringContainsString('12 bulan', $b['series'][0]['message']);
+
+        $up3 = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan/forecast?unit_id={$this->up3->id}")->assertOk()->json('data');
+        $this->assertSame('INSUFFICIENT', $up3['status']);                                               // hanya bulan ketika semua ULP melapor: 12 bulan
+        $this->as($this->planner)->getJson("/api/pengusahaan/metrics/tidak-ada/forecast?unit_id={$this->ulpA->id}")->assertNotFound();
+    }
+
+    #[Test]
+    public function histori_memuat_berkas_kelengkapan_dan_sesi_sinkron_hanya_untuk_yang_berwenang(): void
+    {
+        $this->customers309($this->ulpA, [['2026-08-01', 10], ['2026-10-01', 12]]);                       // September 2026 tidak masuk
+        $this->customers309($this->ulpB, [['2026-10-01', 7]]);
+        DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'PIUTANG', 'options' => json_encode(['from_month' => '2026-10', 'to_month' => '2026-10', 'reports' => ['GOLONGAN']]), 'created_at' => now()]);
+        DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'PERMOHONAN', 'created_at' => now()]);
+        $admin = $this->makeUser();                                                                      // Niaga Retail UP3: berwenang atas sinkronisasi EIS
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan/history?unit_id={$this->up3->id}")->assertOk()->json('data');
+        $this->assertSame(['309', '2026-10'], [$d['family'], $d['latest_month']]);
+        $this->assertCount(3, $d['files']);
+        $this->assertSame('AKTIF', $d['files'][0]['status']);
+        $this->assertCount(24, $d['months']);
+        $cov = collect($d['coverage']['units'])->keyBy('unit_name');
+        $this->assertSame(['2026-09'], array_values(array_intersect($cov['ULP A']['missing'], ['2026-08', '2026-09', '2026-10'])));
+        $this->assertSame(23, $cov['ULP B']['missing_count']);                                          // ULP B hanya punya Oktober dari 24 bulan
+        $this->assertNull($d['syncs']);                                                                  // perencana tidak berwenang atas sinkronisasi EIS
+
+        $piutang = $this->as($admin)->getJson("/api/pengusahaan/metrics/piutang-prabayar/history?unit_id={$this->up3->id}")->assertOk()->json('data');
+        $this->assertSame(['piutang'], array_column($piutang['syncs'], 'kind'));                         // hanya penarikan piutang, bukan permohonan
+        $this->assertSame('GOLONGAN', $piutang['syncs'][0]['options']['reports'][0]);
+        $pelanggan = $this->as($admin)->getJson("/api/pengusahaan/metrics/pelanggan/history?unit_id={$this->up3->id}")->assertOk()->json('data');
+        $this->assertSame(['permohonan'], array_column($pelanggan['syncs'], 'kind'));
+        $kwh = $this->as($admin)->getJson("/api/pengusahaan/metrics/kwh-jual/history?unit_id={$this->up3->id}")->assertOk()->json('data');
+        $this->assertSame([], $kwh['syncs']);                                                            // 309 diunggah, tidak ada sesi sinkron
+    }
+
+    #[Test]
+    public function unduhan_excel_memuat_lembar_dengan_angka_yang_sama_dengan_layar(): void
+    {
+        $this->customers309($this->ulpA, [['2025-12-01', 1000], ['2026-01-01', 1010], ['2026-02-01', 1025]]);
+        $this->connected($this->ulpA, 'PB', 2.2, '2026-01-05');
+
+        $r = $this->as($this->planner)->get("/api/pengusahaan/metrics/pelanggan/export?unit_id={$this->ulpA->id}&from=2026-01&to=2026-02");
+        $r->assertOk()->assertDownload('PENGUSAHAAN-PELANGGAN-2026-01-2026-02.xlsx');
+        $book = IOFactory::load($r->baseResponse->getFile()->getPathname());
+        $this->assertSame(['Ringkasan', 'Seri', 'Rincian', 'Rekonsiliasi pelanggan', 'Pendamping', 'Catatan'], $book->getSheetNames());   // tanpa prakiraan (riwayat pendek) dan tanpa perbandingan ULP (satu ULP)
+        $summary = $book->getSheetByName('Ringkasan');
+        $this->assertSame('Pelanggan', $summary->getCell('B1')->getValue());
+        $this->assertEquals(1025, $summary->getCell('C8')->getValue());                                 // terakhir
+        $series = $book->getSheetByName('Seri');
+        $this->assertSame('2026-01', $series->getCell('A2')->getValue());
+        $this->assertEquals([1010, 1025], [$series->getCell('C2')->getValue(), $series->getCell('C3')->getValue()]);
+        $rec = $book->getSheetByName('Rekonsiliasi pelanggan');
+        $this->assertEquals([10, 1], [$rec->getCell('B5')->getValue(), $rec->getCell('C5')->getValue()]);   // Januari: tambahan bersih 10, PB 1
+        $this->as($this->viewer)->get("/api/pengusahaan/metrics/pelanggan/export?unit_id={$this->ulpB->id}")->assertNotFound();    // ULP di luar cakupan
+    }
+
     #[Test]
     public function waktu_respons_gangguan_tertimbang_jumlah_kejadian_tanpa_baris_total(): void
     {

@@ -48,6 +48,9 @@ Peta izin frontend: `GET /planning/access` memuat `pengusahaan.view` dan `pengus
 |---|---|
 | `GET /metrics` | `metrics[]`: `code, name, source, polarity` (`up` = makin besar makin baik, `down` = sebaliknya), `available`, `breakdown` (nama dimensi atau null), `series[]` (`key, name, unit`). `units[]`: unit yang boleh dilihat (`id, name, unit_type, parent_id`) untuk filter |
 | `GET /metrics/{code}?unit_id=&from=YYYY-MM&to=YYYY-MM` | Analisa satu metrik. Bawaan `to` = bulan laporan terakhir (susut: bulan kWh beli terakhir; sumber non-laporan lain: bulan lalu); `from` = 23 bulan sebelum `to`. Rentang paling panjang 60 bulan |
+| `GET /metrics/{code}/forecast?unit_id=` | Prakiraan 12 bulan tiap seri beserta analisa teks (lihat §3c) |
+| `GET /metrics/{code}/history?unit_id=` | Histori sumber data: berkas laporan masuk, kelengkapan ULP x 24 bulan, sesi sinkronisasi terkait (lihat §3c) |
+| `GET /metrics/{code}/export?unit_id=&from=&to=` | Unduhan Excel metrik itu (lihat §3c) |
 | `GET /inputs?unit_id=&year=` | Masukan bulanan satu ULP setahun (lihat §3a) |
 | `PUT /inputs` | Simpan masukan bulanan (lihat §3a), butuh `pengusahaan.input` |
 
@@ -95,6 +98,22 @@ Respons `GET /metrics/{code}` (`data`):
   - ULP dengan perubahan tahunan terbaik dan terlemah.
 
   Baik atau buruk mengikuti `polarity`.
+
+### 3c. Prakiraan, histori sumber data, dan unduhan Excel
+
+Ketiganya memakai `unit_id` (ULP, atau UP3 = gabungan ULP di bawahnya) dengan cakupan yang sama seperti `GET /metrics/{code}`; 404 untuk metrik tidak dikenal atau unit di luar cakupan.
+
+**`GET /metrics/{code}/forecast`** (`data`): `unit`, `status` (`OK` bila ada seri yang bisa diprakirakan, `INSUFFICIENT`, `UNAVAILABLE` untuk metrik tanpa sumber), `message`, `last_month`, `metric`, `units_expected`, `series[]`, `insights[]` (= `series[0].insights`), `notes[]`.
+- Model: musiman dan tren (kelas `SeasonalForecaster`, sama dengan prakiraan gangguan). Riwayat yang dipakai = rangkaian terakhir **tanpa celah** dengan laporan lengkap (pada UP3 hanya bulan ketika **semua** ULP melapor), paling jauh 84 bulan, **minimal 24 bulan**. Peredaman tren dipilih per seri lewat uji mundur (0,9 atau 1,0; `trend_damping`).
+- Tiap `series[]` (`key, name, unit`): `status` (`OK` atau `INSUFFICIENT` dengan `message` dan `history_months`), `history_months`, `aggregate` (`last` = deret posisi, `sum` = jumlah, `mean` = rasio/rata-rata), `history[]` (24 bulan terakhir: `month, value`), `forecast[]` (12 bulan: `month, p10, p50, p90`), `next12m` (`p10, p50, p90`), `last12m`, `change_pct`, `quality` (`wape`, `naive_wape`, `gain_vs_naive_pct`, `backtest_points`; naif = bulan yang sama tahun lalu), `trend_damping`, `target` (bulan ke-12: `month, p10, p50, p90, same_month_last_year, change_pct`), `period` (`kind`: `year_end` posisi akhir tahun berjalan, `full_year` aktual sampai bulan terakhir ditambah prakiraan sisa tahun lawan tahun lalu, `mean12` rata-rata 12 bulan ke depan lawan 12 bulan terakhir; `label, p50, previous, change_pct`, dan `month, p10, p90` untuk `year_end`; null bila tidak bisa dihitung), dan `insights[]`.
+- `insights` (`level`: `baik`, `perhatian`, `info`; baik atau buruk mengikuti `polarity`): arah bulan ke-12 dibanding bulan yang sama tahun lalu beserta rentangnya; angka tahun berjalan; **mutu model dibanding tebakan sederhana** (perhatian bila tidak lebih baik); bulan paling tidak menguntungkan yang diprakirakan (bukan untuk deret posisi).
+- Pada data nyata (UP3 Mojokerto, Oktober 2026): Pelanggan, Daya, kWh Jual, dan Pendapatan bisa diprakirakan; Piutang Pascabayar belum (21 bulan lengkap), Umur Piutang belum (22 bulan), Susut belum (tanpa masukan kWh beli). Prakiraan permohonan/gangguan dari modul lama (`forecast.kind`, `/forecast/*`, `/outages/forecast`) tetap ada sebagai tambahan.
+
+**`GET /metrics/{code}/history`** (`data`): `unit`, `metric`, `family` (jenis laporan EIS sumber atau null), `latest_month`, `months[]` (24 bulan terakhir), `files[]` (100 berkas terbaru: `id, family, period, unit_id, unit_name, original_name, status` AKTIF/DIGANTIKAN`, line_count, warnings_count, imported_at, uploaded_by`), `coverage` (`units[]`: `unit_id, unit_name, months[]` boolean sejajar `months`, `missing[]`, `missing_count`; `expected_total`, `missing_total`; null untuk metrik tanpa laporan), `inputs[]` (hanya `susut`: 100 perubahan masukan bulanan terbaru: `period, code, value, note, unit_name, entered_by, updated_at`), dan `syncs`:
+- `pelanggan`, `daya`, `hpl-bp`: sesi penarikan **permohonan** EIS; `piutang-*`: sesi penarikan **piutang** EIS (dengan `options`); `gangguan`, `saidi-saifi`, `ens`: sesi sinkron **gangguan** (`counts`, `message`); metrik lain `[]` (laporan diunggah, tidak ada sesi sinkron). Paling banyak 20 sesi terbaru: `source, id, kind, trigger, status, started_by, created_at, started_at, finished_at` (+ `options`, `range_from`, `range_to`, `counts`, `message` sesuai sumber).
+- `null` bila pemakai tidak punya izin (`eis_sync.manage` untuk sesi EIS, `outages.view` untuk sesi gangguan); tampilkan "tidak berwenang melihat sesi sinkronisasi", bukan daftar kosong.
+
+**`GET /metrics/{code}/export`**: berkas `.xlsx` (nama `PENGUSAHAAN-<KODE>-<dari>-<sampai>.xlsx`) dari analisa yang sama dengan layar. Lembar: `Ringkasan` (metrik, sumber, unit, rentang, dan ringkasan tiap seri), `Seri` (bulan, ULP melapor, nilai dan nilai tahun lalu tiap seri), `Rincian` (rincian, rincian kedua, matriks), `Perbandingan ULP` (hanya UP3), `Rekonsiliasi <kunci>` (satu lembar per rekonsiliasi), `Pendamping`, `Prakiraan` (bila status OK), `Catatan` (catatan analisa dan bulan laporan yang belum masuk). Parameter `from`, `to` sama dengan `GET /metrics/{code}`.
 
 ### 3a. Masukan bulanan kWh beli, E-Min, PSSD
 
