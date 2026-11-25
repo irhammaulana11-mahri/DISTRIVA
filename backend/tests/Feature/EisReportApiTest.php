@@ -11,6 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\Test;
@@ -185,16 +186,43 @@ class EisReportApiTest extends PostgresTestCase
         $this->assertSame(12, $cov->json('data.expected_until_month'));
         $units = collect($cov->json('data.units'))->keyBy('unit_name');
         $this->assertSame(['ULP Jombang', 'ULP Ngoro'], $units->keys()->sort()->values()->all());
-        $families = count($cov->json('data.families_list'));
+        $datasets = count($cov->json('data.datasets_list'));                                           // hanya dataset aktif yang dihitung kurang; jenis lama tidak
+        $this->assertSame(11, $datasets);
         $this->assertTrue($units['ULP Jombang']['families']['309'][4]);
-        $this->assertSame($families * 12 - 1, $units['ULP Jombang']['missing_count']);
-        $this->assertNotContains(['family' => '309', 'month' => 4], $units['ULP Jombang']['missing']);
-        $this->assertSame($families * 12, $units['ULP Ngoro']['missing_count']);
-        $this->assertSame($families * 12 * 2 - 1, $cov->json('data.missing_total'));
+        $this->assertTrue($units['ULP Jombang']['datasets']['AP2T.PENJUALAN_309'][4]);
+        $this->assertSame($datasets * 12 - 1, $units['ULP Jombang']['missing_count']);
+        $this->assertNotContains(['dataset' => 'AP2T.PENJUALAN_309', 'month' => 4], $units['ULP Jombang']['missing']);
+        $this->assertSame($datasets * 12, $units['ULP Ngoro']['missing_count']);
+        $this->assertSame($datasets * 12 * 2 - 1, $cov->json('data.missing_total'));
+        $this->assertContains('GGNALL', $cov->json('data.legacy_families'));
 
         // peran ULP hanya melihat ULP-nya
         $own = $this->as($this->niagaA)->getJson('/api/eis-reports/coverage?year=2025&up3_id='.$this->up3->getKey())->assertOk();
         $this->assertSame(['ULP Jombang'], array_column($own->json('data.units'), 'unit_name'));
         $this->as($this->admin)->getJson('/api/eis-reports/coverage?year=2025')->assertStatus(422);
+    }
+
+    #[Test]
+    public function kelengkapan_memuat_dataset_penarikan_apkt_dan_bulan_baru_lengkap_bila_semua_bagiannya_ada(): void
+    {
+        $row = fn (string $period, array $extra) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $this->ulpA->getKey(), 'period' => $period, 'created_at' => now(), 'updated_at' => now()] + $extra;
+        DB::table('apkt_rpt_rct_records')->insert([$row('2025-04-01', ['clear_temper' => true]), $row('2025-04-01', ['clear_temper' => false]), $row('2025-05-01', ['clear_temper' => true])]);   // Mei hanya satu varian: belum lengkap
+        DB::table('apkt_rpt_rct_keluhan_records')->insert([$row('2025-04-01', [])]);
+        DB::table('apkt_anomali_gangguan_records')->insert([$row('2025-04-01', ['jenis' => 'BERULANG']), $row('2025-04-01', ['jenis' => 'NEGATIF']), $row('2025-05-01', ['jenis' => 'BERULANG'])]);
+        DB::table('apkt_anomali_keluhan_records')->insert([$row('2025-04-01', ['jenis' => 'NEGATIF'])]);
+
+        $unit = collect($this->as($this->admin)->getJson('/api/eis-reports/coverage?year=2025&unit_id='.$this->ulpA->getKey())->assertOk()->json('data.datasets'))->keyBy('code');
+        $this->assertSame(['APKT', 'table', ['rpt-rct-gangguan']], [$unit['APKT.RPT_RCT_GANGGUAN']['source'], $unit['APKT.RPT_RCT_GANGGUAN']['storage'], $unit['APKT.RPT_RCT_GANGGUAN']['used_by']]);
+        $this->assertSame([true, false], [$unit['APKT.RPT_RCT_GANGGUAN']['months'][4], $unit['APKT.RPT_RCT_GANGGUAN']['months'][5]]);
+        $this->assertTrue($unit['APKT.RPT_RCT_KELUHAN']['months'][4]);                                   // keluhan RPT/RCT: satu baris cukup
+        $this->assertSame([true, false], [$unit['APKT.ANOMALI_GANGGUAN']['months'][4], $unit['APKT.ANOMALI_GANGGUAN']['months'][5]]);
+        $this->assertFalse($unit['APKT.ANOMALI_KELUHAN']['months'][4]);                                  // anomali keluhan: berulang belum ada
+        $this->assertContains('susut', $unit['AP2T.PENJUALAN_309']['used_by']);
+
+        $up3 = collect($this->as($this->admin)->getJson('/api/eis-reports/coverage?year=2025&up3_id='.$this->up3->getKey())->assertOk()->json('data.units'))->keyBy('unit_name');
+        $this->assertTrue($up3['ULP Jombang']['datasets']['APKT.RPT_RCT_GANGGUAN'][4]);
+        $this->assertContains(['dataset' => 'APKT.RPT_RCT_GANGGUAN', 'month' => 5], $up3['ULP Jombang']['missing']);
+        $this->assertNotContains(['dataset' => 'APKT.RPT_RCT_GANGGUAN', 'month' => 4], $up3['ULP Jombang']['missing']);
+        $this->assertContains(['dataset' => 'APKT.RPT_RCT_GANGGUAN', 'month' => 4], $up3['ULP Ngoro']['missing']);
     }
 }

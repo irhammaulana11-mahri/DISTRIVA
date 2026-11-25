@@ -234,36 +234,23 @@ class NkoRealizationResolver
     }
 
     /**
-     * Dari laporan gangguan (GGNALL, GGNNEGATIF) semua bulan Januari sampai bulan berjalan: response time = rata-rata respons tertimbang jumlah gangguan; rating negatif = jumlah kolom total negatif.
-     * Belum cocok dengan workbook (Clear Tamper tidak dipisah pada laporan), sehingga dapat dikoreksi dengan masukan manual disertai alasan.
+     * Dari penarikan APKT semua bulan Januari sampai bulan berjalan (semua bulan harus ada): response time gangguan di luar Clear Tamper = rata-rata respons varian "Tanpa Clear Temper"
+     * tertimbang jumlah WO (jumlah total durasi dibagi jumlah WO); rating negatif PLN Mobile gangguan = jumlah anomali rating negatif tanpa marking (ukuran NKO). Hanya untuk ULP (unit lain tanpa data).
+     * Dapat dikoreksi dengan masukan manual disertai alasan.
      *
      * @return array<string, float>
      */
     private function ggnValues(string $unitId, int $year, int $month): array
     {
-        $lines = function (string $family) use ($unitId, $year, $month): ?array {
-            $files = DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
-                ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->pluck('id');
-            if ($files->count() !== $month) {
-                return null;
-            }
-
-            return DB::table('eis_report_lines')->whereIn('file_id', $files)->pluck('values')->map(fn ($v) => json_decode($v, true) ?: [])->all();
-        };
+        $between = ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)];
         $out = [];
-        $all = $lines('GGNALL');
-        if ($all !== null) {
-            $weight = array_sum(array_map(fn ($v) => (float) ($v['total'] ?? 0), $all));
-            if ($weight > 0) {
-                $out['response-time-atas-gangguan-diluar-clear-tamper'] = array_sum(array_map(fn ($v) => (float) ($v['response_rata_menit'] ?? 0) * (float) ($v['total'] ?? 0), $all)) / $weight;
-            }
+        $response = DB::table('apkt_rpt_rct_records')->where('organizational_unit_id', $unitId)->where('clear_temper', false)->whereBetween('period', $between)->get(['rpt_total', 'rpt_count']);
+        if ($response->count() === $month && $response->sum('rpt_count') > 0) {
+            $out['response-time-atas-gangguan-diluar-clear-tamper'] = (float) $response->sum('rpt_total') / (float) $response->sum('rpt_count');
         }
-        $negFiles = DB::table('eis_report_files')->where('family', 'GGNNEGATIF')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
-            ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->pluck('id');
-        if ($negFiles->count() === $month) {
-            // Tata letak lama (sampai September 2025) memuat dua tabel dalam satu berkas; hanya baris pertama yang memuat kolom c_L yang dihitung, satu per berkas.
-            $perFile = DB::table('eis_report_lines')->whereIn('file_id', $negFiles)->orderBy('line_no')->get(['file_id', 'values'])->groupBy('file_id');
-            $out['feedback-rating-negatif-pada-pln-mobile-gangguan'] = (float) $perFile->sum(fn ($rows) => (float) ($rows->map(fn ($r) => json_decode($r->values, true) ?: [])->first(fn ($v) => isset($v['c_L']))['c_L'] ?? 0));
+        $negative = DB::table('apkt_anomali_gangguan_records')->where('organizational_unit_id', $unitId)->where('jenis', 'NEGATIF')->whereBetween('period', $between)->get(['total_anomali_non_marking']);
+        if ($negative->count() === $month) {
+            $out['feedback-rating-negatif-pada-pln-mobile-gangguan'] = (float) $negative->sum('total_anomali_non_marking');
         }
 
         return $out;

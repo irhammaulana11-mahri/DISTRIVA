@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Semua butir telah selesai dikerjakan)*
+| # | Tanggal | Perubahan backend | Dokumen | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|
+| 31 | 2026-11-25 | **Katalog dataset dan perbaikan matriks kelengkapan** (halaman Master Data / Upload APKT/EIS/AP2T): `GET /eis-reports/coverage` (`unit_id` dan `up3_id`) kini memuat `datasets[]`/`datasets_list[]` dengan nama baku `SUMBER.DATASET` (`code`, `name`, `source`, `storage`, `used_by`), kelengkapan dataset APKT (bulan lengkap bila semua bagiannya ada), dan `legacy_families[]` (jenis EIS lama yang tidak dihitung). Pada `up3_id`: `missing[]` berisi `{dataset, month}` (dulu `{family, month}`) dan `expected_total`/`missing_total` hanya menghitung 11 dataset aktif. Kunci lama `families`/`families_list` masih ada. NKO kini memakai data APKT untuk response time gangguan (tanpa clear temper) dan rating negatif tanpa marking; nilai realisasi NKO bisa berubah | docs/88 (Katalog dataset), docs/90 | Halaman Upload APKT/EIS/AP2T: (a) matriks per unit dan per UP3 memakai `datasets` (baris = `name` dengan `code` kecil, badge sumber AP2T/APKT/EIS, tooltip "dipakai menu" dari `used_by`), bukan `families`; (b) jenis lama (`legacy_families`) disembunyikan dari matriks (tetap tersedia untuk unggah lewat pilihan jenis atau bagian "Arsip"); (c) daftar kurang dan lencana pakai `missing[].dataset` dan nama dataset; (d) sel dataset APKT yang kosong diberi petunjuk tarik lewat tombol Tarik APKT, sel AP2T.TAGSUS lewat Tarik AP2T | BARU |
 
 ## Selesai
 

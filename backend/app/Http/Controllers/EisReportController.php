@@ -7,6 +7,7 @@ use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\EisReports\EisReportException;
 use App\Services\EisReports\EisReportImportService;
 use App\Services\EisReports\EisReportParser;
+use App\Services\EisReports\ReportDatasets;
 use App\Services\MfaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class EisReportController extends Controller
 
     private const ZIP_MAX_TOTAL_BYTES = 500 * 1024 * 1024;
 
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly EisReportImportService $import, private readonly MfaService $mfa) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly EisReportImportService $import, private readonly MfaService $mfa, private readonly ReportDatasets $datasets) {}
 
     /** @return list<string>|null unit (ULP dan UP3) yang boleh dibaca; null = semua */
     private function visibleUnits(Request $request): ?array
@@ -80,7 +81,13 @@ class EisReportController extends Controller
             $matrix[$r->family][(int) substr($r->period, 5, 2)] = true;
         }
 
-        return response()->json(['data' => ['unit_id' => $d['unit_id'], 'year' => (int) $d['year'], 'families' => $matrix]]);
+        $datasets = [];
+        $months = $this->datasets->months([$d['unit_id']], (int) $d['year'])[$d['unit_id']];
+        foreach (ReportDatasets::list() as $meta) {
+            $datasets[] = $meta + ['months' => $months[$meta['code']]];
+        }
+
+        return response()->json(['data' => ['unit_id' => $d['unit_id'], 'year' => (int) $d['year'], 'datasets' => $datasets, 'legacy_families' => ReportDatasets::LEGACY_FAMILIES, 'families' => $matrix]]);
     }
 
     /**
@@ -102,25 +109,28 @@ class EisReportController extends Controller
         foreach (DB::table('eis_report_files')->whereIn('organizational_unit_id', $ulps->pluck('id'))->where('status', 'AKTIF')->whereBetween('period', ["{$year}-01-01", "{$year}-12-01"])->get(['organizational_unit_id', 'family', 'period']) as $r) {
             $have[$r->organizational_unit_id][$r->family][(int) substr($r->period, 5, 2)] = true;
         }
+        $datasetMonths = $this->datasets->months($ulps->pluck('id')->all(), $year);
         $units = [];
         $missingTotal = 0;
         foreach ($ulps as $u) {
             $families = [];
-            $missing = [];
             foreach (EisReportParser::FAMILIES as $f) {
                 for ($m = 1; $m <= 12; $m++) {
                     $families[$f][$m] = isset($have[$u->id][$f][$m]);
-                    if ($m <= $expectedUntil && ! $families[$f][$m]) {
-                        $missing[] = ['family' => $f, 'month' => $m];
-                    }
+                }
+            }
+            $missing = [];                                                                       // hanya dataset aktif yang dihitung kurang
+            foreach ($datasetMonths[$u->id] as $code => $byMonth) {
+                for ($m = 1; $m <= $expectedUntil; $m++) {
+                    $byMonth[$m] || $missing[] = ['dataset' => $code, 'month' => $m];
                 }
             }
             $missingTotal += count($missing);
-            $units[] = ['unit_id' => $u->id, 'unit_code' => $u->code, 'unit_name' => $u->name, 'families' => $families, 'missing_count' => count($missing), 'missing' => $missing];
+            $units[] = ['unit_id' => $u->id, 'unit_code' => $u->code, 'unit_name' => $u->name, 'datasets' => $datasetMonths[$u->id], 'families' => $families, 'missing_count' => count($missing), 'missing' => $missing];
         }
 
-        return response()->json(['data' => ['up3_id' => $up3->id, 'up3_name' => $up3->name, 'year' => $year, 'expected_until_month' => $expectedUntil, 'families_list' => EisReportParser::FAMILIES,
-            'expected_total' => $expectedUntil * count(EisReportParser::FAMILIES) * count($units), 'missing_total' => $missingTotal, 'units' => $units]]);
+        return response()->json(['data' => ['up3_id' => $up3->id, 'up3_name' => $up3->name, 'year' => $year, 'expected_until_month' => $expectedUntil, 'datasets_list' => ReportDatasets::list(), 'legacy_families' => ReportDatasets::LEGACY_FAMILIES, 'families_list' => EisReportParser::FAMILIES,
+            'expected_total' => $expectedUntil * count(ReportDatasets::ACTIVE) * count($units), 'missing_total' => $missingTotal, 'units' => $units]]);
     }
 
     public function lines(Request $request, string $file): JsonResponse

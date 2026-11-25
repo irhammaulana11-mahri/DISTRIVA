@@ -295,22 +295,25 @@ class NkoCalculationTest extends PostgresTestCase
     }
 
     #[Test]
-    public function rating_negatif_menghitung_satu_baris_per_berkas_walau_tata_letak_lama_memuat_dua_tabel(): void
+    public function gangguan_nko_dari_apkt_response_time_tanpa_clear_temper_tertimbang_wo_dan_rating_negatif_tanpa_marking(): void
     {
-        $file = function (string $period, array $lines) {
-            $id = (string) Str::uuid();
-            DB::table('eis_report_files')->insert(['id' => $id, 'family' => 'GGNNEGATIF', 'unit_code' => $this->ulpA->code, 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'original_name' => 'GGNNEGATIF.xls',
-                'sha256' => hash('sha256', $id), 'size_bytes' => 1, 'status' => 'AKTIF', 'summary' => '{}', 'line_count' => count($lines), 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
-            foreach ($lines as $i => $v) {
-                DB::table('eis_report_lines')->insert(['file_id' => $id, 'line_no' => $i + 1, 'label' => 'ULP JOMBANG', 'values' => json_encode($v)]);
-            }
-        };
-        $file('2026-01-01', [['c_B' => 100, 'c_L' => 2], ['c_B' => 150]]);   // dua tabel: tabel kedua tanpa c_L
-        $file('2026-02-01', [['c_B' => 100, 'c_L' => 3]]);
+        $rpt = fn (string $period, bool $withClearTemper, float $total, int $n) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'clear_temper' => $withClearTemper, 'rpt_total' => $total, 'rpt_count' => $n,
+            'rct_total' => 0, 'rct_count' => $n, 'created_at' => now(), 'updated_at' => now()];
+        $neg = fn (string $period, string $jenis, int $marking, int $nonMarking) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'jenis' => $jenis, 'wo_total' => 100,
+            'total_anomali_marking' => $marking, 'total_anomali_non_marking' => $nonMarking, 'created_at' => now(), 'updated_at' => now()];
+        // Januari: tanpa clear temper 200 menit dari 10 WO; Februari: 600 menit dari 20 WO; varian dengan clear temper tidak dipakai
+        DB::table('apkt_rpt_rct_records')->insert([$rpt('2026-01-01', false, 200, 10), $rpt('2026-02-01', false, 600, 20), $rpt('2026-01-01', true, 9999, 99), $rpt('2026-02-01', true, 9999, 99)]);
+        DB::table('apkt_anomali_gangguan_records')->insert([$neg('2026-01-01', 'NEGATIF', 4, 2), $neg('2026-02-01', 'NEGATIF', 1, 3), $neg('2026-01-01', 'BERULANG', 9, 9)]);
+        $resolver = app(NkoRealizationResolver::class);
 
-        $r = app(NkoRealizationResolver::class)->resolve($this->ulpA->id, 2026, 2);
+        $r = $resolver->resolve($this->ulpA->id, 2026, 2);
 
-        $this->assertEqualsWithDelta(5.0, $r['feedback-rating-negatif-pada-pln-mobile-gangguan']['value'], 1e-9);
+        $this->assertEqualsWithDelta(800 / 30, $r['response-time-atas-gangguan-diluar-clear-tamper']['value'], 1e-9);        // jumlah total durasi / jumlah WO, Januari sampai Februari
+        $this->assertEqualsWithDelta(5.0, $r['feedback-rating-negatif-pada-pln-mobile-gangguan']['value'], 1e-9);             // non marking rating negatif: 2 + 3
+        $this->assertEqualsWithDelta(20.0, $resolver->resolve($this->ulpA->id, 2026, 1)['response-time-atas-gangguan-diluar-clear-tamper']['value'], 1e-9);
+        $march = $resolver->resolve($this->ulpA->id, 2026, 3);
+        $this->assertArrayNotHasKey('response-time-atas-gangguan-diluar-clear-tamper', $march);                              // Maret belum ada: semua bulan harus ada
+        $this->assertArrayNotHasKey('feedback-rating-negatif-pada-pln-mobile-gangguan', $march);
     }
 
     #[Test]
