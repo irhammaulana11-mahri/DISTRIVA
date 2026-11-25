@@ -66,6 +66,7 @@ class BusinessAnalyticsController extends Controller
         $latest = $this->builder->latestMonth($code, $ids);
         $data = $this->history->history($code, $ulps, $latest, $year === null ? null : (int) $year);
         $data['syncs'] = $this->syncs($request, $code);
+        $data['warnings'] = $this->builder->warnings($code, $ids, $latest);
 
         return response()->json(['data' => ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type], 'metric' => ['code' => $code, 'name' => BusinessMetricService::CATALOG[$code]['name'], 'source' => BusinessMetricService::CATALOG[$code]['source']]] + $data]);
     }

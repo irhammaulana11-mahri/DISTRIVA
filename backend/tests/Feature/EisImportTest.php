@@ -6,15 +6,19 @@ use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Applications\EisSyncService;
+use App\Services\EisReports\ApktSaidiSaifiSync;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\EisReportPermissionSeeder;
 use Database\Seeders\SurveyPermissionSeeder;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -916,6 +920,115 @@ class EisImportTest extends PostgresTestCase
         $this->assertSame('permohonan', $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data.kind'));                         // the application pull is unchanged
         $this->assertContains('--per-unit', $args());
         $this->assertSame('piutang', $this->as($this->sysAdmin)->getJson('/api/eis-sync')->json('data.runs.1.kind'));
+    }
+
+    /** Pohon GraphQL APKT yang kecil tetapi lengkap: satu peralatan, dengan subtotal tiap tingkat. */
+    private function apktTree(float $saidi = 0.0219, int $feeder = 5): array
+    {
+        $v = fn (string $p, int $n) => [$p.'jumlahPelangganPadam' => $n, $p.'jumlahTotalPelanggan' => 194452, $p.'jamXJumlahPelangganPadam' => $n * 2.0, $p.'saidi' => 0.001, $p.'saidiPelanggan' => 0.06, $p.'saifi' => 0.002, $p.'jumlahGangguan' => $feeder, $p.'lamaPadam' => 3.0, $p.'kwhLoss' => 4];
+
+        return ['kelompok' => [['id' => 1, 'nama' => 'Distribusi'] + $v('totalKelompok_', 7) + ['subKelompok' => [['id' => 11, 'nama' => 'Padam Tidak Terencana'] + $v('totalSubKelompok_', 7) + ['fasilitas' => [['id' => 112, 'nama' => 'Penyulang'] + $v('totalFasilitas_', 7) + ['subFasilitas' => [
+            ['id' => 1121, 'nama' => 'SUTM'] + $v('totalSubFasilitas_', 7) + ['equipment' => [['id' => 11211, 'nama' => 'Konduktor'] + $v('', 7)]]]]]]]]],
+            'totalKeseluruhan' => ['saidi' => $saidi, 'saidiPelanggan' => 1.315, 'saifi' => 0.0153] + $v('', 7)];
+    }
+
+    #[Test]
+    public function an_apkt_run_pulls_the_monthly_saidi_saifi_report_into_the_difi_import_and_never_keeps_or_returns_the_token(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.apkt.pause_ms' => 0, 'distriva.apkt.graphql_url' => 'https://apkt.test/graphql']);
+        Storage::fake('documents');
+        $secret = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+        Http::fake(['apkt.test/*' => Http::response(['data' => ['getLaporanSaidiSaifiSE004' => ['status' => true, 'message' => 'ok', 'data' => $this->apktTree()]]])]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'from_month' => '2026-10', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => 'Bearer '.$secret])->assertStatus(202)->json('data');
+
+        $this->assertSame('apkt', $run['kind']);
+        $this->assertArrayNotHasKey('token_encrypted', $run['options']);
+        $this->assertStringNotContainsString($secret, json_encode($run));
+        Http::assertSent(fn ($r) => $r->hasHeader('Authorization', 'Bearer '.$secret) && $r['variables']['cmd']['idUlp'] === [51453] && $r['variables']['cmd']['bulan'] === 10 && $r['variables']['cmd']['tahun'] === 2026 && $r['variables']['cmd']['idUp3'] === [149]);
+
+        $row = DB::table('eis_sync_runs')->where('id', $run['id'])->first();
+        $this->assertSame('OK', $row->status);
+        $this->assertStringContainsString('BARU', (string) $row->log);
+        $this->assertStringNotContainsString($secret, (string) $row->log.$row->options);          // the token is gone from the run once it has finished
+        $this->assertStringNotContainsString('token_encrypted', (string) $row->options);
+
+        $file = DB::table('eis_report_files')->where('family', 'DIFI')->where('unit_code', '51453')->first();
+        $this->assertSame('2026-10-01', $file->period);
+        $this->assertSame('DIFI-51453-102026.xlsx', $file->original_name);
+        $summary = json_decode($file->summary, true);
+        $this->assertEqualsWithDelta(0.0219, $summary['saidi_jam'], 1e-9);
+        $this->assertEqualsWithDelta(1.315, $summary['saidi_menit'], 1e-9);
+        $this->assertEquals(194452, $summary['pelanggan']);
+        $this->assertSame(6, (int) DB::table('eis_report_lines')->where('file_id', $file->id)->count());        // heading rows hold no numbers and are skipped: 1 equipment + 5 subtotals/totals
+        $penyulang = json_decode((string) DB::table('eis_report_lines')->where('file_id', $file->id)->where('label', 'SUB TOTAL FASILITAS Penyulang')->value('values'), true);
+        $this->assertSame(5, (int) $penyulang['jumlah_gangguan']);
+
+        // the same content again is a duplicate, not a second file
+        $again = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret])->assertStatus(202)->json('data.id');
+        $this->assertStringContainsString('DUPLIKAT', (string) DB::table('eis_sync_runs')->where('id', $again)->value('log'));
+        $this->assertSame(1, DB::table('eis_report_files')->where('family', 'DIFI')->where('status', 'AKTIF')->count());
+
+        // different content for the same unit and month replaces the old version
+        Http::swap(new Factory);                                              // a fresh fake: the first one would keep answering with the old report
+        Http::fake(['apkt.test/*' => Http::response(['data' => ['getLaporanSaidiSaifiSE004' => ['status' => true, 'data' => $this->apktTree(3.5688, 9)]]])]);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret])->assertStatus(202);
+        $this->assertSame(1, DB::table('eis_report_files')->where('family', 'DIFI')->where('status', 'AKTIF')->count());
+        $this->assertSame(1, DB::table('eis_report_files')->where('family', 'DIFI')->where('status', 'DIGANTIKAN')->count());
+    }
+
+    #[Test]
+    public function an_apkt_workbook_of_the_same_data_is_byte_identical_even_when_built_seconds_apart(): void
+    {
+        $svc = app(ApktSaidiSaifiSync::class);
+        $a = tempnam(sys_get_temp_dir(), 'apkt');
+        $b = tempnam(sys_get_temp_dir(), 'apkt');
+        $svc->workbook($this->apktTree(), 'ULP JOMBANG', 10, 2026)->save($a);
+        sleep(2);                                                                                  // timestamps inside an xlsx (document properties, zip entries) must not leak into the hash that detects duplicates
+        $svc->workbook($this->apktTree(), 'ULP JOMBANG', 10, 2026)->save($b);
+
+        $this->assertSame(hash_file('sha256', $a), hash_file('sha256', $b));
+        $svc->workbook($this->apktTree(9.9), 'ULP JOMBANG', 10, 2026)->save($b);
+        $this->assertNotSame(hash_file('sha256', $a), hash_file('sha256', $b));                    // different data still differs
+        @unlink($a);
+        @unlink($b);
+    }
+
+    #[Test]
+    public function an_apkt_run_stops_at_the_first_rejected_token_and_input_is_validated(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.apkt.pause_ms' => 0, 'distriva.apkt.graphql_url' => 'https://apkt.test/graphql']);
+        $secret = 'zzzzzzzz0123456789zzzzzzzz0123456789';
+        Http::fake(['apkt.test/*' => Http::response(['message' => 'Unauthorized'], 401)]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'from_month' => '2026-09', 'to_month' => '2026-10', 'apkt_token' => $secret])->assertStatus(202)->json('data');
+
+        Http::assertSentCount(1);                                                                    // 10 ULP x 2 months would be 20 requests; the rejected token ends the run at once
+        $row = DB::table('eis_sync_runs')->where('id', $run['id'])->first();
+        $this->assertSame('FAILED', $row->status);
+        $this->assertStringContainsString('token APKT ditolak', (string) $row->log);
+        $this->assertStringNotContainsString($secret, (string) $row->log.$row->options);
+        $this->assertSame(0, DB::table('eis_report_files')->where('family', 'DIFI')->count());
+
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10'])->assertUnprocessable();                           // the token is required
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'apkt_token' => 'pendek'])->assertStatus(409);      // not a plausible token
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'from_month' => '2024-01', 'to_month' => '2026-10', 'apkt_token' => $secret])->assertStatus(409);   // at most 24 months
+        $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'units' => ['51454'], 'apkt_token' => $secret])->assertStatus(409);   // a unit outside the scope
+    }
+
+    #[Test]
+    public function an_apkt_token_left_on_a_run_that_never_finished_is_wiped_when_the_run_expires(): void
+    {
+        $id = (string) Str::uuid();
+        DB::table('eis_sync_runs')->insert(['id' => $id, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'started_by' => $this->sysAdmin->getKey(), 'kind' => 'APKT', 'options' => json_encode(['from_month' => '2026-10', 'to_month' => '2026-10', 'token_encrypted' => 'rahasia']), 'created_at' => now()->subDays(2)]);
+
+        app(EisSyncService::class)->expireStale();
+
+        $row = DB::table('eis_sync_runs')->where('id', $id)->first();
+        $this->assertSame('FAILED', $row->status);
+        $this->assertStringNotContainsString('token_encrypted', (string) $row->options);
     }
 
     #[Test]

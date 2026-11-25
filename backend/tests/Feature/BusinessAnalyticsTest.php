@@ -296,6 +296,47 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertStringContainsString('1000% dari angka resmi', $last['text']);
     }
 
+    #[Test]
+    public function laporan_difi_bulan_terakhir_tanpa_gangguan_penyulang_padahal_bulan_sebelumnya_ramai_diberi_peringatan(): void
+    {
+        foreach (['2026-01-01', '2026-02-01', '2026-03-01'] as $p) {
+            $this->difi($this->ulpA, $p, 10, 0.1, [4, 100, 100, 100]);
+        }
+        $this->difi($this->ulpA, '2026-04-01', 1, 0.01, [0, 0, 0, 0], [3, 50]);                  // bulan terbaru: hanya pemeliharaan, tanpa gangguan tidak terencana
+
+        foreach (['saidi-saifi', 'ens', 'gangguan'] as $code) {
+            $w = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/{$code}?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04")->assertOk()->json('data.warnings');
+            $this->assertCount(1, $w, $code);
+            $this->assertSame('difi_latest_month_incomplete', $w[0]['code']);
+            $this->assertSame('2026-04', $w[0]['month']);
+            $this->assertEquals(4.0, $w[0]['events_previous_average']);
+            $this->assertStringContainsString('Laporan DIFI 2026-04 kemungkinan belum lengkap', $w[0]['message']);
+        }
+        $h = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi/history?unit_id={$this->ulpA->id}")->assertOk()->json('data.warnings');
+        $this->assertSame('2026-04', $h[0]['month']);
+
+        // rentang yang berhenti sebelum bulan terbaru tidak diberi peringatan; metrik non-DIFI tidak pernah
+        $this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->assertJsonPath('data.warnings', []);
+        $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04")->assertOk()->assertJsonPath('data.warnings', []);
+    }
+
+    #[Test]
+    public function laporan_difi_terbaru_yang_memuat_gangguan_atau_bulan_sebelumnya_sepi_tidak_diberi_peringatan(): void
+    {
+        foreach (['2026-01-01', '2026-02-01', '2026-03-01'] as $p) {
+            $this->difi($this->ulpA, $p, 10, 0.1, [4, 100, 100, 100]);
+        }
+        $this->difi($this->ulpA, '2026-04-01', 5, 0.05, [2, 40, 40, 40]);                         // ada gangguan: lengkap
+        $this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04")->assertOk()->assertJsonPath('data.warnings', []);
+
+        DB::table('eis_report_files')->where('family', 'DIFI')->delete();
+        foreach (['2026-01-01', '2026-02-01', '2026-03-01'] as $p) {
+            $this->difi($this->ulpA, $p, 1, 0.01, [1, 10, 10, 10]);                               // sepi (rata-rata 1 per bulan): nol di bulan terbaru wajar
+        }
+        $this->difi($this->ulpA, '2026-04-01', 1, 0.01, [0, 0, 0, 0]);
+        $this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04")->assertOk()->assertJsonPath('data.warnings', []);
+    }
+
     /** Laporan 309 dengan baris kelompok (JUMLAH R, JUMLAH B) dan JUMLAH: kWh, daya, rupiah. */
     private function groups309(OrganizationalUnit $unit, string $period, array $r, array $b = [0, 0, 0]): void
     {

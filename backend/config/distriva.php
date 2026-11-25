@@ -82,6 +82,17 @@ return [
         'timeout_seconds' => (int) env('DISTRIVA_EIS_SYNC_TIMEOUT', 10800),
         'run_inline' => (bool) env('DISTRIVA_EIS_SYNC_INLINE', false),   // true: run in the request (tests); false: detached `artisan` process
     ],
+    // Laporan SAIDI SAIFI SE004 bulanan dari APKT (docs/88): diambil lewat GraphQL APKT dengan token sesi yang ditempel pemakai pada tiap penarikan (disimpan terenkripsi hanya selama proses berjalan), dibuat menjadi Excel DIFI, lalu diimpor.
+    'apkt' => [
+        'graphql_url' => env('DISTRIVA_APKT_GRAPHQL_URL', 'https://new-apktservice.pln.co.id:32182/graphql'),
+        'origin' => env('DISTRIVA_APKT_ORIGIN', 'https://new-apktss.pln.co.id'),
+        'id_uid' => (int) env('DISTRIVA_APKT_ID_UID', 103),      // Unit Induk (51 DISTRIBUSI JAWA TIMUR)
+        'id_up3' => (int) env('DISTRIVA_APKT_ID_UP3', 149),      // UP3 MOJOKERTO (51450)
+        'name_uid' => env('DISTRIVA_APKT_NAME_UID', 'DISTRIBUSI JAWA TIMUR'),
+        'name_up3' => env('DISTRIVA_APKT_NAME_UP3', 'UP3 MOJOKERTO'),
+        'pause_ms' => (int) env('DISTRIVA_APKT_PAUSE_MS', 400),   // jeda antar permintaan supaya tidak membebani APKT
+        'timeout_seconds' => (int) env('DISTRIVA_APKT_TIMEOUT', 60),
+    ],
     // Maximo sync started from DISTRIVA (tools/maximo_sync): inspection work orders of the gardu become readings. Same detached-process design as the EIS sync; the first full year takes about half a day, hence the long timeout.
     'maximo_sync' => [
         'python' => env('DISTRIVA_MAXIMO_PYTHON', 'python3'),

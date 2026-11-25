@@ -15,7 +15,10 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-(Tidak ada tugas terbuka saat ini)
+| # | Tanggal | Commit | Perubahan | Dokumen | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|---|
+| 19 | 2026-11-25 | (belum di-commit) | **Peringatan DIFI bulan terakhir belum lengkap** (menu SAIDI/SAIFI, ENS, Gangguan Penyulang): `GET /pengusahaan/metrics/{code}` dan `/history` kini memuat `warnings[]` (selalu ada; kosong bila tidak ada peringatan). Kode `difi_latest_month_incomplete` dengan `severity`, `month`, `message`, `events_previous_average`, `units_reporting`; muncul bila bulan DIFI terbaru nol gangguan penyulang tidak terencana padahal tiga bulan sebelumnya rata-rata sekurang-kurangnya 3 kejadian | docs/91 §3 (`warnings[]`) | Tampilkan pita peringatan (warna kuning, di atas kartu statistik, pada ketiga menu dan tab Histori Sinkronisasi) berisi `message` apa adanya untuk tiap item `warnings[]`; jangan ditampilkan bila daftar kosong. Pada bulan yang ditunjuk `month`, beri tanda kecil "belum lengkap" pada titik atau kolom bulan itu di grafik dan tabel. Tidak perlu logika sendiri: backend yang menentukan | BARU |
+| 20 | 2026-11-25 | (belum di-commit) | **Tombol Tarik SAIDI/SAIFI APKT**: `POST /eis-sync/runs` menerima `kind: "apkt"` dengan `from_month`, `to_month`, `units`, dan **`apkt_token`** (wajib). Hasil penarikan berjenis DIFI masuk lewat impor laporan EIS. `GET /eis-sync` dan `GET /eis-sync/runs/{id}` mengembalikan run dengan `kind: "apkt"` dan `options` tanpa token (token tidak pernah dikembalikan) | docs/88 §5 | Pada kartu penarikan di `EisSyncDrawer` tambahkan pilihan **"SAIDI/SAIFI APKT (DIFI)"**: rentang bulan, pilihan ULP (kosong = semua), dan kolom **Token APKT** bertipe password (tempel nilai header Authorization dari APKT). Tampilkan petunjuk: buka APKT, menu Laporan SAIDI SAIFI SE004, F12 > Network, klik salah satu permintaan `graphql` > Request Headers > salin nilai `authorization`; jangan menutup (logout) APKT selama penarikan; token tidak disimpan setelah selesai. Kosongkan kolom token setelah kirim dan jangan menyimpannya di localStorage. Status dan log run tampil seperti penarikan piutang (galat 409 berisi pesan "Token APKT tidak valid" atau "paling banyak 24 bulan"). Bila log berisi "token APKT ditolak", tampilkan ajakan menempel token baru | BARU |
 
 ## Selesai
 

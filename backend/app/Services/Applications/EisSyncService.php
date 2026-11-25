@@ -4,6 +4,7 @@ namespace App\Services\Applications;
 
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
+use App\Services\EisReports\ApktSaidiSaifiSync;
 use App\Services\MfaService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
@@ -59,12 +60,12 @@ class EisSyncService
     public function start(string $trigger, User $actor, ?string $from = null, ?string $to = null, ?array $units = null, bool $completeOld = false, string $kind = 'PERMOHONAN', ?array $options = null): string
     {
         $s = DB::table('eis_sync_settings')->where('id', 1)->first();
-        if ($s->eis_username === null || $s->eis_password_encrypted === null) {
+        if ($kind !== 'APKT' && ($s->eis_username === null || $s->eis_password_encrypted === null)) {
             throw new AssignmentRuleViolation('User dan password EIS belum diisi pada pengaturan sinkronisasi.');
         }
         $this->expireStale();
         if (DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists()) {
-            throw new AssignmentRuleViolation('Sinkronisasi EIS sedang berjalan; tunggu sampai selesai.');
+            throw new AssignmentRuleViolation('Sinkronisasi EIS atau APKT sedang berjalan; tunggu sampai selesai.');
         }
         $id = (string) Str::uuid();
         DB::table('eis_sync_runs')->insert(['id' => $id, 'trigger' => $trigger, 'status' => 'QUEUED', 'started_by' => $actor->getKey(), 'range_from' => $from, 'range_to' => $to, 'units' => $units === null || $units === [] ? null : json_encode(array_values($units)), 'mfa_verified_at' => $actor->currentAccessToken()?->mfa_verified_at, 'complete_old' => $trigger === 'MANUAL' && $completeOld, 'kind' => $kind, 'options' => $options === null ? null : json_encode($options), 'created_at' => now()]);
@@ -75,6 +76,7 @@ class EisSyncService
     /** A run that never finished (the process died or never started) must not block the next one, or lock the button, forever. Called when a run starts and when the status is read. */
     public function expireStale(): void
     {
+        DB::statement("update eis_sync_runs set options = options - 'token_encrypted' where jsonb_exists(options, 'token_encrypted') and status in ('QUEUED','RUNNING') and created_at < ?", [now()->subSeconds((int) config('distriva.eis_sync.timeout_seconds') + 600)]);
         DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.eis_sync.timeout_seconds') + 600))
             ->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => DB::raw("coalesce(log, '') || E'\\nDihentikan: proses tidak selesai.'")]);
     }
@@ -91,6 +93,7 @@ class EisSyncService
             $cmd = sprintf('nohup %s artisan distriva:eis-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId));
             Process::fromShellCommandline($cmd, base_path())->run();
         } catch (\Throwable $e) {
+            $this->wipeToken($runId);
             DB::table('eis_sync_runs')->where('id', $runId)->whereIn('status', ['QUEUED', 'RUNNING'])->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => mb_substr('Proses sinkronisasi tidak dapat dimulai: '.$e->getMessage(), 0, 500)]);
 
             throw $e;
@@ -137,6 +140,11 @@ class EisSyncService
         $exit = 1;
         $token = null;
         try {
+            if (($run->kind ?? 'PERMOHONAN') === 'APKT') {
+                [$exit, $log] = app(ApktSaidiSaifiSync::class)->run($run, fn (string $l) => DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $l]));
+
+                return;
+            }
             $s = DB::table('eis_sync_settings')->where('id', 1)->first();
             $user = User::query()->findOrFail($run->started_by);
             $token = $user->createToken('eis-sync', ['*'], now()->addMinutes((int) config('distriva.token_idle_minutes')));
@@ -170,9 +178,16 @@ class EisSyncService
         } catch (\Throwable $e) {
             $log = $this->tail($log."\nGAGAL: ".$e->getMessage());
         } finally {
+            $this->wipeToken($runId);
             $token?->accessToken->delete();
             DB::table('eis_sync_runs')->where('id', $runId)->update(['status' => $exit === 0 ? 'OK' : 'FAILED', 'exit_code' => $exit, 'log' => $log, 'finished_at' => now()]);
         }
+    }
+
+    /** Token APKT yang ditempel pemakai hanya hidup selama proses berjalan: dihapus dari opsi run begitu selesai, gagal, atau kedaluwarsa. */
+    private function wipeToken(string $runId): void
+    {
+        DB::statement("update eis_sync_runs set options = options - 'token_encrypted' where id = ? and jsonb_exists(options, 'token_encrypted')", [$runId]);
     }
 
     /**

@@ -10,9 +10,23 @@ use Illuminate\Support\Facades\DB;
  */
 class BusinessTrendBuilder
 {
+    /** Metrik yang memakai laporan DIFI: peringatan kelengkapan bulan terakhir ikut dikirim. */
+    public const DIFI_METRICS = ['saidi-saifi', 'ens', 'gangguan'];
+
     private const MONTHS = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-    public function __construct(private readonly BusinessMetricService $metrics, private readonly BusinessCompanionService $companions) {}
+    public function __construct(private readonly BusinessMetricService $metrics, private readonly BusinessCompanionService $companions, private readonly DifiCompleteness $difi) {}
+
+    /**
+     * Peringatan kelengkapan data bulan terakhir (saat ini: laporan DIFI, docs/91).
+     *
+     * @param  list<string>  $units
+     * @return list<array<string, mixed>>
+     */
+    public function warnings(string $code, array $units, string $to): array
+    {
+        return in_array($code, self::DIFI_METRICS, true) ? $this->difi->check($units, $to) : [];
+    }
 
     /** Bulan terakhir yang punya data untuk metrik ini pada unit-unit tersebut (YYYY-MM), atau bulan lalu bila tidak diketahui. */
     public function latestMonth(string $code, array $units): string
@@ -121,7 +135,7 @@ class BusinessTrendBuilder
             'from' => $from, 'to' => $to, 'months' => $months, 'units_expected' => count($units), 'units_reporting' => $unitsReporting,
             'comparison_basis' => array_map('count', $basis), 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'breakdown_secondary' => $breakdownSecondary, 'matrix' => $matrix, 'comparison' => $comparison, 'coverage' => $coverage,
             'companions' => $companion['companions'] ?? null, 'reconciliation' => $companion['reconciliations'][0] ?? null, 'reconciliations' => $companion['reconciliations'] ?? null, 'forecast' => $def['companion']['forecast'] ?? null,
-            'insights' => $insights];
+            'insights' => $insights, 'warnings' => $this->warnings($code, $units, $to)];
     }
 
     /**
