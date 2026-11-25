@@ -1,6 +1,6 @@
 # 91 — Analisa dan Tren Pengusahaan (Tahap 1–2) dan API
 
-Modul untuk melihat tren dan analisa indikator pengusahaan per ULP atau UP3 sesuai kewenangan. Satu katalog metrik di backend, satu pola halaman untuk semua menu. Dokumen ini menjadi kontrak API untuk agen frontend.
+Modul untuk melihat tren dan analisa indikator pengusahaan per ULP atau UP3 sesuai kewenangan. Satu katalog metrik di backend, satu pola halaman untuk semua menu. Dokumen ini menjadi kontrak API untuk agen frontend. Arah pengembangan berikutnya (tata letak dan tab standar, target NKO, penajaman analisa dan prakiraan per menu) ada di **docs/92 (rancangan)**; kontraknya ditulis di sini saat tiap tahap dikerjakan.
 
 ## 1. Katalog metrik dan sumbernya
 

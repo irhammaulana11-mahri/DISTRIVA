@@ -61,5 +61,5 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 - NKO/KPI: docs/89 (master definisi), docs/90 (perhitungan, masukan, koreksi beralasan, peringkat, API).
 - Laporan EIS bulanan: docs/88. Data gangguan penyulang: docs/87.
-- Analisa pengusahaan: docs/91.
+- Analisa pengusahaan: docs/91. Rancangan standar halaman dan penajaman analisa per menu: docs/92 (belum menjadi tugas frontend; butir Terbuka ditambahkan per tahap saat backend mengerjakannya).
 - Prompt frontend sebelumnya: berkas `PROMPT-FRONTEND-*.md` di folder docs.
