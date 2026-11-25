@@ -2,6 +2,7 @@
 
 namespace App\Services\Analytics;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,7 +26,44 @@ class BusinessTrendBuilder
      */
     public function warnings(string $code, array $units, string $to): array
     {
-        return in_array($code, self::DIFI_METRICS, true) ? $this->difi->check($units, $to) : [];
+        return match (true) {
+            in_array($code, self::DIFI_METRICS, true) => $this->difi->check($units, $to),
+            $code === 'rpt-rct-gangguan' => $this->partialApktMonth($units, $to),
+            default => [],
+        };
+    }
+
+    /**
+     * RPT/RCT dari APKT untuk bulan berjalan adalah data sampai hari penarikan dan terus bertambah: bulan itu belum final dan tidak sebanding dengan bulan penuh.
+     * Peringatan muncul bila rentang yang ditampilkan mencapai bulan berjalan dan ada data APKT untuk bulan itu.
+     *
+     * @param  list<string>  $units
+     * @return list<array<string, mixed>>
+     */
+    private function partialApktMonth(array $units, string $to): array
+    {
+        $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
+        $now = now($tz);
+        $current = $now->format('Y-m');
+        if ($units === [] || $to < $current) {
+            return [];
+        }
+        $rows = DB::table('apkt_rpt_rct_records')->whereIn('organizational_unit_id', $units)->where('period', $current.'-01');
+        $updatedAt = (clone $rows)->max('updated_at');
+        if ($updatedAt === null) {
+            return [];
+        }
+
+        return [[
+            'code' => 'apkt_current_month_partial',
+            'severity' => 'warning',
+            'month' => $current,
+            'message' => sprintf('Data RPT/RCT %s adalah data bulan berjalan dari APKT (sampai tanggal %d, terakhir ditarik %s) dan masih bertambah. Angka bulan ini belum final dan tidak sebanding dengan bulan penuh; tarik ulang setelah bulan berakhir.',
+                $current, $now->day, Carbon::parse($updatedAt)->setTimezone($tz)->format('d-m-Y H:i')),
+            'days_elapsed' => $now->day,
+            'last_pulled_at' => Carbon::parse($updatedAt)->toIso8601String(),
+            'units_reporting' => (clone $rows)->distinct()->count('organizational_unit_id'),
+        ]];
     }
 
     /** Bulan terakhir yang punya data untuk metrik ini pada unit-unit tersebut (YYYY-MM), atau bulan lalu bila tidak diketahui. */

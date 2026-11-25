@@ -587,6 +587,23 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function rpt_rct_gangguan_bulan_berjalan_dari_apkt_diberi_peringatan_belum_final(): void
+    {
+        $current = now(config('distriva.business_timezone'))->format('Y-m');
+        $past = date('Y-m', strtotime($current.'-01 -2 month'));
+        DB::table('apkt_rpt_rct_records')->insert([$this->apktRow($this->ulpA, $current.'-01', true, 200, 10, 600), $this->apktRow($this->ulpA, $past.'-01', true, 200, 10, 600)]);
+
+        $w = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from={$past}&to={$current}")->assertOk()->json('data.warnings');
+        $this->assertSame(['apkt_current_month_partial'], array_column($w, 'code'));
+        $this->assertSame([$current, 1], [$w[0]['month'], $w[0]['units_reporting']]);
+        $this->assertStringContainsString('belum final', $w[0]['message']);
+
+        $this->assertSame([], $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from={$past}&to={$past}")->assertOk()->json('data.warnings'));   // rentang berhenti sebelum bulan berjalan
+        $history = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan/history?unit_id={$this->up3->id}")->assertOk()->json('data.warnings');
+        $this->assertSame(['apkt_current_month_partial'], array_column($history, 'code'));
+    }
+
+    #[Test]
     public function histori_rpt_rct_gangguan_bersumber_apkt_pada_berkas_kelengkapan_dan_sesi(): void
     {
         $run = (string) Str::uuid();
