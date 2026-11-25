@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
  */
 final class EisReportParser
 {
-    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'TAGSUS', 'UMURPIUTANG'];
+    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'TAGSUS', 'TAGSUS_BELUM', 'UMURPIUTANG'];
 
     private const MONTHS = ['januari' => 1, 'pebruari' => 2, 'februari' => 2, 'maret' => 3, 'april' => 4, 'mei' => 5, 'juni' => 6, 'juli' => 7, 'agustus' => 8, 'september' => 9, 'oktober' => 10, 'nopember' => 11, 'november' => 11, 'desember' => 12];
 
@@ -47,6 +47,12 @@ final class EisReportParser
             $this->rows = $reader->load($path)->getSheet(0)->toArray(null, true, false, false);
         } catch (\Throwable) {
             throw new EisReportException('Berkas tidak dapat dibaca sebagai lembar kerja Excel.');
+        }
+        if ($named && in_array($family, ['TAGSUS', 'TAGSUS_BELUM'], true)) {          // dua laporan bertata letak sama: judul di isi menentukan, supaya tidak saling menggantikan
+            $content = $this->detectFamily();
+            if ($content !== null && $content !== $family) {
+                throw new EisReportException("Isi berkas adalah laporan {$content}, bukan {$family} seperti pada nama berkas.");
+            }
         }
         $found = $this->contentPeriod();
         if ($named) {
@@ -86,10 +92,10 @@ final class EisReportParser
             'GGNPERJENIS' => [$this->isV1Layout() ? $this->perJenisV1() : $this->perJenis(), null],
             'GGNBERULANG', 'GGNNEGATIF' => [$this->fixedByLetter('GGN'), null],
             'KLHBERULANG', 'KLHNEGATIF' => [$this->fixedByLetter('KLH'), null],
-            'TAGSUS' => [$this->tagsus(), null],
+            'TAGSUS', 'TAGSUS_BELUM' => [$this->tagsus(), null],
             'UMURPIUTANG' => [$this->umurPiutang(), null],
         };
-        if ($lines === []) {
+        if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
         }
 
@@ -133,6 +139,7 @@ final class EisReportParser
         return match (true) {
             str_contains($text, 'LAPORAN PENJUALAN TENAGA LISTRIK') => '309',
             str_contains($text, 'LAPORAN SAIDI SAIFI') => 'DIFI',
+            str_contains($text, 'TAGIHAN SUSULAN') && str_contains($text, 'BELUM REALISASI') => 'TAGSUS_BELUM',
             str_contains($text, 'TAGIHAN SUSULAN') => 'TAGSUS',
             str_contains($text, 'REKAPITULASI GANGGUAN ALL') => 'GGNALL',
             preg_match('/REKAPITULASI GANGGUAN (PER )?JENIS GANGGUAN/', $text) === 1 => 'GGNPERJENIS',
@@ -654,7 +661,7 @@ final class EisReportParser
             }
         }
         if ($head === null) {
-            return [];
+            throw new EisReportException('Tata letak laporan tagihan susulan tidak dikenali: baris judul kolom NO dan IDPEL tidak ditemukan.');
         }
         $cols = ['L' => 'kwh', 'M' => 'rp_beban', 'N' => 'rp_kwh', 'P' => 'rp_ts', 'Z' => 'rp_total', 'AB' => 'rp_tunai', 'AC' => 'rp_angsuran'];
         $sum = [];

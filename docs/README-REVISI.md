@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Semua butir telah selesai dikerjakan)*
+| # | Tanggal | Perubahan backend | Dokumen | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|
+| 32 | 2026-11-25 | **Penarikan AP2T kini juga menarik laporan TAGSUS "belum realisasi"**: `POST /eis-sync/runs` `kind: "ap2t"` menerima `reports[]` (`realisasi`, `belum_realisasi`; bawaan keduanya, nilai lain 422) dan `options.reports` ikut pada respons run. Log per ULP: baris "(belum realisasi)" untuk laporan kedua. Jenis berkas baru `TAGSUS_BELUM` (pada `families` daftar berkas `GET /eis-reports`) dan dataset baru **`AP2T.TAGSUS_BELUM_REALISASI`** (dataset aktif menjadi 12; `used_by` kosong). Perbaikan impor: laporan tanpa baris untuk TAGSUS dan TAGSUS_BELUM diterima (nol baris), dan berkas yang namanya bertentangan dengan judul isinya ditolak | docs/88 (AP2T, katalog dataset) | (a) `EisSyncDrawer.jsx` (pilihan AP2T): dua kotak centang "Realisasi" dan "Belum realisasi" (keduanya tercentang bawaan, minimal satu) yang mengirim `reports`; `EisRunResults`/`EisRunHistory` menampilkan `options.reports`. (b) Halaman Upload APKT/EIS/AP2T: label jenis `TAGSUS_BELUM` ("Tagihan Susulan Belum Realisasi (potret per tanggal unduh)"), baris dataset baru di matriks lewat `datasets` (otomatis), dan keterangan bahwa isinya potret, bukan angka bulan penuh | BARU |
 
 ## Selesai
 

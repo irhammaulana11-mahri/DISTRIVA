@@ -325,6 +325,29 @@ class EisReportImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function laporan_belum_realisasi_dikenali_sebagai_jenis_sendiri_dan_tidak_menggantikan_tagsus(): void
+    {
+        $rows = fn (string $title) => [1 => ['PT. PLN'], 2 => ['UP3 MOJOKERTO'], 3 => ['ULP JOMBANG', null, null, $title], 4 => ['BULAN  OKTOBER    TAHUN  2026'], 6 => ['NO', null, null, 'IDPEL', 'NAMA', null, null, 'GOL'],
+            9 => [1, null, null, '514531674558', 'NAMA', null, null, 'K2', null, null, null, 142, 0, 85910, null, 85910, null, null, null, null, null, null, null, null, null, 90000]];
+        $realisasi = $this->service()->import($this->book($rows('DAFTAR REALISASI PENDAPATAN PENETAPAN TAGIHAN SUSULAN (TUNAI DAN ANGSURAN)')), 'TAGSUS-51453-102026.xlsx');
+        $this->assertSame('BARU', $realisasi['status']);
+
+        // nama bebas: jenis dari judul
+        $free = $this->service()->import($this->book($rows('DAFTAR PENDAPATAN PENETAPAN TAGIHAN SUSULAN YANG BELUM REALISASI')), 'Rekap (5).xlsx');
+        $this->assertSame(['TAGSUS_BELUM', '2026-10'], [$free['family'], $free['period']]);
+        $this->assertSame('AKTIF', DB::table('eis_report_files')->where('family', 'TAGSUS')->value('status'));                  // realisasi tidak tergantikan
+
+        // nama berpola TAGSUS tetapi isi belum realisasi: ditolak, tidak menimpa realisasi
+        try {
+            $this->service()->import($this->book($rows('DAFTAR PENDAPATAN PENETAPAN TAGIHAN SUSULAN YANG BELUM REALISASI')), 'TAGSUS-51453-102026.xlsx');
+            $this->fail('Seharusnya ditolak');
+        } catch (EisReportException $e) {
+            $this->assertStringContainsString('Isi berkas adalah laporan TAGSUS_BELUM, bukan TAGSUS', $e->getMessage());
+        }
+        $this->assertSame(1, DB::table('eis_report_files')->where('family', 'TAGSUS')->where('status', 'AKTIF')->count());
+    }
+
+    #[Test]
     public function unduhan_eis_bernama_bebas_dikenali_dari_isi_dan_pilihan_unit_atau_bulan_hanya_mengisi_yang_tidak_tertulis(): void
     {
         // 309: jenis dari judul, bulan dan ULP dari kepala laporan; pilihan unit lain diabaikan karena isi menyebut ULP

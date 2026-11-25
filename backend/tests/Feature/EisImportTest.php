@@ -1095,19 +1095,18 @@ class EisImportTest extends PostgresTestCase
     }
 
     /** Isi berkas Excel laporan TAGSUS AP2T yang kecil: dua TS golongan K2 dan satu P3 untuk ULP Jombang. */
-    private function ap2tTagsusBody(int $kwh = 115): string
+    private function ap2tTagsusBody(int $kwh = 115, bool $belumRealisasi = false, int $rows = 3): string
     {
         $sheet = new Spreadsheet;
         $ws = $sheet->getActiveSheet();
         $ws->setCellValue('A1', 'PT. PLN (PERSERO) UID JAWA TIMUR');
         $ws->setCellValue('A2', 'UP3 MOJOKERTO');
         $ws->setCellValue('A3', 'ULP JOMBANG');
-        $ws->setCellValue('D3', 'DAFTAR REALISASI PENDAPATAN PENETAPAN TAGIHAN SUSULAN (TUNAI DAN ANGSURAN)');
+        $ws->setCellValue('D3', $belumRealisasi ? 'DAFTAR PENDAPATAN PENETAPAN TAGIHAN SUSULAN YANG BELUM REALISASI' : 'DAFTAR REALISASI PENDAPATAN PENETAPAN TAGIHAN SUSULAN (TUNAI DAN ANGSURAN)');
         $ws->setCellValue('A4', 'BULAN  OKTOBER    TAHUN  2026');
         $ws->setCellValue('A7', 'NO');
         $ws->setCellValue('D7', 'IDPEL');
-        $rows = [['514531503554', 'K2', $kwh], ['514531503555', 'K2', 300], ['514530414505', 'P3', 2479]];
-        foreach ($rows as $i => [$idpel, $gol, $kw]) {
+        foreach (array_slice([['514531503554', 'K2', $kwh], ['514531503555', 'K2', 300], ['514530414505', 'P3', 2479]], 0, $rows) as $i => [$idpel, $gol, $kw]) {
             $r = 10 + $i;
             $ws->setCellValue("A{$r}", $i + 1);
             $ws->setCellValueExplicit("D{$r}", $idpel, 's');
@@ -1130,7 +1129,7 @@ class EisImportTest extends PostgresTestCase
         $this->seed(EisReportPermissionSeeder::class);
         config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url' => 'https://ap2t.test/ReportServlet']);
         Storage::fake('documents');
-        Http::fake(['ap2t.test/*' => Http::response($this->ap2tTagsusBody(), 200, ['Content-Type' => 'application/vnd.ms-excel'])]);
+        Http::fake(['ap2t.test/*' => fn ($r) => Http::response($this->ap2tTagsusBody(115, str_contains((string) $r['report'], 'belum_realisasi'), str_contains((string) $r['report'], 'belum_realisasi') ? 1 : 3), 200, ['Content-Type' => 'application/vnd.ms-excel'])]);
 
         $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'from_month' => '2026-10', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202)->json('data');
 
@@ -1145,6 +1144,9 @@ class EisImportTest extends PostgresTestCase
         $this->assertSame(['2026-10-01', 'TAGSUS-51453-102026.xls'], [$file->period, $file->original_name]);
         $kwh = DB::table('eis_report_lines')->where('file_id', $file->id)->get()->mapWithKeys(fn ($l) => [$l->label => json_decode($l->values, true)]);
         $this->assertEquals([415, 2], [$kwh['K2']['kwh'], $kwh['K2']['jumlah']]);
+        $belum = DB::table('eis_report_files')->where('family', 'TAGSUS_BELUM')->where('unit_code', '51453')->first();             // laporan belum realisasi: jenis sendiri, tidak menggantikan realisasi
+        $this->assertSame(['2026-10-01', 'TAGSUS_BELUM-51453-102026.xls', 1], [$belum->period, $belum->original_name, (int) $belum->line_count]);
+        $this->assertSame('AKTIF', DB::table('eis_report_files')->where('id', $file->id)->value('status'));
 
         $again = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202)->json('data.id');
         $this->assertStringContainsString('DUPLIKAT', (string) DB::table('eis_sync_runs')->where('id', $again)->value('log'));
@@ -1152,8 +1154,32 @@ class EisImportTest extends PostgresTestCase
 
         Http::swap(new Factory);
         Http::fake(['ap2t.test/*' => Http::response($this->ap2tTagsusBody(200), 200)]);                     // isi berbeda untuk ULP dan bulan sama menggantikan versi lama
-        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453'], 'reports' => ['realisasi']])->assertStatus(202);
         $this->assertSame([1, 1], [DB::table('eis_report_files')->where('family', 'TAGSUS')->where('status', 'AKTIF')->count(), DB::table('eis_report_files')->where('family', 'TAGSUS')->where('status', 'DIGANTIKAN')->count()]);
+    }
+
+    #[Test]
+    public function an_ap2t_run_accepts_a_month_without_any_penetapan_and_rejects_a_report_that_does_not_match_its_type(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url' => 'https://ap2t.test/ReportServlet']);
+        Storage::fake('documents');
+        Http::fake(['ap2t.test/*' => fn ($r) => str_contains((string) $r['report'], 'belum_realisasi') ? Http::response($this->ap2tTagsusBody(115, true, 0), 200) : Http::response($this->ap2tTagsusBody(), 200)]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202)->json('data');
+
+        $this->assertSame('OK', DB::table('eis_sync_runs')->where('id', $run['id'])->value('status'));
+        $this->assertSame(0, (int) DB::table('eis_report_files')->where('family', 'TAGSUS_BELUM')->value('line_count'));          // bulan tanpa penetapan belum realisasi: laporan sah dengan nol baris
+
+        Http::swap(new Factory);
+        Http::fake(['ap2t.test/*' => Http::response($this->ap2tTagsusBody(115, true, 2), 200)]);                                   // AP2T mengembalikan laporan belum realisasi untuk permintaan realisasi
+        $wrong = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-09', 'units' => ['51453'], 'reports' => ['realisasi']])->assertStatus(202)->json('data');
+
+        $row = DB::table('eis_sync_runs')->where('id', $wrong['id'])->first();
+        $this->assertSame('FAILED', $row->status);
+        $this->assertStringContainsString('Isi berkas adalah laporan TAGSUS_BELUM, bukan TAGSUS', (string) $row->log);
+        $this->assertSame(0, DB::table('eis_report_files')->where('family', 'TAGSUS')->where('period', '2026-09-01')->count());
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'reports' => ['lainnya']])->assertStatus(422);
     }
 
     #[Test]
