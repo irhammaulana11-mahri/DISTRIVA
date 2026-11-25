@@ -803,4 +803,106 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('PLN Mobile')).toBeInTheDocument()
     expect(screen.getByText('70,0%')).toBeInTheDocument()
   })
+
+  it('11. mendukung Butir 17: Gangguan Penyulang, SAIDI/SAIFI, dan ENS tingkat penyulang lawan DIFI', async () => {
+    const outageCatalog = {
+      data: {
+        units: [{ id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3', parent_id: null }],
+        metrics: [
+          {
+            code: 'gangguan',
+            name: 'Gangguan Penyulang',
+            source: 'Spreadsheet Gangguan Penyulang & DIFI',
+            polarity: 'down',
+            available: true,
+            series: [
+              { key: 'jumlah', name: 'Total Gangguan', unit: 'kali' },
+              { key: 'dihitung', name: 'Gangguan Dihitung (Lebih dari ambang)', unit: 'kali' },
+            ],
+          },
+        ],
+      },
+    }
+
+    const outageDetail = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: {
+          code: 'gangguan',
+          name: 'Gangguan Penyulang',
+          source: 'Spreadsheet Gangguan Penyulang & DIFI',
+          polarity: 'down',
+        },
+        months: ['2026-01', '2026-02'],
+        from: '2026-01',
+        to: '2026-02',
+        series: [
+          { key: 'jumlah', name: 'Total Gangguan', unit: 'kali', values: [10, 8] },
+          { key: 'dihitung', name: 'Gangguan Dihitung (Lebih dari ambang)', unit: 'kali', values: [8, 6] },
+        ],
+        summary: [
+          { key: 'jumlah', latest: 8, mom_pct: -20, yoy_pct: -10, ytd: 18 },
+          { key: 'dihitung', latest: 6, mom_pct: -25, yoy_pct: -15, ytd: 14 },
+        ],
+        companions: {
+          source: 'Laporan DIFI (Tingkat Penyulang: Gardu Induk 20 kV & Penyulang)',
+          series: [
+            { key: 'difi_gangguan', name: 'Gangguan Penyulang (DIFI)', unit: 'kali', latest: 8, ytd: 18 },
+            { key: 'difi_pelanggan_gangguan', name: 'Pelanggan Padam Gangguan (DIFI)', unit: 'plg', latest: 500, ytd: 1200 },
+            { key: 'difi_pemeliharaan', name: 'Pemeliharaan Penyulang (DIFI)', unit: 'kali', latest: 2, ytd: 4 },
+            { key: 'difi_pelanggan_pemeliharaan', name: 'Pelanggan Padam Pemeliharaan (DIFI)', unit: 'plg', latest: 300, ytd: 600 },
+          ],
+        },
+        reconciliations: [
+          {
+            key: 'gangguan',
+            mode: 'flow',
+            unit: 'kali',
+            official_name: 'Gangguan Penyulang Dihitung (Spreadsheet)',
+            companion_name: 'Gangguan Penyulang Laporan DIFI',
+            note: 'Rekonsiliasi gangguan lebih dari ambang menit lawan gangguan penyulang DIFI.',
+            monthly: [
+              { month: '2026-01', official_net: 8, companion: 8, difference: 0, units_compared: 1 },
+              { month: '2026-02', official_net: 6, companion: null, difference: null, units_compared: 0 },
+            ],
+            ytd: {
+              year: 2026,
+              official_net: 14,
+              companion: null,
+              difference: null,
+              units_compared: 0,
+              units_expected: 1,
+            },
+          },
+        ],
+        insights: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(outageCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'gangguan') {
+        return Promise.resolve(outageDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    const user = userEvent.setup()
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/gangguan'])
+
+    // Teks header hero mencantumkan spreadsheet gangguan penyulang
+    expect(await screen.findByText(/Analisa & Tren Gangguan Penyulang/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Spreadsheet Gangguan Penyulang & DIFI/i).length).toBeGreaterThan(0)
+
+    // Buka tab Rekonsiliasi
+    const recTab = screen.getByRole('button', { name: /^Rekonsiliasi$/i })
+    await user.click(recTab)
+
+    // Data Penjelas Operasional menampilkan seri DIFI tingkat penyulang
+    expect(await screen.findByText(/Pelanggan Padam Gangguan \(DIFI\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Pemeliharaan Penyulang \(DIFI\)/i)).toBeInTheDocument()
+
+    // Bulan tanpa laporan DIFI menampilkan 'Belum ada' (bukan 0 atau tanda strip kosong biasa)
+    expect(screen.getByText(/Belum ada/i)).toBeInTheDocument()
+  })
 })

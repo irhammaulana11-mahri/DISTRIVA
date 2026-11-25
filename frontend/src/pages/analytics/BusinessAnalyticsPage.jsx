@@ -586,7 +586,7 @@ function CompanionSection({ companions, toMonth }) {
 }
 
 /** Komponen Rekonsiliasi Angka Resmi vs Data Operasional */
-function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
+function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode = '' }) {
   const [recPages, setRecPages] = useState({})
   const [recPerPages, setRecPerPages] = useState({})
 
@@ -652,6 +652,32 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
                 </div>
               )}
             </div>
+
+            {/* Catatan Keterangan Seri Khusus (misal SAIDI/SAIFI dan ENS DIFI vs Bagian Penyulang) */}
+            {metricCode === 'saidi-saifi' && (
+              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200/80 dark:border-blue-900/60 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                <IconInfo size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span className="leading-relaxed">
+                  Angka utama <strong>SAIDI &amp; SAIFI</strong> merupakan capaian total Laporan DIFI (memuat padam JTR, sambungan rumah, dan pemeliharaan untuk ukuran NKO). Seri <strong>SAIDI/SAIFI karena gangguan penyulang</strong> dan perbandingan rekonsiliasi DISTRIVA berfokus spesifik pada gangguan fasilitas Gardu Induk 20 kV &amp; Penyulang.
+                </span>
+              </div>
+            )}
+            {metricCode === 'ens' && (
+              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200/80 dark:border-blue-900/60 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                <IconInfo size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span className="leading-relaxed">
+                  Angka utama <strong>ENS</strong> mencakup TOTAL KELOMPOK Distribusi Laporan DIFI. Seri <strong>ENS gangguan penyulang</strong> dan rekonsiliasinya disandingkan dengan kalkulasi energi tak tersalurkan dari spreadsheet gangguan penyulang.
+                </span>
+              </div>
+            )}
+            {metricCode === 'gangguan' && (
+              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200/80 dark:border-blue-900/60 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                <IconInfo size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span className="leading-relaxed">
+                  Sumber utama adalah <strong>spreadsheet gangguan penyulang</strong> (kejadian PMT &amp; recloser). Seri <strong>dihitung</strong> memuat gangguan di atas ambang menit (standar SAIDI/SAIFI). Data pembanding DIFI tingkat penyulang menampilkan gangguan dan pemeliharaan beserta jumlah pelanggan padam yang terlaporkan pada fasilitas Gardu Induk &amp; Penyulang.
+                </span>
+              </div>
+            )}
 
             {/* Note Penjelasan Rekonsiliasi dari Backend */}
             {rec.note && (
@@ -764,13 +790,29 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1 }) {
                               {fmtMonth(m.month)}
                             </td>
                             <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
-                              {m.official_net !== null ? fmtFloat(m.official_net) : '-'}
+                              {m.official_net !== null ? (
+                                fmtFloat(m.official_net)
+                              ) : (
+                                <span className="text-slate-400 font-sans italic text-[11px]" title="Laporan belum tersedia">
+                                  Belum ada laporan
+                                </span>
+                              )}
                             </td>
                             <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
-                              {m.companion !== null ? fmtFloat(m.companion) : '-'}
+                              {m.companion !== null ? (
+                                fmtFloat(m.companion)
+                              ) : (
+                                <span className="text-slate-400 font-sans italic text-[11px]" title="Data pembanding belum tersedia">
+                                  Belum ada
+                                </span>
+                              )}
                             </td>
                             <td className={`py-2 px-3 text-right ${diffCls}`}>
-                              {diff !== null ? `${diff > 0 ? '+' : ''}${fmtFloat(diff)}` : '-'}
+                              {diff !== null ? (
+                                `${diff > 0 ? '+' : ''}${fmtFloat(diff)}`
+                              ) : (
+                                <span className="text-slate-400 font-sans text-[11px]">-</span>
+                              )}
                             </td>
                             <td className="py-2 px-3 text-center text-slate-400 text-[11px]">
                               {m.units_compared}
@@ -1182,7 +1224,13 @@ export default function BusinessAnalyticsPage() {
                   Laporan &amp; Monitoring
                 </span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  {metricCode === 'pelanggan' ? 'Laporan 309 & Permohonan EIS' : 'Realisasi EIS'}
+                  {metricCode === 'pelanggan'
+                    ? 'Laporan 309 & Permohonan EIS'
+                    : metricCode === 'gangguan'
+                    ? 'Spreadsheet Gangguan Penyulang & DIFI'
+                    : metricCode === 'saidi-saifi' || metricCode === 'ens'
+                    ? 'Laporan DIFI & Data Gangguan'
+                    : 'Realisasi EIS'}
                 </span>
                 {metricCode !== 'pelanggan' && d?.metric?.name && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
@@ -1193,6 +1241,12 @@ export default function BusinessAnalyticsPage() {
               <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 {metricCode === 'pelanggan'
                   ? 'Realisasi jumlah pelanggan dari Laporan 309 dan penambahan pelanggan baru (PB) serta perubahan daya (PD) dari Permohonan EIS per bulan dan tahun, komposisi tarif, perbandingan antar ULP, pola musiman, serta prakiraan 12 bulan ke depan.'
+                  : metricCode === 'gangguan'
+                  ? 'Analisa kejadian gangguan penyulang dari spreadsheet gangguan (PMT & recloser, permanen/temporer, serta kejadian yang dihitung) disandingkan dengan laporan DIFI tingkat penyulang (Gardu Induk 20 kV & Penyulang).'
+                  : metricCode === 'saidi-saifi'
+                  ? 'Realisasi SAIDI (menit/plg) dan SAIFI (kali/plg) dari Laporan DIFI (total ringkasan & bagian gangguan penyulang) serta rekonsiliasi hitungan dari spreadsheet gangguan penyulang.'
+                  : metricCode === 'ens'
+                  ? 'Energi tidak tersalurkan (MWh) dari Laporan DIFI (total distribusi & gangguan penyulang) disandingkan dengan kalkulasi dari spreadsheet data gangguan.'
                   : 'Analisis tren bulanan, posisi kumulatif YTD, evaluasi Year-over-Year (YoY), dan perbandingan kinerja antar ULP berbasis laporan resmi PLN dan rekonsiliasi data operasional.'}
               </p>
             </div>
@@ -2582,6 +2636,7 @@ export default function BusinessAnalyticsPage() {
                 <ReconciliationSection
                   reconciliations={d.reconciliations || (d.reconciliation ? [d.reconciliation] : [])}
                   unitsExpected={unitsExpected}
+                  metricCode={activeCode}
                 />
               )}
             </div>
