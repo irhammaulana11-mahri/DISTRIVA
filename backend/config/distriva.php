@@ -88,6 +88,7 @@ return [
         'origin' => env('DISTRIVA_APKT_ORIGIN', 'https://new-apktss.pln.co.id'),
         'id_uid' => (int) env('DISTRIVA_APKT_ID_UID', 103),      // Unit Induk (51 DISTRIBUSI JAWA TIMUR)
         'id_up3' => (int) env('DISTRIVA_APKT_ID_UP3', 149),      // UP3 MOJOKERTO (51450)
+        'monalisa_url' => env('DISTRIVA_APKT_MONALISA_URL', 'https://new-apktservice.pln.co.id:32183/graphql'),   // layanan GraphQL RPT/RCT (port berbeda dari SAIDI/SAIFI)
         'eis_origin' => env('DISTRIVA_APKT_EIS_ORIGIN', 'https://new-apkteis.pln.co.id'),   // asal permintaan RPT/RCT (portal APKT EIS)
         'name_uid' => env('DISTRIVA_APKT_NAME_UID', 'DISTRIBUSI JAWA TIMUR'),
         'name_up3' => env('DISTRIVA_APKT_NAME_UP3', 'UP3 MOJOKERTO'),

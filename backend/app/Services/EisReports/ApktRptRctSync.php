@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 /**
- * Penarikan RPT dan RCT WO gangguan per ULP per bulan dari APKT (monalisaJumlahDurasiRptRctGangguan), dua kali per bulan: tanpa clear temper (0) dan dengan clear temper (1).
+ * Penarikan RPT dan RCT WO gangguan per ULP per bulan dari APKT (monalisaJumlahDurasiRptRctGangguan), dua kali per bulan: parameter 0 = semua laporan (dengan clear temper) dan 1 = tanpa clear temper; kolom `clear_temper` bernilai true untuk dengan clear temper.
  * Satu permintaan memuat semua ULP di bawah UP3 (idUlp kosong). Hasil disimpan di apkt_rpt_rct_records (bulan, ULP, dan jenis sama menggantikan yang lama); hanya nilai bulan berjalan
  * yang dipakai, kumulatif tahun berjalan dihitung dari bulanan.
  */
@@ -70,8 +70,9 @@ GQL;
         $accepted = false;
         $deadline = microtime(true) + (float) config('distriva.eis_sync.timeout_seconds');
         foreach ($months as $ym) {
-            foreach ([0, 1] as $clearTemper) {
-                $label = sprintf('%s %s', $ym, $clearTemper === 1 ? 'dengan clear temper' : 'tanpa clear temper');
+            foreach ([0, 1] as $clearTemper) {      // parameter APKT: 0 = "Semua Laporan" (dengan clear temper), 1 = "Laporan Tanpa Clear Tamper"
+                $withClearTemper = $clearTemper === 0;
+                $label = sprintf('%s %s', $ym, $withClearTemper ? 'dengan clear temper' : 'tanpa clear temper');
                 if (microtime(true) > $deadline) {
                     $say("GAGAL  {$label}: waktu penarikan habis.");
                     $failed++;
@@ -80,7 +81,7 @@ GQL;
                 }
                 try {
                     $rows = $this->fetch($token, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2), $clearTemper);
-                    $n = $this->store($rows, $ulps, $ym, $clearTemper === 1, (string) $run->id);
+                    $n = $this->store($rows, $ulps, $ym, $withClearTemper, (string) $run->id);
                     $stored += $n;
                     $accepted = true;
                     $say(sprintf('%-11s %s (%d ULP)', 'TERSIMPAN', $label, $n));
@@ -113,7 +114,7 @@ GQL;
         $cfg = config('distriva.apkt');
         $payload = ['query' => self::QUERY, 'variables' => ['namaRegional' => '', 'idUid' => [$cfg['id_uid']], 'idUp3' => [$cfg['id_up3']], 'idUlp' => [], 'bulan' => $month, 'tahun' => $year, 'clearTemper' => $clearTemper]];
         $res = Http::withHeaders(['Authorization' => 'Bearer '.$token, 'Origin' => $cfg['eis_origin'], 'Referer' => rtrim((string) $cfg['eis_origin'], '/').'/', 'X-Client-UTC' => 'UTC+07:00', 'Accept' => 'application/json'])
-            ->timeout((int) $cfg['timeout_seconds'])->retry(2, 1000, fn ($e) => $e instanceof ConnectionException, throw: false)->post((string) $cfg['graphql_url'], $payload);
+            ->timeout((int) $cfg['timeout_seconds'])->retry(2, 1000, fn ($e) => $e instanceof ConnectionException, throw: false)->post((string) $cfg['monalisa_url'], $payload);
         if (in_array($res->status(), [401, 403], true)) {
             throw new ApktTokenRejected('token APKT ditolak (HTTP '.$res->status().'); kemungkinan sudah kedaluwarsa atau sesi APKT ditutup.');
         }
