@@ -17,6 +17,7 @@ sys.modules["playwright.sync_api"].sync_playwright = lambda: None
 from app import saldo_http as sh  # noqa: E402
 
 XLS = b"\xd0\xcf\x11\xe0" + b"x" * 3000
+XLS_FULL = b"\xd0\xcf\x11\xe0" + b"x" * 20000          # ukuran seperti berkas kontrol 309 yang berisi data
 
 
 class Reply:
@@ -127,7 +128,7 @@ class KogolTest(unittest.TestCase):
 
 class Kontrol309Test(unittest.TestCase):
     def test_load_data_then_export_with_the_plus_books_for_every_request(self):
-        s = FakeSession(head="KONTROL 309 , UP : 51453 ( MUTASI : 10/2026)")
+        s = FakeSession(head="KONTROL 309 , UP : 51453 ( MUTASI : 10/2026)", export=XLS_FULL)
         data, ext = sh.fetch_kontrol309(s, "51453", "2026-10")
         self.assertEqual(ext, "xls")
         self.assertTrue(s.gets[0].endswith("/kontrol_309.aspx"))
@@ -143,8 +144,21 @@ class Kontrol309Test(unittest.TestCase):
         with self.assertRaisesRegex(sh.SaldoError, "bukan 51453 10/2026"):
             sh.fetch_kontrol309(s, "51453", "2026-10")
         self.assertEqual([p[1]["__EVENTTARGET"] for p in s.posts], ["btnLoad"])
-        data, ext = sh.fetch_kontrol309(FakeSession(head="tanpa judul"), "51453", "2026-10")      # penjagaan akhir ada di DISTRIVA (kolom UNIT dan total 309)
+        data, ext = sh.fetch_kontrol309(FakeSession(head="tanpa judul", export=XLS_FULL), "51453", "2026-10")      # penjagaan akhir ada di DISTRIVA (kolom UNIT dan total 309)
         self.assertEqual(ext, "xls")
+
+    def test_a_header_only_export_is_refused_and_kept_in_the_debug_folder(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            sh.DEBUG_DIR, before = Path(tmp), sh.DEBUG_DIR
+            try:
+                s = FakeSession(head="tanpa judul", export=b"\xd0\xcf\x11\xe0" + b"x" * 3830)          # 3.834 byte: yang diterima EIS untuk bulan yang belum ditutup
+                with self.assertRaisesRegex(sh.SaldoError, "hanya 3834 byte.*belum ditutup"):
+                    sh.fetch_kontrol309(s, "51453", "2026-11")
+                self.assertEqual(sorted(p.name for p in Path(tmp).iterdir()), ["kontrol309_51453_2026-11.xls", "kontrol309_51453_2026-11_load.html"])
+                self.assertEqual([p[1]["__EVENTTARGET"] for p in s.posts], ["btnLoad", "btnExport"])
+            finally:
+                sh.DEBUG_DIR = before
 
     def test_it_is_not_in_the_default_reports_and_follows_the_top_bar_like_kogol(self):
         self.assertNotIn("KONTROL309", sh.DEFAULT_LAPORAN)

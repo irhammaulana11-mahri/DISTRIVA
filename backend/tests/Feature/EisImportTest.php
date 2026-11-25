@@ -1102,6 +1102,10 @@ class EisImportTest extends PostgresTestCase
     /** Isi berkas Excel laporan TAGSUS AP2T yang kecil: dua TS golongan K2 dan satu P3 untuk ULP Jombang. */
     private function ap2tTagsusBody(int $kwh = 115, bool $belumRealisasi = false, int $rows = 3): string
     {
+        static $built = [];                                                                          // isi berkas Excel memuat waktu pembuatan: bangun sekali per kombinasi supaya sidik isi stabil antar permintaan
+        if (isset($built["{$kwh}|{$belumRealisasi}|{$rows}"])) {
+            return $built["{$kwh}|{$belumRealisasi}|{$rows}"];
+        }
         $sheet = new Spreadsheet;
         $ws = $sheet->getActiveSheet();
         $ws->setCellValue('A1', 'PT. PLN (PERSERO) UID JAWA TIMUR');
@@ -1125,7 +1129,7 @@ class EisImportTest extends PostgresTestCase
         $body = (string) file_get_contents($path);
         @unlink($path);
 
-        return $body;
+        return $built["{$kwh}|{$belumRealisasi}|{$rows}"] = $body;
     }
 
     #[Test]

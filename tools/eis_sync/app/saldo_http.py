@@ -42,6 +42,8 @@ MYCUBE = {
     "PRABAYAR": ("saldo_lalu_ap3t_tarif_up", lambda ulp, ym: f"'{ulp}';'{UP3_CODE}';'{UPI_CODE}';'{ym}'", "saldolaluap3t.aspx"),     # Saldo Prabayar Bulan Lalu, per tarif (PIUTANGLPB_EIS)
 }
 NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+KONTROL309_MIN_BYTES = 10000         # kontrol 309 berisi ratusan baris (berkas nyata sekitar 46-49 KB); berkas hanya berjudul kolom sekitar 3,8 KB berarti EIS belum punya data bulan itu atau Load Data tidak berlaku
+DEBUG_DIR = Path(__file__).resolve().parents[1] / "debug"   # berkas yang dicurigai disimpan di sini untuk diagnosis
 MIN_BYTES = 2000                    # Excel yang lebih kecil dianggap kosong (EIS membuat berkas kosong bila sesi tidak sah)
 PAUSE = 1.0                         # jeda antar permintaan supaya tidak membebani EIS
 TRANSIENT_RETRIES = 3               # galat sementara EIS (HTTP 5xx, koneksi putus) diulang sebanyak ini
@@ -212,7 +214,14 @@ def fetch_kontrol309(session: requests.Session, ulp: str, month: str) -> tuple[b
     payload.update({"__EVENTTARGET": "btnExport", "__EVENTARGUMENT": "", "cbobuku_Value": "plus", "cbobuku": "Plus (Januari*)", "cbobuku_SelIndex": "1"})
     answer = session.post(url, data=payload, timeout=(20, 180), headers=post_headers(url))
     eis._check_response(answer, "Export Kontrol 309")
-    return answer.content, check_excel(answer.content, answer.headers.get("Content-Type", ""), answer.status_code)
+    ext = check_excel(answer.content, answer.headers.get("Content-Type", ""), answer.status_code)
+    if len(answer.content) < KONTROL309_MIN_BYTES:
+        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+        stem = f"kontrol309_{ulp}_{month}"
+        (DEBUG_DIR / f"{stem}.{ext}").write_bytes(answer.content)
+        (DEBUG_DIR / f"{stem}_load.html").write_text(loaded.text, encoding="utf-8")
+        raise SaldoError(f"kontrol 309 {ulp} {month} hanya {len(answer.content)} byte (berkas nyata puluhan KB): kemungkinan hanya judul kolom tanpa data karena bulan itu belum ditutup di EIS atau Load Data tidak berlaku; berkas dan halaman disimpan di {DEBUG_DIR}/{stem}.*")
+    return answer.content, ext
 
 
 # ---- satu putaran ------------------------------------------------------------------------------------------------------------------------------------------------------------

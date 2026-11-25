@@ -102,6 +102,9 @@ final class EisReportParser
                 throw new EisReportException("Kode unit di dalam berkas ({$inside}) berbeda dengan nama berkas ({$unitCode}).");
             }
         }
+        if ($lines === [] && $family === '309EIS') {
+            throw new EisReportException('Kontrol 309 hanya berisi judul kolom tanpa baris data: bulan itu kemungkinan belum ditutup di EIS (laporan 309 baru ada setelah akhir bulan).');
+        }
         if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM', 'PRR', 'EXPRR'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
         }

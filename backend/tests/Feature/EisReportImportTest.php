@@ -367,6 +367,21 @@ class EisReportImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function kontrol_309_yang_hanya_berjudul_kolom_ditolak_dengan_pesan_yang_menyebut_bulan_belum_ditutup(): void
+    {
+        $head = ['UNIT', 'NOMOR', 'KODE', 'KETERANGAN', 'SUMBER_LAPORAN', 'JMLPLG', 'JMLDAYA', 'JMLKWH', 'KELBKVARH', 'RPBEBAN', 'RPKWH', 'RPKVARH', 'RPPTL', 'PEMBUKUAN'];
+
+        try {
+            $this->service()->import($this->book([$head]), '309EIS-51453-112026.xlsx');
+            $this->fail('Seharusnya ditolak');
+        } catch (EisReportException $e) {
+            $this->assertStringContainsString('Kontrol 309 hanya berisi judul kolom', $e->getMessage());
+            $this->assertStringContainsString('belum ditutup', $e->getMessage());
+        }
+        $this->assertSame(0, DB::table('eis_report_files')->where('family', '309EIS')->count());
+    }
+
+    #[Test]
     public function laporan_belum_realisasi_dikenali_sebagai_jenis_sendiri_dan_tidak_menggantikan_tagsus(): void
     {
         $rows = fn (string $title) => [1 => ['PT. PLN'], 2 => ['UP3 MOJOKERTO'], 3 => ['ULP JOMBANG', null, null, $title], 4 => ['BULAN  OKTOBER    TAHUN  2026'], 6 => ['NO', null, null, 'IDPEL', 'NAMA', null, null, 'GOL'],
