@@ -34,6 +34,7 @@ class BusinessTrendBuilder
         $family = BusinessMetricService::CATALOG[$code]['family'] ?? null;
         $latest = match (true) {
             $code === 'susut' => DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->max('period'),
+            $code === 'rpt-rct-gangguan' => DB::table('apkt_rpt_rct_records')->whereIn('organizational_unit_id', $units)->max('period'),
             $family !== null => DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->max('period'),
             default => null,
         };
@@ -212,31 +213,9 @@ class BusinessTrendBuilder
                 $monthly[] = ['month' => $m, 'official_net' => $net, 'companion' => $comp, 'difference' => $net === null || $comp === null ? null : $comp - $net, 'units_compared' => count($set)];
             }
             /** Kumulatif Januari sampai $end atas ULP kandidat yang memenuhi syarat mode; null bila tidak ada. */
-            $ytdFor = function (string $end, array $candidates) use ($spec, $has, $officialVal, $companionVal, $officialRow, $sum, $ratio, $off, $com): ?array {
+            $ytdFor = function (string $end, array $candidates) use ($spec, $has, $officialVal, $companionVal): ?array {
                 $from = substr($end, 0, 4).'-01';
                 $ytdMonths = $this->months($from, $end);
-                if ($spec['mode'] === 'avg') {      // rata-rata tertimbang: jumlah angka mentah pasangan ULP-bulan yang punya kedua sumber, lalu dibagi
-                    $accOfficial = [];
-                    $accCompanion = [];
-                    $set = [];
-                    foreach ($candidates as $u) {
-                        foreach ($ytdMonths as $m) {
-                            if ($has($u, $m)) {
-                                $set[$u] = $u;
-                                foreach ($officialRow([$u], $m) as $k => $v) {
-                                    $accOfficial[$k] = ($accOfficial[$k] ?? 0) + $v;
-                                }
-                                foreach ($sum([$u], $m) as $k => $v) {
-                                    $accCompanion[$k] = ($accCompanion[$k] ?? 0) + $v;
-                                }
-                            }
-                        }
-                    }
-                    $official = $ratio($accOfficial, $off);
-                    $comp = $ratio($accCompanion, $com);
-
-                    return $set === [] || $official === null || $comp === null ? null : ['year' => (int) substr($end, 0, 4), 'base_month' => $from, 'to_month' => $end, 'official_net' => $official, 'companion' => $comp, 'difference' => $comp - $official, 'units' => array_values($set)];
-                }
                 if ($spec['mode'] === 'net') {
                     $base = $this->shift($from, -1);
                     $set = array_values(array_filter($candidates, fn ($u) => $has($u, $base) && $has($u, $end)));
@@ -272,11 +251,9 @@ class BusinessTrendBuilder
             $reconciliations[] = ['key' => $spec['key'], 'mode' => $spec['mode'], 'unit' => $spec['unit'], 'official_name' => $spec['official_name'], 'companion_name' => $spec['companion_name'], 'monthly' => $monthly, 'ytd' => $ytd,
                 'note' => $spec['mode'] === 'net'
                     ? 'Pendamping dicatat menurut tanggal kejadian, laporan resmi menurut bulan buku: nilai per bulan bisa bergeser, jadi selisih dinilai kumulatif Januari sampai bulan akhir. Selisih = angka pendamping dikurangi tambahan bersih resmi (antara lain pelanggan berhenti dan koreksi data).'
-                    : ($spec['mode'] === 'avg'
-                        ? 'Dua sumber dicatat dari WO yang sama dan seharusnya sama persis. Angka bulanan = rata-rata menit per kejadian; kumulatif = jumlah total durasi Januari sampai bulan akhir dibagi jumlah kejadian (bulan atau ULP yang salah satu sumbernya belum ada tidak dibandingkan). Selisih = angka pendamping dikurangi angka resmi.'
-                        : ($spec['mode'] === 'yoy'
+                    : ($spec['mode'] === 'yoy'
                         ? 'Perkiraan, bukan angka resmi: daya PB tersambung 12 bulan terakhir (termasuk bulan itu) per kelompok tarif dikali penjualan per kVA aktual kelompok itu (Laporan 309). PB yang baru tersambung dihitung penuh sehingga sedikit melebihkan; PB di luar kelompok S, R, B, I, P tidak dihitung. Angka resmi = kenaikan dibanding bulan yang sama tahun lalu (kumulatif: Januari sampai bulan akhir). Selisih = perkiraan dikurangi kenaikan resmi; negatif berarti sebagian besar kenaikan bukan dari pelanggan baru (konsumsi pelanggan lama, tarif, atau musim).'
-                        : 'Dua sumber dicatat menurut waktu kejadian yang bisa bergeser antar bulan, jadi selisih dinilai kumulatif (jumlah nilai bulanan Januari sampai bulan akhir). Selisih = angka pendamping dikurangi angka resmi.'))];
+                        : 'Dua sumber dicatat menurut waktu kejadian yang bisa bergeser antar bulan, jadi selisih dinilai kumulatif (jumlah nilai bulanan Januari sampai bulan akhir). Selisih = angka pendamping dikurangi angka resmi.')];
         }
 
         return ['companions' => ['source' => $c['source'], 'series' => $series], 'reconciliations' => $reconciliations];

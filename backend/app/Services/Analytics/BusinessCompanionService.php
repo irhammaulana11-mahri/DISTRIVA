@@ -4,7 +4,6 @@ namespace App\Services\Analytics;
 
 use App\Services\Outages\OutageAnalysisService;
 use App\Services\Reports\CustomerGrowthService;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Data pendamping tiap metrik pengusahaan (docs/91): angka operasional DISTRIVA yang menjelaskan angka resmi laporan EIS. Hasilnya angka mentah per ULP per bulan (YYYY-MM)
@@ -25,32 +24,8 @@ class BusinessCompanionService
             'saidi-saifi', 'ens' => $this->outages->monthlyByUnit($units, $fromMonth, $toMonth),
             'kwh-jual', 'pendapatan' => $this->newCustomerContribution($units, $fromMonth, $toMonth),
             'gangguan' => array_map(fn (array $byMonth) => array_map(fn (array $cell) => $cell['raw'], $byMonth), $this->metrics->raw('difi-gangguan', $units, $fromMonth, $toMonth)),
-            'rpt-rct-gangguan' => $this->apktRptRct($units, $fromMonth, $toMonth),
             default => [],
         };
-    }
-
-    /**
-     * RPT/RCT WO gangguan dari APKT: total dan jumlah per ULP per bulan, sufiks `_0` = tanpa clear temper, `_1` = dengan clear temper.
-     *
-     * @param  list<string>  $units
-     * @return array<string, array<string, array<string, float>>>
-     */
-    private function apktRptRct(array $units, string $fromMonth, string $toMonth): array
-    {
-        $out = [];
-        $rows = DB::table('apkt_rpt_rct_records')->whereIn('organizational_unit_id', $units)->whereBetween('period', [$fromMonth.'-01', $toMonth.'-01'])->get();
-        foreach ($rows as $r) {
-            $suffix = $r->clear_temper ? '_1' : '_0';
-            $cell = &$out[$r->organizational_unit_id][substr((string) $r->period, 0, 7)];
-            $cell['rpt_total'.$suffix] = (float) $r->rpt_total;
-            $cell['rpt_count'.$suffix] = (float) $r->rpt_count;
-            $cell['rct_total'.$suffix] = (float) $r->rct_total;
-            $cell['rct_count'.$suffix] = (float) $r->rct_count;
-            unset($cell);
-        }
-
-        return $out;
     }
 
     /**

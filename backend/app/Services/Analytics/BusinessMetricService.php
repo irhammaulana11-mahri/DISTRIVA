@@ -66,18 +66,14 @@ class BusinessMetricService
         'rpt-rct-keluhan' => ['name' => 'RPT-RCT keluhan', 'source' => 'KLHALL', 'family' => 'KLHALL', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
             'series' => [['key' => 'rpt', 'name' => 'Response time rata-rata', 'unit' => 'jam', 'num' => 'rpt_x_n', 'den' => 'n'], ['key' => 'rct', 'name' => 'Recovery (selesai) rata-rata', 'unit' => 'jam', 'num' => 'rct_x_n', 'den' => 'n'],
                 ['key' => 'jumlah', 'name' => 'Jumlah keluhan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'rpt_sla', 'name' => 'Respons dalam SLA', 'unit' => '%', 'num' => 'rpt_in', 'den' => 'rpt_all', 'factor' => 100]]],
-        'rpt-rct-gangguan' => ['name' => 'RPT-RCT gangguan', 'source' => 'GGNALL', 'family' => 'GGNALL', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
-            'series' => [['key' => 'rpt', 'name' => 'Response time rata-rata', 'unit' => 'menit', 'num' => 'rpt_x_n', 'den' => 'n'], ['key' => 'rct', 'name' => 'Recovery time rata-rata', 'unit' => 'menit', 'num' => 'rct_x_n', 'den' => 'n'],
-                ['key' => 'jumlah', 'name' => 'Jumlah gangguan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'rpt_sla', 'name' => 'Respons dalam SLA', 'unit' => '%', 'num' => 'rpt_in', 'den' => 'rpt_all', 'factor' => 100]],
-            // durasi APKT dalam menit (cocok dengan ekspor Excel APKT); `ytd` seri rata-rata (jumlah nilai bulanan) tidak bermakna, kumulatif tertimbang ada pada rekonsiliasi (mode avg)
-            'companion' => ['source' => 'APKT (WO gangguan: durasi response dan recovery per ULP), tanpa dan dengan clear temper', 'forecast' => null, 'reported' => true,
-                'series' => [['key' => 'rpt_tanpa_ct', 'name' => 'Response time rata-rata APKT tanpa clear temper', 'unit' => 'menit', 'num' => 'rpt_total_0', 'den' => 'rpt_count_0'], ['key' => 'rct_tanpa_ct', 'name' => 'Recovery time rata-rata APKT tanpa clear temper', 'unit' => 'menit', 'num' => 'rct_total_0', 'den' => 'rct_count_0'],
-                    ['key' => 'jumlah_tanpa_ct', 'name' => 'Jumlah WO gangguan APKT tanpa clear temper', 'unit' => 'kali', 'num' => 'rpt_count_0'],
-                    ['key' => 'rpt_dengan_ct', 'name' => 'Response time rata-rata APKT dengan clear temper', 'unit' => 'menit', 'num' => 'rpt_total_1', 'den' => 'rpt_count_1'], ['key' => 'rct_dengan_ct', 'name' => 'Recovery time rata-rata APKT dengan clear temper', 'unit' => 'menit', 'num' => 'rct_total_1', 'den' => 'rct_count_1'],
-                    ['key' => 'jumlah_dengan_ct', 'name' => 'Jumlah WO gangguan APKT dengan clear temper', 'unit' => 'kali', 'num' => 'rpt_count_1']],
-                // GGNALL rata-rata atas WO yang punya respons/recovery (dalam + lewat SLA), sama dengan semua laporan APKT (dengan clear temper): Jombang Oktober 2026 26,4 dan 62,85 menit dari 2.080 WO
-                'reconcile' => [['key' => 'rpt', 'mode' => 'avg', 'unit' => 'menit', 'official_name' => 'Response time rata-rata (GGNALL)', 'official' => ['num' => ['rpt_x_resp'], 'den' => 'rpt_all'], 'companion_name' => 'Response time rata-rata APKT dengan clear temper', 'companion' => ['num' => ['rpt_total_1'], 'den' => 'rpt_count_1']],
-                    ['key' => 'rct', 'mode' => 'avg', 'unit' => 'menit', 'official_name' => 'Recovery time rata-rata (GGNALL)', 'official' => ['num' => ['rct_x_resp'], 'den' => 'rct_all'], 'companion_name' => 'Recovery time rata-rata APKT dengan clear temper', 'companion' => ['num' => ['rct_total_1'], 'den' => 'rct_count_1']]]]],
+        // sumber tunggal APKT (apkt_rpt_rct_records): "Semua Laporan" (dengan clear temper) sebagai angka utama, "Laporan Tanpa Clear Temper" sebagai pembanding; durasi dalam menit. GGNALL tidak dipakai lagi di menu ini
+        // (angkanya sama persis dengan Semua Laporan, Jombang Oktober 2026 26,4 dan 62,85 menit dari 2.080 WO); APKT tidak memuat SLA sehingga seri SLA tidak ada.
+        'rpt-rct-gangguan' => ['name' => 'RPT-RCT gangguan', 'source' => 'APKT – Jumlah dan Durasi RPT RCT Gangguan (Semua Laporan; pembanding Laporan Tanpa Clear Temper)', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
+            'series' => [['key' => 'rpt', 'name' => 'RPT – Semua laporan (APKT)', 'unit' => 'menit', 'num' => 'rpt_total', 'den' => 'rpt_count'], ['key' => 'rct', 'name' => 'RCT – Semua laporan (APKT)', 'unit' => 'menit', 'num' => 'rct_total', 'den' => 'rct_count'],
+                ['key' => 'jumlah', 'name' => 'Jumlah WO – Semua laporan (APKT)', 'unit' => 'kali', 'num' => 'rpt_count'],
+                ['key' => 'rpt_tanpa_ct', 'name' => 'RPT – Tanpa clear temper (APKT)', 'unit' => 'menit', 'num' => 'rpt_total_nct', 'den' => 'rpt_count_nct'], ['key' => 'rct_tanpa_ct', 'name' => 'RCT – Tanpa clear temper (APKT)', 'unit' => 'menit', 'num' => 'rct_total_nct', 'den' => 'rct_count_nct'],
+                ['key' => 'jumlah_tanpa_ct', 'name' => 'Jumlah WO – Tanpa clear temper (APKT)', 'unit' => 'kali', 'num' => 'rpt_count_nct'],
+                ['key' => 'porsi_clear_temper', 'name' => 'Porsi WO clear temper', 'unit' => '%', 'num' => 'n_ct', 'den' => 'rpt_count', 'factor' => 100]]],
         'anomali-keluhan' => ['name' => 'Anomali keluhan', 'source' => 'KLHBERULANG dan KLHNEGATIF (anomali penanganan pengaduan keluhan: berulang dan rating negatif)', 'family' => 'KLHBERULANG', 'families' => ['KLHBERULANG', 'KLHNEGATIF'], 'polarity' => 'down', 'ytd' => 'ratio',
             'breakdown' => 'Kanal pengaduan masuk', 'breakdown2' => 'Anomali menurut jenis dan kanal', 'no_matrix' => true,
             'series' => [['key' => 'wo', 'name' => 'Total pengaduan keluhan (WO)', 'unit' => 'kali', 'num' => 'wo'], ['key' => 'berulang', 'name' => 'Keluhan berulang', 'unit' => 'kali', 'num' => 'ber'], ['key' => 'berulang_pct', 'name' => 'Keluhan berulang terhadap total', 'unit' => '%', 'num' => 'ber', 'den' => 'wo', 'factor' => 100],
@@ -137,7 +133,7 @@ class BusinessMetricService
             'piutang-pascabayar-umur' => $this->eis('UMURPIUTANG', $units, $fromDate, $toDate, fn (array $lines) => $this->fromUmurPiutang($lines)),
             'piutang-pascabayar' => $this->eis('AKHIEPERIODE_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromAkhirPeriode($lines)),
             'rpt-rct-keluhan' => $this->eis('KLHALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_jam', 'selesai_rata_jam')),
-            'rpt-rct-gangguan' => $this->eis('GGNALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_menit', 'recovery_rata_menit')),
+            'rpt-rct-gangguan' => $this->apktRptRct($units, $fromDate, $toDate),
             'saidi-saifi', 'ens' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifi($lines, $summary)),
             'grup-309' => $this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->fromGroups309($lines)),
             'anomali-keluhan' => $this->anomalies('KLH', $units, $fromDate, $toDate),
@@ -163,6 +159,14 @@ class BusinessMetricService
         if ($code === 'susut' && $months !== []) {
             $have = [];
             foreach ($this->losses($units, $months[0].'-01', end($months).'-01') as $u => $byMonth) {
+                $have[$u] = array_keys($byMonth);
+            }
+
+            return array_filter(array_combine($units, array_map(fn ($u) => array_values(array_diff($months, $have[$u] ?? [])), $units)));
+        }
+        if ($code === 'rpt-rct-gangguan' && $months !== []) {
+            $have = [];
+            foreach ($this->apktRptRct($units, $months[0].'-01', end($months).'-01') as $u => $byMonth) {
                 $have[$u] = array_keys($byMonth);
             }
 
@@ -308,10 +312,41 @@ class BusinessMetricService
         return $lines === [] ? null : ['raw' => $raw, 'bd' => $bd, 'bd2' => $bd2, 'bdm' => $bdm];
     }
 
+    /**
+     * RPT/RCT WO gangguan dari penarikan APKT: total durasi dan jumlah WO per ULP per bulan. Baris `clear_temper` true = Semua Laporan (utama), false = Tanpa Clear Temper (pembanding, akhiran `_nct`);
+     * porsi WO clear temper (`n_ct`) hanya ada bila kedua varian tersimpan untuk bulan itu.
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array{raw: array<string, float>, bd: array<string, float>}>>
+     */
+    private function apktRptRct(array $units, string $from, string $to): array
+    {
+        $out = [];
+        foreach (DB::table('apkt_rpt_rct_records')->whereIn('organizational_unit_id', $units)->whereBetween('period', [$from, $to])->get() as $r) {
+            $cell = &$out[$r->organizational_unit_id][substr((string) $r->period, 0, 7)];
+            $cell ??= ['raw' => [], 'bd' => []];
+            $suffix = $r->clear_temper ? '' : '_nct';
+            $cell['raw']['rpt_total'.$suffix] = (float) $r->rpt_total;
+            $cell['raw']['rpt_count'.$suffix] = (float) $r->rpt_count;
+            $cell['raw']['rct_total'.$suffix] = (float) $r->rct_total;
+            $cell['raw']['rct_count'.$suffix] = (float) $r->rct_count;
+            unset($cell);
+        }
+        foreach ($out as &$byMonth) {
+            foreach ($byMonth as &$cell) {
+                isset($cell['raw']['rpt_count'], $cell['raw']['rpt_count_nct']) && $cell['raw']['n_ct'] = $cell['raw']['rpt_count'] - $cell['raw']['rpt_count_nct'];
+            }
+            unset($cell);
+        }
+        unset($byMonth);
+
+        return $out;
+    }
+
     /** @param list<array{label: string, values: array<string, mixed>}> $lines */
     private function fromResponse(array $lines, string $responseKey, string $recoveryKey): ?array
     {
-        $raw = ['n' => 0.0, 'rpt_x_n' => 0.0, 'rct_x_n' => 0.0, 'rpt_in' => 0.0, 'rpt_all' => 0.0, 'rpt_x_resp' => 0.0, 'rct_x_resp' => 0.0, 'rct_all' => 0.0];
+        $raw = ['n' => 0.0, 'rpt_x_n' => 0.0, 'rct_x_n' => 0.0, 'rpt_in' => 0.0, 'rpt_all' => 0.0];
         foreach ($lines as $l) {
             if (strtoupper($l['label']) === 'TOTAL') {
                 continue;   // baris total laporan menggandakan baris posko
@@ -323,11 +358,6 @@ class BusinessMetricService
             $raw['rct_x_n'] += (float) ($v[$recoveryKey] ?? 0) * $n;
             $raw['rpt_in'] += (float) ($v['response_dalam_sla'] ?? 0);
             $raw['rpt_all'] += (float) ($v['response_dalam_sla'] ?? 0) + (float) ($v['response_lewat_sla'] ?? 0);
-            $respN = (float) ($v['response_dalam_sla'] ?? 0) + (float) ($v['response_lewat_sla'] ?? 0);
-            $recN = (float) ($v['recovery_dalam_sla'] ?? 0) + (float) ($v['recovery_lewat_sla'] ?? 0);
-            $raw['rpt_x_resp'] += (float) ($v[$responseKey] ?? 0) * $respN;
-            $raw['rct_x_resp'] += (float) ($v[$recoveryKey] ?? 0) * $recN;
-            $raw['rct_all'] += $recN;
         }
 
         return $lines === [] ? null : ['raw' => $raw, 'bd' => []];

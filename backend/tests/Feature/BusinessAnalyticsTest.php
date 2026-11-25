@@ -557,69 +557,53 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertContains('2026-02', collect($h['coverage']['units'])->first()['missing']);
     }
 
-    #[Test]
-    public function waktu_respons_gangguan_tertimbang_jumlah_kejadian_tanpa_baris_total(): void
+    /** Baris penarikan APKT: clear_temper true = Semua Laporan, false = Tanpa Clear Temper. */
+    private function apktRow(OrganizationalUnit $unit, string $period, bool $withClearTemper, float $rpt, int $n, float $rct, ?string $run = null): array
     {
-        $this->report($this->ulpA, 'GGNALL', '2026-03-01', [['POSKO A', ['total' => 10, 'response_rata_menit' => 20, 'recovery_rata_menit' => 60, 'response_dalam_sla' => 8, 'response_lewat_sla' => 2]],
-            ['Total', ['total' => 10, 'response_rata_menit' => 20, 'recovery_rata_menit' => 60, 'response_dalam_sla' => 8, 'response_lewat_sla' => 2]]]);
-        $this->report($this->ulpB, 'GGNALL', '2026-03-01', [['POSKO B', ['total' => 30, 'response_rata_menit' => 40, 'recovery_rata_menit' => 100, 'response_dalam_sla' => 15, 'response_lewat_sla' => 15]]]);
+        return ['id' => (string) Str::uuid(), 'organizational_unit_id' => $unit->id, 'period' => $period, 'clear_temper' => $withClearTemper, 'rpt_total' => $rpt, 'rpt_count' => $n,
+            'rct_total' => $rct, 'rct_count' => $n, 'sync_run_id' => $run, 'created_at' => now(), 'updated_at' => now()];
+    }
 
-        $s = collect($this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data.summary'))->keyBy('key');
+    #[Test]
+    public function rpt_rct_gangguan_bersumber_apkt_semua_laporan_dengan_pembanding_tanpa_clear_temper_tertimbang_jumlah_wo(): void
+    {
+        DB::table('apkt_rpt_rct_records')->insert([
+            $this->apktRow($this->ulpA, '2026-03-01', true, 200, 10, 600), $this->apktRow($this->ulpA, '2026-03-01', false, 80, 4, 200),
+            $this->apktRow($this->ulpB, '2026-03-01', true, 1200, 30, 3000), $this->apktRow($this->ulpB, '2026-03-01', false, 300, 10, 800),
+        ]);
 
-        $this->assertEqualsWithDelta(35.0, $s['rpt']['latest'], 1e-9);   // (20x10 + 40x30) / 40
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
+        $s = collect($d['summary'])->keyBy('key');
+
+        $this->assertEqualsWithDelta(35.0, $s['rpt']['latest'], 1e-9);                                   // (200 + 1200) / 40
         $this->assertEqualsWithDelta(90.0, $s['rct']['latest'], 1e-9);
         $this->assertEquals(40, $s['jumlah']['latest']);
-        $this->assertEqualsWithDelta(57.5, $s['rpt_sla']['latest'], 1e-9);
+        $this->assertEqualsWithDelta(380 / 14, $s['rpt_tanpa_ct']['latest'], 1e-9);                      // pembanding: hanya 14 WO tanpa clear temper
+        $this->assertEquals(14, $s['jumlah_tanpa_ct']['latest']);
+        $this->assertEqualsWithDelta(26 / 40 * 100, $s['porsi_clear_temper']['latest'], 1e-9);
+        $this->assertNull($d['companions']);                                                             // GGNALL tidak lagi dipakai di menu ini
+        $this->assertEmpty($d['reconciliations']);
+        $this->assertEqualsCanonicalizing(['ULP A', 'ULP B'], array_column($d['comparison'], 'unit_name'));              // semua ULP muncul tanpa laporan GGNALL
     }
 
     #[Test]
-    public function pendamping_rpt_rct_gangguan_apkt_tertimbang_jumlah_wo_dan_direkonsiliasi_dengan_ggnall(): void
-    {
-        $this->report($this->ulpA, 'GGNALL', '2026-03-01', [['POSKO A', ['total' => 12, 'response_rata_menit' => 20, 'recovery_rata_menit' => 60, 'response_dalam_sla' => 8, 'response_lewat_sla' => 2, 'recovery_dalam_sla' => 10, 'recovery_lewat_sla' => 0]]]);
-        $this->report($this->ulpB, 'GGNALL', '2026-03-01', [['POSKO B', ['total' => 33, 'response_rata_menit' => 40, 'recovery_rata_menit' => 100, 'response_dalam_sla' => 15, 'response_lewat_sla' => 15, 'recovery_dalam_sla' => 30, 'recovery_lewat_sla' => 0]]]);
-        $row = fn ($unit, bool $ct, float $rpt, int $n, float $rct) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $unit->id, 'period' => '2026-03-01', 'clear_temper' => $ct, 'rpt_total' => $rpt, 'rpt_count' => $n,
-            'rct_total' => $rct, 'rct_count' => $n, 'created_at' => now(), 'updated_at' => now()];
-        DB::table('apkt_rpt_rct_records')->insert([$row($this->ulpA, false, 200, 4, 600), $row($this->ulpB, false, 1200, 10, 3000), $row($this->ulpA, true, 200, 10, 600), $row($this->ulpB, true, 1250, 30, 3100)]);
-
-        $data = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
-        $c = collect($data['companions']['series'])->keyBy('key');
-
-        $this->assertEqualsWithDelta(1400 / 14, $c['rpt_tanpa_ct']['latest'], 1e-9);
-        $this->assertEquals(14, $c['jumlah_tanpa_ct']['latest']);
-        $this->assertEqualsWithDelta(1450 / 40, $c['rpt_dengan_ct']['latest'], 1e-9);
-        $this->assertEquals(40, $c['jumlah_dengan_ct']['latest']);
-
-        $rec = collect($data['reconciliations'])->keyBy('key');
-        $this->assertSame('avg', $rec['rpt']['mode']);
-        $this->assertEqualsWithDelta((20 * 10 + 40 * 30) / 40, $rec['rpt']['monthly'][0]['official_net'], 1e-9);   // GGNALL dibobot jumlah respons, bukan total WO
-        $this->assertEqualsWithDelta(1450 / 40 - 35, $rec['rpt']['monthly'][0]['difference'], 1e-9);              // APKT ULP B 1250 dibanding GGNALL 1200
-        $this->assertEqualsWithDelta(3700 / 40, $rec['rct']['ytd']['companion'], 1e-9);                           // kumulatif = jumlah total dibagi jumlah WO
-        $this->assertEqualsWithDelta((60 * 10 + 100 * 30) / 40, $rec['rct']['ytd']['official_net'], 1e-9);
-    }
-
-    #[Test]
-    public function histori_rpt_rct_gangguan_memuat_data_apkt_pada_berkas_kelengkapan_dan_sesi(): void
+    public function histori_rpt_rct_gangguan_bersumber_apkt_pada_berkas_kelengkapan_dan_sesi(): void
     {
         $run = (string) Str::uuid();
         DB::table('eis_sync_runs')->insert(['id' => $run, 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'rpt-rct-gangguan', 'from_month' => '2026-03', 'to_month' => '2026-03', 'token_encrypted' => 'rahasia']), 'created_at' => now()]);
         DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'saidi-saifi']), 'created_at' => now()]);
-        foreach ([false, true] as $ct) {
-            DB::table('apkt_rpt_rct_records')->insert(['id' => (string) Str::uuid(), 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-03-01', 'clear_temper' => $ct, 'rpt_total' => 10, 'rpt_count' => 1, 'rct_total' => 20, 'rct_count' => 1, 'sync_run_id' => $run, 'created_at' => now(), 'updated_at' => now()]);
-        }
+        DB::table('apkt_rpt_rct_records')->insert([$this->apktRow($this->ulpA, '2026-03-01', true, 10, 1, 20, $run), $this->apktRow($this->ulpA, '2026-03-01', false, 5, 1, 10, $run)]);
         $admin = $this->makeUser();
         $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
 
         $d = $this->as($admin)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan/history?unit_id={$this->up3->id}&year=2026")->assertOk()->json('data');
 
-        $this->assertSame(['GGNALL', 'APKT_RPT_RCT'], $d['families']);
-        $apkt = collect($d['files'])->where('family', 'APKT_RPT_RCT')->values();
-        $this->assertCount(1, $apkt);
-        $this->assertSame(['ULP A', '2026-03', 2], [$apkt[0]['unit_name'], $apkt[0]['period'], $apkt[0]['line_count']]);
+        $this->assertSame(['APKT_RPT_RCT'], $d['families']);
+        $this->assertCount(1, $d['files']);
+        $this->assertSame(['APKT_RPT_RCT', 'ULP A', '2026-03', 2], [$d['files'][0]['family'], $d['files'][0]['unit_name'], $d['files'][0]['period'], $d['files'][0]['line_count']]);
         $cov = collect($d['coverage']['units'])->keyBy('unit_name');
-        $this->assertTrue($cov['ULP A']['months'][2]);                                                   // Maret ada dari APKT walau GGNALL tidak ada
+        $this->assertTrue($cov['ULP A']['months'][2]);
         $this->assertFalse($cov['ULP B']['months'][2]);
-        $this->assertFalse(collect($d['coverage_by_source']['GGNALL']['units'])->keyBy('unit_name')['ULP A']['months'][2]);
-        $this->assertTrue(collect($d['coverage_by_source']['APKT_RPT_RCT']['units'])->keyBy('unit_name')['ULP A']['months'][2]);
         $this->assertCount(1, $d['syncs']);                                                              // hanya penarikan APKT dataset ini
         $this->assertSame('apkt', $d['syncs'][0]['kind']);
         $this->assertArrayNotHasKey('token_encrypted', $d['syncs'][0]['options']);
