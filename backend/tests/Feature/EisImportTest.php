@@ -1008,6 +1008,34 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function an_apkt_rpt_rct_keluhan_run_stores_one_row_per_ulp_without_clear_temper_and_replaces_the_same_month_on_rerun(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.apkt.pause_ms' => 0, 'distriva.apkt.monalisa_url' => 'https://apkt.test/graphql']);
+        $secret = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+        $answer = fn (int $count) => Http::response(['data' => ['monalisaJumlahDurasiRptRctKeluhan' => [
+            ['id_ulp' => 51453, 'nama_ulp' => 'ULP X', 'total_durasi_response_time_bulan_ini' => 158, 'count_durasi_response_time_bulan_ini' => $count, 'total_durasi_recovery_time_bulan_ini' => 2131, 'count_durasi_recovery_time_bulan_ini' => $count],
+            ['id_ulp' => 99999, 'nama_ulp' => 'ULP tak dikenal', 'total_durasi_response_time_bulan_ini' => 1, 'count_durasi_response_time_bulan_ini' => 1, 'total_durasi_recovery_time_bulan_ini' => 1, 'count_durasi_recovery_time_bulan_ini' => 1],
+        ]]]);
+        Http::fake(['apkt.test/*' => $answer(355)]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'dataset' => 'rpt-rct-keluhan', 'from_month' => '2026-10', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret])->assertStatus(202)->json('data');
+
+        $this->assertSame('OK', DB::table('eis_sync_runs')->where('id', $run['id'])->value('status'));
+        Http::assertSent(fn ($r) => str_contains((string) $r['query'], 'monalisaJumlahDurasiRptRctKeluhan') && ! array_key_exists('clearTemper', $r['variables']) && $r['variables']['idUlp'] === [] && $r['variables']['bulan'] === 10);
+        Http::assertSentCount(1);                                                                   // tanpa varian clear temper
+        $this->assertSame(1, DB::table('apkt_rpt_rct_keluhan_records')->count());                   // ULP tak dikenal dilewati
+        $this->assertSame(0, DB::table('apkt_rpt_rct_records')->count());
+        $this->assertSame(355, (int) DB::table('apkt_rpt_rct_keluhan_records')->value('rpt_count'));
+
+        Http::swap(new Factory);
+        Http::fake(['apkt.test/*' => $answer(360)]);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'dataset' => 'rpt-rct-keluhan', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret])->assertStatus(202);
+        $this->assertSame(1, DB::table('apkt_rpt_rct_keluhan_records')->count());
+        $this->assertSame(360, (int) DB::table('apkt_rpt_rct_keluhan_records')->value('rct_count'));
+    }
+
+    #[Test]
     public function an_apkt_token_can_be_saved_per_user_reused_without_pasting_and_forgotten_like_the_mims_token(): void
     {
         $this->seed(EisReportPermissionSeeder::class);

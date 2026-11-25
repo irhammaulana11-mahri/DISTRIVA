@@ -63,9 +63,10 @@ class BusinessMetricService
             'series' => [['key' => 'rp', 'name' => 'Tunggakan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'pelanggan', 'name' => 'Pelanggan menunggak', 'unit' => 'plg', 'num' => 'plg'],
                 ['key' => 'lembar', 'name' => 'Lembar tunggakan', 'unit' => 'lbr', 'num' => 'lbr'], ['key' => 'umur_rata', 'name' => 'Umur rata-rata', 'unit' => 'bulan', 'num' => 'lbr', 'den' => 'plg'],
                 ['key' => 'lebih_3_bulan', 'name' => 'Tunggakan lebih dari 3 bulan', 'unit' => '%', 'num' => 'rp_lebih3', 'den' => 'rp', 'factor' => 100]]],
-        'rpt-rct-keluhan' => ['name' => 'RPT-RCT keluhan', 'source' => 'KLHALL', 'family' => 'KLHALL', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
-            'series' => [['key' => 'rpt', 'name' => 'Response time rata-rata', 'unit' => 'jam', 'num' => 'rpt_x_n', 'den' => 'n'], ['key' => 'rct', 'name' => 'Recovery (selesai) rata-rata', 'unit' => 'jam', 'num' => 'rct_x_n', 'den' => 'n'],
-                ['key' => 'jumlah', 'name' => 'Jumlah keluhan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'rpt_sla', 'name' => 'Respons dalam SLA', 'unit' => '%', 'num' => 'rpt_in', 'den' => 'rpt_all', 'factor' => 100]]],
+        // sumber tunggal APKT (apkt_rpt_rct_keluhan_records), durasi dalam jam (cocok dengan KLHALL: Jombang Oktober 2026 response 0,44 jam dan selesai 6 jam dari 355 WO); tanpa varian clear temper dan tanpa SLA. KLHALL tidak dipakai lagi di menu ini
+        'rpt-rct-keluhan' => ['name' => 'RPT-RCT keluhan', 'source' => 'APKT – Jumlah dan Durasi RPT RCT Keluhan', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
+            'series' => [['key' => 'rpt', 'name' => 'RPT – Response time rata-rata (APKT)', 'unit' => 'jam', 'num' => 'rpt_total', 'den' => 'rpt_count'], ['key' => 'rct', 'name' => 'RCT – Recovery time rata-rata (APKT)', 'unit' => 'jam', 'num' => 'rct_total', 'den' => 'rct_count'],
+                ['key' => 'jumlah', 'name' => 'Jumlah WO keluhan (APKT)', 'unit' => 'kali', 'num' => 'rpt_count']]],
         // sumber tunggal APKT (apkt_rpt_rct_records): "Semua Laporan" (dengan clear temper) sebagai angka utama, "Laporan Tanpa Clear Temper" sebagai pembanding; durasi dalam menit. GGNALL tidak dipakai lagi di menu ini
         // (angkanya sama persis dengan Semua Laporan, Jombang Oktober 2026 26,4 dan 62,85 menit dari 2.080 WO); APKT tidak memuat SLA sehingga seri SLA tidak ada.
         'rpt-rct-gangguan' => ['name' => 'RPT-RCT gangguan', 'source' => 'APKT – Jumlah dan Durasi RPT RCT Gangguan (Semua Laporan; pembanding Laporan Tanpa Clear Temper)', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
@@ -132,7 +133,7 @@ class BusinessMetricService
             'piutang-prabayar' => $this->eis('PIUTANGLPB_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromPiutangLpb($lines)),
             'piutang-pascabayar-umur' => $this->eis('UMURPIUTANG', $units, $fromDate, $toDate, fn (array $lines) => $this->fromUmurPiutang($lines)),
             'piutang-pascabayar' => $this->eis('AKHIEPERIODE_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromAkhirPeriode($lines)),
-            'rpt-rct-keluhan' => $this->eis('KLHALL', $units, $fromDate, $toDate, fn (array $lines) => $this->fromResponse($lines, 'response_rata_jam', 'selesai_rata_jam')),
+            'rpt-rct-keluhan' => $this->apktRptRctKeluhan($units, $fromDate, $toDate),
             'rpt-rct-gangguan' => $this->apktRptRct($units, $fromDate, $toDate),
             'saidi-saifi', 'ens' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifi($lines, $summary)),
             'grup-309' => $this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->fromGroups309($lines)),
@@ -164,9 +165,9 @@ class BusinessMetricService
 
             return array_filter(array_combine($units, array_map(fn ($u) => array_values(array_diff($months, $have[$u] ?? [])), $units)));
         }
-        if ($code === 'rpt-rct-gangguan' && $months !== []) {
+        if (in_array($code, ['rpt-rct-gangguan', 'rpt-rct-keluhan'], true) && $months !== []) {
             $have = [];
-            foreach ($this->apktRptRct($units, $months[0].'-01', end($months).'-01') as $u => $byMonth) {
+            foreach ($this->raw($code, $units, $months[0], end($months)) as $u => $byMonth) {
                 $have[$u] = array_keys($byMonth);
             }
 
@@ -343,24 +344,20 @@ class BusinessMetricService
         return $out;
     }
 
-    /** @param list<array{label: string, values: array<string, mixed>}> $lines */
-    private function fromResponse(array $lines, string $responseKey, string $recoveryKey): ?array
+    /**
+     * RPT/RCT WO keluhan dari penarikan APKT: total durasi (jam) dan jumlah WO per ULP per bulan.
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array{raw: array<string, float>, bd: array<string, float>}>>
+     */
+    private function apktRptRctKeluhan(array $units, string $from, string $to): array
     {
-        $raw = ['n' => 0.0, 'rpt_x_n' => 0.0, 'rct_x_n' => 0.0, 'rpt_in' => 0.0, 'rpt_all' => 0.0];
-        foreach ($lines as $l) {
-            if (strtoupper($l['label']) === 'TOTAL') {
-                continue;   // baris total laporan menggandakan baris posko
-            }
-            $v = $l['values'];
-            $n = (float) ($v['total'] ?? 0);
-            $raw['n'] += $n;
-            $raw['rpt_x_n'] += (float) ($v[$responseKey] ?? 0) * $n;
-            $raw['rct_x_n'] += (float) ($v[$recoveryKey] ?? 0) * $n;
-            $raw['rpt_in'] += (float) ($v['response_dalam_sla'] ?? 0);
-            $raw['rpt_all'] += (float) ($v['response_dalam_sla'] ?? 0) + (float) ($v['response_lewat_sla'] ?? 0);
+        $out = [];
+        foreach (DB::table('apkt_rpt_rct_keluhan_records')->whereIn('organizational_unit_id', $units)->whereBetween('period', [$from, $to])->get() as $r) {
+            $out[$r->organizational_unit_id][substr((string) $r->period, 0, 7)] = ['raw' => ['rpt_total' => (float) $r->rpt_total, 'rpt_count' => (float) $r->rpt_count, 'rct_total' => (float) $r->rct_total, 'rct_count' => (float) $r->rct_count], 'bd' => []];
         }
 
-        return $lines === [] ? null : ['raw' => $raw, 'bd' => []];
+        return $out;
     }
 
     /**

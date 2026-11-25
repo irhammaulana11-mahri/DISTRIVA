@@ -10,23 +10,20 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 /**
- * Penarikan RPT dan RCT WO gangguan per ULP per bulan dari APKT (monalisaJumlahDurasiRptRctGangguan), dua kali per bulan: parameter 0 = semua laporan (dengan clear temper) dan 1 = tanpa clear temper; kolom `clear_temper` bernilai true untuk dengan clear temper.
- * Satu permintaan memuat semua ULP di bawah UP3 (idUlp kosong). Hasil disimpan di apkt_rpt_rct_records (bulan, ULP, dan jenis sama menggantikan yang lama); hanya nilai bulan berjalan
+ * Penarikan RPT dan RCT per ULP per bulan dari APKT: WO gangguan (monalisaJumlahDurasiRptRctGangguan, dua kali per bulan: parameter 0 = semua laporan (dengan clear temper) dan 1 = tanpa clear temper;
+ * kolom `clear_temper` bernilai true untuk dengan clear temper) dan WO keluhan (monalisaJumlahDurasiRptRctKeluhan, satu kali per bulan, tanpa varian clear temper).
+ * Satu permintaan memuat semua ULP di bawah UP3 (idUlp kosong). Hasil disimpan di apkt_rpt_rct_records atau apkt_rpt_rct_keluhan_records (bulan, ULP, dan jenis sama menggantikan yang lama); hanya nilai bulan berjalan
  * yang dipakai, kumulatif tahun berjalan dihitung dari bulanan.
  */
 class ApktRptRctSync
 {
-    private const QUERY = <<<'GQL'
-query monalisaJumlahDurasiRptRctGangguan($namaRegional: String, $idUlp: [Int], $idUid: [Int], $idUp3: [Int], $bulan: Int, $tahun: Int, $clearTemper: Int) {
-  monalisaJumlahDurasiRptRctGangguan(namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3, bulan: $bulan, tahun: $tahun, clearTemper: $clearTemper) {
-    nama_regional id_uid nama_uid id_up3 nama_up3 id_ulp nama_ulp
-    total_durasi_response_time_bulan_ini count_durasi_response_time_bulan_ini avg_durasi_response_time_bulan_ini
-    total_durasi_recovery_time_bulan_ini count_durasi_recovery_time_bulan_ini avg_durasi_recovery_time_bulan_ini
-    total_durasi_response_time_tahun_ini count_durasi_response_time_tahun_ini avg_durasi_response_time_tahun_ini
-    total_durasi_recovery_time_tahun_ini count_durasi_recovery_time_tahun_ini avg_durasi_recovery_time_tahun_ini
-  }
-}
-GQL;
+    private const FIELDS = 'nama_regional id_uid nama_uid id_up3 nama_up3 id_ulp nama_ulp total_durasi_response_time_bulan_ini count_durasi_response_time_bulan_ini avg_durasi_response_time_bulan_ini total_durasi_recovery_time_bulan_ini count_durasi_recovery_time_bulan_ini avg_durasi_recovery_time_bulan_ini total_durasi_response_time_tahun_ini count_durasi_response_time_tahun_ini avg_durasi_response_time_tahun_ini total_durasi_recovery_time_tahun_ini count_durasi_recovery_time_tahun_ini avg_durasi_recovery_time_tahun_ini';
+
+    /** @var array<string, array{field: string, table: string, label: string}> */
+    private const DATASETS = [
+        'rpt-rct-gangguan' => ['field' => 'monalisaJumlahDurasiRptRctGangguan', 'table' => 'apkt_rpt_rct_records', 'label' => 'WO gangguan'],
+        'rpt-rct-keluhan' => ['field' => 'monalisaJumlahDurasiRptRctKeluhan', 'table' => 'apkt_rpt_rct_keluhan_records', 'label' => 'WO keluhan'],
+    ];
 
     private const LOG_LIMIT = 30000;
 
@@ -41,6 +38,7 @@ GQL;
     public function run(object $run, callable $flush): array
     {
         $o = (array) json_decode((string) $run->options, true);
+        $dataset = array_key_exists((string) ($o['dataset'] ?? ''), self::DATASETS) ? (string) $o['dataset'] : 'rpt-rct-gangguan';
         $log = '';
         $last = 0.0;
         $say = function (string $line) use (&$log, &$last, $flush): void {
@@ -63,16 +61,17 @@ GQL;
         for ($d = new \DateTimeImmutable($o['from_month'].'-01'); $d->format('Y-m') <= $o['to_month']; $d = $d->modify('+1 month')) {
             $months[] = $d->format('Y-m');
         }
-        $say(sprintf('Penarikan RPT/RCT WO gangguan dari APKT: %d bulan (%s s.d. %s), tanpa dan dengan clear temper.', count($months), $months[0] ?? '-', end($months) ?: '-'));
+        $variants = $dataset === 'rpt-rct-gangguan' ? [0, 1] : [null];
+        $say(sprintf('Penarikan RPT/RCT %s dari APKT: %d bulan (%s s.d. %s)%s.', self::DATASETS[$dataset]['label'], count($months), $months[0] ?? '-', end($months) ?: '-', $dataset === 'rpt-rct-gangguan' ? ', tanpa dan dengan clear temper' : ''));
 
         $failed = 0;
         $stored = 0;
         $accepted = false;
         $deadline = microtime(true) + (float) config('distriva.eis_sync.timeout_seconds');
         foreach ($months as $ym) {
-            foreach ([0, 1] as $clearTemper) {      // parameter APKT: 0 = "Semua Laporan" (dengan clear temper), 1 = "Laporan Tanpa Clear Tamper"
-                $withClearTemper = $clearTemper === 0;
-                $label = sprintf('%s %s', $ym, $withClearTemper ? 'dengan clear temper' : 'tanpa clear temper');
+            foreach ($variants as $clearTemper) {      // gangguan, parameter APKT: 0 = "Semua Laporan" (dengan clear temper), 1 = "Laporan Tanpa Clear Tamper"; keluhan: tanpa parameter
+                $withClearTemper = $clearTemper === null ? null : $clearTemper === 0;
+                $label = $withClearTemper === null ? $ym : sprintf('%s %s', $ym, $withClearTemper ? 'dengan clear temper' : 'tanpa clear temper');
                 if (microtime(true) > $deadline) {
                     $say("GAGAL  {$label}: waktu penarikan habis.");
                     $failed++;
@@ -80,8 +79,8 @@ GQL;
                     continue;
                 }
                 try {
-                    $rows = $this->fetch($token, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2), $clearTemper);
-                    $n = $this->store($rows, $ulps, $ym, $withClearTemper, (string) $run->id);
+                    $rows = $this->fetch($token, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2), $clearTemper, $dataset);
+                    $n = $this->store($dataset, $rows, $ulps, $ym, $withClearTemper, (string) $run->id);
                     $stored += $n;
                     $accepted = true;
                     $say(sprintf('%-11s %s (%d ULP)', 'TERSIMPAN', $label, $n));
@@ -109,17 +108,23 @@ GQL;
      *
      * @throws ApktTokenRejected token ditolak APKT
      */
-    public function fetch(string $token, int $year, int $month, int $clearTemper): array
+    public function fetch(string $token, int $year, int $month, ?int $clearTemper = null, string $dataset = 'rpt-rct-gangguan'): array
     {
         $cfg = config('distriva.apkt');
-        $payload = ['query' => self::QUERY, 'variables' => ['namaRegional' => '', 'idUid' => [$cfg['id_uid']], 'idUp3' => [$cfg['id_up3']], 'idUlp' => [], 'bulan' => $month, 'tahun' => $year, 'clearTemper' => $clearTemper]];
+        $field = self::DATASETS[$dataset]['field'];
+        $variables = ['namaRegional' => '', 'idUid' => [$cfg['id_uid']], 'idUp3' => [$cfg['id_up3']], 'idUlp' => [], 'bulan' => $month, 'tahun' => $year];
+        $query = $dataset === 'rpt-rct-gangguan'
+            ? sprintf('query %1$s($namaRegional: String, $idUlp: [Int], $idUid: [Int], $idUp3: [Int], $bulan: Int, $tahun: Int, $clearTemper: Int) { %1$s(namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3, bulan: $bulan, tahun: $tahun, clearTemper: $clearTemper) { %2$s } }', $field, self::FIELDS)
+            : sprintf('query %1$s($bulan: Int!, $tahun: Int!, $namaRegional: String!, $idUlp: [Int], $idUid: [Int], $idUp3: [Int]) { %1$s(bulan: $bulan, tahun: $tahun, namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3) { %2$s } }', $field, self::FIELDS);
+        $dataset === 'rpt-rct-gangguan' && $variables['clearTemper'] = $clearTemper ?? 0;
+        $payload = ['query' => $query, 'variables' => $variables];
         $res = Http::withHeaders(['Authorization' => 'Bearer '.$token, 'Origin' => $cfg['eis_origin'], 'Referer' => rtrim((string) $cfg['eis_origin'], '/').'/', 'X-Client-UTC' => 'UTC+07:00', 'Accept' => 'application/json'])
             ->timeout((int) $cfg['timeout_seconds'])->retry(2, 1000, fn ($e) => $e instanceof ConnectionException, throw: false)->post((string) $cfg['monalisa_url'], $payload);
         if (in_array($res->status(), [401, 403], true)) {
             throw new ApktTokenRejected('token APKT ditolak (HTTP '.$res->status().'); kemungkinan sudah kedaluwarsa atau sesi APKT ditutup.');
         }
         $json = $res->json();
-        $rows = $json['data']['monalisaJumlahDurasiRptRctGangguan'] ?? null;
+        $rows = $json['data'][$field] ?? null;
         $errMessage = (string) ($json['errors'][0]['message'] ?? '');
         if (preg_match('/unauthor|token|expired|kedaluwarsa|forbidden/i', $errMessage) === 1 && $rows === null) {
             throw new ApktTokenRejected('token APKT ditolak: '.mb_substr($errMessage, 0, 120));
@@ -135,7 +140,7 @@ GQL;
      * @param  list<array<string, mixed>>  $rows
      * @param  Collection<string, object>  $ulps  ULP yang boleh ditarik, kunci = kode ULP tanpa nol di depan (id_ulp APKT)
      */
-    private function store(array $rows, $ulps, string $ym, bool $clearTemper, string $runId): int
+    private function store(string $dataset, array $rows, $ulps, string $ym, ?bool $clearTemper, string $runId): int
     {
         $n = 0;
         foreach ($rows as $r) {
@@ -143,12 +148,16 @@ GQL;
             if ($ulp === null) {
                 continue;
             }
-            DB::table('apkt_rpt_rct_records')->upsert([[
-                'id' => (string) Str::uuid(), 'organizational_unit_id' => $ulp->id, 'period' => $ym.'-01', 'clear_temper' => $clearTemper,
+            $row = ['id' => (string) Str::uuid(), 'organizational_unit_id' => $ulp->id, 'period' => $ym.'-01',
                 'rpt_total' => (float) ($r['total_durasi_response_time_bulan_ini'] ?? 0), 'rpt_count' => (int) ($r['count_durasi_response_time_bulan_ini'] ?? 0),
                 'rct_total' => (float) ($r['total_durasi_recovery_time_bulan_ini'] ?? 0), 'rct_count' => (int) ($r['count_durasi_recovery_time_bulan_ini'] ?? 0),
-                'sync_run_id' => $runId, 'created_at' => now(), 'updated_at' => now(),
-            ]], ['organizational_unit_id', 'period', 'clear_temper'], ['rpt_total', 'rpt_count', 'rct_total', 'rct_count', 'sync_run_id', 'updated_at']);
+                'sync_run_id' => $runId, 'created_at' => now(), 'updated_at' => now()];
+            $keys = ['organizational_unit_id', 'period'];
+            if ($clearTemper !== null) {
+                $row['clear_temper'] = $clearTemper;
+                $keys[] = 'clear_temper';
+            }
+            DB::table(self::DATASETS[$dataset]['table'])->upsert([$row], $keys, ['rpt_total', 'rpt_count', 'rct_total', 'rct_count', 'sync_run_id', 'updated_at']);
             $n++;
         }
 

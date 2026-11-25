@@ -138,12 +138,12 @@ class BusinessAnalyticsController extends Controller
 
             return $this->eisRuns($eis);
         }
-        if ($code === 'rpt-rct-gangguan') {
+        if (isset(BusinessTrendBuilder::APKT_TABLES[$code])) {
             if ($this->authorizer->roleFor($user, 'eis_sync.manage') === null) {
                 return null;
             }
 
-            return $this->eisRuns('APKT', 'rpt-rct-gangguan');
+            return $this->eisRuns('APKT', $code);
         }
         if (in_array($code, ['gangguan', 'saidi-saifi', 'ens'], true)) {
             $outages = $this->authorizer->roleFor($user, 'outages.view') !== null;

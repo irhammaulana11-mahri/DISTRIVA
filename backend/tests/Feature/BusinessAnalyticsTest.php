@@ -647,6 +647,37 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function rpt_rct_keluhan_bersumber_apkt_tertimbang_jumlah_wo_dengan_histori_sesi_dan_peringatan_bulan_berjalan(): void
+    {
+        $keluhan = fn (OrganizationalUnit $unit, string $period, float $rpt, int $n, float $rct, ?string $run = null) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $unit->id, 'period' => $period, 'rpt_total' => $rpt, 'rpt_count' => $n,
+            'rct_total' => $rct, 'rct_count' => $n, 'sync_run_id' => $run, 'created_at' => now(), 'updated_at' => now()];
+        $run = (string) Str::uuid();
+        DB::table('eis_sync_runs')->insert(['id' => $run, 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'rpt-rct-keluhan', 'token_encrypted' => 'rahasia']), 'created_at' => now()]);
+        DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'rpt-rct-gangguan']), 'created_at' => now()]);
+        $current = now(config('distriva.business_timezone'))->format('Y-m');
+        DB::table('apkt_rpt_rct_keluhan_records')->insert([$keluhan($this->ulpA, '2026-03-01', 25, 100, 150, $run), $keluhan($this->ulpB, '2026-03-01', 158, 300, 2131, $run), $keluhan($this->ulpA, $current.'-01', 5, 10, 20, $run)]);
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
+
+        $d = $this->as($admin)->getJson("/api/pengusahaan/metrics/rpt-rct-keluhan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
+        $s = collect($d['summary'])->keyBy('key');
+        $this->assertEqualsWithDelta(183 / 400, $s['rpt']['latest'], 1e-9);                         // (25 + 158) / 400 WO
+        $this->assertEqualsWithDelta(2281 / 400, $s['rct']['latest'], 1e-9);
+        $this->assertEquals(400, $s['jumlah']['latest']);
+        $this->assertEqualsWithDelta(['jam', 'jam', 'kali'], array_column($d['series'], 'unit'), 0);
+        $this->assertEqualsCanonicalizing(['ULP A', 'ULP B'], array_column($d['comparison'], 'unit_name'));
+
+        $h = $this->as($admin)->getJson("/api/pengusahaan/metrics/rpt-rct-keluhan/history?unit_id={$this->up3->id}&year=2026")->assertOk()->json('data');
+        $this->assertSame(['APKT_RPT_RCT'], $h['families']);
+        $this->assertSame('APKT – Jumlah dan Durasi RPT RCT Keluhan', $h['files'][0]['original_name']);
+        $this->assertTrue(collect($h['coverage']['units'])->keyBy('unit_name')['ULP B']['months'][2]);
+        $this->assertCount(1, $h['syncs']);                                                          // hanya penarikan dataset keluhan
+        $this->assertStringNotContainsString('rahasia', json_encode($h['syncs']));
+        $this->assertSame(['apkt_current_month_partial'], array_column($h['warnings'], 'code'));
+        $this->assertStringContainsString('RPT/RCT keluhan', $h['warnings'][0]['message']);
+    }
+
+    #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {
         $this->sales($this->ulpB, '2026-01-01', 1, 1);
