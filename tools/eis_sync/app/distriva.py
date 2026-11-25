@@ -79,17 +79,21 @@ class DistrivaClient:
         return self._check(res, "Pemeriksaan permohonan lama")["data"]
 
     def import_eis_reports(self, name, content):
-        """Upload one ZIP (folders ULP/BULAN/<laporan>.xls) to the monthly EIS report import (docs/88): {results: [{name, ok, status, family, unit, period, lines, warnings | message}]}.
-        HTTP 422 means every file of the archive failed; the per-file reasons are still in the answer, so they are returned instead of raised."""
+        """Upload one ZIP (folders ULP/BULAN/<laporan>.xls) to the monthly EIS report import (docs/88). The API answers {data: [{name, ok, status, family, unit, period, lines, warnings | message}], message};
+        this returns {results: [...], message}. HTTP 422 means every file of the archive was rejected; the per-file reasons are still in the answer, so they are returned instead of raised."""
         res = self.http.post(f"{self.base_url}/api/eis-reports/import", files={"files[]": (name, content, "application/zip")}, headers=self._headers(), timeout=max(self.timeout, 600))
         if res.status_code == 422:
             try:
                 body = res.json()
-                if isinstance(body.get("results"), list):
-                    return body
+                if isinstance(body.get("data"), list):
+                    return {"results": body["data"], "message": body.get("message")}
             except ValueError:
                 pass
-        return self._check(res, "Unggah laporan EIS")
+        body = self._check(res, "Unggah laporan EIS")
+        rows = body.get("data")
+        if not isinstance(rows, list):
+            raise DistrivaError(f"Unggah laporan EIS: jawaban tidak berbentuk daftar hasil per berkas: {str(body)[:200]}")
+        return {"results": rows, "message": body.get("message")}
 
     def logout(self):
         if self.external_token:

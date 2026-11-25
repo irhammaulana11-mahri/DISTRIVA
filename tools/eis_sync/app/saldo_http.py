@@ -267,9 +267,14 @@ def run(client, units: list[tuple[str, str]], months: list[str], reports: list[s
             if row.get("ok"):
                 print(f"  {row.get('name')}: {row.get('status')} {row.get('family')} {row.get('unit')} {row.get('period')} ({row.get('lines')} baris)", flush=True)
                 uploaded += 1
+                for warning in row.get("warnings") or []:
+                    print(f"    peringatan: {warning}", flush=True)
             else:
                 failed.append(str(row.get("name")))
                 print(f"  {row.get('name')}: DITOLAK {row.get('message')}", flush=True)
+        if not result.get("results"):
+            failed.append(f"unggahan {month} (tanpa hasil)")
+            print(f"  GAGAL  unggahan {month}: DISTRIVA tidak mengembalikan hasil per berkas", flush=True)
     try:
         if "KOGOL" in reports:
             eis.select_unit(session, eis.ALL_UNITS)    # kembalikan pilihan unit ke SEMUA UP supaya sinkron lain tidak terfilter unit terakhir

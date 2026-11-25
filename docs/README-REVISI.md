@@ -16,6 +16,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 ## Terbuka
 
 (Tidak ada tugas terbuka saat ini)
+| 18 | 2026-11-25 | (belum di-commit) | **Matriks Kelengkapan Laporan (1 Tahun)** (Piutang Prabayar, Piutang Pascabayar, Umur Piutang, dan semua menu bersumber laporan): `GET /pengusahaan/metrics/{code}/history` kini menerima `year` (Januari sampai Desember tahun itu) dan mengembalikan `expected_until`, `available_years[]`, dan `coverage.due[]` (bulan yang sudah jatuh tempo); `missing`, `missing_count`, `expected_total`, `missing_total` hanya menghitung bulan yang jatuh tempo | docs/91 §3c | Perbaiki dua anomali tampilan: (a) matriks selama ini hanya menerima 24 bulan terakhir tetapi menawarkan pilihan tahun lain, sehingga bulan di luar 24 bulan (mis. Januari sampai Oktober 2024) tampil merah "Belum Ada" padahal datanya ada. Saat pilihan tahun berubah **panggil ulang `/history?year=<tahun>`** dan gambar 12 sel dari `coverage.units[].months`; pilihan tahun dari `available_years`. (b) Bulan yang belum jatuh tempo (`due[i] === false`, mis. November dan Desember tahun berjalan) jangan merah dan jangan dihitung kekurangan: beri warna netral (abu-abu, keterangan "belum jatuh tempo"); sel `true` tetap hijau. Badge "N kekurangan" dan kolom Kurang memakai `missing_total` dan `missing_count` dari backend, bukan dihitung ulang di klien. Tahun tanpa data tidak muncul pada `available_years` | BARU | |
 
 ## Selesai
 

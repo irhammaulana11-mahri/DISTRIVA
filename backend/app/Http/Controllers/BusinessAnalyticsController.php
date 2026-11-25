@@ -56,14 +56,15 @@ class BusinessAnalyticsController extends Controller
     }
 
     /**
-     * GET /pengusahaan/metrics/{code}/history?unit_id=: histori sumber data: berkas laporan yang masuk, kelengkapan ULP x 24 bulan, masukan bulanan (susut), dan sesi sinkronisasi terkait
+     * GET /pengusahaan/metrics/{code}/history?unit_id=&year=: histori sumber data: berkas laporan yang masuk, kelengkapan ULP x bulan (`year` = Januari sampai Desember tahun itu, bawaan 24 bulan terakhir), masukan bulanan (susut), dan sesi sinkronisasi terkait
      * (`syncs`: null bila pemakai tidak berwenang melihatnya).
      */
     public function history(Request $request, string $code): JsonResponse
     {
         [$unit, $ulps, $ids] = $this->target($request, $code);
+        $year = $request->validate(['year' => ['nullable', 'integer', 'between:2000,2100']])['year'] ?? null;
         $latest = $this->builder->latestMonth($code, $ids);
-        $data = $this->history->history($code, $ulps, $latest);
+        $data = $this->history->history($code, $ulps, $latest, $year === null ? null : (int) $year);
         $data['syncs'] = $this->syncs($request, $code);
 
         return response()->json(['data' => ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type], 'metric' => ['code' => $code, 'name' => BusinessMetricService::CATALOG[$code]['name'], 'source' => BusinessMetricService::CATALOG[$code]['source']]] + $data]);

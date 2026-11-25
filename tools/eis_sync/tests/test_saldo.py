@@ -158,6 +158,55 @@ class DiagnosisTest(unittest.TestCase):
         self.assertEqual(s.headers_seen["Referer"], s.gets[1])                          # POST: Referer = halaman data (gets[0] = halaman induk)
 
 
+class ImportAnswerTest(unittest.TestCase):
+    """Bentuk jawaban API impor (`data` = daftar per berkas) dan pelaporannya: berkas yang ditolak harus terlihat dan dihitung gagal."""
+
+    def client(self, status, body):
+        from app.distriva import DistrivaClient
+
+        class Http:
+            def post(self, url, **kw):
+                return types.SimpleNamespace(status_code=status, headers={"Content-Type": "application/json"}, json=lambda: body, text=str(body))
+
+        return DistrivaClient(base_url="http://x", session=Http(), token="t")
+
+    def test_the_per_file_results_are_read_from_the_data_key_for_success_and_for_422(self):
+        rows = [{"name": "z › 51453/2026-10/LEMBAR.xls", "ok": True, "status": "BARU", "family": "UMURPIUTANG"}, {"name": "z › 51454/2026-10/LEMBAR.xls", "ok": False, "message": "Tidak ada baris data yang dikenali"}]
+        self.assertEqual(self.client(200, {"data": rows, "message": "1 berkas diproses, 1 gagal."}).import_eis_reports("z.zip", b"x")["results"], rows)
+        self.assertEqual(self.client(422, {"data": rows[1:], "message": "0 berkas diproses, 1 gagal."}).import_eis_reports("z.zip", b"x")["results"], rows[1:])
+        from app.distriva import DistrivaError
+
+        with self.assertRaises(DistrivaError):
+            self.client(200, {"data": {"bukan": "daftar"}}).import_eis_reports("z.zip", b"x")
+
+    def test_a_rejected_file_is_printed_and_makes_the_exit_code_one(self):
+        import contextlib
+
+        class Client:
+            def login(self):
+                pass
+
+            def import_eis_reports(self, name, content):
+                return {"results": [{"name": "z › 51453/2026-10/GOLONGAN.xls", "ok": True, "status": "BARU", "family": "AKHIRBULAN_EIS", "unit": "ULP Jombang", "period": "2026-10", "lines": 5, "warnings": ["peringatan satu"]},
+                                    {"name": "z › 51453/2026-10/LEMBAR.xls", "ok": False, "message": "Tidak ada baris data yang dikenali"}]}
+
+        saved = (sh.eis, sh.fetch_mycube)
+        sh.fetch_mycube = lambda *a: (XLS, "xls")
+        sh.eis = types.SimpleNamespace(http_session=lambda fresh=False: FakeSession(), EISSessionExpired=saved[0].EISSessionExpired, EISTransientError=saved[0].EISTransientError, RETRYABLE_EXCEPTIONS=saved[0].RETRYABLE_EXCEPTIONS,
+                                       ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, form_payload=saved[0].form_payload, _check_response=lambda *a: None)
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                code = sh.run(Client(), [("51453", "JOMBANG")], ["2026-10"], ["GOLONGAN", "LEMBAR"], pause=0)
+        finally:
+            sh.eis, sh.fetch_mycube = saved
+        text = out.getvalue()
+        self.assertEqual(code, 1)
+        self.assertIn("DITOLAK Tidak ada baris data yang dikenali", text)
+        self.assertIn("peringatan: peringatan satu", text)
+        self.assertIn("Ringkasan: 1 berkas masuk DISTRIVA; 1 gagal", text)
+
+
 class RetryTest(unittest.TestCase):
     def test_a_transient_eis_error_is_retried_and_other_files_continue_when_it_keeps_failing(self):
         calls = {"n": 0}
@@ -174,7 +223,7 @@ class RetryTest(unittest.TestCase):
                 pass
 
             def import_eis_reports(self, name, content):
-                return {"results": []}
+                return {"results": [{"name": name, "ok": True, "status": "BARU", "family": "AKHIRBULAN_EIS", "unit": "u", "period": "p", "lines": 1}]}
 
         sh.fetch_mycube = flaky
         saved = (sh.eis, sh.TRANSIENT_DELAY)
@@ -207,7 +256,7 @@ class RunTest(unittest.TestCase):
 
             def import_eis_reports(self, name, content):
                 uploads.append((name, zipfile.ZipFile(io.BytesIO(content)).namelist()))
-                return {"results": [{"name": f"{name} › {n}", "ok": True, "status": "BARU", "family": "309", "unit": "u", "period": "p", "lines": 1} for n in uploads[-1][1]]}
+                return {"results": [{"name": f"{name} › {n}", "ok": True, "status": "BARU", "family": "309", "unit": "u", "period": "p", "lines": 1} for n in uploads[-1][1]]}   # bentuk yang dikembalikan DistrivaClient
 
         session = FakeSession()
         calls = {"n": 0}

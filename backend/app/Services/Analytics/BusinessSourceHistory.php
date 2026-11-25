@@ -16,18 +16,28 @@ class BusinessSourceHistory
 
     /**
      * @param  array<string, string>  $ulps  ULP => nama
+     * @param  int|null  $year  tahun yang ditampilkan matriks kelengkapan (Januari sampai Desember); null = 24 bulan berakhir di $latestMonth
      * @return array<string, mixed>
      */
-    public function history(string $code, array $ulps, string $latestMonth): array
+    public function history(string $code, array $ulps, string $latestMonth, ?int $year = null): array
     {
         $def = BusinessMetricService::CATALOG[$code];
         $family = $def['family'] ?? null;
         $families = $def['families'] ?? ($family === null ? [] : [$family]);
         $months = [];
-        for ($i = self::COVERAGE_MONTHS - 1; $i >= 0; $i--) {
-            $months[] = date('Y-m', strtotime($latestMonth.'-01 -'.$i.' month'));
+        if ($year !== null) {
+            for ($m = 1; $m <= 12; $m++) {
+                $months[] = sprintf('%04d-%02d', $year, $m);
+            }
+        } else {
+            for ($i = self::COVERAGE_MONTHS - 1; $i >= 0; $i--) {
+                $months[] = date('Y-m', strtotime($latestMonth.'-01 -'.$i.' month'));
+            }
         }
-        $out = ['family' => $family, 'families' => $families, 'latest_month' => $latestMonth, 'months' => $months, 'files' => [], 'coverage' => null, 'inputs' => []];
+        // laporan sebuah bulan baru jatuh tempo bulan berikutnya: bulan berjalan dan bulan depan tidak dihitung sebagai kekurangan
+        $expectedUntil = now((string) config('distriva.business_timezone', 'Asia/Jakarta'))->startOfMonth()->subMonthNoOverflow()->format('Y-m');
+        $out = ['family' => $family, 'families' => $families, 'latest_month' => $latestMonth, 'year' => $year, 'expected_until' => $expectedUntil, 'available_years' => $this->years($code, $families, array_keys($ulps), $latestMonth, $expectedUntil),
+            'months' => $months, 'files' => [], 'coverage' => null, 'inputs' => []];
         if ($family !== null) {
             $out['files'] = DB::table('eis_report_files as f')->leftJoin('users as u', 'u.id', '=', 'f.uploaded_by')->join('organizational_units as o', 'o.id', '=', 'f.organizational_unit_id')
                 ->whereIn('f.family', $families)->whereIn('f.organizational_unit_id', array_keys($ulps))->orderByDesc('f.imported_at')->limit(self::FILE_LIMIT)
@@ -43,11 +53,11 @@ class BusinessSourceHistory
                     $have[$u] = isset($have[$u]) ? array_values(array_intersect($have[$u], $perUnit[$u] ?? [])) : ($perUnit[$u] ?? []);
                 }
             }
-            $out['coverage'] = $this->coverage($ulps, $months, fn (string $u) => $have[$u] ?? []);
+            $out['coverage'] = $this->coverage($ulps, $months, fn (string $u) => $have[$u] ?? [], $expectedUntil);
         } elseif ($code === 'susut') {
             $have = DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', array_keys($ulps))->whereBetween('period', [$months[0].'-01', end($months).'-01'])
                 ->get(['organizational_unit_id', 'period'])->groupBy('organizational_unit_id')->map(fn ($rows) => $rows->map(fn ($r) => substr((string) $r->period, 0, 7))->all());
-            $out['coverage'] = $this->coverage($ulps, $months, fn (string $u) => $have[$u] ?? []);
+            $out['coverage'] = $this->coverage($ulps, $months, fn (string $u) => $have[$u] ?? [], $expectedUntil);
             $out['inputs'] = DB::table('business_monthly_inputs as i')->leftJoin('users as u', 'u.id', '=', 'i.entered_by')->join('organizational_units as o', 'o.id', '=', 'i.organizational_unit_id')
                 ->whereIn('i.organizational_unit_id', array_keys($ulps))->orderByDesc('i.updated_at')->limit(self::FILE_LIMIT)->get(['i.period', 'i.code', 'i.value', 'i.note', 'o.name as unit_name', 'u.name as entered_by', 'i.updated_at'])
                 ->map(fn ($r) => ['period' => substr((string) $r->period, 0, 7), 'code' => $r->code, 'value' => (float) $r->value, 'note' => $r->note, 'unit_name' => $r->unit_name, 'entered_by' => $r->entered_by, 'updated_at' => $r->updated_at])->all();
@@ -57,22 +67,47 @@ class BusinessSourceHistory
     }
 
     /**
+     * Matriks ULP x bulan. `due[]` (sejajar `months`) menandai bulan yang sudah jatuh tempo; hanya bulan itu yang dihitung sebagai kekurangan (`missing`, `missing_count`, `expected_total`, `missing_total`).
+     * Sel bulan yang belum jatuh tempo tetap `true` bila laporannya sudah ada, dan `false` tanpa dihitung kurang bila belum.
+     *
      * @param  array<string, string>  $ulps
      * @param  list<string>  $months
      * @param  callable(string): list<string>  $present
      * @return array<string, mixed>
      */
-    private function coverage(array $ulps, array $months, callable $present): array
+    private function coverage(array $ulps, array $months, callable $present, string $expectedUntil): array
     {
+        $due = array_map(fn ($m) => $m <= $expectedUntil, $months);
+        $dueMonths = array_values(array_filter($months, fn ($m) => $m <= $expectedUntil));
         $units = [];
         $missingTotal = 0;
         foreach ($ulps as $id => $name) {
             $have = $present($id);
-            $missing = array_values(array_diff($months, $have));
+            $missing = array_values(array_diff($dueMonths, $have));
             $missingTotal += count($missing);
             $units[] = ['unit_id' => $id, 'unit_name' => $name, 'months' => array_map(fn ($m) => in_array($m, $have, true), $months), 'missing' => $missing, 'missing_count' => count($missing)];
         }
 
-        return ['units' => $units, 'expected_total' => count($ulps) * count($months), 'missing_total' => $missingTotal];
+        return ['due' => $due, 'units' => $units, 'expected_total' => count($ulps) * count($dueMonths), 'missing_total' => $missingTotal];
+    }
+
+    /**
+     * Tahun yang dapat dipilih pada matriks: dari tahun laporan tertua yang ada untuk unit-unit itu sampai tahun bulan terakhir yang sudah jatuh tempo.
+     *
+     * @param  list<string>  $families
+     * @param  list<string>  $units
+     * @return list<int> terbaru lebih dulu
+     */
+    private function years(string $code, array $families, array $units, string $latestMonth, string $expectedUntil): array
+    {
+        $first = match (true) {
+            $families !== [] => DB::table('eis_report_files')->whereIn('family', $families)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->min('period'),
+            $code === 'susut' => DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->min('period'),
+            default => null,
+        };
+        $to = (int) substr(max($latestMonth, $expectedUntil), 0, 4);
+        $from = $first === null ? (int) substr($latestMonth, 0, 4) : min((int) substr((string) $first, 0, 4), $to);
+
+        return range($to, $from);
     }
 }

@@ -6,6 +6,7 @@ use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Nko\NkoRealizationResolver;
+use Carbon\CarbonImmutable;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\NkoPermissionSeeder;
 use Illuminate\Http\UploadedFile;
@@ -406,6 +407,43 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertSame(['permohonan'], array_column($pelanggan['syncs'], 'kind'));
         $kwh = $this->as($admin)->getJson("/api/pengusahaan/metrics/kwh-jual/history?unit_id={$this->up3->id}")->assertOk()->json('data');
         $this->assertSame([], $kwh['syncs']);                                                            // 309 diunggah, tidak ada sesi sinkron
+    }
+
+    #[Test]
+    public function matriks_kelengkapan_per_tahun_tidak_menghitung_bulan_yang_belum_jatuh_tempo_dan_mencakup_tahun_di_luar_24_bulan(): void
+    {
+        CarbonImmutable::setTestNow('2026-11-14 10:00:00');
+        try {
+            // 2026: Januari sampai Oktober kecuali Maret; 2024: hanya Juni (di luar jendela 24 bulan 2024-11 .. 2026-10)
+            $this->customers309($this->ulpA, array_merge(
+                array_map(fn ($m) => [sprintf('2026-%02d-01', $m), 100 + $m], array_values(array_diff(range(1, 10), [3]))),
+                [['2024-06-01', 50]],
+            ));
+            $get = fn (string $q = '') => $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan/history?unit_id={$this->ulpA->id}{$q}")->assertOk()->json('data');
+
+            $y26 = $get('&year=2026');
+            $this->assertSame([2026, '2026-10'], [$y26['year'], $y26['expected_until']]);
+            $this->assertCount(12, $y26['months']);
+            $this->assertSame([true, true, true, true, true, true, true, true, true, true, false, false], $y26['coverage']['due']);
+            $u = $y26['coverage']['units'][0];
+            $this->assertSame(['2026-03'], $u['missing']);                                                 // November dan Desember belum jatuh tempo: bukan kekurangan
+            $this->assertSame(1, $u['missing_count']);
+            $this->assertSame([true, true, false, true, true, true, true, true, true, true, false, false], $u['months']);
+            $this->assertSame([10, 1], [$y26['coverage']['expected_total'], $y26['coverage']['missing_total']]);
+
+            $y24 = $get('&year=2024');                                                                     // tahun di luar 24 bulan terakhir tetap dihitung dari datanya
+            $this->assertTrue($y24['coverage']['units'][0]['months'][5]);                                  // Juni 2024 ada
+            $this->assertSame(11, $y24['coverage']['units'][0]['missing_count']);
+            $this->assertSame([2026, 2025, 2024], $y24['available_years']);                                // dari tahun laporan tertua sampai tahun bulan terakhir
+
+            $default = $get();                                                                             // tanpa year: 24 bulan terakhir, bentuk lama dengan tanda jatuh tempo
+            $this->assertNull($default['year']);
+            $this->assertCount(24, $default['months']);
+            $this->assertNotContains(false, $default['coverage']['due']);                                  // seluruhnya sampai Oktober 2026
+            $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan/history?unit_id={$this->ulpA->id}&year=1999")->assertUnprocessable();
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     #[Test]
