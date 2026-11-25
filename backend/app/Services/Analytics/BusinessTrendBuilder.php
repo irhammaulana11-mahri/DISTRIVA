@@ -128,9 +128,10 @@ class BusinessTrendBuilder
     /**
      * @param  list<string>  $units  ULP yang digabung (UP3 = semua ULP di bawahnya)
      * @param  array<string, string>  $unitNames  ULP => nama, untuk perbandingan antar-ULP (kosong bila yang dipilih satu ULP)
+     * @param  list<array<string, mixed>>|callable(array<string, ?float>): list<array<string, mixed>>  $targets  target NKO bulan `$to` ({@see BusinessTargetService::targets()}) untuk kartu status dan diagnosis; bila fungsi, dipanggil dengan kumulatif tiap seri (kunci seri) sebagai cadangan realisasi
      * @return array<string, mixed>
      */
-    public function build(string $code, array $units, array $unitNames, string $from, string $to): array
+    public function build(string $code, array $units, array $unitNames, string $from, string $to, array|callable $targets = []): array
     {
         $def = BusinessMetricService::CATALOG[$code];
         $months = $this->months($from, $to);
@@ -174,6 +175,8 @@ class BusinessTrendBuilder
                 'ytd_pct' => $basis['ytd'] === [] ? null : $this->pct($this->ytd($s, $def['ytd'], $on($basis['ytd']), $to), $this->ytd($s, $def['ytd'], $on($basis['ytd']), $prevTo))];
         }
 
+        $targets = is_callable($targets) ? $targets(array_column($summary, 'ytd', 'key')) : $targets;
+
         $rowsOf = function (string $dim, ?array $order) use ($combined, $to): array {
             $now = $combined($to)[$dim] ?? [];
             $before = $combined($this->shift($to, -12))[$dim] ?? [];
@@ -206,6 +209,8 @@ class BusinessTrendBuilder
             usort($comparison, fn ($a, $b) => ($b['latest'] ?? -INF) <=> ($a['latest'] ?? -INF));
         }
 
+        $contribution = $primary !== null && count($unitNames) > 1 && ! isset($primary['den']) ? $this->contribution($def, $primary, $unitNames, $combined, $to) : null;
+
         $missing = $this->metrics->missingMonths($code, $units, $months);
         $coverage = ['months_expected' => count($months), 'missing' => array_map(fn ($u, $ms) => ['unit_id' => $u, 'unit_name' => $unitNames[$u] ?? null, 'months' => $ms], array_keys($missing), $missing)];
 
@@ -219,7 +224,8 @@ class BusinessTrendBuilder
             'from' => $from, 'to' => $to, 'months' => $months, 'units_expected' => count($units), 'units_reporting' => $unitsReporting,
             'comparison_basis' => array_map('count', $basis), 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'breakdown_secondary' => $breakdownSecondary, 'matrix' => $matrix, 'comparison' => $comparison, 'coverage' => $coverage,
             'companions' => $companion['companions'] ?? null, 'reconciliation' => $companion['reconciliations'][0] ?? null, 'reconciliations' => $companion['reconciliations'] ?? null, 'forecast' => $def['companion']['forecast'] ?? null,
-            'insights' => $insights, 'warnings' => $this->warnings($code, $units, $to)];
+            'insights' => $insights, 'warnings' => $this->warnings($code, $units, $to),
+            'targets' => $targets, 'contribution' => $contribution, 'diagnosis' => $this->diagnosis($def, $targets, $contribution, $primary, $unitNames ?: array_fill_keys($units, null), $combined, $to)];
     }
 
     /**
@@ -348,6 +354,142 @@ class BusinessTrendBuilder
         }
 
         return ['companions' => ['source' => $c['source'], 'series' => $series], 'reconciliations' => $reconciliations];
+    }
+
+    /**
+     * Sumbangan tiap ULP pada perubahan UP3 untuk seri utama yang dapat dijumlahkan (bukan rata-rata atau rasio): dibanding bulan sebelumnya (`mom`), bulan yang sama tahun lalu (`yoy`),
+     * dan tahun berjalan (`ytd`: posisi akhir dibanding Desember tahun lalu untuk metrik posisi, selain itu kumulatif dibanding kumulatif tahun lalu). Hanya ULP yang punya data di kedua titik;
+     * jumlah sumbangan = `total`. Baris urut dari sumbangan terbesar (nilai mutlak).
+     *
+     * @param  array<string, mixed>  $def
+     * @param  array<string, mixed>  $s
+     * @param  array<string, string>  $unitNames
+     * @return array<string, mixed>
+     */
+    private function contribution(array $def, array $s, array $unitNames, callable $combined, string $to): array
+    {
+        $prevTo = $this->shift($to, -12);
+        $december = ((int) substr($to, 0, 4) - 1).'-12';
+        $point = fn (string $m, string $id) => $this->value($s, $combined($m, [$id]));
+        $cumulative = fn (string $end, string $id) => $this->ytd($s, $def['ytd'], fn ($m) => $combined($m, [$id]), $end);
+        $bases = [
+            'mom' => ['label' => 'dibanding bulan sebelumnya', 'from' => $this->shift($to, -1), 'now' => $point, 'before' => $point],
+            'yoy' => ['label' => 'dibanding bulan yang sama tahun lalu', 'from' => $prevTo, 'now' => $point, 'before' => $point],
+            'ytd' => $def['ytd'] === 'last'
+                ? ['label' => 'sejak Desember tahun lalu', 'from' => $december, 'now' => $point, 'before' => $point]
+                : ['label' => 'kumulatif tahun berjalan dibanding kumulatif tahun lalu', 'from' => $prevTo, 'now' => $cumulative, 'before' => $cumulative],
+        ];
+        $out = ['series_key' => $s['key'], 'unit' => $s['unit'], 'to' => $to, 'bases' => []];
+        foreach ($bases as $key => $b) {
+            $rows = [];
+            foreach ($unitNames as $id => $name) {
+                $now = $b['now']($to, $id);
+                $before = $b['before']($b['from'], $id);
+                $now !== null && $before !== null && $rows[] = ['unit_id' => $id, 'unit_name' => $name, 'value' => $now, 'previous' => $before, 'change' => $now - $before];
+            }
+            $total = array_sum(array_column($rows, 'change'));
+            foreach ($rows as &$r) {
+                $r['share_pct'] = $total != 0 ? $r['change'] / $total * 100 : null;
+            }
+            unset($r);
+            usort($rows, fn ($a, $c) => abs($c['change']) <=> abs($a['change']));
+            $out['bases'][$key] = ['label' => $b['label'], 'from' => $b['from'], 'total' => $rows === [] ? null : $total, 'units_compared' => count($rows), 'units' => $rows];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Paling banyak tiga kalimat (docs/92 §3): posisi terhadap target NKO, penyumbang terbesar perubahan tahunan, dan angka bulan terakhir yang jauh dari kebiasaan unitnya
+     * (selisih dari median 24 bulan sebelumnya lebih dari 3,5 kali simpangan median absolut; paling sedikit 12 bulan data).
+     *
+     * @param  array<string, mixed>  $def
+     * @param  list<array<string, mixed>>  $targets
+     * @param  array<string, ?string>  $scope  ULP => nama (null bila yang dipilih satu ULP)
+     * @return list<array{level: string, kind: string, text: string}>
+     */
+    private function diagnosis(array $def, array $targets, ?array $contribution, ?array $primary, array $scope, callable $combined, string $to): array
+    {
+        $out = [];
+        $target = collect($targets)->first(fn ($t) => $t['pencapaian_pct'] !== null) ?? collect($targets)->first(fn ($t) => $t['target'] !== null);
+        if ($target !== null) {
+            $unit = (string) $target['unit_label'];
+            if ($target['pencapaian_pct'] === null) {
+                $out[] = ['level' => 'info', 'kind' => 'target', 'text' => sprintf('Target %s s.d. %s: %s %s; realisasi belum tersedia (isi atau hitung pada halaman NKO).', $target['name'], $this->label($to), $this->num($target['target']), $unit)];
+            } else {
+                $text = sprintf('%s s.d. %s: realisasi %s lawan target %s %s (pencapaian %s%%).', $target['name'], $this->label($to), $this->num($target['realisasi']), $this->num($target['target']), $unit, $this->num($target['pencapaian_pct']));
+                if ($target['remaining_per_month'] !== null) {
+                    $text .= $target['polarity'] === 'down'
+                        ? sprintf(' Sisa anggaran sampai akhir tahun rata-rata %s per bulan; rata-rata sejauh ini %s.', $this->num($target['remaining_per_month']), $this->num($target['current_per_month']))
+                        : sprintf(' Untuk target akhir tahun %s perlu rata-rata %s per bulan; rata-rata sejauh ini %s.', $this->num($target['target_year_end']), $this->num($target['remaining_per_month']), $this->num($target['current_per_month']));
+                }
+                $target['validated'] === false && $text .= ' Realisasi sistem indikator ini belum tervalidasi terhadap workbook.';
+                $target['realisasi_source'] === 'METRIK' && $text .= ' Realisasi diambil dari data menu ini karena perhitungan NKO unit ini belum tersedia.';
+                $out[] = ['level' => ['aman' => 'info', 'waspada' => 'perhatian', 'tertinggal' => 'kritis'][$target['status']] ?? 'info', 'kind' => 'target', 'text' => $text];
+            }
+        }
+        $yoy = $contribution['bases']['yoy'] ?? null;
+        if ($primary !== null && $yoy !== null && $yoy['total'] !== null && $yoy['total'] != 0.0 && $yoy['units'] !== []) {
+            $lead = $yoy['units'][0];
+            $bad = ($def['polarity'] === 'down') === ($yoy['total'] > 0);
+            $out[] = ['level' => $bad ? 'perhatian' : 'info', 'kind' => 'contribution', 'text' => sprintf('Dibanding %s, %s UP3 berubah %s %s (%d ULP setara); penyumbang terbesar %s (%s, %s%% dari perubahan).',
+                $this->label($yoy['from']), strtolower($primary['name']), $this->signed($yoy['total']), $primary['unit'], $yoy['units_compared'], $lead['unit_name'], $this->signed($lead['change']), $this->num($lead['share_pct']))];
+        }
+        $dominance = null;
+        if ($primary !== null && ! isset($primary['den']) && in_array($def['ytd'], ['sum', 'ratio'], true)) {      // satu bulan menyumbang separuh atau lebih kumulatif tahun berjalan: kejadian besar atau data yang perlu dicek
+            $byMonth = [];
+            foreach ($this->months(substr($to, 0, 4).'-01', $to) as $m) {
+                ($v = $this->value($primary, $combined($m, $scope === [] ? null : array_keys($scope)))) !== null && $byMonth[$m] = $v;
+            }
+            $total = array_sum($byMonth);
+            if (count($byMonth) >= 4 && $total > 0) {
+                arsort($byMonth);
+                $peak = array_key_first($byMonth);
+                $byMonth[$peak] / $total >= 0.5 && $dominance = ['level' => 'perhatian', 'kind' => 'dominance', 'text' => sprintf('%s menyumbang %s%% dari kumulatif %s (%s dari %s %s): angka sebesar itu perlu dicek terhadap kejadian besar atau data sumber.',
+                    $this->label($peak), $this->num($byMonth[$peak] / $total * 100), substr($to, 0, 4), $this->num($byMonth[$peak]), $this->num($total), $primary['unit'])];
+            }
+        }
+        if ($primary !== null) {
+            $worst = null;
+            foreach ($scope as $id => $name) {
+                $now = $this->value($primary, $combined($to, [$id]));
+                $history = array_values(array_filter(array_map(fn ($m) => $this->value($primary, $combined($m, [$id])), $this->months($this->shift($to, -24), $this->shift($to, -1))), fn ($v) => $v !== null));
+                if ($now === null || count($history) < 12) {
+                    continue;
+                }
+                $median = $this->median($history);
+                $mad = $this->median(array_map(fn ($v) => abs($v - $median), $history));
+                $z = $mad == 0.0 ? 0.0 : ($now - $median) / (1.4826 * $mad);
+                abs($z) >= 3.5 && ($worst === null || abs($z) > abs($worst['z'])) && $worst = ['name' => $name, 'z' => $z, 'now' => $now, 'median' => $median];
+            }
+            $worst !== null && $out[] = ['level' => 'perhatian', 'kind' => 'anomaly', 'text' => sprintf('%s: %s %s = %s %s, jauh %s kebiasaan 24 bulan terakhir (median %s).',
+                $worst['name'] ?? 'Unit ini', strtolower($primary['name']), $this->label($to), $this->num($worst['now']), $primary['unit'], $worst['z'] > 0 ? 'di atas' : 'di bawah', $this->num($worst['median']))];
+        }
+
+        $data = collect($out)->first(fn ($o) => $o['kind'] === 'anomaly') ?? $dominance;                    // satu kalimat tentang data: angka bulan terakhir yang janggal, atau bulan yang mendominasi
+        $out = array_values(array_filter($out, fn ($o) => $o['kind'] !== 'anomaly'));
+        $data !== null && $out[] = $data;
+
+        return array_slice($out, 0, 3);
+    }
+
+    /** @param list<float> $values */
+    private function median(array $values): float
+    {
+        sort($values);
+        $n = count($values);
+
+        return $n % 2 === 1 ? (float) $values[intdiv($n, 2)] : ($values[$n / 2 - 1] + $values[$n / 2]) / 2;
+    }
+
+    private function num(?float $v): string
+    {
+        return $v === null ? '-' : number_format($v, abs($v) >= 100 ? 0 : 2, ',', '.');
+    }
+
+    private function signed(float $v): string
+    {
+        return ($v > 0 ? '+' : '').$this->num($v);
     }
 
     /**

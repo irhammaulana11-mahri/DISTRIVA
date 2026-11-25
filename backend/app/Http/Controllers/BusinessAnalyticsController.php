@@ -8,6 +8,7 @@ use App\Services\Analytics\BusinessInputWorkbook;
 use App\Services\Analytics\BusinessMetricService;
 use App\Services\Analytics\BusinessMetricWorkbook;
 use App\Services\Analytics\BusinessSourceHistory;
+use App\Services\Analytics\BusinessTargetService;
 use App\Services\Analytics\BusinessTrendBuilder;
 use App\Services\Authorization\ApplicationAuthorizer;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +28,7 @@ class BusinessAnalyticsController extends Controller
     private const INPUT_PERMISSION = 'pengusahaan.input';
 
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $inputWorkbook, private readonly BusinessMetricWorkbook $workbook,
-        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history) {}
+        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets) {}
 
     /** GET /pengusahaan/metrics: katalog metrik dan unit yang boleh dilihat. */
     public function index(Request $request): JsonResponse
@@ -119,7 +120,7 @@ class BusinessAnalyticsController extends Controller
         }
 
         return ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type]]
-            + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to);
+            + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to, fn (array $ytd) => $this->targets->targets($code, $unit, $to, $ytd));
     }
 
     /**

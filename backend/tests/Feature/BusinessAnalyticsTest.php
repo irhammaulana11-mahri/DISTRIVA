@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Nko\NkoDefinitionImportService;
 use App\Services\Nko\NkoRealizationResolver;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ApplicationPermissionSeeder;
@@ -16,10 +17,13 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\BuildsNkoWorkbook;
 use Tests\PostgresTestCase;
 
 class BusinessAnalyticsTest extends PostgresTestCase
 {
+    use BuildsNkoWorkbook;
+
     private OrganizationalUnit $up3;
 
     private OrganizationalUnit $ulpA;
@@ -851,6 +855,117 @@ class BusinessAnalyticsTest extends PostgresTestCase
             $this->as($admin)->getJson("/api/pengusahaan/metrics/{$code}/forecast?unit_id={$this->up3->id}")->assertOk();
             $this->as($admin)->get("/api/pengusahaan/metrics/{$code}/export?unit_id={$this->up3->id}")->assertOk();
         }
+    }
+
+    #[Test]
+    public function kartu_target_memakai_target_realisasi_dan_rumus_pencapaian_nko_serta_menghitung_sisa_per_bulan(): void
+    {
+        $this->up3->forceFill(['name' => 'UP3 Mojokerto'])->save();
+        app(NkoDefinitionImportService::class)->import($this->workbook(['UP3 MOJOKERTO', 'ULP A']), 'nko.xlsx');     // SAIDI (polaritas 1) target kumulatif Jan 3,7 Feb 7,0; penjualan (polaritas 3) Jan 2,5 Feb 5,1; aturan pencapaian workbook uji hanya untuk Januari
+        $saidi = DB::table('kpi_definitions as d')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')->where('d.code', 'saidi')->where('s.unit_level', 'ULP')->value('d.id');
+        DB::table('kpi_targets')->insert(['definition_id' => $saidi, 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-12-01', 'target_value' => 40.0]);
+        DB::table('kpi_manual_inputs')->insert(['id' => (string) Str::uuid(), 'definition_code' => 'saidi', 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-01-01', 'value' => 4.07, 'note' => 'Uji', 'created_at' => now(), 'updated_at' => now()]);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2025-12&to=2026-01")->assertOk()->json('data');
+
+        $this->assertCount(1, $d['targets']);                                                                  // SAIFI belum punya definisi pada workbook uji
+        $t = $d['targets'][0];
+        $this->assertSame(['saidi', 'saidi', 'down', '2026-01', 'MANUAL', 'tertinggal'], [$t['definition_code'], $t['series_key'], $t['polarity'], $t['month'], $t['realisasi_source'], $t['status']]);
+        $this->assertEqualsWithDelta(3.7, $t['target'], 1e-9);
+        $this->assertEqualsWithDelta(4.07, $t['realisasi'], 1e-9);
+        $this->assertEqualsWithDelta(90.0, $t['pencapaian_pct'], 1e-6);                                       // rumus NKO polaritas 1: (2 - 4,07/3,7) x 100
+        $this->assertEqualsWithDelta((40 - 4.07) / 11, $t['remaining_per_month'], 1e-9);                      // sisa anggaran per bulan sampai Desember
+        $this->assertEqualsWithDelta(4.07, $t['current_per_month'], 1e-9);
+        $this->assertSame('kritis', $d['diagnosis'][0]['level']);
+        $this->assertStringContainsString('pencapaian 90,00%', $d['diagnosis'][0]['text']);
+        $this->assertStringContainsString('Sisa anggaran sampai akhir tahun rata-rata 3,27 per bulan', $d['diagnosis'][0]['text']);
+
+        // target ada tetapi realisasi belum tersedia
+        $kwh = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2025-12&to=2026-01")->assertOk()->json('data');
+        $this->assertSame('penjualan-tenaga-listrik', $kwh['targets'][0]['definition_code']);
+        $this->assertNull($kwh['targets'][0]['pencapaian_pct']);
+        $this->assertStringContainsString('realisasi belum tersedia', $kwh['diagnosis'][0]['text']);
+        // metrik tanpa indikator NKO
+        $this->assertSame([], $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-pascabayar-umur?unit_id={$this->ulpA->id}&from=2026-01&to=2026-02")->assertOk()->json('data.targets'));
+    }
+
+    #[Test]
+    public function sumbangan_ulp_memecah_perubahan_up3_dan_diagnosis_menyebut_penyumbang_terbesar(): void
+    {
+        foreach ([[$this->ulpA, '2025-03-01', 100], [$this->ulpA, '2026-02-01', 150], [$this->ulpA, '2026-03-01', 160], [$this->ulpB, '2025-03-01', 50], [$this->ulpB, '2026-02-01', 45], [$this->ulpB, '2026-03-01', 40]] as [$unit, $period, $kwh]) {
+            $this->sales($unit, $period, $kwh, 0);
+        }
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->up3->id}&from=2026-02&to=2026-03")->assertOk()->json('data');
+
+        $yoy = $d['contribution']['bases']['yoy'];
+        $this->assertSame(['kwh', '2025-03', 2], [$d['contribution']['series_key'], $yoy['from'], $yoy['units_compared']]);
+        $this->assertEqualsWithDelta(50.0, $yoy['total'], 1e-9);                                               // (160 - 100) + (40 - 50)
+        $this->assertSame(['ULP A', 'ULP B'], array_column($yoy['units'], 'unit_name'));                       // urut sumbangan terbesar (nilai mutlak)
+        $this->assertEqualsWithDelta(120.0, $yoy['units'][0]['share_pct'], 1e-9);
+        $this->assertEqualsWithDelta(-20.0, $yoy['units'][1]['share_pct'], 1e-9);
+        $this->assertEqualsWithDelta(5.0, $d['contribution']['bases']['mom']['total'], 1e-9);                 // (160 - 150) + (40 - 45)
+        $text = collect($d['diagnosis'])->firstWhere('kind', 'contribution')['text'];
+        $this->assertStringContainsString('berubah +50,00 kWh (2 ULP setara); penyumbang terbesar ULP A (+60,00, 120% dari perubahan)', $text);
+
+        // seri utama berupa rata-rata atau rasio tidak dipecah per ULP
+        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-keluhan?unit_id={$this->up3->id}&from=2026-02&to=2026-03")->assertOk()->json('data.contribution'));
+        // satu ULP: tidak ada sumbangan
+        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-02&to=2026-03")->assertOk()->json('data.contribution'));
+    }
+
+    #[Test]
+    public function diagnosis_menandai_angka_bulan_terakhir_yang_jauh_dari_kebiasaan_unitnya(): void
+    {
+        for ($i = 24; $i >= 1; $i--) {
+            $this->sales($this->ulpA, date('Y-m-01', strtotime("2026-03-01 -{$i} month")), 100 + $i % 3, 0);   // 24 bulan stabil sekitar 100-102
+        }
+        $this->sales($this->ulpA, '2026-03-01', 300, 0);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2025-04&to=2026-03")->assertOk()->json('data');
+
+        $anomaly = collect($d['diagnosis'])->firstWhere('kind', 'anomaly');
+        $this->assertSame('perhatian', $anomaly['level']);
+        $this->assertStringContainsString('kwh jual Maret 2026 = 300 kWh, jauh di atas kebiasaan 24 bulan terakhir (median 101', $anomaly['text']);
+        $this->assertLessThanOrEqual(3, count($d['diagnosis']));
+    }
+
+    #[Test]
+    public function diagnosis_menandai_satu_bulan_yang_menyumbang_separuh_atau_lebih_kumulatif_tahun_berjalan(): void
+    {
+        foreach ([10, 11, 9, 10, 12, 250] as $i => $kwh) {
+            $this->sales($this->ulpA, sprintf('2026-%02d-01', $i + 1), $kwh, 0);
+        }
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-01&to=2026-06")->assertOk()->json('data');
+
+        $dominance = collect($d['diagnosis'])->firstWhere('kind', 'dominance');
+        $this->assertSame('perhatian', $dominance['level']);
+        $this->assertStringContainsString('Juni 2026 menyumbang 82,78% dari kumulatif 2026 (250 dari 302 kWh)', $dominance['text']);
+
+        // sebaran wajar: tidak ada penanda
+        foreach ([10, 11, 9, 10, 12, 13] as $i => $kwh) {
+            DB::table('eis_report_files')->where('organizational_unit_id', $this->ulpA->id)->where('period', sprintf('2026-%02d-01', $i + 1))->delete();
+            $this->sales($this->ulpA, sprintf('2026-%02d-01', $i + 1), $kwh, 0);
+        }
+        $this->assertNull(collect($this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-01&to=2026-06")->assertOk()->json('data.diagnosis'))->firstWhere('kind', 'dominance'));
+    }
+
+    #[Test]
+    public function cadangan_realisasi_dari_metrik_menandai_sumbernya_dan_nko_tetap_diutamakan(): void
+    {
+        $this->up3->forceFill(['name' => 'UP3 Mojokerto'])->save();
+        app(NkoDefinitionImportService::class)->import($this->workbook(['UP3 MOJOKERTO', 'ULP A']), 'nko.xlsx');
+        $report = fn (string $period, float $saidiMenit) => $this->report($this->ulpA, 'DIFI', $period, [['TOTAL KELOMPOK Distribusi', ['jumlah_gangguan' => 1]]], ['saidi_menit' => $saidiMenit, 'saidi_jam' => $saidiMenit / 60, 'saifi_kali' => 0.1, 'pelanggan' => 1000]);
+        $report('2026-01-01', 4.07);
+
+        $t = collect($this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2025-12&to=2026-01")->assertOk()->json('data.targets'))->firstWhere('definition_code', 'saidi');
+
+        $this->assertSame('SISTEM', $t['realisasi_source']);                                                   // NKO punya realisasi sistem: dipakai, bukan cadangan
+        $up3 = collect($this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->up3->id}&from=2025-12&to=2026-01")->assertOk()->json('data'));
+        $this->assertSame('METRIK', $up3['targets'][0]['realisasi_source']);                                    // UP3 belum punya perhitungan NKO: cadangan dari data menu
+        $this->assertNull($up3['targets'][0]['validated']);
+        $this->assertStringContainsString('Realisasi diambil dari data menu ini', $up3['diagnosis'][0]['text']);
     }
 
     #[Test]
