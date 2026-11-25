@@ -1065,6 +1065,35 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function an_apkt_anomali_keluhan_run_pulls_berulang_and_rating_negatif_per_month_and_replaces_on_rerun(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.apkt.pause_ms' => 0, 'distriva.apkt.monalisa_url' => 'https://apkt.test/graphql']);
+        $secret = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+        $row = fn (int $id, int $total) => ['id_ulp' => $id, 'nama_ulp' => 'ULP', 'wo_cc123' => 10, 'wo_pln_mobile' => 50, 'wo_loket' => 0, 'wo_lainnya' => 5, 'wo_total' => 65, 'anomali_pln_mobile' => 2, 'anomali_cc123' => 1, 'total_anomali' => $total];
+        $fake = fn (int $total) => fn ($r) => Http::response(['data' => [
+            str_contains((string) $r['query'], 'UnitRatingNegatif') ? 'anomaliLaporanPenangananPengaduanKeluhanUnitRatingNegatif' : 'anomaliLaporanPenangananPengaduanKeluhanUnitBerulang' => [$row(51453, $total), $row(99999, 1)],
+        ]]);
+        Http::fake(['apkt.test/*' => $fake(3)]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'dataset' => 'anomali-keluhan', 'from_month' => '2026-10', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret])->assertStatus(202)->json('data');
+
+        $this->assertSame('OK', DB::table('eis_sync_runs')->where('id', $run['id'])->value('status'));
+        Http::assertSent(fn ($r) => str_contains((string) $r['query'], 'anomaliLaporanPenangananPengaduanKeluhanUnitBerulang') && $r['variables']['dateFrom'] === '2026-10-01' && $r['variables']['dateTo'] === '2026-10-31' && $r['variables']['idUlp'] === []);
+        Http::assertSent(fn ($r) => str_contains((string) $r['query'], 'anomaliLaporanPenangananPengaduanKeluhanUnitRatingNegatif'));
+        Http::assertSentCount(2);
+        $this->assertSame(['BERULANG', 'NEGATIF'], DB::table('apkt_anomali_keluhan_records')->orderBy('jenis')->pluck('jenis')->all());
+        $this->assertSame(0, DB::table('apkt_anomali_gangguan_records')->count());
+        $this->assertSame(3, (int) DB::table('apkt_anomali_keluhan_records')->where('jenis', 'BERULANG')->value('total_anomali'));
+
+        Http::swap(new Factory);
+        Http::fake(['apkt.test/*' => $fake(7)]);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'dataset' => 'anomali-keluhan', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret])->assertStatus(202);
+        $this->assertSame(2, DB::table('apkt_anomali_keluhan_records')->count());
+        $this->assertSame(7, (int) DB::table('apkt_anomali_keluhan_records')->where('jenis', 'NEGATIF')->value('total_anomali'));
+    }
+
+    #[Test]
     public function an_apkt_token_can_be_saved_per_user_reused_without_pasting_and_forgotten_like_the_mims_token(): void
     {
         $this->seed(EisReportPermissionSeeder::class);

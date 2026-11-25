@@ -142,7 +142,7 @@ class EisSyncService
         $token = null;
         try {
             if (($run->kind ?? 'PERMOHONAN') === 'APKT') {
-                $sync = in_array(json_decode((string) $run->options, true)['dataset'] ?? 'saidi-saifi', ['rpt-rct-gangguan', 'rpt-rct-keluhan', 'anomali-gangguan'], true) ? app(ApktRptRctSync::class) : app(ApktSaidiSaifiSync::class);
+                $sync = in_array(json_decode((string) $run->options, true)['dataset'] ?? 'saidi-saifi', ['rpt-rct-gangguan', 'rpt-rct-keluhan', 'anomali-gangguan', 'anomali-keluhan'], true) ? app(ApktRptRctSync::class) : app(ApktSaidiSaifiSync::class);
                 [$exit, $log] = $sync->run($run, fn (string $l) => DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $l]));
 
                 return;

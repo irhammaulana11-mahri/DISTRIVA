@@ -508,35 +508,37 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->as($this->viewer)->get("/api/pengusahaan/metrics/pelanggan/export?unit_id={$this->ulpB->id}")->assertNotFound();    // ULP di luar cakupan
     }
 
-    /** Laporan anomali keluhan satu ULP: $v = nilai baris data (KLH B..L). */
-    private function anomaly(OrganizationalUnit $unit, string $family, string $period, array $v): void
-    {
-        $cols = [];
-        foreach ($v as $i => $x) {
-            $cols['c_'.chr(ord('B') + $i)] = $x;
-        }
-        $lines = [[$unit->name, $cols]];
-        $this->report($unit, $family, $period, $lines);
-    }
-
     #[Test]
-    public function anomali_keluhan_dan_gangguan_menggabungkan_laporan_berulang_dan_rating_negatif(): void
+    public function anomali_keluhan_bersumber_apkt_menggabungkan_berulang_dan_rating_negatif_dengan_histori_dan_sesi(): void
     {
-        // keluhan Maret 2026: WO 10+50+0+5 = 65; berulang PLN Mobile 2 + CC123 1; rating negatif PLN Mobile 4 + CC123 2
-        $this->anomaly($this->ulpA, 'KLHBERULANG', '2026-03-01', [10, 50, 0, 5, 65, 2, 1, 3, 3.08, 1.54, 4.62]);
-        $this->anomaly($this->ulpA, 'KLHNEGATIF', '2026-03-01', [10, 50, 0, 5, 65, 4, 2, 6, 6.15, 3.08, 9.23]);
-        $url = fn (string $code) => "/api/pengusahaan/metrics/{$code}?unit_id={$this->ulpA->id}&from=2026-02&to=2026-03";
+        $run = (string) Str::uuid();
+        DB::table('eis_sync_runs')->insert(['id' => $run, 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'anomali-keluhan', 'token_encrypted' => 'rahasia']), 'created_at' => now()]);
+        $row = fn (string $period, string $jenis, array $v) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'jenis' => $jenis, 'sync_run_id' => $run, 'created_at' => now(), 'updated_at' => now()]
+            + array_combine(['wo_cc123', 'wo_pln_mobile', 'wo_loket', 'wo_lainnya', 'wo_total', 'anomali_pln_mobile', 'anomali_cc123', 'total_anomali'], $v);
+        // Maret 2026: WO 10+50+0+5 = 65; berulang PLN Mobile 2 + CC123 1; rating negatif PLN Mobile 4 + CC123 2; Februari: hanya berulang
+        DB::table('apkt_anomali_keluhan_records')->insert([$row('2026-03-01', 'BERULANG', [10, 50, 0, 5, 65, 2, 1, 3]), $row('2026-03-01', 'NEGATIF', [10, 50, 0, 5, 65, 4, 2, 6]), $row('2026-02-01', 'BERULANG', [10, 50, 0, 5, 65, 0, 0, 0])]);
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
 
-        $k = $this->as($this->planner)->getJson($url('anomali-keluhan'))->assertOk()->json('data');
+        $k = $this->as($admin)->getJson("/api/pengusahaan/metrics/anomali-keluhan?unit_id={$this->ulpA->id}&from=2026-02&to=2026-03")->assertOk()->json('data');
         $s = collect($k['series'])->keyBy('key');
         $this->assertSame('down', $k['metric']['polarity']);
         $this->assertEquals([65, 3, 6], [$s['wo']['values'][1], $s['berulang']['values'][1], $s['negatif']['values'][1]]);
         $this->assertEqualsWithDelta(3 / 65 * 100, $s['berulang_pct']['values'][1], 1e-9);
         $this->assertEqualsWithDelta(6 / 65 * 100, $s['negatif_pct']['values'][1], 1e-9);
+        $this->assertEquals(['2026-02'], $k['coverage']['missing'][0]['months']);                        // Februari: rating negatif belum ada, bulan tidak dihitung
         $this->assertEquals(['PLN Mobile' => 50.0, 'CC 123' => 10.0, 'Lainnya' => 5.0, 'Loket' => 0.0], collect($k['breakdown']['rows'])->pluck('value', 'key')->all());
         $this->assertSame('Kanal pengaduan masuk', $k['breakdown']['dimension']);
         $this->assertEquals(['Berulang · PLN Mobile' => 2.0, 'Berulang · CC 123' => 1.0, 'Rating negatif · PLN Mobile' => 4.0, 'Rating negatif · CC 123' => 2.0], collect($k['breakdown_secondary']['rows'])->pluck('value', 'key')->all());
         $this->assertNull($k['matrix']);
+        $this->assertArrayNotHasKey('negatif_nonmarking', $s->all());                                    // ukuran NKO hanya untuk gangguan
+
+        $h = $this->as($admin)->getJson("/api/pengusahaan/metrics/anomali-keluhan/history?unit_id={$this->ulpA->id}&year=2026")->assertOk()->json('data');
+        $this->assertSame(['APKT_RPT_RCT'], $h['families']);
+        $this->assertCount(2, $h['files']);
+        $this->assertSame('APKT – Anomali Penanganan Pengaduan Keluhan (Berulang dan Rating Negatif)', $h['files'][0]['original_name']);
+        $this->assertCount(1, $h['syncs']);
+        $this->assertStringNotContainsString('rahasia', json_encode($h['syncs']));
     }
 
     /** Baris penarikan APKT anomali gangguan (urutan kolom APKT: WO CC123, PLN Mobile, loket, lainnya, total; anomali PLN Mobile marking dan non, CC123 marking dan non; total marking dan non). */

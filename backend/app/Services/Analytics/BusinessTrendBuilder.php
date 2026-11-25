@@ -15,7 +15,7 @@ class BusinessTrendBuilder
     public const DIFI_METRICS = ['saidi-saifi', 'ens', 'gangguan'];
 
     /** Metrik yang bersumber penarikan APKT => tabel penyimpanannya. */
-    public const APKT_TABLES = ['rpt-rct-gangguan' => 'apkt_rpt_rct_records', 'rpt-rct-keluhan' => 'apkt_rpt_rct_keluhan_records', 'anomali-gangguan' => 'apkt_anomali_gangguan_records'];
+    public const APKT_TABLES = ['rpt-rct-gangguan' => 'apkt_rpt_rct_records', 'rpt-rct-keluhan' => 'apkt_rpt_rct_keluhan_records', 'anomali-gangguan' => 'apkt_anomali_gangguan_records', 'anomali-keluhan' => 'apkt_anomali_keluhan_records'];
 
     private const MONTHS = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -65,6 +65,7 @@ class BusinessTrendBuilder
                 match ($code) {
                     'rpt-rct-keluhan' => 'RPT/RCT keluhan',
                     'anomali-gangguan' => 'anomali gangguan',
+                    'anomali-keluhan' => 'anomali keluhan',
                     default => 'RPT/RCT',
                 }, $current, $now->day, Carbon::parse($updatedAt)->setTimezone($tz)->format('d-m-Y H:i')),
             'days_elapsed' => $now->day,

@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 /**
  * Penarikan per ULP per bulan dari APKT. RPT dan RCT: WO gangguan (monalisaJumlahDurasiRptRctGangguan, dua kali per bulan: parameter 0 = semua laporan (dengan clear temper) dan 1 = tanpa clear temper;
- * kolom `clear_temper` bernilai true untuk dengan clear temper) dan WO keluhan (monalisaJumlahDurasiRptRctKeluhan, satu kali per bulan, tanpa varian clear temper). Anomali pengaduan gangguan (dua query per bulan: berulang dan rating negatif, rentang tanggal bulan itu).
+ * kolom `clear_temper` bernilai true untuk dengan clear temper) dan WO keluhan (monalisaJumlahDurasiRptRctKeluhan, satu kali per bulan, tanpa varian clear temper). Anomali pengaduan gangguan dan keluhan (dua query per bulan: berulang dan rating negatif, rentang tanggal bulan itu).
  * Satu permintaan memuat semua ULP di bawah UP3 (idUlp kosong). Hasil disimpan di apkt_rpt_rct_records atau apkt_rpt_rct_keluhan_records (bulan, ULP, dan jenis sama menggantikan yang lama); hanya nilai bulan berjalan
  * yang dipakai, kumulatif tahun berjalan dihitung dari bulanan.
  */
@@ -24,12 +24,20 @@ class ApktRptRctSync
         'rpt-rct-gangguan' => ['field' => 'monalisaJumlahDurasiRptRctGangguan', 'table' => 'apkt_rpt_rct_records', 'label' => 'WO gangguan'],
         'rpt-rct-keluhan' => ['field' => 'monalisaJumlahDurasiRptRctKeluhan', 'table' => 'apkt_rpt_rct_keluhan_records', 'label' => 'WO keluhan'],
         'anomali-gangguan' => ['field' => null, 'table' => 'apkt_anomali_gangguan_records', 'label' => 'anomali pengaduan gangguan'],
+        'anomali-keluhan' => ['field' => null, 'table' => 'apkt_anomali_keluhan_records', 'label' => 'anomali pengaduan keluhan'],
     ];
 
-    /** Dataset anomali gangguan: jenis => nama query APKT. */
-    private const ANOMALI_QUERIES = ['BERULANG' => 'anomaliPenangananPengaduanGangguanUnitBerulang', 'NEGATIF' => 'anomaliPenangananPengaduanGangguanUnitRatingNegatif'];
+    /** Dataset anomali: jenis => nama query APKT. */
+    private const ANOMALI_QUERIES = [
+        'anomali-gangguan' => ['BERULANG' => 'anomaliPenangananPengaduanGangguanUnitBerulang', 'NEGATIF' => 'anomaliPenangananPengaduanGangguanUnitRatingNegatif'],
+        'anomali-keluhan' => ['BERULANG' => 'anomaliLaporanPenangananPengaduanKeluhanUnitBerulang', 'NEGATIF' => 'anomaliLaporanPenangananPengaduanKeluhanUnitRatingNegatif'],
+    ];
 
-    private const ANOMALI_FIELDS = ['wo_cc123', 'wo_pln_mobile', 'wo_loket', 'wo_lainnya', 'wo_total', 'anomali_pln_mobile_marking', 'anomali_pln_mobile_non_marking', 'anomali_cc123_marking', 'anomali_cc123_non_marking', 'total_anomali_marking', 'total_anomali_non_marking'];
+    /** Dataset anomali: kolom jumlah WO dan anomali yang dibaca dari APKT dan disimpan. */
+    private const ANOMALI_FIELDS = [
+        'anomali-gangguan' => ['wo_cc123', 'wo_pln_mobile', 'wo_loket', 'wo_lainnya', 'wo_total', 'anomali_pln_mobile_marking', 'anomali_pln_mobile_non_marking', 'anomali_cc123_marking', 'anomali_cc123_non_marking', 'total_anomali_marking', 'total_anomali_non_marking'],
+        'anomali-keluhan' => ['wo_cc123', 'wo_pln_mobile', 'wo_loket', 'wo_lainnya', 'wo_total', 'anomali_pln_mobile', 'anomali_cc123', 'total_anomali'],
+    ];
 
     private const LOG_LIMIT = 30000;
 
@@ -69,10 +77,10 @@ class ApktRptRctSync
         }
         $variants = match ($dataset) {
             'rpt-rct-gangguan' => [0, 1],
-            'anomali-gangguan' => ['BERULANG', 'NEGATIF'],
+            'anomali-gangguan', 'anomali-keluhan' => ['BERULANG', 'NEGATIF'],
             default => [null],
         };
-        $say(sprintf('Penarikan %s %s dari APKT: %d bulan (%s s.d. %s)%s.', $dataset === 'anomali-gangguan' ? 'anomali' : 'RPT/RCT', str_replace('anomali ', '', self::DATASETS[$dataset]['label']), count($months), $months[0] ?? '-', end($months) ?: '-', $dataset === 'rpt-rct-gangguan' ? ', tanpa dan dengan clear temper' : ''));
+        $say(sprintf('Penarikan %s %s dari APKT: %d bulan (%s s.d. %s)%s.', isset(self::ANOMALI_QUERIES[$dataset]) ? 'anomali' : 'RPT/RCT', str_replace('anomali ', '', self::DATASETS[$dataset]['label']), count($months), $months[0] ?? '-', end($months) ?: '-', $dataset === 'rpt-rct-gangguan' ? ', tanpa dan dengan clear temper' : ''));
 
         $failed = 0;
         $stored = 0;
@@ -124,11 +132,12 @@ class ApktRptRctSync
     public function fetch(string $token, int $year, int $month, int|string|null $clearTemper = null, string $dataset = 'rpt-rct-gangguan'): array
     {
         $cfg = config('distriva.apkt');
-        $field = $dataset === 'anomali-gangguan' ? self::ANOMALI_QUERIES[(string) $clearTemper] : self::DATASETS[$dataset]['field'];
+        $anomali = isset(self::ANOMALI_QUERIES[$dataset]);
+        $field = $anomali ? self::ANOMALI_QUERIES[$dataset][(string) $clearTemper] : self::DATASETS[$dataset]['field'];
         $variables = ['namaRegional' => '', 'idUid' => [$cfg['id_uid']], 'idUp3' => [$cfg['id_up3']], 'idUlp' => []];
-        $dataset === 'anomali-gangguan' ? $variables += ['dateFrom' => sprintf('%04d-%02d-01', $year, $month), 'dateTo' => date('Y-m-t', (int) strtotime(sprintf('%04d-%02d-01', $year, $month)))] : $variables += ['bulan' => $month, 'tahun' => $year];
-        $query = $dataset === 'anomali-gangguan'
-            ? sprintf('query %1$s($dateFrom: Date!, $dateTo: Date!, $namaRegional: String!, $idUlp: [Int], $idUid: [Int], $idUp3: [Int]) { %1$s(dateFrom: $dateFrom, dateTo: $dateTo, namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3) { id_uid nama_uid id_up3 nama_up3 id_ulp nama_ulp %2$s } }', $field, implode(' ', self::ANOMALI_FIELDS))
+        $anomali ? $variables += ['dateFrom' => sprintf('%04d-%02d-01', $year, $month), 'dateTo' => date('Y-m-t', (int) strtotime(sprintf('%04d-%02d-01', $year, $month)))] : $variables += ['bulan' => $month, 'tahun' => $year];
+        $query = $anomali
+            ? sprintf('query %1$s($dateFrom: Date!, $dateTo: Date!, $namaRegional: String!, $idUlp: [Int], $idUid: [Int], $idUp3: [Int]) { %1$s(dateFrom: $dateFrom, dateTo: $dateTo, namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3) { id_uid nama_uid id_up3 nama_up3 id_ulp nama_ulp %2$s } }', $field, implode(' ', self::ANOMALI_FIELDS[$dataset]))
             : ($dataset === 'rpt-rct-gangguan'
             ? sprintf('query %1$s($namaRegional: String, $idUlp: [Int], $idUid: [Int], $idUp3: [Int], $bulan: Int, $tahun: Int, $clearTemper: Int) { %1$s(namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3, bulan: $bulan, tahun: $tahun, clearTemper: $clearTemper) { %2$s } }', $field, self::FIELDS)
             : sprintf('query %1$s($bulan: Int!, $tahun: Int!, $namaRegional: String!, $idUlp: [Int], $idUid: [Int], $idUp3: [Int]) { %1$s(bulan: $bulan, tahun: $tahun, namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3) { %2$s } }', $field, self::FIELDS));
@@ -166,13 +175,13 @@ class ApktRptRctSync
             }
             $row = ['id' => (string) Str::uuid(), 'organizational_unit_id' => $ulp->id, 'period' => $ym.'-01', 'sync_run_id' => $runId, 'created_at' => now(), 'updated_at' => now()];
             $keys = ['organizational_unit_id', 'period'];
-            if ($dataset === 'anomali-gangguan') {
+            if (isset(self::ANOMALI_QUERIES[$dataset])) {
                 $row['jenis'] = (string) $variant;
                 $keys[] = 'jenis';
-                foreach (self::ANOMALI_FIELDS as $field) {
+                foreach (self::ANOMALI_FIELDS[$dataset] as $field) {
                     $row[$field] = (int) ($r[$field] ?? 0);
                 }
-                $update = [...self::ANOMALI_FIELDS, 'sync_run_id', 'updated_at'];
+                $update = [...self::ANOMALI_FIELDS[$dataset], 'sync_run_id', 'updated_at'];
             } else {
                 $row += ['rpt_total' => (float) ($r['total_durasi_response_time_bulan_ini'] ?? 0), 'rpt_count' => (int) ($r['count_durasi_response_time_bulan_ini'] ?? 0),
                     'rct_total' => (float) ($r['total_durasi_recovery_time_bulan_ini'] ?? 0), 'rct_count' => (int) ($r['count_durasi_recovery_time_bulan_ini'] ?? 0)];
