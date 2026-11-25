@@ -626,6 +626,26 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function histori_saidi_saifi_memuat_penarikan_apkt_saidi_saifi_tanpa_dataset_lain_dan_tanpa_token(): void
+    {
+        $insert = fn (array $options, string $at) => DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode($options), 'created_at' => $at]);
+        $insert(['from_month' => '2026-09', 'to_month' => '2026-09', 'token_encrypted' => 'rahasia'], '2026-11-01 10:00:00');                  // run lama tanpa dataset = SAIDI/SAIFI
+        $insert(['dataset' => 'saidi-saifi', 'to_month' => '2026-10', 'token_encrypted' => 'rahasia'], '2026-11-02 10:00:00');
+        $insert(['dataset' => 'rpt-rct-gangguan', 'to_month' => '2026-10'], '2026-11-03 10:00:00');
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
+
+        foreach (['saidi-saifi', 'ens'] as $code) {
+            $syncs = collect($this->as($admin)->getJson("/api/pengusahaan/metrics/{$code}/history?unit_id={$this->up3->id}")->assertOk()->json('data.syncs'))->where('kind', 'apkt')->values();
+            $this->assertCount(2, $syncs);
+            $this->assertSame('2026-10', $syncs[0]['options']['to_month']);                              // terbaru lebih dulu
+            $this->assertStringNotContainsString('rahasia', json_encode($syncs));
+        }
+        $gangguan = $this->as($admin)->getJson("/api/pengusahaan/metrics/gangguan/history?unit_id={$this->up3->id}")->assertOk()->json('data.syncs');
+        $this->assertSame([], array_values(array_filter((array) $gangguan, fn ($s) => $s['kind'] === 'apkt')));   // gangguan penyulang bersumber spreadsheet, bukan APKT
+    }
+
+    #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {
         $this->sales($this->ulpB, '2026-01-01', 1, 1);

@@ -123,7 +123,7 @@ class BusinessAnalyticsController extends Controller
     }
 
     /**
-     * Sesi sinkronisasi yang memasok metrik ini: penarikan piutang EIS (piutang), penarikan permohonan EIS (pelanggan, daya, HPL BP), sinkron gangguan (keandalan). Tanpa izin: null.
+     * Sesi sinkronisasi yang memasok metrik ini: penarikan piutang EIS (piutang), penarikan permohonan EIS (pelanggan, daya, HPL BP), sinkron gangguan dan penarikan APKT (keandalan: SAIDI/SAIFI dan ENS memuat keduanya, RPT-RCT gangguan hanya APKT). Tanpa izin: null.
      *
      * @return list<array<string, mixed>>|null
      */
@@ -136,33 +136,46 @@ class BusinessAnalyticsController extends Controller
                 return null;
             }
 
-            return DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.kind', $eis)->orderByDesc('r.created_at')->limit(20)
-                ->get(['r.id', 'r.trigger', 'r.status', 'r.kind', 'r.options', 'r.range_from', 'r.range_to', 'r.exit_code', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
-                ->map(fn ($r) => ['source' => 'eis-sync', 'id' => $r->id, 'kind' => strtolower((string) $r->kind), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'options' => $r->options === null ? null : json_decode((string) $r->options, true),
-                    'range_from' => $r->range_from, 'range_to' => $r->range_to, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
+            return $this->eisRuns($eis);
         }
         if ($code === 'rpt-rct-gangguan') {
             if ($this->authorizer->roleFor($user, 'eis_sync.manage') === null) {
                 return null;
             }
 
-            return DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.kind', 'APKT')->whereRaw("r.options->>'dataset' = 'rpt-rct-gangguan'")->orderByDesc('r.created_at')->limit(20)
-                ->get(['r.id', 'r.trigger', 'r.status', 'r.kind', 'r.options', 'r.range_from', 'r.range_to', 'r.exit_code', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
-                ->map(fn ($r) => ['source' => 'eis-sync', 'id' => $r->id, 'kind' => strtolower((string) $r->kind), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'options' => $r->options === null ? null : array_diff_key((array) json_decode((string) $r->options, true), ['token_encrypted' => 1]),
-                    'range_from' => $r->range_from, 'range_to' => $r->range_to, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
+            return $this->eisRuns('APKT', 'rpt-rct-gangguan');
         }
         if (in_array($code, ['gangguan', 'saidi-saifi', 'ens'], true)) {
-            if ($this->authorizer->roleFor($user, 'outages.view') === null) {
+            $outages = $this->authorizer->roleFor($user, 'outages.view') !== null;
+            $apkt = $code !== 'gangguan' && $this->authorizer->roleFor($user, 'eis_sync.manage') !== null;      // penarikan APKT SAIDI/SAIFI masuk sebagai laporan DIFI
+            if (! $outages && ! $apkt) {
                 return null;
             }
-
-            return DB::table('outage_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->orderByDesc('r.created_at')->limit(20)
+            $runs = $outages ? DB::table('outage_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->orderByDesc('r.created_at')->limit(20)
                 ->get(['r.id', 'r.trigger', 'r.status', 'r.counts', 'r.message', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
                 ->map(fn ($r) => ['source' => 'outage-sync', 'id' => $r->id, 'kind' => 'gangguan', 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'counts' => $r->counts === null ? null : json_decode((string) $r->counts, true),
-                    'message' => $r->message, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
+                    'message' => $r->message, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all() : [];
+            $runs = array_merge($runs, $apkt ? $this->eisRuns('APKT', 'saidi-saifi') : []);
+            usort($runs, fn ($a, $b) => strcmp((string) $b['created_at'], (string) $a['created_at']));
+
+            return array_slice($runs, 0, 20);
         }
 
         return [];
+    }
+
+    /**
+     * Penarikan `eis_sync_runs` satu jenis (token APKT tidak pernah ikut). `$dataset` hanya untuk APKT; run lama tanpa `dataset` dianggap SAIDI/SAIFI.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function eisRuns(string $kind, ?string $dataset = null): array
+    {
+        return DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.kind', $kind)
+            ->when($dataset !== null, fn ($q) => $q->whereRaw("coalesce(r.options->>'dataset', 'saidi-saifi') = ?", [$dataset]))->orderByDesc('r.created_at')->limit(20)
+            ->get(['r.id', 'r.trigger', 'r.status', 'r.kind', 'r.options', 'r.range_from', 'r.range_to', 'r.exit_code', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
+            ->map(fn ($r) => ['source' => 'eis-sync', 'id' => $r->id, 'kind' => strtolower((string) $r->kind), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'options' => $r->options === null ? null : array_diff_key((array) json_decode((string) $r->options, true), ['token_encrypted' => 1]),
+                'range_from' => $r->range_from, 'range_to' => $r->range_to, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
     }
 
     /**
