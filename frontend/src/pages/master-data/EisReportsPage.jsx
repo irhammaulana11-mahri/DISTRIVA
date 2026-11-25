@@ -5,6 +5,7 @@ import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import { useScopedUnits } from '../../utils/unitScope.js'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -75,6 +76,29 @@ function StatusBadge({ status }) {
       }`}
     >
       {status}
+    </span>
+  )
+}
+
+function SourceBadge({ source }) {
+  const s = String(source || '').toUpperCase()
+  if (s === 'AP2T') {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+        AP2T
+      </span>
+    )
+  }
+  if (s === 'APKT') {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+        APKT
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+      EIS
     </span>
   )
 }
@@ -620,9 +644,9 @@ function FileLinesDrawer({ fileId, onClose }) {
 }
 
 /** Tampilan Matriks Kelengkapan untuk Seluruh ULP di Bawah Satu UP3 */
-function Up3CoverageView({ data, onSelectUlp }) {
+function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
   const [viewMode, setViewMode] = useState('summary') // 'summary' | 'matrix'
-  const [filterFamily, setFilterFamily] = useState('')
+  const [filterDataset, setFilterDataset] = useState('')
 
   const expectedUntil = data.expected_until_month || 0
   const expectedMonthName = expectedUntil > 0 ? MONTH_NAMES[expectedUntil - 1] : '-'
@@ -630,8 +654,32 @@ function Up3CoverageView({ data, onSelectUlp }) {
     ? Math.round(((data.expected_total - data.missing_total) / data.expected_total) * 100)
     : 100
 
-  const familiesList = data.families_list || Object.keys(FAMILY_LABELS)
-  const filteredFamilies = filterFamily ? [filterFamily] : familiesList
+  // Daftar dataset aktif (docs/88 & Butir 31)
+  const datasetsList = useMemo(() => {
+    if (data.datasets_list && data.datasets_list.length > 0) {
+      return data.datasets_list
+    }
+    // Fallback bila backend versi lama
+    return (data.families_list || Object.keys(FAMILY_LABELS)).map((f) => ({
+      code: f,
+      name: FAMILY_LABELS[f] || f,
+      source: f === 'DIFI' || f.startsWith('GGN') || f.startsWith('KLH') ? 'APKT' : f === '309' || f === 'TAGSUS' ? 'AP2T' : 'EIS',
+      storage: 'file',
+      used_by: [],
+    }))
+  }, [data])
+
+  const filteredDatasets = filterDataset
+    ? datasetsList.filter((d) => d.code === filterDataset)
+    : datasetsList
+
+  const datasetMap = useMemo(() => {
+    const map = {}
+    datasetsList.forEach((d) => {
+      map[d.code] = d
+    })
+    return map
+  }, [datasetsList])
 
   return (
     <div className="space-y-5">
@@ -648,7 +696,7 @@ function Up3CoverageView({ data, onSelectUlp }) {
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Kelengkapan 15 jenis laporan bulanan EIS dari seluruh ULP di bawah {data.up3_name}.
+              Kelengkapan {datasetsList.length} dataset aktif (AP2T, APKT, EIS) dari seluruh ULP di bawah {data.up3_name}.
             </p>
           </div>
 
@@ -707,7 +755,7 @@ function Up3CoverageView({ data, onSelectUlp }) {
               </span>
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
-              Dari total berkas yang diharapkan s.d. bulan berjalan
+              Dari 11 dataset aktif s.d. bulan berjalan
             </p>
           </div>
 
@@ -726,13 +774,13 @@ function Up3CoverageView({ data, onSelectUlp }) {
               {data.missing_total === 0 ? (
                 <span className="text-xs font-semibold text-emerald-600">Lengkap</span>
               ) : (
-                <span className="text-xs font-semibold text-rose-600">Perlu Diunggah</span>
+                <span className="text-xs font-semibold text-rose-600">Perlu Diunggah / Ditarik</span>
               )}
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
               {data.missing_total === 0
                 ? 'Seluruh ULP telah memenuhi berkas laporan.'
-                : 'Laporan yang perlu segera diunggah oleh ULP terkait.'}
+                : 'Laporan/data yang perlu diunggah atau ditarik via sinkronisasi.'}
             </p>
           </div>
         </div>
@@ -746,7 +794,7 @@ function Up3CoverageView({ data, onSelectUlp }) {
               <tr>
                 <th className="py-2.5 px-4 w-48">Unit ULP</th>
                 <th className="py-2.5 px-3 w-36">Status</th>
-                <th className="py-2.5 px-4">Laporan Belum Masuk (Missing)</th>
+                <th className="py-2.5 px-4">Dataset Belum Masuk (Missing)</th>
                 <th className="py-2.5 px-3 text-right w-36">Aksi</th>
               </tr>
             </thead>
@@ -779,18 +827,26 @@ function Up3CoverageView({ data, onSelectUlp }) {
                     <td className="py-3 px-4">
                       {isComplete ? (
                         <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">
-                          Seluruh laporan s.d. bulan {expectedMonthName} lengkap.
+                          Seluruh dataset aktif s.d. bulan {expectedMonthName} lengkap.
                         </span>
                       ) : (
                         <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                          {u.missing.map((m, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 font-mono"
-                            >
-                              {m.family} ({MONTH_NAMES[m.month - 1]})
-                            </span>
-                          ))}
+                          {u.missing.map((m, idx) => {
+                            const datasetCode = m.dataset || m.family
+                            const meta = datasetMap[datasetCode]
+                            const displayName = meta ? meta.name : datasetCode
+                            const source = meta?.source || (datasetCode.startsWith('APKT') ? 'APKT' : datasetCode.startsWith('AP2T') ? 'AP2T' : 'EIS')
+                            return (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 font-mono"
+                                title={`Belum ada data ${displayName} untuk bulan ${MONTH_NAMES[m.month - 1]}`}
+                              >
+                                <SourceBadge source={source} />
+                                <span>{displayName} ({MONTH_NAMES[m.month - 1]})</span>
+                              </span>
+                            )
+                          })}
                         </div>
                       )}
                     </td>
@@ -816,18 +872,20 @@ function Up3CoverageView({ data, onSelectUlp }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Matriks Baris ULP &times; Jenis Laporan per Bulan (Jan–Des)
+              Matriks Baris ULP &times; Dataset per Bulan (Jan–Des)
             </span>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-500">Filter Jenis:</label>
+              <label className="text-xs text-slate-500">Filter Dataset:</label>
               <select
-                value={filterFamily}
-                onChange={(e) => setFilterFamily(e.target.value)}
+                value={filterDataset}
+                onChange={(e) => setFilterDataset(e.target.value)}
                 className={`${filterSelectCls} text-xs`}
               >
-                <option value="">Semua Jenis Laporan ({familiesList.length})</option>
-                {familiesList.map((f) => (
-                  <option key={f} value={f}>{f} - {FAMILY_LABELS[f] || f}</option>
+                <option value="">Semua Dataset Aktif ({datasetsList.length})</option>
+                {datasetsList.map((d) => (
+                  <option key={d.code} value={d.code}>
+                    [{d.source}] {d.name} ({d.code})
+                  </option>
                 ))}
               </select>
             </div>
@@ -838,7 +896,7 @@ function Up3CoverageView({ data, onSelectUlp }) {
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-xs text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 z-10">
                 <tr>
                   <th className="py-2.5 px-3 w-40">ULP</th>
-                  <th className="py-2.5 px-3 w-44">Jenis Laporan</th>
+                  <th className="py-2.5 px-3 w-56">Dataset &amp; Sumber</th>
                   {MONTH_NAMES.map((m, idx) => (
                     <th key={idx} className="py-2.5 px-1.5 text-center w-10">{m}</th>
                   ))}
@@ -846,13 +904,19 @@ function Up3CoverageView({ data, onSelectUlp }) {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.units.map((u) => {
-                  return filteredFamilies.map((fam, fIdx) => {
-                    const rowMonths = u.families?.[fam] || {}
+                  return filteredDatasets.map((d, fIdx) => {
+                    const rowMonths = u.datasets?.[d.code] || (d.family && u.families?.[d.family]) || {}
+                    const isApkt = d.source === 'APKT'
+                    const isAp2tTagsus = d.code === 'AP2T.TAGSUS'
+                    const usedByText = d.used_by && d.used_by.length > 0
+                      ? `Dipakai menu: ${d.used_by.join(', ')}`
+                      : 'Arsip / belum dipakai menu'
+
                     return (
-                      <tr key={`${u.unit_id}-${fam}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                      <tr key={`${u.unit_id}-${d.code}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                         {fIdx === 0 && (
                           <td
-                            rowSpan={filteredFamilies.length}
+                            rowSpan={filteredDatasets.length}
                             className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100 align-top border-r border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30"
                           >
                             <div>{u.unit_name}</div>
@@ -868,11 +932,23 @@ function Up3CoverageView({ data, onSelectUlp }) {
                             </div>
                           </td>
                         )}
-                        <td className="py-2 px-3 font-medium text-slate-700 dark:text-slate-300">
-                          {fam}
-                          <span className="block text-[10px] text-slate-400 font-normal truncate max-w-[170px]" title={FAMILY_LABELS[fam]}>
-                            {FAMILY_LABELS[fam]}
-                          </span>
+                        <td className="py-2 px-3 font-medium text-slate-700 dark:text-slate-300" title={usedByText}>
+                          <div className="flex items-center gap-1.5">
+                            <SourceBadge source={d.source} />
+                            <span className="truncate max-w-[200px] font-semibold text-slate-800 dark:text-slate-200">
+                              {d.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {d.code}
+                            </span>
+                            {d.used_by && d.used_by.length > 0 && (
+                              <span className="text-[9px] text-slate-400 truncate max-w-[140px]" title={usedByText}>
+                                • {d.used_by.join(', ')}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         {Array.from({ length: 12 }, (_, i) => i + 1).map((mNum) => {
                           const isPresent = Boolean(rowMonths[mNum])
@@ -883,17 +959,37 @@ function Up3CoverageView({ data, onSelectUlp }) {
                               {isPresent ? (
                                 <span
                                   className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]"
-                                  title={`Bulan ${mNum}: Berkas aktif tersedia`}
+                                  title={`Bulan ${mNum}: Lengkap / Aktif`}
                                 >
                                   ✓
                                 </span>
                               ) : isExpected ? (
-                                <span
-                                  className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-[10px]"
-                                  title={`Bulan ${mNum}: Belum ada berkas (Kurang)`}
-                                >
-                                  !
-                                </span>
+                                isApkt ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onTriggerSync?.('apkt', d.code)}
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 font-bold text-[10px] cursor-pointer"
+                                    title={`Bulan ${mNum}: Belum ada data. Klik untuk tarik lewat tombol Tarik APKT`}
+                                  >
+                                    !
+                                  </button>
+                                ) : isAp2tTagsus ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onTriggerSync?.('ap2t', d.code)}
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 font-bold text-[10px] cursor-pointer"
+                                    title={`Bulan ${mNum}: Belum ada data. Klik untuk tarik lewat tombol Tarik AP2T`}
+                                  >
+                                    !
+                                  </button>
+                                ) : (
+                                  <span
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-[10px]"
+                                    title={`Bulan ${mNum}: Belum ada berkas (Unggah lewat tombol Unggah Laporan)`}
+                                  >
+                                    !
+                                  </span>
+                                )
                               ) : (
                                 <span
                                   className="inline-block text-slate-300 dark:text-slate-600 text-[11px]"
@@ -919,45 +1015,95 @@ function Up3CoverageView({ data, onSelectUlp }) {
 }
 
 /** Tampilan Matriks Kelengkapan untuk Satu ULP Spesifik */
-function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3 }) {
+function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTriggerSync }) {
+  const [showLegacy, setShowLegacy] = useState(false)
+
+  // Daftar dataset aktif (docs/88 & Butir 31)
+  const datasets = useMemo(() => {
+    if (data.datasets && data.datasets.length > 0) {
+      return data.datasets
+    }
+    // Fallback dari families jika API lama
+    return Object.keys(FAMILY_LABELS).map((fam) => ({
+      code: fam,
+      name: FAMILY_LABELS[fam] || fam,
+      source: fam === 'DIFI' || fam.startsWith('GGN') || fam.startsWith('KLH') ? 'APKT' : fam === '309' || fam === 'TAGSUS' ? 'AP2T' : 'EIS',
+      storage: 'file',
+      family: fam,
+      used_by: [],
+      months: data?.families?.[fam] || {},
+    }))
+  }, [data])
+
+  const legacyFamilies = data?.legacy_families || []
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 flex-wrap gap-2">
         <div>
           <h3 className="font-bold text-slate-900 dark:text-slate-100">
-            Matriks Kelengkapan Laporan Tahun {data.year}
+            Matriks Kelengkapan Dataset Tahun {data.year}
           </h3>
           <p className="text-xs text-slate-500">
-            Status keberadaan 15 jenis berkas laporan bulanan aktif (Januari - Desember) untuk unit terpilih.
+            Status keberadaan {datasets.length} dataset aktif (Januari - Desember) untuk unit terpilih.
           </p>
         </div>
-        {onBackToUp3 && (
-          <Button variant="secondary" size="xs" onClick={onBackToUp3}>
-            &larr; Kembali ke Ringkasan UP3
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {legacyFamilies.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowLegacy((v) => !v)}
+              className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline cursor-pointer"
+            >
+              {showLegacy ? 'Sembunyikan Jenis Lama' : `Lihat Arsip (${legacyFamilies.length} Jenis Lama)`}
+            </button>
+          )}
+          {onBackToUp3 && (
+            <Button variant="secondary" size="xs" onClick={onBackToUp3}>
+              &larr; Kembali ke Ringkasan UP3
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
             <tr>
-              <th className="py-2.5 px-3">Jenis Laporan</th>
+              <th className="py-2.5 px-3">Dataset &amp; Sumber</th>
               {MONTH_NAMES.map((m, idx) => (
                 <th key={idx} className="py-2.5 px-2 text-center w-12">{m}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {Object.keys(FAMILY_LABELS).map((fam) => {
-              const rowMonths = data?.families?.[fam] || {}
+            {datasets.map((d) => {
+              const rowMonths = d.months || {}
+              const isApkt = d.source === 'APKT'
+              const isAp2tTagsus = d.code === 'AP2T.TAGSUS'
+              const usedByText = d.used_by && d.used_by.length > 0
+                ? `Dipakai menu: ${d.used_by.join(', ')}`
+                : 'Arsip / belum dipakai menu'
+
               return (
-                <tr key={fam} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                  <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                    {fam}
-                    <span className="block text-[10px] font-normal text-slate-400">
-                      {FAMILY_LABELS[fam]}
-                    </span>
+                <tr key={d.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                  <td className="py-2.5 px-3" title={usedByText}>
+                    <div className="flex items-center gap-1.5">
+                      <SourceBadge source={d.source} />
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {d.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {d.code}
+                      </span>
+                      {d.used_by && d.used_by.length > 0 && (
+                        <span className="text-[10px] text-slate-400">
+                          • {usedByText}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((mNum) => {
                     const isPresent = Boolean(rowMonths[mNum])
@@ -967,17 +1113,37 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3 }) {
                         {isPresent ? (
                           <span
                             className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]"
-                            title="Berkas aktif tersedia"
+                            title={`Bulan ${mNum}: Lengkap / Aktif`}
                           >
                             ✓
                           </span>
                         ) : isExpected ? (
-                          <span
-                            className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-[10px]"
-                            title="Belum ada berkas (Kurang)"
-                          >
-                            !
-                          </span>
+                          isApkt ? (
+                            <button
+                              type="button"
+                              onClick={() => onTriggerSync?.('apkt', d.code)}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 font-bold text-[10px] cursor-pointer"
+                              title={`Bulan ${mNum}: Belum ada data. Tarik lewat tombol Tarik APKT`}
+                            >
+                              !
+                            </button>
+                          ) : isAp2tTagsus ? (
+                            <button
+                              type="button"
+                              onClick={() => onTriggerSync?.('ap2t', d.code)}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 font-bold text-[10px] cursor-pointer"
+                              title={`Bulan ${mNum}: Belum ada data. Tarik lewat tombol Tarik AP2T`}
+                            >
+                              !
+                            </button>
+                          ) : (
+                            <span
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-[10px]"
+                              title={`Bulan ${mNum}: Belum ada berkas (Kurang)`}
+                            >
+                              !
+                            </span>
+                          )
                         ) : (
                           <span className="inline-block text-slate-300 dark:text-slate-600 text-[11px]" title="Belum jatuh tempo">
                             —
@@ -992,6 +1158,55 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3 }) {
           </tbody>
         </table>
       </div>
+
+      {/* Bagian Arsip / Jenis Lama jika diaktifkan */}
+      {showLegacy && legacyFamilies.length > 0 && (
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Arsip Jenis Laporan EIS Lama (Tidak Dihitung Kurang)
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Laporan-laporan berikut sudah digantikan oleh penarikan APKT langsung atau format baru. Berkas tetap dapat diunggah dan disimpan.
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 dark:bg-slate-700/60 text-[10px] text-slate-500 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  <th className="py-2 px-3">Jenis Laporan Lama</th>
+                  {MONTH_NAMES.map((m, idx) => (
+                    <th key={idx} className="py-2 px-1 text-center w-10">{m}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {legacyFamilies.map((fam) => {
+                  const rowMonths = data?.families?.[fam] || {}
+                  return (
+                    <tr key={fam} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                      <td className="py-1.5 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                        {fam} <span className="font-sans text-[10px] text-slate-400">({FAMILY_LABELS[fam] || fam})</span>
+                      </td>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((mNum) => (
+                        <td key={mNum} className="py-1.5 px-1 text-center">
+                          {rowMonths[mNum] ? (
+                            <span className="text-slate-600 dark:text-slate-400 font-bold text-[10px]">✓</span>
+                          ) : (
+                            <span className="text-slate-300 dark:text-slate-600 text-[10px]">—</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1024,6 +1239,16 @@ export default function EisReportsPage() {
   // Modal / Drawer state
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [previewFileId, setPreviewFileId] = useState(null)
+  const [syncDrawerState, setSyncDrawerState] = useState({ open: false, mode: 'apkt', dataset: 'saidi-saifi' })
+
+  const handleTriggerSync = (mode, datasetCode) => {
+    let dataset = 'saidi-saifi'
+    if (datasetCode === 'APKT.RPT_RCT_GANGGUAN') dataset = 'rpt-rct-gangguan'
+    else if (datasetCode === 'APKT.RPT_RCT_KELUHAN') dataset = 'rpt-rct-keluhan'
+    else if (datasetCode === 'APKT.ANOMALI_GANGGUAN') dataset = 'anomali-gangguan'
+    else if (datasetCode === 'APKT.ANOMALI_KELUHAN') dataset = 'anomali-keluhan'
+    setSyncDrawerState({ open: true, mode, dataset })
+  }
 
   const loadFiles = useCallback(async () => {
     setFilesState((s) => ({ ...s, loading: true, error: '' }))
@@ -1432,6 +1657,7 @@ export default function EisReportsPage() {
               onSelectUlp={(uid) => {
                 setUnitId(uid)
               }}
+              onTriggerSync={handleTriggerSync}
             />
           ) : (
             <SingleUnitCoverageView
@@ -1444,6 +1670,7 @@ export default function EisReportsPage() {
                   : 0
               }
               onBackToUp3={up3Id ? () => setUnitId('') : null}
+              onTriggerSync={handleTriggerSync}
             />
           )}
         </div>
@@ -1456,6 +1683,18 @@ export default function EisReportsPage() {
         onUploaded={() => {
           loadFiles()
           if (tab === 'coverage') loadCoverage()
+        }}
+      />
+
+      {/* Drawer Tarik APKT / AP2T dari Matriks Kelengkapan */}
+      <EisSyncDrawer
+        open={syncDrawerState.open}
+        mode={syncDrawerState.mode}
+        initialDataset={syncDrawerState.dataset}
+        onClose={() => setSyncDrawerState((s) => ({ ...s, open: false }))}
+        onSynced={() => {
+          if (tab === 'coverage') loadCoverage()
+          loadFiles()
         }}
       />
 

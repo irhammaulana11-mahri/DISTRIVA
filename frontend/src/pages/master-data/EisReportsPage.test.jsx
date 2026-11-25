@@ -202,13 +202,19 @@ describe('EisReportsPage', () => {
     expect(screen.getByText('BARU')).toBeInTheDocument()
   })
 
-  it('5. menampilkan matriks kelengkapan seluruh ULP saat UP3 dipilih tanpa unitId', async () => {
+  it('5. menampilkan matriks kelengkapan seluruh ULP saat UP3 dipilih tanpa unitId dengan katalog dataset', async () => {
     const mockUp3Coverage = {
       data: {
         up3_id: 'up3-1',
         up3_name: 'UP3 Mojokerto',
         year: 2026,
         expected_until_month: 10,
+        datasets_list: [
+          { code: 'AP2T.PENJUALAN_309', name: 'Penjualan Tenaga Listrik (309)', source: 'AP2T', storage: 'file', family: '309', used_by: ['pelanggan', 'daya'] },
+          { code: 'APKT.SAIDI_SAIFI', name: 'Laporan SAIDI SAIFI', source: 'APKT', storage: 'file', family: 'DIFI', used_by: ['saidi-saifi'] },
+          { code: 'EIS.UMUR_PIUTANG', name: 'Umur Tunggakan Pascabayar', source: 'EIS', storage: 'file', family: 'UMURPIUTANG', used_by: ['piutang-pascabayar-umur'] },
+        ],
+        legacy_families: ['GGNALL', 'GGNNEGATIF'],
         families_list: ['309', 'DIFI', 'UMURPIUTANG'],
         expected_total: 60,
         missing_total: 2,
@@ -217,7 +223,7 @@ describe('EisReportsPage', () => {
             unit_id: 'u-1',
             unit_code: '51453',
             unit_name: 'ULP Jombang',
-            families: { 309: { 10: true } },
+            datasets: { 'AP2T.PENJUALAN_309': { 10: true } },
             missing_count: 0,
             missing: [],
           },
@@ -225,11 +231,11 @@ describe('EisReportsPage', () => {
             unit_id: 'u-2',
             unit_code: '51454',
             unit_name: 'ULP Ngoro',
-            families: { 309: { 10: false } },
+            datasets: { 'AP2T.PENJUALAN_309': { 10: false } },
             missing_count: 2,
             missing: [
-              { family: '309', month: 10 },
-              { family: 'DIFI', month: 10 },
+              { dataset: 'AP2T.PENJUALAN_309', month: 10 },
+              { dataset: 'APKT.SAIDI_SAIFI', month: 10 },
             ],
           },
         ],
@@ -252,12 +258,49 @@ describe('EisReportsPage', () => {
     expect(screen.getByText(/s.d. Bulan Okt \(10\)/i)).toBeInTheDocument()
     expect(screen.getByText('2 berkas')).toBeInTheDocument()
 
-    // Ringkasan tiap ULP
+    // Ringkasan tiap ULP dengan nama dataset dan badge sumber
     expect(screen.getByText('ULP Jombang')).toBeInTheDocument()
     expect(screen.getByText('Lengkap')).toBeInTheDocument()
     expect(screen.getByText('ULP Ngoro')).toBeInTheDocument()
     expect(screen.getByText('2 Kurang')).toBeInTheDocument()
-    expect(screen.getByText('309 (Okt)')).toBeInTheDocument()
-    expect(screen.getByText('DIFI (Okt)')).toBeInTheDocument()
+    expect(screen.getByText(/Penjualan Tenaga Listrik \(309\) \(Okt\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Laporan SAIDI SAIFI \(Okt\)/i)).toBeInTheDocument()
+  })
+
+  it('6. mendukung tampilan matriks kelengkapan per ULP dengan dataset aktif dan bagian arsip jenis lama', async () => {
+    const mockUnitCoverage = {
+      data: {
+        unit_id: 'u-1',
+        year: 2026,
+        datasets: [
+          { code: 'AP2T.PENJUALAN_309', name: 'Penjualan Tenaga Listrik (309)', source: 'AP2T', storage: 'file', family: '309', used_by: ['pelanggan', 'daya'], months: { 1: true, 2: true } },
+          { code: 'APKT.RPT_RCT_GANGGUAN', name: 'Jumlah dan Durasi RPT RCT Gangguan', source: 'APKT', storage: 'table', used_by: ['rpt-rct-gangguan'], months: { 1: true, 2: false } },
+        ],
+        legacy_families: ['GGNALL', 'GGNNEGATIF'],
+        families: {
+          GGNALL: { 1: true },
+          GGNNEGATIF: { 1: false },
+        },
+      },
+    }
+
+    eisReportsApi.list.mockResolvedValue(MOCK_FILES)
+    eisReportsApi.coverage.mockResolvedValue(mockUnitCoverage)
+
+    const user = userEvent.setup()
+    wrap(<EisReportsPage />, { 'eis_reports.view': true }, ['/master-data/laporan-eis?tab=coverage&unit_id=u-1&year=2026'])
+
+    expect(await screen.findByText(/Matriks Kelengkapan Dataset Tahun 2026/i)).toBeInTheDocument()
+    expect(screen.getByText('Penjualan Tenaga Listrik (309)')).toBeInTheDocument()
+    expect(screen.getByText('Jumlah dan Durasi RPT RCT Gangguan')).toBeInTheDocument()
+    expect(screen.getByText('AP2T.PENJUALAN_309')).toBeInTheDocument()
+    expect(screen.getByText('APKT.RPT_RCT_GANGGUAN')).toBeInTheDocument()
+
+    // Buka bagian Arsip jenis lama
+    const toggleArsip = screen.getByRole('button', { name: /Lihat Arsip/i })
+    await user.click(toggleArsip)
+
+    expect(await screen.findByText('Arsip Jenis Laporan EIS Lama (Tidak Dihitung Kurang)')).toBeInTheDocument()
+    expect(screen.getAllByText(/GGNALL/i).length).toBeGreaterThan(0)
   })
 })
