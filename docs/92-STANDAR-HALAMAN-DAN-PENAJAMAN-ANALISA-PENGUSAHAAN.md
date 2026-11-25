@@ -1,6 +1,6 @@
 # 92 — Standar Halaman dan Penajaman Analisa Pengusahaan (rancangan)
 
-Status: **rancangan disetujui pemilik (25 Nov 2026). Tahap 1 sisi backend selesai (target NKO, sumbangan ULP, diagnosis; kontrak di docs/91 `targets`, `contribution`, `diagnosis`); sisi frontend dan tahap berikutnya belum.** Dokumen ini menetapkan arah; kontrak API tiap tahap ditulis di docs/91 dan dicatat di README-REVISI saat tahap itu dikerjakan backend. Berlaku untuk semua menu di bawah label **Analisa & Tren Pengusahaan** (katalog metrik docs/91 §1).
+Status: **rancangan disetujui pemilik (25 Nov 2026). Tahap 1 sisi backend selesai (target NKO, sumbangan ULP, diagnosis; kontrak di docs/91 `targets`, `contribution`, `diagnosis`). Tahap 2 (uji coba keandalan) sisi backend selesai: `detail` pada menu SAIDI/SAIFI, ENS, dan Gangguan (Pareto penyulang, gangguan berulang, komposisi penyebab dan cuaca, skor risiko dengan uji mundur); prakiraan cuaca BMKG belum. Sisi frontend dan tahap berikutnya belum.** Dokumen ini menetapkan arah; kontrak API tiap tahap ditulis di docs/91 dan dicatat di README-REVISI saat tahap itu dikerjakan backend. Berlaku untuk semua menu di bawah label **Analisa & Tren Pengusahaan** (katalog metrik docs/91 §1).
 
 ## 1. Tujuan
 

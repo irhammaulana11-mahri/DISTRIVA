@@ -992,6 +992,80 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function detail_keandalan_memuat_pareto_penyulang_gangguan_berulang_komposisi_dan_skor_risiko_dengan_uji_mundur(): void
+    {
+        $f1 = $this->feederOf($this->ulpA, 'F1');
+        $f2 = $this->feederOf($this->ulpA, 'F2');
+        $f3 = $this->feederOf($this->ulpA, 'F3');
+        $this->feederCustomers($f1, $this->ulpA, 100);
+        $this->feederCustomers($f2, $this->ulpA, 50);
+        $this->feederCustomers($f3, $this->ulpA, 10);
+        foreach (['2026-03-10', '2026-03-15', '2026-03-20'] as $d) {                                            // F1: tiga gangguan permanen 60 menit dalam 30 hari (berulang)
+            $this->outage($f1, $this->ulpA, $d, 'PERMANEN', 60, 500);
+        }
+        $this->outage($f2, $this->ulpA, '2026-03-12', 'PERMANEN', 30, 200);
+        $this->outage($f2, $this->ulpA, '2026-03-25', 'TEMPORER', 10, 0);                                       // F2: dua gangguan, di bawah ambang berulang
+        $this->outage($f3, $this->ulpA, '2026-01-05', 'TEMPORER', 2, 0);                                        // di bawah ambang 5 menit: tidak masuk SAIDI
+        foreach (range(0, 7) as $i) {                                                                           // riwayat F1 satu gangguan tiap bulan, Juli 2025 sampai Februari 2026
+            $this->outage($f1, $this->ulpA, date('Y-m-15', strtotime("2025-07-15 +{$i} month")), 'PERMANEN', 20, 10);
+        }
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+
+        $this->assertSame(['reliability', '2026-01-01', '2026-03-31'], [$d['kind'], $d['period']['from'], $d['period']['to']]);
+        $rows = collect($d['pareto']['rows']);
+        $this->assertSame(['F1', 'F2'], $rows->pluck('code')->take(2)->all());                                    // urut kontribusi SAIDI
+        $this->assertEqualsWithDelta(100 * 220 / 160, $rows[0]['saidi_contribution'], 1e-9);                      // pelanggan x menit gangguan terhitung (3 x 60 + 2 x 20 pada Januari dan Februari) / pelanggan unit
+        $this->assertEqualsWithDelta((100 * 220) / (100 * 220 + 50 * 40) * 100, $rows[0]['saidi_share_pct'], 0.01);
+        $this->assertEqualsWithDelta(100.0, $rows[1]['saidi_cumulative_pct'], 0.01);
+        $this->assertEquals(0, $rows->firstWhere('code', 'F3')['saidi_contribution'] ?? 0);
+
+        $repeat = $d['repeat'];
+        $this->assertSame([3, 30, '2026-03-02', '2026-03-31'], [$repeat['threshold_events'], $repeat['window_days'], $repeat['window_from'], $repeat['window_to']]);
+        $this->assertSame(['F1'], array_column($repeat['rows'], 'code'));                                         // F2 hanya dua gangguan
+        $this->assertSame([3, 3], [$repeat['rows'][0]['events'], $repeat['rows'][0]['permanent']]);
+
+        $cause = $d['composition']['cause'];
+        $this->assertEquals(['ROW', 100], [$cause['rows'][0]['key'], $cause['rows'][0]['events_share_pct']]);
+        $this->assertSame('CERAH', $d['composition']['weather']['rows'][0]['key']);
+
+        $risk = $d['risk'];
+        $this->assertTrue($risk['available']);
+        $this->assertSame(['2026-03', '2026-04', 'ewma_seasonal'], [$risk['as_of_month'], $risk['target_month'], $risk['method']]);
+        $this->assertSame('F1', $risk['rows'][0]['code']);                                                        // gangguan paling sering dan paling baru
+        $this->assertGreaterThan($risk['rows'][1]['expected_events'], $risk['rows'][0]['expected_events']);
+        $this->assertSame(11, $risk['rows'][0]['last_12m_events']);
+        $this->assertSame(['model_capture_pct', 'naive_capture_pct', 'random_capture_pct'], array_values(array_filter(array_keys($risk['backtest']), fn ($k) => str_ends_with($k, '_capture_pct'))));
+        $this->assertNotEmpty($risk['backtest']['months']);
+        $this->assertEqualsWithDelta(100.0, $risk['backtest']['random_capture_pct'], 0.01);                                         // hanya tiga penyulang: sepuluh teratas mencakup semuanya
+
+        // menu keandalan lain memuat blok yang sama; menu non-keandalan tidak
+        $this->assertSame('reliability', $this->as($this->planner)->getJson("/api/pengusahaan/metrics/ens?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail.kind'));
+        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail'));
+    }
+
+    #[Test]
+    public function skor_risiko_tidak_tersedia_tanpa_data_gangguan_dan_bulan_berjalan_tidak_dipakai_untuk_pelatihan(): void
+    {
+        $empty = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/gangguan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+        $this->assertFalse($empty['risk']['available']);
+        $this->assertSame([], $empty['pareto']['rows']);
+        $this->assertSame([], $empty['repeat']['rows']);
+
+        $f1 = $this->feederOf($this->ulpA, 'F1');
+        $this->feederCustomers($f1, $this->ulpA, 10);
+        $current = now(config('distriva.business_timezone'))->format('Y-m');
+        $last = date('Y-m', strtotime($current.'-01 -1 month'));
+        $this->outage($f1, $this->ulpA, $last.'-10', 'PERMANEN', 30, 1);
+        $this->outage($f1, $this->ulpA, now(config('distriva.business_timezone'))->format('Y-m-01'), 'PERMANEN', 30, 1);        // bulan berjalan belum lengkap
+
+        $risk = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/gangguan?unit_id={$this->ulpA->id}&from={$last}&to={$current}")->assertOk()->json('data');
+
+        $this->assertTrue($risk['detail']['period']['partial']);
+        $this->assertSame([$last, $current], [$risk['detail']['risk']['as_of_month'], $risk['detail']['risk']['target_month']]);   // dilatih sampai bulan lengkap terakhir, sasaran bulan berjalan
+    }
+
+    #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {
         $this->sales($this->ulpB, '2026-01-01', 1, 1);

@@ -312,7 +312,20 @@ class OutageAnalysisService
     }
 
     /** @param array<string,array<string,int>> $matrix @return list<array<string,mixed>> */
-    private function byFeeder(array $units, bool $withUnassigned, ?string $from, ?string $to, int $min, bool $onlyPerm, array $matrix, int $base): array
+    /**
+     * Semua penyulang dengan gangguan pada rentang itu (tanpa batas 40 seperti `analysis()`), lengkap dengan kontribusi SAIFI dan SAIDI menurut aturan pengaturan sinkron.
+     *
+     * @param  list<string>  $units
+     * @return list<array<string, mixed>>
+     */
+    public function feederRanking(array $units, ?string $from, ?string $to): array
+    {
+        $set = DB::table('outage_sync_settings')->where('id', 1)->first();
+
+        return $this->byFeeder($units, false, $from, $to, (int) $set->saidi_min_minutes, (bool) $set->saidi_only_permanent, $this->customerMatrix(), $this->baseCustomers($units, false), 0);
+    }
+
+    private function byFeeder(array $units, bool $withUnassigned, ?string $from, ?string $to, int $min, bool $onlyPerm, array $matrix, int $base, int $limit = 40): array
     {
         $tz = $this->tz();
         $last = now($tz)->subMonthNoOverflow()->endOfMonth();
@@ -338,7 +351,7 @@ class OutageAnalysisService
         }
         usort($out, fn ($a, $b) => $b['events'] <=> $a['events']);
 
-        return array_slice($out, 0, 40);
+        return $limit > 0 ? array_slice($out, 0, $limit) : $out;
     }
 
     /**
