@@ -59,6 +59,7 @@ export default function EisRunResults({ run, units }) {
   }
 
   const isPiutang = run?.kind === 'piutang'
+  const isOnlyKontrol309 = isPiutang && Array.isArray(run?.options?.reports) && run.options.reports.length === 1 && run.options.reports[0] === 'KONTROL309'
   const isApkt = run?.kind === 'apkt'
   const isAp2t = run?.kind === 'ap2t'
   const isRptRctGangguan = isApkt && run?.options?.dataset === 'rpt-rct-gangguan'
@@ -96,6 +97,8 @@ export default function EisRunResults({ run, units }) {
                 ? 'SAIDI/SAIFI APKT (DIFI)'
                 : isAp2t
                 ? 'TAGSUS P2TL (AP2T)'
+                : isOnlyKontrol309
+                ? 'Tarik Kontrol 309'
                 : isPiutang
                 ? 'Saldo Piutang'
                 : 'Permohonan PB/PD'}
@@ -114,6 +117,8 @@ export default function EisRunResults({ run, units }) {
               ? 'Ringkasan penarikan laporan SAIDI/SAIFI SE004 (DIFI) langsung dari GraphQL APKT per unit ULP.'
               : isAp2t
               ? `Ringkasan penarikan laporan tagihan susulan P2TL langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x).join(', ')})` : ''}.`
+              : isOnlyKontrol309
+              ? 'Ringkasan penarikan laporan Kontrol Penjualan 309 (309EIS) langsung dari server EIS per unit ULP.'
               : isPiutang
               ? 'Ringkasan penarikan laporan saldo piutang (Per Golongan, Per Lembar, Kogol) per unit ULP.'
               : 'Ringkasan status sinkronisasi permohonan per unit ULP.'}

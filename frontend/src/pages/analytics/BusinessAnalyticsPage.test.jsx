@@ -1463,4 +1463,69 @@ describe('BusinessAnalyticsPage', () => {
     // Verifikasi penanganan nilai null sebagai 'Belum ditarik'
     expect(screen.getByText('Belum ditarik')).toBeInTheDocument()
   })
+
+  it('18. mendukung tombol Tarik Kontrol 309 dan rincian Komponen Penjualan di kWh Jual (Butir 34)', async () => {
+    const kwhJualCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'kwh-jual',
+            name: 'kWh Jual',
+            source: '309',
+            polarity: 'up',
+            available: true,
+            series: [{ key: 'kwh', name: 'kWh Jual', unit: 'kWh' }],
+          },
+        ],
+      },
+    }
+
+    const kwhJualDetail = {
+      data: {
+        ...MOCK_METRIC_DETAIL.data,
+        metric: {
+          code: 'kwh-jual',
+          name: 'kWh Jual',
+          unit: 'kWh',
+          polarity: 'up',
+          source: '309',
+        },
+        from: '2026-10',
+        to: '2026-10',
+        months: ['2026-10'],
+        breakdown_secondary: {
+          dimension: 'Komponen penjualan',
+          period: '2026-10',
+          rows: [
+            { key: 'TUL III-07 (11)', value: 1000, share_pct: 100, same_month_last_year: 900, yoy_pct: 11.1 },
+            { key: 'Pembatalan Rekening (MEMO4)', value: -10, share_pct: -1, same_month_last_year: null, yoy_pct: null },
+          ],
+        },
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(kwhJualCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'kwh-jual') {
+        return Promise.resolve(kwhJualDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/kwh-jual'])
+
+    // Verifikasi tombol Tarik Kontrol 309 (EIS) tampil
+    expect(await screen.findByRole('button', { name: 'Tarik Kontrol 309 (EIS)' })).toBeInTheDocument()
+
+    // Buka tab Rincian
+    const rincianTab = await screen.findByRole('button', { name: 'Rincian' })
+    await userEvent.click(rincianTab)
+
+    // Verifikasi rincian Komponen Penjualan dan nilai negatif
+    expect(await screen.findByText('Rincian: Komponen penjualan')).toBeInTheDocument()
+    expect(screen.getByText('TUL III-07 (11)')).toBeInTheDocument()
+    expect(screen.getByText('Pembatalan Rekening (MEMO4)')).toBeInTheDocument()
+  })
 })

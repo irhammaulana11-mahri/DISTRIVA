@@ -609,7 +609,7 @@ function CompanionSection({ companions, toMonth, metricCode }) {
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             {isKwhP2tl
-              ? companions.source || 'Penetapan tagihan susulan yang belum realisasi dari AP2T.'
+              ? companions.source || 'Penetapan tagihan susulan yang belum realisasi dari AP2T dan kontrol 309 EIS.'
               : 'Data operasional lapangan sebagai pembanding dan penjelas pergerakan angka resmi laporan PLN.'}
           </p>
         </div>
@@ -630,36 +630,46 @@ function CompanionSection({ companions, toMonth, metricCode }) {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {companions.series.map((s) => (
-          <div
-            key={s.key}
-            className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between"
-          >
-            <div>
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                {s.name}
-              </span>
-              <div className="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
-                {s.latest !== null && s.latest !== undefined ? fmtFloat(s.latest) : 'Belum ditarik'}{' '}
-                {s.latest !== null && s.latest !== undefined && (
-                  <span className="text-xs font-normal text-slate-500">{s.unit}</span>
-                )}
+        {companions.series.map((s) => {
+          const isPotret = s.key.includes('belum')
+          return (
+            <div
+              key={s.key}
+              className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                    {s.name}
+                  </span>
+                  {isPotret && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 font-semibold shrink-0">
+                      Potret
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
+                  {s.latest !== null && s.latest !== undefined ? fmtFloat(s.latest) : 'Belum ditarik'}{' '}
+                  {s.latest !== null && s.latest !== undefined && (
+                    <span className="text-xs font-normal text-slate-500">{s.unit}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500">
+                <span className="text-[11px] text-slate-400">Kumulatif YTD</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
+                  {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_')
+                    ? '-'
+                    : s.ytd !== null && s.ytd !== undefined ? fmtFloat(s.ytd) : '-'}{' '}
+                  <span className="text-[10px] font-normal text-slate-400">
+                    {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_') || s.ytd === null || s.ytd === undefined ? '' : s.unit}
+                  </span>
+                </span>
               </div>
             </div>
-
-            <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500">
-              <span className="text-[11px] text-slate-400">Kumulatif YTD</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
-                {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_')
-                  ? '-'
-                  : s.ytd !== null && s.ytd !== undefined ? fmtFloat(s.ytd) : '-'}{' '}
-                <span className="text-[10px] font-normal text-slate-400">
-                  {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_') || s.ytd === null || s.ytd === undefined ? '' : s.unit}
-                </span>
-              </span>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -993,8 +1003,9 @@ export default function BusinessAnalyticsPage() {
   const isAnomaliGangguanMetric = activeCode === 'anomali-gangguan'
   const isAnomaliKeluhanMetric = activeCode === 'anomali-keluhan'
   const isKwhP2tlMetric = activeCode === 'kwh-p2tl'
+  const isKontrol309Metric = activeCode === 'kwh-jual' || activeCode === 'pendapatan'
   const isPiutangMetric = activeCode.startsWith('piutang')
-  const isEisMetric = isPiutangMetric || activeCode === 'pelanggan' || activeCode === 'daya'
+  const isEisMetric = isPiutangMetric || activeCode === 'pelanggan' || activeCode === 'daya' || isKontrol309Metric
 
   // Efektif unit_id: jika ada selectedUnitId (ULP) pakai itu, jika tidak gunakan up3Id
   const effectiveUnitId = selectedUnitId || up3Id
@@ -1420,6 +1431,15 @@ export default function BusinessAnalyticsPage() {
                 aria-label="Tarik AP2T (kWh P2TL)"
               >
                 Tarik AP2T (kWh P2TL)
+              </Button>
+            ) : isKontrol309Metric ? (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Tarik Kontrol 309 (EIS)"
+              >
+                Tarik Kontrol 309 (EIS)
               </Button>
             ) : isEisMetric ? (
               <Button
@@ -2653,11 +2673,11 @@ export default function BusinessAnalyticsPage() {
                                 <div className="flex items-center justify-end gap-2">
                                   <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                                     <div
-                                      className="h-full bg-indigo-600 rounded-full"
-                                      style={{ width: `${Math.min(100, Math.max(0, r.share_pct || 0))}%` }}
+                                      className={`h-full rounded-full ${r.value < 0 || r.share_pct < 0 ? 'bg-rose-500' : 'bg-indigo-600'}`}
+                                      style={{ width: `${Math.min(100, Math.max(0, Math.abs(r.share_pct || 0)))}%` }}
                                     />
                                   </div>
-                                  <span className="font-mono tabular-nums text-[11px]">
+                                  <span className={`font-mono tabular-nums text-[11px] ${r.share_pct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
                                     {fmtFloat(r.share_pct, 1)}%
                                   </span>
                                 </div>
@@ -2701,7 +2721,9 @@ export default function BusinessAnalyticsPage() {
                           {`Rincian: ${d.breakdown_secondary.dimension}`}
                         </h3>
                         <p className="text-xs text-slate-500">
-                          Komposisi pada periode {fmtMonth(d.breakdown_secondary.period)}
+                          {d.breakdown_secondary.dimension === 'Komponen penjualan'
+                            ? `Komponen penjualan pada periode ${fmtMonth(d.breakdown_secondary.period || d.to)} (nilai negatif menunjukkan pos pengurangan)`
+                            : `Komposisi pada periode ${fmtMonth(d.breakdown_secondary.period)}`}
                         </p>
                       </div>
                     </div>
@@ -2732,11 +2754,11 @@ export default function BusinessAnalyticsPage() {
                                 <div className="flex items-center justify-end gap-2">
                                   <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                                     <div
-                                      className="h-full bg-indigo-600 rounded-full"
-                                      style={{ width: `${Math.min(100, Math.max(0, r.share_pct || 0))}%` }}
+                                      className={`h-full rounded-full ${r.value < 0 || r.share_pct < 0 ? 'bg-rose-500' : 'bg-indigo-600'}`}
+                                      style={{ width: `${Math.min(100, Math.max(0, Math.abs(r.share_pct || 0)))}%` }}
                                     />
                                   </div>
-                                  <span className="font-mono tabular-nums text-[11px]">
+                                  <span className={`font-mono tabular-nums text-[11px] ${r.share_pct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
                                     {fmtFloat(r.share_pct, 1)}%
                                   </span>
                                 </div>
@@ -3055,7 +3077,9 @@ export default function BusinessAnalyticsPage() {
       <EisSyncDrawer
         open={syncDrawerOpen}
         mode={
-          activeCode.startsWith('piutang')
+          isKontrol309Metric
+            ? 'piutang'
+            : activeCode.startsWith('piutang')
             ? 'piutang'
             : activeCode === 'pelanggan' || activeCode === 'daya'
             ? 'permohonan'
@@ -3065,6 +3089,7 @@ export default function BusinessAnalyticsPage() {
             ? 'apkt'
             : null
         }
+        initialReports={isKontrol309Metric ? ['KONTROL309'] : null}
         initialDataset={
           activeCode === 'rpt-rct-gangguan'
             ? 'rpt-rct-gangguan'

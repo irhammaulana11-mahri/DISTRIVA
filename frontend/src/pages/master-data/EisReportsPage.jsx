@@ -32,7 +32,7 @@ const CARD = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white
 
 const FAMILY_LABELS = {
   309: '309 (Penjualan Tenaga Listrik)',
-  '309EIS': '309EIS (Tabel Datar Penjualan)',
+  '309EIS': '309EIS (Kontrol Penjualan 309)',
   DIFI: 'DIFI (SAIDI / SAIFI / ENS)',
   GGNALL: 'GGNALL (Rekap Gangguan & SLA)',
   GGNPERJENIS: 'GGNPERJENIS (Gangguan per Jenis)',
@@ -662,11 +662,11 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
     }
     // Fallback bila backend versi lama
     return (data.families_list || Object.keys(FAMILY_LABELS)).map((f) => ({
-      code: f,
+      code: f === '309EIS' ? 'EIS.KONTROL_309' : f,
       name: FAMILY_LABELS[f] || f,
       source: f === 'DIFI' || f.startsWith('GGN') || f.startsWith('KLH') ? 'APKT' : f === '309' || f === 'TAGSUS' || f === 'TAGSUS_BELUM' ? 'AP2T' : 'EIS',
       storage: 'file',
-      used_by: [],
+      used_by: f === '309EIS' ? ['kwh-jual', 'pendapatan', 'kwh-p2tl'] : [],
     }))
   }, [data])
 
@@ -908,7 +908,8 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
                   return filteredDatasets.map((d, fIdx) => {
                     const rowMonths = u.datasets?.[d.code] || (d.family && u.families?.[d.family]) || {}
                     const isApkt = d.source === 'APKT'
-                    const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
+                    const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
+                    const isEisKontrol309 = d.code === 'EIS.KONTROL_309' || d.family === '309EIS'
                     const usedByText = d.used_by && d.used_by.length > 0
                       ? `Dipakai menu: ${d.used_by.join(', ')}`
                       : 'Arsip / belum dipakai menu'
@@ -985,6 +986,15 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
                                     onClick={() => onTriggerSync?.('ap2t', d.code)}
                                     className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 font-bold text-[10px] cursor-pointer"
                                     title={`Bulan ${mNum}: Belum ada data. Klik untuk tarik lewat tombol Tarik AP2T`}
+                                  >
+                                    !
+                                  </button>
+                                ) : isEisKontrol309 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onTriggerSync?.('kontrol309', d.code)}
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 font-bold text-[10px] cursor-pointer"
+                                    title={`Bulan ${mNum}: Belum ada data. Klik untuk tarik lewat tombol Tarik Kontrol 309`}
                                   >
                                     !
                                   </button>
@@ -1087,6 +1097,7 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
               const rowMonths = d.months || {}
               const isApkt = d.source === 'APKT'
               const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
+              const isEisKontrol309 = d.code === 'EIS.KONTROL_309' || d.family === '309EIS'
               const usedByText = d.used_by && d.used_by.length > 0
                 ? `Dipakai menu: ${d.used_by.join(', ')}`
                 : 'Arsip / belum dipakai menu'
@@ -1144,6 +1155,15 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
                               onClick={() => onTriggerSync?.('ap2t', d.code)}
                               className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 font-bold text-[10px] cursor-pointer"
                               title={`Bulan ${mNum}: Belum ada data. Tarik lewat tombol Tarik AP2T`}
+                            >
+                              !
+                            </button>
+                          ) : isEisKontrol309 ? (
+                            <button
+                              type="button"
+                              onClick={() => onTriggerSync?.('kontrol309', d.code)}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 font-bold text-[10px] cursor-pointer"
+                              title={`Bulan ${mNum}: Belum ada data. Tarik lewat tombol Tarik Kontrol 309`}
                             >
                               !
                             </button>
@@ -1250,15 +1270,20 @@ export default function EisReportsPage() {
   // Modal / Drawer state
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [previewFileId, setPreviewFileId] = useState(null)
-  const [syncDrawerState, setSyncDrawerState] = useState({ open: false, mode: 'apkt', dataset: 'saidi-saifi' })
+  const [syncDrawerState, setSyncDrawerState] = useState({ open: false, mode: 'apkt', dataset: 'saidi-saifi', reports: null })
 
   const handleTriggerSync = (mode, datasetCode) => {
     let dataset = 'saidi-saifi'
-    if (datasetCode === 'APKT.RPT_RCT_GANGGUAN') dataset = 'rpt-rct-gangguan'
+    let reports = null
+    let targetMode = mode
+    if (mode === 'kontrol309') {
+      targetMode = 'piutang'
+      reports = ['KONTROL309']
+    } else if (datasetCode === 'APKT.RPT_RCT_GANGGUAN') dataset = 'rpt-rct-gangguan'
     else if (datasetCode === 'APKT.RPT_RCT_KELUHAN') dataset = 'rpt-rct-keluhan'
     else if (datasetCode === 'APKT.ANOMALI_GANGGUAN') dataset = 'anomali-gangguan'
     else if (datasetCode === 'APKT.ANOMALI_KELUHAN') dataset = 'anomali-keluhan'
-    setSyncDrawerState({ open: true, mode, dataset })
+    setSyncDrawerState({ open: true, mode: targetMode, dataset, reports })
   }
 
   const loadFiles = useCallback(async () => {
@@ -1702,6 +1727,7 @@ export default function EisReportsPage() {
         open={syncDrawerState.open}
         mode={syncDrawerState.mode}
         initialDataset={syncDrawerState.dataset}
+        initialReports={syncDrawerState.reports}
         onClose={() => setSyncDrawerState((s) => ({ ...s, open: false }))}
         onSynced={() => {
           if (tab === 'coverage') loadCoverage()

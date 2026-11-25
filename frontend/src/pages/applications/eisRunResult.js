@@ -46,6 +46,11 @@ export function parseEisRun(log, units = [], chosen = null, status = 'RUNNING') 
       if (r) { r.state = 'FAILED'; r.message = f[2] }
       continue
     }
+    const warnMatch = /^\s*peringatan:\s*(.+)$/i.exec(line)
+    if (warnMatch && cur) {
+      cur.message = cur.message ? `${cur.message}; ${warnMatch[1]}` : warnMatch[1]
+      continue
+    }
     if (/^(Diterapkan|Tersimpan sementara)/.test(line) && COUNTS.test(line)) {
       const applied = line.startsWith('Diterapkan')
       const target = cur || total

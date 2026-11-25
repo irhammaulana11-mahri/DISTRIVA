@@ -90,6 +90,7 @@ export default function EisRunHistory() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
               {runs.map((r) => {
                 const isPiutang = r.kind === 'piutang'
+                const isOnlyKontrol309 = isPiutang && Array.isArray(r.options?.reports) && r.options.reports.length === 1 && r.options.reports[0] === 'KONTROL309'
                 const isApkt = r.kind === 'apkt'
                 const isAp2t = r.kind === 'ap2t'
                 const isRptRctGangguan = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
@@ -121,6 +122,8 @@ export default function EisRunHistory() {
                           ? 'SAIDI/SAIFI (APKT)'
                           : isAp2t
                           ? 'TAGSUS (AP2T)'
+                          : isOnlyKontrol309
+                          ? 'Tarik Kontrol 309'
                           : isPiutang
                           ? 'Saldo Piutang'
                           : 'Permohonan'}

@@ -496,4 +496,41 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
       })
     })
   })
+
+  it('dapat memilih opsi laporan Kontrol Penjualan 309 (Butir 34)', async () => {
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r-piutang-k309',
+        kind: 'piutang',
+        options: { from_month: '2026-10', to_month: '2026-10', reports: ['KONTROL309'] },
+        status: 'OK',
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="piutang" initialReports={['KONTROL309']} onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik Laporan Piutang' })).toBeInTheDocument()
+
+    // Verifikasi checkbox Kontrol Penjualan 309 tercentang
+    const cbK309 = screen.getByLabelText('Laporan Kontrol Penjualan 309')
+    expect(cbK309).toBeChecked()
+
+    const toInput = screen.getByLabelText('Bulan akhir piutang')
+    fireEvent.change(toInput, { target: { value: '2026-10' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik Piutang' })
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'piutang',
+        to_month: '2026-10',
+        from_month: '2026-10',
+        reports: ['KONTROL309'],
+      })
+    })
+
+    expect(await screen.findByText('Tarik Kontrol 309')).toBeInTheDocument()
+  })
 })

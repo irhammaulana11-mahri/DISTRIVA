@@ -50,7 +50,7 @@ function Field({ label, hint, children }) {
  * - 'piutang': hanya menampilkan form penarikan Laporan Saldo Piutang (Golongan, Lembar, Kogol).
  * - 'all' / null: menampilkan selector/tab atau mode kontekstual.
  */
-export default function EisSyncDrawer({ open, asPage = false, mode = null, initialDataset = 'saidi-saifi', onClose, onSynced }) {
+export default function EisSyncDrawer({ open, asPage = false, mode = null, initialDataset = 'saidi-saifi', initialReports = null, onClose, onSynced }) {
   const { can } = useAccess?.() || { can: {} }
   const canApktSync = Boolean(can?.['eis_sync.manage'] && can?.['eis_reports.import'])
 
@@ -160,6 +160,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
       setApktDataset(initialDataset)
     }
   }, [initialDataset])
+
+  useEffect(() => {
+    if (initialReports && Array.isArray(initialReports)) {
+      setPiutangReports(initialReports)
+    }
+  }, [initialReports])
 
   useEffect(() => {
     if (open) {
@@ -741,6 +747,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                       { key: 'LEMBAR', label: 'Per Lembar' },
                       { key: 'KOGOL', label: 'Kogol' },
                       { key: 'PRABAYAR', label: 'Saldo Prabayar' },
+                      { key: 'KONTROL309', label: 'Kontrol Penjualan 309' },
                     ].map((rep) => (
                       <label
                         key={rep.key}
