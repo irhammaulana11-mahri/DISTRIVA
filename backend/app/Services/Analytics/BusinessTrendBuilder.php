@@ -119,7 +119,7 @@ class BusinessTrendBuilder
     {
         $family = BusinessMetricService::CATALOG[$code]['family'] ?? null;
         $latest = match (true) {
-            $code === 'susut' => DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->max('period'),
+            $code === 'susut' => collect([DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->max('period'), $this->lastLossReference($units)])->filter()->max(),
             isset(self::APKT_TABLES[$code]) => DB::table(self::APKT_TABLES[$code])->whereIn('organizational_unit_id', $units)->max('period'),
             $family !== null => DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->max('period'),
             default => null,
@@ -729,5 +729,11 @@ class BusinessTrendBuilder
     private function label(string $month): string
     {
         return self::MONTHS[(int) substr($month, 5, 2)].' '.substr($month, 0, 4);
+    }
+
+    /** Bulan terakhir realisasi susut kumulatif NKO (dasar estimasi kWh beli) pada unit-unit itu. */
+    private function lastLossReference(array $units): ?string
+    {
+        return DB::table('kpi_reference_values as v')->join('kpi_definitions as d', 'd.id', '=', 'v.definition_id')->where('d.code', LossEstimator::CODE)->whereIn('v.organizational_unit_id', $units)->whereNotNull('v.realisasi')->max('v.period');
     }
 }

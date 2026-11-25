@@ -1167,6 +1167,49 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function susut_mengestimasi_kwh_beli_dari_susut_kumulatif_nko_dan_kwh_jual_serta_memprakirakan_bulan_sesudahnya(): void
+    {
+        foreach (['2026-01-01' => 900, '2026-02-01' => 950, '2026-03-01' => 1000, '2026-04-01' => 1000] as $period => $kwh) {
+            $this->sales($this->ulpA, $period, $kwh, 0);
+        }
+        $set = (string) Str::uuid();
+        $definition = (string) Str::uuid();
+        DB::table('kpi_definition_sets')->insert(['id' => $set, 'year' => 2026, 'unit_level' => 'ULP', 'version' => 1, 'status' => 'AKTIF', 'source_name' => 'uji', 'source_sha256' => str_repeat('a', 64), 'imported_at' => now()]);
+        DB::table('kpi_definitions')->insert(['id' => $definition, 'set_id' => $set, 'row_no' => 1, 'sort_order' => 1, 'level' => 1, 'code' => 'susut-distribusi-tanpa-e-min', 'name' => 'Susut Distribusi Tanpa E-min', 'polarity' => 1]);
+        foreach (['2026-01-01' => 10.0, '2026-02-01' => 8.0, '2026-03-01' => 9.0] as $period => $cumulative) {                  // realisasi susut kumulatif (%) angka acuan workbook
+            DB::table('kpi_reference_values')->insert(['definition_id' => $definition, 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'realisasi' => $cumulative]);
+        }
+        DB::table('kpi_targets')->insert(['definition_id' => $definition, 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-04-01', 'target_value' => 9.5]);
+        $put = fn (array $items) => $this->as($this->planner)->putJson('/api/pengusahaan/inputs', ['unit_id' => $this->ulpA->id, 'items' => $items]);
+
+        // metrik: bulan tanpa masukan memakai beli turunan = selisih (jual kumulatif / (1 - susut kumulatif)); masukan bulanan diutamakan
+        $put([['period' => '2026-02', 'code' => 'kwh-beli', 'value' => 1000]])->assertOk();
+        $m = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/susut?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data');
+        $beli = collect($m['series'])->keyBy('key')['beli']['values'];
+        $this->assertEqualsWithDelta(1000.0, $beli[0], 1e-6);                                                  // Januari: 900 / 0,9 = 1.000
+        $this->assertEqualsWithDelta(1000.0, $beli[1], 1e-9);                                                  // Februari: masukan 1.000, bukan turunan 1.010,87
+        $this->assertEqualsWithDelta(2850 / 0.91 - 1850 / 0.92, $beli[2], 1e-6);                               // Maret turunan
+        $this->assertEqualsWithDelta(10.0, collect($m['series'])->keyBy('key')['susut']['values'][0], 1e-6);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/susut?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04")->assertOk()->json('data.detail');
+        $this->assertSame(['loss_estimate', true], [$d['kind'], $d['has_manual_input']]);
+        $this->assertSame(['turunan', 'input', 'turunan', 'prakiraan'], array_column($d['history'], 'basis'));
+        $apr = $d['history'][3];
+        $this->assertEqualsWithDelta(1000 / 0.91, $apr['beli_net_kwh'], 1.0);                                  // April tanpa realisasi: susut kumulatif terakhir (9%) dipakai sebagai susut bulan itu
+        $this->assertEqualsWithDelta(9.0, $apr['susut_pct'], 0.01);
+        $bt = $d['backtest'];                                                                                    // Februari dan Maret: beli diprakirakan dari jual dan susut kumulatif bulan sebelumnya
+        $this->assertSame(2, $bt['observations']);
+        $this->assertEqualsWithDelta((abs(950 / 0.9 - (1850 / 0.92 - 1000)) / (1850 / 0.92 - 1000) + abs(1000 / 0.92 - (2850 / 0.91 - 1850 / 0.92)) / (2850 / 0.91 - 1850 / 0.92)) / 2 * 100, $bt['model_mape_pct'], 0.01);
+        $row = $d['ulps'][0];
+        $this->assertSame('termasuk_prakiraan', $row['ytd_basis']);
+        $susut = 100 + 50 + ((2850 / 0.91 - 1850 / 0.92) - 1000) + (1000 / 0.91 - 1000);
+        $beliYtd = 1000 + 1000 + (2850 / 0.91 - 1850 / 0.92) + 1000 / 0.91;
+        $this->assertEqualsWithDelta($susut / $beliYtd * 100, $row['ytd_susut_pct'], 0.01);
+        $this->assertEqualsWithDelta($row['ytd_susut_pct'] - 9.5, $row['gap_pct_points'], 0.01);
+        $this->assertSame([], $d['anomalies']);                                                                  // kurang dari empat bulan turunan
+    }
+
+    #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
         Cache::flush();

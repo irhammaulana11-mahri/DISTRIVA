@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
  */
 class BusinessMetricService
 {
+    public function __construct(private readonly LossEstimator $lossEstimator) {}
+
     /** Kelompok tarif laporan 309 (baris "JUMLAH x" untuk S/R/B/I/P, baris tunggal untuk T/C/L). */
     private const TARIFF_GROUPS = ['S' => 'Sosial', 'R' => 'Rumah tangga', 'B' => 'Bisnis', 'I' => 'Industri', 'P' => 'Pemerintah', 'T' => 'Traksi', 'C' => 'Curah', 'L' => 'Layanan khusus'];
 
@@ -123,7 +125,7 @@ class BusinessMetricService
                 'reconcile' => [['key' => 'gangguan', 'mode' => 'flow', 'unit' => 'kali', 'official_name' => 'Gangguan penyulang lebih dari ambang menit (spreadsheet)', 'official' => ['num' => ['n_hitung']], 'companion_name' => 'Gangguan penyulang (DIFI)', 'companion' => ['num' => ['n']]]]]],
         'hpl-bp' => ['name' => 'HPL biaya penyambungan', 'source' => 'Permohonan PB/PD lunas (biaya, tanggal bayar)', 'family' => null, 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Jenis permohonan',
             'series' => [['key' => 'rp', 'name' => 'Biaya penyambungan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah permohonan lunas', 'unit' => 'permohonan', 'num' => 'n']]],
-        'susut' => ['name' => 'Susut', 'source' => 'Masukan bulanan kWh beli, E-Min, PSSD (pengusahaan) dan kWh jual laporan 309', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
+        'susut' => ['name' => 'Susut', 'source' => 'Masukan bulanan kWh beli, E-Min, PSSD (pengusahaan) dan kWh jual laporan 309; bulan tanpa masukan memakai estimasi kWh beli turunan dari susut kumulatif realisasi NKO (lihat detail)', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
             'series' => [['key' => 'susut', 'name' => 'Susut', 'unit' => '%', 'num' => 'susut_kwh', 'den' => 'beli_net', 'factor' => 100], ['key' => 'susut_kwh', 'name' => 'Susut', 'unit' => 'kWh', 'num' => 'susut_kwh'],
                 ['key' => 'beli', 'name' => 'kWh beli', 'unit' => 'kWh', 'num' => 'beli'], ['key' => 'jual', 'name' => 'kWh jual', 'unit' => 'kWh', 'num' => 'jual']]],
     ];
@@ -683,7 +685,8 @@ class BusinessMetricService
         foreach (DB::table('business_monthly_inputs')->whereIn('organizational_unit_id', $units)->whereBetween('period', [$from, $to])->get(['organizational_unit_id', 'period', 'code', 'value']) as $r) {
             $inputs[$r->organizational_unit_id][substr((string) $r->period, 0, 7)][$r->code] = (float) $r->value;
         }
-        $sales = $this->eis('309', $units, $from, $to, fn (array $lines) => $this->from309($lines, 'kwh-jual'));
+        $yearStart = substr($from, 0, 4).'-01-01';
+        $sales = $this->eis('309', $units, $yearStart, $to, fn (array $lines) => $this->from309($lines, 'kwh-jual'));
         $out = [];
         foreach ($inputs as $u => $byMonth) {
             foreach ($byMonth as $m => $v) {
@@ -693,6 +696,12 @@ class BusinessMetricService
                 $net = $v['kwh-beli'] - ($v['e-min'] ?? 0) - ($v['pssd'] ?? 0);
                 $jual = $sales[$u][$m]['raw']['kwh'];
                 $out[$u][$m] = ['raw' => ['beli' => $v['kwh-beli'], 'beli_net' => $net, 'jual' => $jual, 'susut_kwh' => $net - $jual], 'bd' => []];
+            }
+        }
+        // bulan tanpa masukan kWh beli: estimasi turunan dari susut kumulatif NKO (LossEstimator); masukan bulanan selalu diutamakan
+        foreach ($this->lossEstimator->estimate($units, $sales, substr($from, 0, 7), substr($to, 0, 7)) as $u => $byMonth) {
+            foreach ($byMonth as $m => $e) {
+                $out[$u][$m] ??= ['raw' => ['beli' => $e['beli_net'], 'beli_net' => $e['beli_net'], 'jual' => $e['jual'], 'susut_kwh' => $e['susut_kwh'], 'estimated' => 1.0], 'bd' => []];
             }
         }
 

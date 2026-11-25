@@ -137,7 +137,8 @@ class BusinessSourceHistory
     {
         $first = match (true) {
             $families !== [] => DB::table('eis_report_files')->whereIn('family', $families)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->min('period'),
-            $code === 'susut' => DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->min('period'),
+            $code === 'susut' => collect([DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->min('period'),
+                DB::table('kpi_reference_values as v')->join('kpi_definitions as d', 'd.id', '=', 'v.definition_id')->where('d.code', LossEstimator::CODE)->whereIn('v.organizational_unit_id', $units)->whereNotNull('v.realisasi')->min('v.period')])->filter()->min(),
             default => null,
         };
         isset(BusinessTrendBuilder::APKT_TABLES[$code]) && $first = min(array_filter([$first, DB::table(BusinessTrendBuilder::APKT_TABLES[$code])->whereIn('organizational_unit_id', $units)->min('period')]) ?: [null]);
