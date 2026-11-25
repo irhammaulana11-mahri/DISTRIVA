@@ -100,7 +100,11 @@ class BusinessMetricService
                 'series' => [['key' => 'ens_sheet', 'name' => 'ENS data gangguan penyulang', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3]],
                 'reconcile' => [['key' => 'ens', 'mode' => 'flow', 'unit' => 'MWh', 'official_name' => 'ENS gangguan penyulang (DIFI)', 'official' => ['num' => ['pny_ggn_kwh'], 'factor' => 1e-3], 'companion_name' => 'ENS data gangguan penyulang', 'companion' => ['num' => ['ens_kwh'], 'factor' => 1e-3]]]]],
         'kwh-p2tl' => ['name' => 'kWh P2TL', 'source' => 'TAGSUS (golongan P1-P4, K2, tanpa golongan; tanpa TS kWh dan DKRP)', 'family' => 'TAGSUS', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Golongan pelanggaran',
-            'series' => [['key' => 'kwh', 'name' => 'kWh P2TL', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp', 'name' => 'Rupiah tagihan susulan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah pelanggan', 'unit' => 'plg', 'num' => 'n']]],
+            'series' => [['key' => 'kwh', 'name' => 'kWh P2TL', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp', 'name' => 'Rupiah tagihan susulan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah pelanggan', 'unit' => 'plg', 'num' => 'n']],
+            // potret AP2T per tanggal tarik, bukan angka bulan penuh: bulan lama hanya memuat sisa penetapan yang belum terealisasi saat laporan ditarik; bulan tanpa laporan bernilai null (bukan 0)
+            'companion' => ['source' => 'AP2T – Penetapan tagihan susulan yang belum realisasi (potret per tanggal tarik: bulan lama hanya memuat sisa yang belum terealisasi saat laporan ditarik)', 'forecast' => null, 'null_when_missing' => true,
+                'series' => [['key' => 'kwh_belum', 'name' => 'kWh belum realisasi', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp_belum', 'name' => 'Rupiah belum realisasi', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah_belum', 'name' => 'Jumlah penetapan belum realisasi', 'unit' => 'penetapan', 'num' => 'n']],
+                'reconcile' => []]],
         'gangguan' => ['name' => 'Gangguan penyulang', 'source' => 'Data gangguan penyulang dari spreadsheet (gangguan feeder/penyulang: PMT dan recloser)', 'family' => null, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => 'Jenis gangguan',
             'series' => [['key' => 'jumlah', 'name' => 'Jumlah gangguan penyulang', 'unit' => 'kali', 'num' => 'n'], ['key' => 'permanen', 'name' => 'Permanen', 'unit' => 'kali', 'num' => 'permanen'], ['key' => 'temporer', 'name' => 'Temporer', 'unit' => 'kali', 'num' => 'temporer'],
                 ['key' => 'dihitung', 'name' => 'Gangguan lebih dari ambang menit (masuk SAIDI/SAIFI)', 'unit' => 'kali', 'num' => 'n_hitung']],
@@ -142,6 +146,7 @@ class BusinessMetricService
             'anomali-keluhan', 'anomali-gangguan' => $this->apktAnomali($code, $units, $fromDate, $toDate),
             'difi-gangguan' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifiCount($lines, $summary)),
             'kwh-p2tl' => $this->eis('TAGSUS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
+            'kwh-p2tl-belum' => $this->eis('TAGSUS_BELUM', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
             'gangguan' => $this->outages($units, $fromDate, $toDate),
             'hpl-bp' => $this->connectionFees($units, $fromDate, $toDate),
             'susut' => $this->losses($units, $fromDate, $toDate),
@@ -519,7 +524,7 @@ class BusinessMetricService
             $bd[$l['label']] = ($bd[$l['label']] ?? 0) + (float) ($l['values']['kwh'] ?? 0);
         }
 
-        return $lines === [] ? null : ['raw' => $raw, 'bd' => $bd];
+        return ['raw' => $raw, 'bd' => $bd];                                                          // laporan tanpa baris (bulan tanpa penetapan) adalah nol, bukan data kosong
     }
 
     /**

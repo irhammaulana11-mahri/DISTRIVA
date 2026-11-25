@@ -717,6 +717,30 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function kwh_p2tl_menampilkan_belum_realisasi_sebagai_pendamping_potret_tanpa_mengubah_angka_utama(): void
+    {
+        $ts = fn (string $label, float $kwh, float $rp, int $n) => [$label, ['kwh' => $kwh, 'rp_total' => $rp, 'jumlah' => $n]];
+        $this->report($this->ulpA, 'TAGSUS', '2026-03-01', [$ts('K2', 100, 1000, 2), $ts('P3', 50, 500, 1)]);
+        $this->report($this->ulpA, 'TAGSUS', '2026-04-01', [$ts('K2', 10, 100, 1)]);
+        $this->report($this->ulpB, 'TAGSUS', '2026-03-01', [$ts('K2', 20, 200, 1)]);
+        $this->report($this->ulpA, 'TAGSUS_BELUM', '2026-03-01', [$ts('K2', 30, 300, 1)]);                  // Maret: satu penetapan ULP A masih belum terealisasi
+        $this->report($this->ulpB, 'TAGSUS_BELUM', '2026-03-01', [$ts('P2', 5, 50, 2)]);
+        $this->report($this->ulpA, 'TAGSUS_BELUM', '2026-04-01', []);                                         // April: laporan sah tanpa baris = nol belum realisasi
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-p2tl?unit_id={$this->up3->id}&from=2026-02&to=2026-05")->assertOk()->json('data');
+
+        $main = collect($d['series'])->keyBy('key');
+        $this->assertEquals([null, 170.0, 10.0, null], $main['kwh']['values']);                              // angka utama tetap dari laporan realisasi, tidak tercampur belum realisasi
+        $c = collect($d['companions']['series'])->keyBy('key');
+        $this->assertSame(['kwh_belum', 'rp_belum', 'jumlah_belum'], array_keys($c->all()));
+        $this->assertEquals([null, 35.0, 0.0, null], $c['kwh_belum']['values']);                            // Februari dan Mei tanpa laporan = null, April = 0
+        $this->assertEquals([null, 350.0, 0.0, null], $c['rp_belum']['values']);
+        $this->assertEquals(3.0, $c['jumlah_belum']['values'][1]);
+        $this->assertSame([], $d['reconciliations'] ?? []);
+        $this->assertStringContainsString('potret per tanggal tarik', $d['companions']['source']);
+    }
+
+    #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {
         $this->sales($this->ulpB, '2026-01-01', 1, 1);

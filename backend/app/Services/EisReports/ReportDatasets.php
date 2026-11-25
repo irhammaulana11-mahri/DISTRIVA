@@ -15,7 +15,7 @@ class ReportDatasets
     public const ACTIVE = [
         'AP2T.PENJUALAN_309' => ['name' => 'Penjualan Tenaga Listrik (309)', 'source' => 'AP2T', 'storage' => 'file', 'family' => '309', 'used_by' => ['pelanggan', 'daya', 'kwh-jual', 'pendapatan', 'susut']],
         'AP2T.TAGSUS' => ['name' => 'Realisasi Tagihan Susulan (P2TL)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'TAGSUS', 'used_by' => ['kwh-p2tl']],
-        'AP2T.TAGSUS_BELUM_REALISASI' => ['name' => 'Penetapan Tagihan Susulan Belum Realisasi (P2TL)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'TAGSUS_BELUM', 'used_by' => []],
+        'AP2T.TAGSUS_BELUM_REALISASI' => ['name' => 'Penetapan Tagihan Susulan Belum Realisasi (P2TL)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'TAGSUS_BELUM', 'used_by' => ['kwh-p2tl']],
         'APKT.SAIDI_SAIFI' => ['name' => 'Laporan SAIDI SAIFI', 'source' => 'APKT', 'storage' => 'file', 'family' => 'DIFI', 'used_by' => ['saidi-saifi', 'ens', 'gangguan']],
         'APKT.RPT_RCT_GANGGUAN' => ['name' => 'Jumlah dan Durasi RPT RCT Gangguan', 'source' => 'APKT', 'storage' => 'table', 'table' => 'apkt_rpt_rct_records', 'parts' => 2, 'used_by' => ['rpt-rct-gangguan']],
         'APKT.RPT_RCT_KELUHAN' => ['name' => 'Jumlah dan Durasi RPT RCT Keluhan', 'source' => 'APKT', 'storage' => 'table', 'table' => 'apkt_rpt_rct_keluhan_records', 'parts' => 1, 'used_by' => ['rpt-rct-keluhan']],

@@ -220,7 +220,8 @@ class BusinessTrendBuilder
 
             return $den == 0 ? null : $num / $den;
         };
-        $valueOf = fn (array $s, string $m): ?float => $ratio($sum($units, $m), $s);
+        $nullWhenMissing = (bool) ($c['null_when_missing'] ?? false);                                   // sumber potret: bulan tanpa data null, bukan 0
+        $valueOf = fn (array $s, string $m): ?float => $nullWhenMissing && array_filter($units, fn ($u) => isset($data[$u][$m])) === [] ? null : $ratio($sum($units, $m), $s);
         $ytdOf = function (array $s, string $end) use ($valueOf): float {
             $total = 0.0;
             foreach ($this->months(substr($end, 0, 4).'-01', $end) as $m) {
