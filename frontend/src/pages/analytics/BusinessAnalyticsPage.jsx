@@ -1003,6 +1003,7 @@ export default function BusinessAnalyticsPage() {
   const isAnomaliGangguanMetric = activeCode === 'anomali-gangguan'
   const isAnomaliKeluhanMetric = activeCode === 'anomali-keluhan'
   const isKwhP2tlMetric = activeCode === 'kwh-p2tl'
+  const isPelunasanPrrMetric = activeCode === 'pelunasan-prr' || activeCode === 'pelunasan-ex-prr'
   const isKontrol309Metric = activeCode === 'kwh-jual' || activeCode === 'pendapatan'
   const isPiutangMetric = activeCode.startsWith('piutang')
   const isEisMetric = isPiutangMetric || activeCode === 'pelanggan' || activeCode === 'daya' || isKontrol309Metric
@@ -1422,6 +1423,15 @@ export default function BusinessAnalyticsPage() {
                 aria-label="Tarik APKT (Anomali Keluhan)"
               >
                 Tarik APKT (Anomali Keluhan)
+              </Button>
+            ) : isPelunasanPrrMetric ? (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Tarik AP2T (PRR dan Ex PRR)"
+              >
+                Tarik AP2T (PRR dan Ex PRR)
               </Button>
             ) : isKwhP2tlMetric ? (
               <Button
@@ -2805,7 +2815,7 @@ export default function BusinessAnalyticsPage() {
                         </h3>
                         <p className="text-xs text-slate-500">
                           Capaian bulan {fmtMonth(d.to)}
-                          {(d.warnings || []).some((w) => w.month === d.to && w.code === 'apkt_current_month_partial') && (
+                          {(d.warnings || []).some((w) => w.month === d.to && (w.code === 'apkt_current_month_partial' || w.code === 'ap2t_current_month_partial')) && (
                             <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                               Bulan berjalan, belum final
                             </span>
@@ -3079,6 +3089,8 @@ export default function BusinessAnalyticsPage() {
         mode={
           isKontrol309Metric
             ? 'piutang'
+            : isPelunasanPrrMetric
+            ? 'ap2t'
             : activeCode.startsWith('piutang')
             ? 'piutang'
             : activeCode === 'pelanggan' || activeCode === 'daya'
@@ -3089,7 +3101,13 @@ export default function BusinessAnalyticsPage() {
             ? 'apkt'
             : null
         }
-        initialReports={isKontrol309Metric ? ['KONTROL309'] : null}
+        initialReports={
+          isKontrol309Metric
+            ? ['KONTROL309']
+            : isPelunasanPrrMetric
+            ? ['pelunasan_prr', 'pelunasan_ex_prr']
+            : null
+        }
         initialDataset={
           activeCode === 'rpt-rct-gangguan'
             ? 'rpt-rct-gangguan'

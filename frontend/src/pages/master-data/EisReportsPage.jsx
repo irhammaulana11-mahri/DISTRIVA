@@ -47,6 +47,8 @@ const FAMILY_LABELS = {
   TAGSUS: 'TAGSUS (Tagihan Susulan P2TL)',
   TAGSUS_BELUM: 'TAGSUS_BELUM (Tagihan Susulan Belum Realisasi - Potret per Tanggal Unduh)',
   UMURPIUTANG: 'UMURPIUTANG (Umur Tunggakan Pascabayar)',
+  PRR: 'PRR (Pelunasan Piutang Ragu-Ragu)',
+  EXPRR: 'EXPRR (Pelunasan Ex Piutang Ragu-Ragu)',
 }
 
 const MONTH_NAMES = [
@@ -909,6 +911,7 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
                     const rowMonths = u.datasets?.[d.code] || (d.family && u.families?.[d.family]) || {}
                     const isApkt = d.source === 'APKT'
                     const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
+                    const isAp2tPrr = d.code === 'AP2T.PELUNASAN_PRR' || d.code === 'AP2T.PELUNASAN_EX_PRR'
                     const isEisKontrol309 = d.code === 'EIS.KONTROL_309' || d.family === '309EIS'
                     const usedByText = d.used_by && d.used_by.length > 0
                       ? `Dipakai menu: ${d.used_by.join(', ')}`
@@ -980,7 +983,7 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
                                   >
                                     !
                                   </button>
-                                ) : isAp2tTagsus ? (
+                                ) : isAp2tTagsus || isAp2tPrr ? (
                                   <button
                                     type="button"
                                     onClick={() => onTriggerSync?.('ap2t', d.code)}
@@ -1097,6 +1100,7 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
               const rowMonths = d.months || {}
               const isApkt = d.source === 'APKT'
               const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
+              const isAp2tPrr = d.code === 'AP2T.PELUNASAN_PRR' || d.code === 'AP2T.PELUNASAN_EX_PRR'
               const isEisKontrol309 = d.code === 'EIS.KONTROL_309' || d.family === '309EIS'
               const usedByText = d.used_by && d.used_by.length > 0
                 ? `Dipakai menu: ${d.used_by.join(', ')}`
@@ -1149,7 +1153,7 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
                             >
                               !
                             </button>
-                          ) : isAp2tTagsus ? (
+                          ) : isAp2tTagsus || isAp2tPrr ? (
                             <button
                               type="button"
                               onClick={() => onTriggerSync?.('ap2t', d.code)}
@@ -1279,6 +1283,12 @@ export default function EisReportsPage() {
     if (mode === 'kontrol309') {
       targetMode = 'piutang'
       reports = ['KONTROL309']
+    } else if (datasetCode === 'AP2T.PELUNASAN_PRR') {
+      targetMode = 'ap2t'
+      reports = ['pelunasan_prr']
+    } else if (datasetCode === 'AP2T.PELUNASAN_EX_PRR') {
+      targetMode = 'ap2t'
+      reports = ['pelunasan_ex_prr']
     } else if (datasetCode === 'APKT.RPT_RCT_GANGGUAN') dataset = 'rpt-rct-gangguan'
     else if (datasetCode === 'APKT.RPT_RCT_KELUHAN') dataset = 'rpt-rct-keluhan'
     else if (datasetCode === 'APKT.ANOMALI_GANGGUAN') dataset = 'anomali-gangguan'

@@ -140,6 +140,8 @@ const pengusahaanNav = [
   { to: '/pengusahaan/piutang-prabayar', label: 'Piutang Pra', capability: 'pengusahaan.view', icon: IconFileText, group: 'Piutang', tooltip: 'Saldo dan lembar piutang listrik prabayar' },
   { to: '/pengusahaan/piutang-pascabayar', label: 'Piutang Pasca', capability: 'pengusahaan.view', icon: IconFileText, group: 'Piutang', tooltip: 'Saldo piutang lewat tanggal 20 rekening baru' },
   { to: '/pengusahaan/piutang-pascabayar-umur', label: 'Umur Piutang', capability: 'pengusahaan.view', icon: IconClock, group: 'Piutang', tooltip: 'Tunggakan pascabayar menurut kelompok umur tunggakan dan kogol' },
+  { to: '/pengusahaan/pelunasan-prr', label: 'Pelunasan PRR', capability: 'pengusahaan.view', icon: IconTag, group: 'Piutang', tooltip: 'Pelunasan piutang ragu-ragu menurut tanggal bayar (AP2T)' },
+  { to: '/pengusahaan/pelunasan-ex-prr', label: 'Pelunasan Ex PRR', capability: 'pengusahaan.view', icon: IconTag, group: 'Piutang', tooltip: 'Pelunasan ex piutang ragu-ragu menurut tanggal bayar (AP2T)' },
 
   // Kelompok Keandalan & Pelayanan
   { to: '/pengusahaan/gangguan', label: 'Gangguan Penyulang', capability: 'pengusahaan.view', icon: IconActivity, group: 'Keandalan & Pelayanan', tooltip: 'Frekuensi kali gangguan penyulang distribusi' },
@@ -241,6 +243,8 @@ const PENGUSAHAAN_TITLES = {
   'piutang-prabayar': 'Piutang Pra',
   'piutang-pascabayar': 'Piutang Pasca',
   'piutang-pascabayar-umur': 'Umur Piutang',
+  'pelunasan-prr': 'Pelunasan PRR',
+  'pelunasan-ex-prr': 'Pelunasan Ex PRR',
   gangguan: 'Gangguan Penyulang',
   'saidi-saifi': 'SAIDI & SAIFI',
   ens: 'ENS',

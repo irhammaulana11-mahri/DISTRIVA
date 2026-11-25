@@ -93,6 +93,8 @@ export default function EisRunHistory() {
                 const isOnlyKontrol309 = isPiutang && Array.isArray(r.options?.reports) && r.options.reports.length === 1 && r.options.reports[0] === 'KONTROL309'
                 const isApkt = r.kind === 'apkt'
                 const isAp2t = r.kind === 'ap2t'
+                const ap2tReports = Array.isArray(r.options?.reports) ? r.options.reports : []
+                const isAp2tPrrOnly = isAp2t && ap2tReports.length > 0 && ap2tReports.every((x) => x === 'pelunasan_prr' || x === 'pelunasan_ex_prr')
                 const isRptRctGangguan = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
                 const isRptRctKeluhan = isApkt && r.options?.dataset === 'rpt-rct-keluhan'
                 const isAnomaliGangguan = isApkt && r.options?.dataset === 'anomali-gangguan'
@@ -121,7 +123,7 @@ export default function EisRunHistory() {
                           : isApkt
                           ? 'SAIDI/SAIFI (APKT)'
                           : isAp2t
-                          ? 'TAGSUS (AP2T)'
+                          ? (isAp2tPrrOnly ? 'Pelunasan PRR' : 'TAGSUS (AP2T)')
                           : isOnlyKontrol309
                           ? 'Tarik Kontrol 309'
                           : isPiutang
@@ -161,10 +163,10 @@ export default function EisRunHistory() {
                           )}
                           {isAp2t && (
                             <div className="text-[10px] text-slate-400">
-                              Dataset: TAGSUS P2TL
+                              {isAp2tPrrOnly ? 'Dataset: Pelunasan PRR / Ex PRR' : 'Dataset: TAGSUS P2TL'}
                               {r.options?.reports && (
                                 <span className="block text-slate-400">
-                                  {r.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x).join(', ')}
+                                  {r.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x).join(', ')}
                                 </span>
                               )}
                             </div>

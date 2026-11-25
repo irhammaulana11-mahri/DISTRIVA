@@ -163,9 +163,13 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
 
   useEffect(() => {
     if (initialReports && Array.isArray(initialReports)) {
-      setPiutangReports(initialReports)
+      if (mode === 'ap2t' || activeTab === 'ap2t') {
+        setAp2tReports(initialReports)
+      } else {
+        setPiutangReports(initialReports)
+      }
     }
-  }, [initialReports])
+  }, [initialReports, mode, activeTab])
 
   useEffect(() => {
     if (open) {
@@ -383,8 +387,10 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   const isApkt = mode === 'apkt' || (!mode && activeTab === 'apkt')
   const isAp2t = mode === 'ap2t' || (!mode && activeTab === 'ap2t')
 
+  const isAp2tPrrMode = isAp2t && ap2tReports.length > 0 && ap2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr')
+
   const titleText = isAp2t
-    ? 'Tarik TAGSUS AP2T (kWh P2TL)'
+    ? (isAp2tPrrMode ? 'Tarik Laporan Pelunasan PRR (AP2T)' : 'Tarik TAGSUS AP2T (kWh P2TL)')
     : isApkt
     ? apktDataset === 'rpt-rct-gangguan'
       ? 'Tarik RPT/RCT WO Gangguan APKT'
@@ -399,7 +405,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     ? 'Sinkronisasi Saldo Piutang EIS'
     : 'Sinkronisasi EIS'
   const subtitleText = isAp2t
-    ? 'Tarik laporan realisasi tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T ke DISTRIVA'
+    ? (isAp2tPrrMode ? 'Tarik laporan pelunasan piutang ragu-ragu dan ex-PRR per ULP langsung dari AP2T ke DISTRIVA' : 'Tarik laporan realisasi tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T ke DISTRIVA')
     : isApkt
     ? apktDataset === 'rpt-rct-gangguan'
       ? 'Tarik durasi respons dan pemulihan WO gangguan langsung dari GraphQL APKT'
@@ -1138,10 +1144,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                      Tarik TAGSUS AP2T (kWh P2TL)
+                      {isAp2tPrrMode ? 'Tarik Laporan Pelunasan PRR (AP2T)' : 'Tarik TAGSUS AP2T (kWh P2TL)'}
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Tarik laporan realisasi pendapatan penetapan tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T tanpa token.
+                      {isAp2tPrrMode
+                        ? 'Tarik laporan pelunasan piutang ragu-ragu dan ex-PRR per ULP langsung dari AP2T tanpa token.'
+                        : 'Tarik laporan realisasi pendapatan penetapan tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T tanpa token.'}
                     </p>
                   </div>
                   <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
@@ -1154,7 +1162,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Laporan AP2T:</div>
                   <p>
-                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan</b> dan <b>Daftar Tagihan Susulan Belum Realisasi</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan TAGSUS & TAGSUS_BELUM DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
+                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan (TAGSUS)</b>, <b>Daftar Tagihan Susulan Belum Realisasi</b>, <b>Pelunasan PRR</b>, dan/atau <b>Pelunasan Ex PRR</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
                   </p>
                 </div>
 
@@ -1167,6 +1175,8 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                     {[
                       { key: 'realisasi', label: 'Realisasi' },
                       { key: 'belum_realisasi', label: 'Belum realisasi' },
+                      { key: 'pelunasan_prr', label: 'Pelunasan PRR' },
+                      { key: 'pelunasan_ex_prr', label: 'Pelunasan Ex PRR' },
                     ].map((rep) => (
                       <label
                         key={rep.key}
@@ -1193,7 +1203,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 {/* Filter Rentang Bulan AP2T */}
                 <div className="space-y-3 pt-1">
                   <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
-                    Rentang Bulan Laporan TAGSUS
+                    Rentang Bulan Laporan AP2T
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field
@@ -1270,7 +1280,9 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                     className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white cursor-pointer"
                   >
                     <IconRefresh size={14} className={running && current?.kind === 'ap2t' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                    {running && current?.kind === 'ap2t' ? 'Sedang menarik TAGSUS AP2T…' : 'Tarik TAGSUS AP2T'}
+                    {running && current?.kind === 'ap2t'
+                      ? (isAp2tPrrMode ? 'Sedang menarik Pelunasan PRR…' : 'Sedang menarik TAGSUS AP2T…')
+                      : (isAp2tPrrMode ? 'Tarik Pelunasan PRR' : 'Tarik TAGSUS AP2T')}
                   </Button>
 
                   {!canApktSync && (

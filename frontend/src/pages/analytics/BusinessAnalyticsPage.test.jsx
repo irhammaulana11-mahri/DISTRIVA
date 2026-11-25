@@ -1528,4 +1528,99 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('TUL III-07 (11)')).toBeInTheDocument()
     expect(screen.getByText('Pembatalan Rekening (MEMO4)')).toBeInTheDocument()
   })
+
+  it('19. mendukung menu Pelunasan PRR dan Pelunasan Ex PRR dengan tombol Tarik AP2T dan peringatan bulan berjalan (Butir 35)', async () => {
+    const prrCatalog = {
+      data: {
+        units: [{ id: 'u-1', name: 'ULP Mojokerto Kota', unit_type: 'ULP', parent_id: null }],
+        metrics: [
+          {
+            code: 'pelunasan-prr',
+            name: 'Pelunasan PRR',
+            source: 'AP2T',
+            polarity: 'up',
+            series: [
+              { key: 'rp', name: 'Pelunasan PRR', unit: 'Rp' },
+              { key: 'pelanggan', name: 'Pelanggan yang melunasi', unit: 'plg' },
+              { key: 'transaksi', name: 'Jumlah pembayaran', unit: 'kali' },
+            ],
+          },
+        ],
+      },
+    }
+
+    const prrDetail = {
+      data: {
+        unit: { id: 'u-1', name: 'ULP Mojokerto Kota', unit_type: 'ULP' },
+        metric: {
+          code: 'pelunasan-prr',
+          name: 'Pelunasan PRR',
+          unit: 'Rp',
+          polarity: 'up',
+          source: 'AP2T',
+        },
+        from: '2026-10',
+        to: '2026-11',
+        months: ['2026-10', '2026-11'],
+        summary: [
+          { key: 'rp', name: 'Pelunasan PRR', unit: 'Rp', latest: 5000000, ytd: 15000000 },
+          { key: 'pelanggan', name: 'Pelanggan yang melunasi', unit: 'plg', latest: 10, ytd: 30 },
+          { key: 'transaksi', name: 'Jumlah pembayaran', unit: 'kali', latest: 12, ytd: 35 },
+        ],
+        series: [
+          { key: 'rp', name: 'Pelunasan PRR', unit: 'Rp', values: [10000000, 5000000], previous_year: [8000000, 4000000] },
+        ],
+        breakdown: {
+          dimension: 'Komponen pelunasan',
+          period: '2026-11',
+          rows: [
+            { key: 'Pemakaian listrik (RPPTL)', value: 4000000, share_pct: 80 },
+            { key: 'Biaya keterlambatan (BK)', value: 1000000, share_pct: 20 },
+          ],
+        },
+        breakdown_secondary: {
+          dimension: 'Bulan tagihan (BLTH)',
+          period: '2026-11',
+          rows: [
+            { key: '2026-08', value: 3000000, share_pct: 60 },
+            { key: '2026-07', value: 2000000, share_pct: 40 },
+          ],
+        },
+        warnings: [
+          {
+            code: 'ap2t_current_month_partial',
+            severity: 'warning',
+            month: '2026-11',
+            message: 'Data PRR 2026-11 hanya memuat pembayaran sampai tanggal 25 (terakhir ditarik 2026-11-25). Angka bulan ini belum penuh dan tidak sebanding dengan bulan penuh; tarik ulang setelah bulan berakhir.',
+          },
+        ],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(prrCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'pelunasan-prr') {
+        return Promise.resolve(prrDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/pelunasan-prr'])
+
+    // Verifikasi tombol Tarik AP2T (PRR dan Ex PRR) tampil
+    expect(await screen.findByRole('button', { name: 'Tarik AP2T (PRR dan Ex PRR)' })).toBeInTheDocument()
+
+    // Verifikasi pita peringatan bulan berjalan muncul
+    expect(await screen.findByText(/Data PRR 2026-11 hanya memuat pembayaran sampai tanggal 25/i)).toBeInTheDocument()
+
+    // Buka tab Rincian
+    const rincianTab = await screen.findByRole('button', { name: 'Rincian' })
+    await userEvent.click(rincianTab)
+
+    // Verifikasi rincian Komponen Pelunasan dan Bulan tagihan (BLTH)
+    expect(await screen.findByText('Rincian: Komponen pelunasan')).toBeInTheDocument()
+    expect(screen.getByText('Pemakaian listrik (RPPTL)')).toBeInTheDocument()
+    expect(screen.getByText('Rincian: Bulan tagihan (BLTH)')).toBeInTheDocument()
+    expect(screen.getByText('2026-08')).toBeInTheDocument()
+  })
 })
