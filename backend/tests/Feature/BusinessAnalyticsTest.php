@@ -1151,6 +1151,10 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertSame($this->ulpA->id, $m['ulps'][0]['unit_id']);
         $this->assertEquals([100_000_000, 10_000_000, 3, 6_000_000], [$m['ulps'][0]['rp'], $m['ulps'][0]['rp_standard'], $m['ulps'][1]['n'], $m['ulps'][1]['rp']]);
 
+        $resolver = app(NkoRealizationResolver::class);                                                          // NKO: pendapatan biaya penyambungan (Rp miliar, kumulatif Januari sampai bulan) dan jumlahnya di UP3
+        $this->assertEqualsWithDelta(0.520, $resolver->systemValues($this->ulpA->id, 2026, 8)['pendapatan-biaya-penyambungan'], 1e-9);
+        $this->assertEqualsWithDelta(0.526, $resolver->systemValues($this->up3->id, 2026, 8)['pendapatan-biaya-penyambungan'], 1e-9);
+
         $this->assertEquals(1.0, $d['lag']['median_days']);                                                      // semua lunas sehari setelah dibuat
         $q = collect($d['queue']['buckets'])->keyBy('key');
         $this->assertEquals([1, 5_000_000, 1, 2_000_000, 2, 2_000_000], [$q['0-7']['n'], $q['0-7']['rp'], $q['8-30']['n'], $q['8-30']['rp'], $q['>30']['n'], $q['>30']['rp']]);

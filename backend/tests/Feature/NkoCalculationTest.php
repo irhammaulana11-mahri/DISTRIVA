@@ -204,6 +204,43 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertSame('SISTEM', $r['daya-tersambung']['source']);
     }
 
+    private function difiWeighted(OrganizationalUnit $unit, string $period, float $jamXPlg, float $padam, float $pelanggan, float $kwh): void
+    {
+        $id = (string) Str::uuid();
+        DB::table('eis_report_files')->insert(['id' => $id, 'family' => 'DIFI', 'unit_code' => $unit->code, 'organizational_unit_id' => $unit->id, 'period' => $period, 'original_name' => "DIFI-{$unit->code}.xls",
+            'sha256' => hash('sha256', $id), 'size_bytes' => 1, 'status' => 'AKTIF', 'summary' => json_encode(['pelanggan' => $pelanggan]), 'line_count' => 1, 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('eis_report_lines')->insert(['file_id' => $id, 'line_no' => 1, 'label' => 'TOTAL KELOMPOK Distribusi', 'values' => json_encode(['jam_x_plg' => $jamXPlg, 'jml_plg_padam' => $padam, 'kwh_tak_tersalurkan' => $kwh])]);
+    }
+
+    #[Test]
+    public function realisasi_up3_dari_ulp_di_bawahnya_menjumlah_atau_menimbang_pelanggan_dan_kosong_bila_satu_ulp_belum_lengkap(): void
+    {
+        $resolver = app(NkoRealizationResolver::class);
+        // SAIDI dan SAIFI UP3 per bulan = rata-rata tertimbang pelanggan, lalu dijumlahkan; ENS dijumlahkan
+        $this->difiWeighted($this->ulpA, '2026-01-01', 10, 100, 1000, 2000);                                   // ULP A: SAIDI 0,6, SAIFI 0,1
+        $this->difiWeighted($this->ulpB, '2026-01-01', 60, 600, 3000, 4000);                                   // ULP B: SAIDI 1,2, SAIFI 0,2
+        $jan = $resolver->systemValues($this->up3->id, 2026, 1);
+        $this->assertEqualsWithDelta((10 * 60 + 60 * 60) / 4000, $jan['saidi'], 1e-9);                          // 1,05 menit, bukan rata-rata sederhana 0,9
+        $this->assertEqualsWithDelta(700 / 4000, $jan['saifi'], 1e-9);
+        $this->assertEqualsWithDelta(6.0, $jan['ens'], 1e-9);
+        $this->difiWeighted($this->ulpA, '2026-02-01', 20, 100, 1000, 1000);
+        $this->assertArrayNotHasKey('saidi', $resolver->systemValues($this->up3->id, 2026, 2));                  // ULP B belum punya Februari: tidak dijumlah sebagian
+        $this->difiWeighted($this->ulpB, '2026-02-01', 30, 300, 3000, 1000);
+        $this->assertEqualsWithDelta(1.05 + (20 * 60 + 30 * 60) / 4000, $resolver->systemValues($this->up3->id, 2026, 2)['saidi'], 1e-9);
+
+        // penambahan pelanggan dan daya: jumlah ULP (selisih terhadap Desember tahun lalu)
+        $this->report309($this->ulpA, '2025-12-01', 100, 1_000_000);
+        $this->report309($this->ulpA, '2026-01-01', 110, 3_000_000);
+        $this->assertArrayNotHasKey('penambahan-pelanggan', $resolver->systemValues($this->up3->id, 2026, 1));    // ULP B belum punya 309
+        $this->report309($this->ulpB, '2025-12-01', 200, 5_000_000);
+        $this->report309($this->ulpB, '2026-01-01', 230, 6_000_000);
+        $up3 = $resolver->systemValues($this->up3->id, 2026, 1);
+        $this->assertEquals([40.0, 3.0], [$up3['penambahan-pelanggan'], $up3['daya-tersambung']]);               // 10 + 30 pelanggan; 2 + 1 MVA
+
+        // hasil UP3 dibawa ke perhitungan NKO tingkat UP3 sebagai nilai sistem
+        $this->assertSame('SISTEM', $resolver->resolve($this->up3->id, 2026, 1)['penambahan-pelanggan']['source']);
+    }
+
     private function report309(OrganizationalUnit $unit, string $period, float $pelanggan, float $dayaVa): void
     {
         $id = (string) Str::uuid();

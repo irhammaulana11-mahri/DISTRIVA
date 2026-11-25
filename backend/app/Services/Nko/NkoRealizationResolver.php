@@ -14,7 +14,7 @@ class NkoRealizationResolver
     /** kode indikator => jenis sumber sistem */
     public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh', 'penambahan-pelanggan' => 'pelanggan_309', 'daya-tersambung' => 'daya_309',
         'gangguan-tm' => 'gangguan_penyulang', 'response-time-atas-gangguan-diluar-clear-tamper' => 'response_ggnall', 'feedback-rating-negatif-pada-pln-mobile-gangguan' => 'rating_negatif_ggn',
-        'susut-distribusi-tanpa-e-min' => 'susut_hitung', 'penjualan-tenaga-listrik' => 'penjualan_selisih',
+        'susut-distribusi-tanpa-e-min' => 'susut_hitung', 'penjualan-tenaga-listrik' => 'penjualan_selisih', 'pendapatan-biaya-penyambungan' => 'hpl_bp',
         self::PELUNASAN_CODE => 'pelunasan_prabayar'];
 
     public const PELUNASAN_CODE = 'pencapaian-pelunasan-prr-ex-prr-dan-piutang-prabayar';
@@ -35,7 +35,7 @@ class NkoRealizationResolver
     public const SUSUT_INPUTS = ['kwh-beli' => 'kWh Beli (kumulatif)', 'e-min' => 'E-Min (kWh, kumulatif)', 'pssd' => 'PSSD (kWh, kumulatif)'];
 
     /** sumber sistem yang dimuat otomatis tetapi belum cocok dengan angka workbook (dapat dikoreksi dengan masukan manual disertai alasan) */
-    public const UNVALIDATED_CODES = [self::PELUNASAN_CODE, 'penjualan-tenaga-listrik', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
+    public const UNVALIDATED_CODES = [self::PELUNASAN_CODE, 'penjualan-tenaga-listrik', 'pendapatan-biaya-penyambungan', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
 
     /**
      * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string}> menurut kode indikator
@@ -60,7 +60,52 @@ class NkoRealizationResolver
      */
     public function systemValues(string $unitId, int $year, int $month): array
     {
-        return $this->difiValues($unitId, $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($unitId, $year, $month) + $this->susutValues($unitId, $year, $month) + $this->penjualanValues($unitId, $year, $month) + $this->pelunasanValues($unitId, $year, $month);
+        $children = $this->childUlps($unitId);
+        if ($children !== []) {
+            return $this->aggregateValues($unitId, $children, $year, $month);
+        }
+
+        return $this->difiValues([$unitId], $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues([$unitId], $year, $month) + $this->susutValues($unitId, $year, $month)
+            + $this->penjualanValues($unitId, $year, $month) + $this->pelunasanValues($unitId, $year, $month) + $this->connectionFeeValues([$unitId], $year, $month);
+    }
+
+    /**
+     * ULP di bawah UP3 (kosong untuk ULP atau unit tanpa anak ULP).
+     *
+     * @return list<string>
+     */
+    private function childUlps(string $unitId): array
+    {
+        return DB::table('organizational_units')->where('parent_id', $unitId)->where('unit_type', 'ULP')->orderBy('id')->pluck('id')->all();
+    }
+
+    /**
+     * Realisasi sistem tingkat UP3 dari ULP di bawahnya: jumlah (penambahan pelanggan, daya, ENS, penjualan, pelunasan, rating negatif, HPL BP), rata-rata tertimbang pelanggan per bulan (SAIDI, SAIFI),
+     * tertimbang jumlah WO (response time), dan rasio jumlah (susut). Hanya dihitung bila SEMUA ULP punya datanya; satu ULP kosong membuat indikator itu kosong, bukan jumlah sebagian
+     * (angka UP3 yang tampak lengkap padahal kurang satu ULP lebih menyesatkan daripada kosong). Gangguan TM dihitung langsung dari data gangguan (sudah menjumlahkan ULP).
+     *
+     * @param  list<string>  $children
+     * @return array<string, float>
+     */
+    private function aggregateValues(string $unitId, array $children, int $year, int $month): array
+    {
+        $per = [];
+        foreach ($children as $child) {
+            $per[$child] = $this->systemValues($child, $year, $month);
+        }
+        $out = $this->difiValues($children, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($children, $year, $month) + $this->connectionFeeValues($children, $year, $month);
+        $sums = ['penambahan-pelanggan', 'daya-tersambung', 'penjualan-tenaga-listrik', self::PELUNASAN_CODE];
+        foreach ($sums as $code) {
+            $values = array_column($per, $code);
+            count($values) === count($children) && $out[$code] = array_sum($values);
+        }
+        $losses = array_map(fn ($c) => $this->lossParts($c, $year, $month), $children);
+        if (! in_array(null, $losses, true)) {
+            $base = array_sum(array_column($losses, 'base'));
+            $base > 0 && $out[self::SUSUT_CODE] = ($base - array_sum(array_column($losses, 'jual'))) / $base * 100;
+        }
+
+        return $out;
     }
 
     /**
@@ -172,30 +217,42 @@ class NkoRealizationResolver
      */
     private function susutValues(string $unitId, int $year, int $month): array
     {
+        $parts = $this->lossParts($unitId, $year, $month);
+
+        return $parts === null ? [] : [self::SUSUT_CODE => ($parts['base'] - $parts['jual']) / $parts['base'] * 100];
+    }
+
+    /**
+     * kWh beli bersih (setelah E-Min dan PSSD) dan kWh jual kumulatif satu ULP, atau null bila datanya belum lengkap; dipakai tingkat ULP dan penjumlahan tingkat UP3.
+     *
+     * @return array{base: float, jual: float}|null
+     */
+    private function lossParts(string $unitId, int $year, int $month): ?array
+    {
         $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))
             ->whereIn('definition_code', array_keys(self::SUSUT_INPUTS))->pluck('value', 'definition_code');
         if (! isset($manual['kwh-beli'])) {
             $manual = $this->monthlyLossInputs($unitId, $year, $month);
         }
         if (! isset($manual['kwh-beli']) || (float) $manual['kwh-beli'] <= 0) {
-            return [];
+            return null;
         }
         $files = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
             ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->pluck('id');
         if ($files->count() !== $month) {
-            return [];
+            return null;
         }
         $jual = 0.0;
         foreach ($files as $id) {
             $line = DB::table('eis_report_lines')->where('file_id', $id)->where('label', 'JUMLAH')->orderByDesc('line_no')->value('values');
             if ($line === null) {
-                return [];
+                return null;
             }
             $jual += (float) (json_decode($line, true)['kwh_jumlah'] ?? 0);
         }
         $base = (float) $manual['kwh-beli'] - (float) ($manual['e-min'] ?? 0) - (float) ($manual['pssd'] ?? 0);
 
-        return $base <= 0 ? [] : [self::SUSUT_CODE => ($base - $jual) / $base * 100];
+        return $base <= 0 ? null : ['base' => $base, 'jual' => $jual];
     }
 
     /**
@@ -235,21 +292,22 @@ class NkoRealizationResolver
 
     /**
      * Dari penarikan APKT semua bulan Januari sampai bulan berjalan (semua bulan harus ada): response time gangguan di luar Clear Tamper = rata-rata respons varian "Tanpa Clear Temper"
-     * tertimbang jumlah WO (jumlah total durasi dibagi jumlah WO); rating negatif PLN Mobile gangguan = jumlah anomali rating negatif tanpa marking (ukuran NKO). Hanya untuk ULP (unit lain tanpa data).
+     * tertimbang jumlah WO (jumlah total durasi dibagi jumlah WO); rating negatif PLN Mobile gangguan = jumlah anomali rating negatif tanpa marking (ukuran NKO). Banyak unit (UP3): response time tertimbang jumlah WO seluruh ULP, rating negatif dijumlahkan; semua bulan semua ULP harus ada.
      * Dapat dikoreksi dengan masukan manual disertai alasan.
      *
      * @return array<string, float>
      */
-    private function ggnValues(string $unitId, int $year, int $month): array
+    private function ggnValues(array $unitIds, int $year, int $month): array
     {
         $between = ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)];
+        $expected = $month * count($unitIds);
         $out = [];
-        $response = DB::table('apkt_rpt_rct_records')->where('organizational_unit_id', $unitId)->where('clear_temper', false)->whereBetween('period', $between)->get(['rpt_total', 'rpt_count']);
-        if ($response->count() === $month && $response->sum('rpt_count') > 0) {
+        $response = DB::table('apkt_rpt_rct_records')->whereIn('organizational_unit_id', $unitIds)->where('clear_temper', false)->whereBetween('period', $between)->get(['rpt_total', 'rpt_count']);
+        if ($response->count() === $expected && $response->sum('rpt_count') > 0) {
             $out['response-time-atas-gangguan-diluar-clear-tamper'] = (float) $response->sum('rpt_total') / (float) $response->sum('rpt_count');
         }
-        $negative = DB::table('apkt_anomali_gangguan_records')->where('organizational_unit_id', $unitId)->where('jenis', 'NEGATIF')->whereBetween('period', $between)->get(['total_anomali_non_marking']);
-        if ($negative->count() === $month) {
+        $negative = DB::table('apkt_anomali_gangguan_records')->whereIn('organizational_unit_id', $unitIds)->where('jenis', 'NEGATIF')->whereBetween('period', $between)->get(['total_anomali_non_marking']);
+        if ($negative->count() === $expected) {
             $out['feedback-rating-negatif-pada-pln-mobile-gangguan'] = (float) $negative->sum('total_anomali_non_marking');
         }
 
@@ -257,17 +315,20 @@ class NkoRealizationResolver
     }
 
     /**
+     * SAIDI, SAIFI, dan ENS dari laporan DIFI Januari sampai bulan berjalan (semua laporan semua unit harus ada). Satu unit: jumlah bulanan. Banyak unit (UP3): tiap bulan SAIDI dan SAIFI adalah
+     * rata-rata tertimbang pelanggan (jumlah jam x pelanggan dibagi jumlah pelanggan), lalu dijumlahkan; ENS dijumlahkan.
+     *
+     * @param  list<string>  $unitIds
      * @return array<string, float>
      */
-    private function difiValues(string $unitId, int $year, int $month): array
+    private function difiValues(array $unitIds, int $year, int $month): array
     {
-        $files = DB::table('eis_report_files')->where('family', 'DIFI')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
-            ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->get(['id', 'summary']);
-        if ($files->count() !== $month) {
+        $files = DB::table('eis_report_files')->where('family', 'DIFI')->where('status', 'AKTIF')->whereIn('organizational_unit_id', $unitIds)
+            ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->get(['id', 'summary', 'period', 'organizational_unit_id']);
+        if ($files->count() !== $month * count($unitIds)) {
             return [];
         }
-        $saidi = 0.0;
-        $saifi = 0.0;
+        $byMonth = [];
         $ensKwh = 0.0;
         foreach ($files as $f) {
             $summary = json_decode($f->summary ?? '{}', true) ?: [];
@@ -279,17 +340,43 @@ class NkoRealizationResolver
             $plg = (float) ($summary['pelanggan'] ?? 0);
             // SAIDI dan SAIFI "sesuai kewenangan" = kelompok Distribusi saja; total keseluruhan laporan ikut menghitung Pembangkit dan Transmisi (Juni 2026 ULP Jombang: 183 menit lawan 1,9 menit, workbook 1,1)
             if ($plg > 0 && isset($total['jam_x_plg'], $total['jml_plg_padam'])) {
-                $saidi += (float) $total['jam_x_plg'] * 60 / $plg;
-                $saifi += (float) $total['jml_plg_padam'] / $plg;
-            } elseif (isset($summary['saidi_menit'], $summary['saifi_kali'])) {
-                $saidi += (float) $summary['saidi_menit'];
-                $saifi += (float) $summary['saifi_kali'];
+                $saidiPlg = (float) $total['jam_x_plg'] * 60;
+                $saifiPlg = (float) $total['jml_plg_padam'];
+            } elseif (isset($summary['saidi_menit'], $summary['saifi_kali'])) {                          // tata letak lama: ringkasan; bobot satu bila jumlah pelanggan tidak ada (satu unit: nilai ringkasan apa adanya)
+                $weight = $plg > 0 ? $plg : 1.0;
+                $plg = $weight;
+                $saidiPlg = (float) $summary['saidi_menit'] * $weight;
+                $saifiPlg = (float) $summary['saifi_kali'] * $weight;
             } else {
                 return [];
             }
+            $m = substr((string) $f->period, 0, 7);
+            $byMonth[$m] ??= ['plg' => 0.0, 'saidi' => 0.0, 'saifi' => 0.0];
+            $byMonth[$m]['plg'] += $plg;
+            $byMonth[$m]['saidi'] += $saidiPlg;
+            $byMonth[$m]['saifi'] += $saifiPlg;
             $ensKwh += (float) ($total['kwh_tak_tersalurkan'] ?? 0);
         }
 
-        return ['saidi' => $saidi, 'saifi' => $saifi, 'ens' => $ensKwh / 1000];
+        return ['saidi' => array_sum(array_map(fn ($x) => $x['saidi'] / $x['plg'], $byMonth)), 'saifi' => array_sum(array_map(fn ($x) => $x['saifi'] / $x['plg'], $byMonth)), 'ens' => $ensKwh / 1000];
+    }
+
+    /**
+     * Pendapatan biaya penyambungan (Rp miliar, kumulatif) = total biaya permohonan PB/PD yang dibayar Januari sampai bulan berjalan, tanpa yang dibatalkan atau direstitusi (sama dengan menu HPL BP).
+     * Belum cocok dengan angka workbook (selisih sekitar -8% sampai +15% per ULP, +7,8% UP3 September 2026), sehingga dapat dikoreksi dengan masukan manual disertai alasan.
+     *
+     * @param  list<string>  $unitIds
+     * @return array<string, float>
+     */
+    private function connectionFeeValues(array $unitIds, int $year, int $month): array
+    {
+        $end = date('Y-m-d', strtotime(sprintf('%04d-%02d-01 +1 month', $year, $month)));
+        $rows = DB::table('applications')->whereIn('organizational_unit_id', $unitIds)->whereNotNull('paid_at')->whereNotIn('current_status', ['CANCELLED', 'REFUNDED'])
+            ->whereRaw("(paid_at at time zone 'Asia/Jakarta') >= ?", ["{$year}-01-01"])->whereRaw("(paid_at at time zone 'Asia/Jakarta') < ?", [$end]);
+        if (! (clone $rows)->exists()) {
+            return [];
+        }
+
+        return ['pendapatan-biaya-penyambungan' => (float) $rows->sum('total_cost') / 1_000_000_000];
     }
 }
