@@ -12,6 +12,7 @@ use App\Services\Analytics\BusinessTargetService;
 use App\Services\Analytics\BusinessTrendBuilder;
 use App\Services\Analytics\ReceivableInsights;
 use App\Services\Analytics\ReliabilityInsights;
+use App\Services\Analytics\SalesInsights;
 use App\Services\Authorization\ApplicationAuthorizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ class BusinessAnalyticsController extends Controller
     private const INPUT_PERMISSION = 'pengusahaan.input';
 
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $inputWorkbook, private readonly BusinessMetricWorkbook $workbook,
-        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable) {}
+        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable, private readonly SalesInsights $sales) {}
 
     /** GET /pengusahaan/metrics: katalog metrik dan unit yang boleh dilihat. */
     public function index(Request $request): JsonResponse
@@ -124,6 +125,7 @@ class BusinessAnalyticsController extends Controller
         return ['unit' => ['id' => $unit->id, 'name' => $unit->name, 'unit_type' => $unit->unit_type], 'detail' => match ($code) {
             'gangguan', 'saidi-saifi', 'ens' => $this->reliability->detail($ids, $to),
             'piutang-pascabayar-umur', 'piutang-pascabayar' => $this->receivable->aging($ids, $to),
+            'kwh-jual', 'pendapatan' => $this->sales->decomposition($code, $ids, $to),
             'pelunasan-prr' => $this->receivable->repayment('PRR', $ids, $to),
             'pelunasan-ex-prr' => $this->receivable->repayment('EXPRR', $ids, $to),
             default => null,

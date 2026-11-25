@@ -1,6 +1,6 @@
 # 92 — Standar Halaman dan Penajaman Analisa Pengusahaan (rancangan)
 
-Status: **rancangan disetujui pemilik (25 Nov 2026). Tahap 1 sisi backend selesai (target NKO, sumbangan ULP, diagnosis; kontrak di docs/91 `targets`, `contribution`, `diagnosis`). Tahap 2 (uji coba keandalan) sisi backend selesai: `detail` pada menu SAIDI/SAIFI, ENS, dan Gangguan (Pareto penyulang, gangguan berulang, komposisi penyebab dan cuaca, skor risiko dengan uji mundur); prakiraan cuaca BMKG belum. Tahap 3 (uji coba piutang) sisi backend selesai: `detail` pada menu umur tunggakan, piutang pascabayar, dan pelunasan PRR/Ex PRR (roll-rate pelanggan, prakiraan calon PRR dengan uji mundur, umur BLTH pelunasan); prakiraan berbasis rupiah ditolak karena kalah dari cara naif. Sisi frontend dan tahap berikutnya belum.** Dokumen ini menetapkan arah; kontrak API tiap tahap ditulis di docs/91 dan dicatat di README-REVISI saat tahap itu dikerjakan backend. Berlaku untuk semua menu di bawah label **Analisa & Tren Pengusahaan** (katalog metrik docs/91 §1).
+Status: **rancangan disetujui pemilik (25 Nov 2026). Tahap 1 sisi backend selesai (target NKO, sumbangan ULP, diagnosis; kontrak di docs/91 `targets`, `contribution`, `diagnosis`). Tahap 2 (uji coba keandalan) sisi backend selesai: `detail` pada menu SAIDI/SAIFI, ENS, dan Gangguan (Pareto penyulang, gangguan berulang, komposisi penyebab dan cuaca, skor risiko dengan uji mundur); prakiraan cuaca BMKG belum. Tahap 3 (uji coba piutang) sisi backend selesai: `detail` pada menu umur tunggakan, piutang pascabayar, dan pelunasan PRR/Ex PRR (roll-rate pelanggan, prakiraan calon PRR dengan uji mundur, umur BLTH pelunasan); prakiraan berbasis rupiah ditolak karena kalah dari cara naif. Tahap 4 (uji coba kWh Jual dan Pendapatan) sisi backend selesai: `detail` pemecahan perubahan tahunan menurut golongan dengan catatan otomatis, dan `events[]` penanda Idul Fitri; faktor Lebaran dan hari ditolak karena tidak memperbaiki prakiraan. Sisi frontend dan tahap berikutnya belum.** Dokumen ini menetapkan arah; kontrak API tiap tahap ditulis di docs/91 dan dicatat di README-REVISI saat tahap itu dikerjakan backend. Berlaku untuk semua menu di bawah label **Analisa & Tren Pengusahaan** (katalog metrik docs/91 §1).
 
 ## 1. Tujuan
 
@@ -93,7 +93,7 @@ Kolom "Data DISTRIVA" menyebut data yang sudah ada; "Data luar" adalah calon yan
   - perubahan tahunan dipecah menjadi efek jumlah pelanggan, efek kWh per pelanggan, dan efek campuran golongan (jumlahnya sama dengan perubahan total);
   - porsi prabayar lawan pascabayar dan komponen lain dari kontrol 309;
   - golongan besar (I dan B) yang naik atau turun paling banyak, sebagai daftar perhatian.
-- **Prakiraan:** per golongan tarif lalu dijumlahkan, dengan pendorong prakiraan pelanggan (§6.1), penanda bulan Lebaran (§7), jumlah hari kerja, dan suhu (BMKG). Studi pada wilayah PLN menunjukkan suhu berpengaruh pada konsumsi rumah tangga.
+- **Prakiraan:** model musiman yang ada dipertahankan (kesalahan uji mundur 4,9% lawan 6,2% cara naif). **Hasil uji (26 Nov 2026, 81 titik dari 28 origin):** normalisasi jumlah hari per bulan tidak memperbaiki kWh (4,91%) dan penambahan efek Lebaran malah memperburuk (5,18%); jadi keduanya tidak dipakai. Pendorong lain (prakiraan pelanggan dari §6.1, suhu BMKG) menunggu data. Studi pada wilayah PLN menunjukkan suhu berpengaruh pada konsumsi rumah tangga.
 
 ### 6.3 Pendapatan (`pendapatan`)
 
@@ -114,7 +114,7 @@ Kolom "Data DISTRIVA" menyebut data yang sudah ada; "Data luar" adalah calon yan
 
 - **Data DISTRIVA:** pelunasan per BLTH dan komponen (AP2T, docs/88). Saldo PRR belum ada di DISTRIVA; perlu sumber saldo (dicari bersama pemilik).
 - **Analisa:** **vintage**: peluang pelunasan menurut umur BLTH (makin tua makin kecil); tingkat pemulihan = pelunasan dibanding saldo PRR (setelah saldo tersedia); pencapaian target NKO PRR dan Ex PRR.
-- **Prakiraan:** saldo PRR per umur × kurva peluang pelunasan per umur; sampai saldo tersedia, prakiraan pola bulanan dengan penanda Lebaran.
+- **Prakiraan:** saldo PRR per umur × kurva peluang pelunasan per umur; sampai saldo tersedia, prakiraan pola bulanan.
 
 ### 6.6 SAIDI dan SAIFI, ENS, Gangguan Penyulang (`saidi-saifi`, `ens`, `gangguan`)
 
@@ -174,7 +174,7 @@ Kolom "Data DISTRIVA" menyebut data yang sudah ada; "Data luar" adalah calon yan
 
 ## 7. Faktor umum untuk semua menu
 
-- **Kalender Lebaran.** Lebaran bergeser sekitar 11 hari per tahun, sehingga pola musiman 12 bulan biasa salah menempatkan lonjakannya. Prakiraan memakai penanda bulan Lebaran (dan bulan sebelumnya) sebagai faktor tersendiri; grafik tren menandainya.
+- **Kalender Lebaran: penanda, bukan faktor model.** Bulan Idul Fitri tercatat sekitar 6% di bawah tren per hari (0,943 sampai 0,929), tetapi uji mundur 2022 sampai 2026 tidak menunjukkan faktor Lebaran memperbaiki prakiraan: kWh jual 4,88% menjadi 5,18% (lebih buruk), pendapatan 4,92% menjadi 4,64% (membaik tipis, tidak meyakinkan dengan hanya 3 sampai 4 kejadian Lebaran). Karena itu bulan Idul Fitri hanya ditandai pada grafik (`events[]` pada respons metrik) dan tidak masuk model.
 - **Kejadian tercatat (`events`).** Penyesuaian tarif, kawasan perumahan atau industri baru, pemadaman besar, dan perubahan aturan dicatat dengan tanggal, unit, dan alasan. Prakiraan membacanya; grafik menandainya.
 - **Peluang mencapai target.** Prakiraan kumulatif akhir tahun dibandingkan dengan target NKO: "peluang tercapai 70%", berdasarkan rentang p10 sampai p90.
 - **Akurasi yang terlihat.** Setiap prakiraan menampilkan akurasi uji mundur dan perbandingan dengan metode naif. Model sekarang (pola musiman dan tren teredam, rentang dari uji mundur 1 sampai 3 bulan) tetap menjadi dasar.
@@ -200,7 +200,7 @@ Data spasial di atas umumnya tahunan dan kasar: gunanya untuk perencanaan 1 samp
 1. **Standar halaman (semua menu):** kartu status dengan target NKO dan laju yang dibutuhkan, diagnosis, peringkat ULP, sumbangan ULP, susunan tab standar. Backend menambah `target`, `diagnosis`, `contribution`; frontend menyusun ulang halaman.
 2. **Uji coba 1, Keandalan:** anggaran SAIDI dan SAIFI, Pareto penyulang, penyulang gangguan berulang, skor risiko penyulang. Data cuaca BMKG menyusul.
 3. **Uji coba 2, Piutang:** roll-rate per kelas umur dan kogol, prakiraan calon PRR, vintage pelunasan PRR.
-4. **Uji coba 3, kWh Jual dan Pendapatan:** pemecahan volume, tarif, dan campuran; penanda Lebaran pada prakiraan.
+4. **Uji coba 4, kWh Jual dan Pendapatan:** pemecahan perubahan menurut pelanggan, kWh per pelanggan, campuran golongan, volume, dan tarif; catatan otomatis efek dasar rendah dan pergeseran golongan; penanda Idul Fitri (selesai di backend, lihat docs/91 `detail`).
 5. **Menu lain** (RPT-RCT, anomali, P2TL, HPL BP) mengikuti pola yang sama.
 6. **Data luar:** uji di satu ULP (bangunan dan tutupan lahan untuk pelanggan; BMKG untuk keandalan), lalu diputuskan dipakai luas atau tidak.
 

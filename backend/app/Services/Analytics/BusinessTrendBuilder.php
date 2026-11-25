@@ -18,6 +18,9 @@ class BusinessTrendBuilder
     /** Metrik pelunasan AP2T per tanggal bayar (berkas): bulan berjalan hanya sampai tanggal tarik. */
     public const PARTIAL_FILE_FAMILIES = ['pelunasan-prr' => 'PRR', 'pelunasan-ex-prr' => 'EXPRR'];
 
+    /** Bulan Idul Fitri (penanda pada grafik; tidak dipakai model prakiraan: uji mundur 2022-2026 tidak menunjukkan perbaikan yang meyakinkan, docs/92 §7). */
+    public const IDUL_FITRI = ['2020-05', '2021-05', '2022-05', '2023-04', '2024-04', '2025-03', '2026-03', '2027-03', '2028-02', '2029-02', '2030-01'];
+
     public const APKT_TABLES = ['rpt-rct-gangguan' => 'apkt_rpt_rct_records', 'rpt-rct-keluhan' => 'apkt_rpt_rct_keluhan_records', 'anomali-gangguan' => 'apkt_anomali_gangguan_records', 'anomali-keluhan' => 'apkt_anomali_keluhan_records'];
 
     private const MONTHS = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -225,6 +228,7 @@ class BusinessTrendBuilder
             'comparison_basis' => array_map('count', $basis), 'series' => $series, 'summary' => $summary, 'breakdown' => $breakdown, 'breakdown_secondary' => $breakdownSecondary, 'matrix' => $matrix, 'comparison' => $comparison, 'coverage' => $coverage,
             'companions' => $companion['companions'] ?? null, 'reconciliation' => $companion['reconciliations'][0] ?? null, 'reconciliations' => $companion['reconciliations'] ?? null, 'forecast' => $def['companion']['forecast'] ?? null,
             'insights' => $insights, 'warnings' => $this->warnings($code, $units, $to),
+            'events' => array_values(array_map(fn ($m) => ['month' => $m, 'kind' => 'idul_fitri', 'label' => 'Idul Fitri'], array_values(array_intersect($months, self::IDUL_FITRI)))),
             'targets' => $targets, 'contribution' => $contribution, 'diagnosis' => $this->diagnosis($def, $targets, $contribution, $primary, $unitNames ?: array_fill_keys($units, null), $combined, $to)];
     }
 

@@ -546,6 +546,7 @@ class BusinessMetricService
         foreach ($lines as $l) {
             if (preg_match('/^JUMLAH ([SRBIP])$/', $l['label'], $m) || preg_match('/^([TCL]) \//', $l['label'], $m)) {
                 $g = $m[1];
+                $raw["plg_{$g}"] = ($raw["plg_{$g}"] ?? 0) + (float) ($l['values']['pelanggan'] ?? 0);
                 $raw["daya_{$g}"] = ($raw["daya_{$g}"] ?? 0) + (float) ($l['values']['daya_va'] ?? 0);
                 $raw["kwh_{$g}"] = ($raw["kwh_{$g}"] ?? 0) + (float) ($l['values']['kwh_jumlah'] ?? 0);
                 $raw["rp_{$g}"] = ($raw["rp_{$g}"] ?? 0) + (float) ($l['values']['rp_jumlah'] ?? 0);

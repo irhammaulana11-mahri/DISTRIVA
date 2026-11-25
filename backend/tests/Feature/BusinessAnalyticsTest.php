@@ -1041,7 +1041,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
 
         // menu keandalan lain memuat blok yang sama; menu non-keandalan tidak
         $this->assertSame('reliability', $this->as($this->planner)->getJson("/api/pengusahaan/metrics/ens?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail.kind'));
-        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail'));
+        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail'));
     }
 
     #[Test]
@@ -1150,6 +1150,101 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertEquals(70, collect($ex['rows'])->firstWhere('key', '0 sampai 3 bulan')['rp']);                              // BLTH Januari dibayar Maret: umur 2
         $viewer = $this->as($this->viewer)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
         $this->assertEquals(2100, $viewer['rp_total']);                                                                           // peran ULP hanya melihat ULP-nya
+    }
+
+    /** Laporan 309 satu ULP dengan angka per golongan: [pelanggan, kWh, rupiah]. */
+    private function groupSales(OrganizationalUnit $unit, string $period, array $groups): void
+    {
+        $lines = [];
+        $total = ['pelanggan' => 0, 'kwh_jumlah' => 0, 'rp_jumlah' => 0, 'daya_va' => 1];
+        foreach ($groups as $g => [$plg, $kwh, $rp]) {
+            $lines[] = ["JUMLAH {$g}", ['pelanggan' => $plg, 'kwh_jumlah' => $kwh, 'rp_jumlah' => $rp, 'daya_va' => 1]];
+            $total['pelanggan'] += $plg;
+            $total['kwh_jumlah'] += $kwh;
+            $total['rp_jumlah'] += $rp;
+        }
+        $lines[] = ['JUMLAH', $total];
+        $this->report($unit, '309', $period, $lines);
+    }
+
+    #[Test]
+    public function pemecahan_kwh_jual_dan_pendapatan_tepat_menjumlah_ke_perubahan_dan_hanya_membandingkan_ulp_setara(): void
+    {
+        // Oktober 2025 lawan Oktober 2026, dua golongan: R (1000 -> 1100 pelanggan, 10 -> 11 kWh/plg, Rp 1.000 -> 1.100/kWh) dan I (100 -> 100 pelanggan, 100 -> 100 kWh/plg, Rp 1.200/kWh tetap)
+        foreach ([$this->ulpA, $this->ulpB] as $u) {
+            $this->groupSales($u, '2025-10-01', ['R' => [1000, 10000, 10000 * 1000], 'I' => [100, 10000, 10000 * 1200]]);
+            $this->groupSales($u, '2026-10-01', ['R' => [1100, 12100, 12100 * 1100], 'I' => [100, 10000, 10000 * 1200]]);
+        }
+        $this->groupSales($this->ulpA, '2026-09-01', ['R' => [1, 1, 1]]);                                                    // ULP A saja punya September 2026, tanpa pembanding 2025: dilewati pada tahun berjalan
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->up3->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail');
+
+        $this->assertSame(['sales_decomposition', true, 'kwh-jual', '2026-10', '2025-10'], [$d['kind'], $d['available'], $d['focus'], $d['month']['month'], $d['month']['previous']]);
+        $k = $d['month']['kwh'];
+        $this->assertEqualsWithDelta(2 * (12100 + 10000 - 20000), $k['change'], 1e-6);
+        $this->assertEqualsWithDelta($k['change'], $k['customers'] + $k['mix'] + $k['intensity'] + $k['residual'], 1e-6);   // jumlah efek = perubahan
+        $this->assertEqualsWithDelta(0.0, $k['residual'], 1e-6);
+        $mean0 = 20000 / 1100;                                                                                                // kWh per pelanggan rata-rata tahun lalu
+        $this->assertEqualsWithDelta(2 * (1200 - 1100) * $mean0, $k['customers'], 1e-6);
+        $this->assertEqualsWithDelta(2 * 1100 * (11 - 10), $k['intensity'], 1e-6);                                          // hanya R yang berubah konsumsinya: 1 kWh lebih banyak per pelanggan R tahun ini
+        $this->assertLessThan(0, $k['mix']);                                                                                  // porsi pelanggan R naik, padahal R berkonsumsi jauh lebih kecil per pelanggan daripada I
+        $r = $d['month']['rp'];
+        $this->assertEqualsWithDelta($r['change'], $r['volume'] + $r['mix'] + $r['price'] + $r['residual'], 1e-3);
+        $this->assertEqualsWithDelta(0.0, $r['residual'], 1e-3);
+        $this->assertGreaterThan(0, $r['price']);                                                                            // Rp per kWh golongan R naik 1.000 menjadi 1.100
+        $groups = collect($d['month']['groups'])->keyBy('key');
+        $this->assertEqualsWithDelta(100.0, $groups['R']['kwh_share_of_change_pct'], 0.1);                                  // seluruh perubahan kWh berasal dari R
+        $this->assertSame(0, (int) $groups['I']['kwh_change']);
+        $this->assertSame(['2026-10'], $d['ytd']['months']);                                                                // September 2026 tanpa pembanding dilewati
+        $this->assertEqualsWithDelta($k['change'], $d['ytd']['kwh']['change'], 1e-6);
+        $this->assertEqualsWithDelta($d['ytd']['rp']['change'], $d['ytd']['rp']['volume'] + $d['ytd']['rp']['mix'] + $d['ytd']['rp']['price'], 1e-3);
+
+        $rp = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pendapatan?unit_id={$this->up3->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail');
+        $this->assertSame('pendapatan', $rp['focus']);
+        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->up3->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail'));
+        $none = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpB->id}&from=2024-01&to=2024-02")->assertOk()->json('data.detail');
+        $this->assertFalse($none['available']);
+    }
+
+    #[Test]
+    public function catatan_pemecahan_menandai_efek_dasar_rendah_dan_pergeseran_golongan(): void
+    {
+        // 2025: Januari dan Februari berharga rendah (diskon), bulan lain 900/kWh; 2026 semuanya 900/kWh. Golongan I: pelanggan 100 -> 150 tetapi kWh/plg 1000 -> 700
+        foreach (range(1, 12) as $m) {
+            $price = $m <= 2 ? 500 : 900;
+            $this->groupSales($this->ulpA, sprintf('2025-%02d-01', $m), ['R' => [1000, 10000, 10000 * $price], 'I' => [100, 100000, 100000 * $price]]);
+        }
+        foreach ([1, 2, 3] as $m) {
+            $this->groupSales($this->ulpA, sprintf('2026-%02d-01', $m), ['R' => [1000, 10000, 10000 * 900], 'I' => [150, 105000, 105000 * 900]]);
+        }
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pendapatan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+
+        $findings = collect($d['findings'])->keyBy('kind');
+        $this->assertStringContainsString('2026-01, 2026-02', $findings['base_effect']['text']);
+        $this->assertStringContainsString('hanya 500 lawan 900', $findings['base_effect']['text']);
+        $this->assertSame('perhatian', $findings['base_effect']['level']);
+        $this->assertStringContainsString('Golongan Industri: pelanggan naik 50% (100 menjadi 150) tetapi kWh per pelanggan turun 30% (1.000 menjadi 700 kWh)', $findings['group_shift']['text']);
+        $this->assertCount(3, $d['monthly']);
+        $this->assertGreaterThan(0, $d['monthly'][0]['rp']['price']);                                                        // Januari 2026 lawan Januari 2025 yang berdiskon
+
+        // tanpa efek dasar rendah dan tanpa pergeseran: tidak ada catatan
+        foreach (range(1, 12) as $m) {
+            $this->groupSales($this->ulpB, sprintf('2025-%02d-01', $m), ['R' => [1000, 10000, 9000000]]);
+        }
+        $this->groupSales($this->ulpB, '2026-01-01', ['R' => [1000, 10000, 9000000]]);
+        $this->assertSame([], $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pendapatan?unit_id={$this->ulpB->id}&from=2026-01&to=2026-01")->assertOk()->json('data.detail.findings'));
+    }
+
+    #[Test]
+    public function penanda_idul_fitri_tampil_pada_bulan_dalam_rentang(): void
+    {
+        $this->sales($this->ulpA, '2026-02-01', 1, 0);
+        $this->sales($this->ulpA, '2026-03-01', 1, 0);
+
+        $e = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04")->assertOk()->json('data.events');
+
+        $this->assertSame([['month' => '2026-03', 'kind' => 'idul_fitri', 'label' => 'Idul Fitri']], $e);
     }
 
     #[Test]
