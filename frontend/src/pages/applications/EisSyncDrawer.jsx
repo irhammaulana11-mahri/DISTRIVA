@@ -288,7 +288,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
       }
     } catch (err) {
       // Backend mengirim pesan Indonesia apa adanya (422 / 409)
-      setApktError(err?.message || 'Gagal memulai penarikan SAIDI/SAIFI APKT.')
+      const msg = err?.message || 'Gagal memulai penarikan SAIDI/SAIFI APKT.'
+      setApktError(msg)
+      // Galat 409 terkait token tersimpan: tampilkan pesan dan pindah ke pilihan tempel token
+      if (useSavedToken && (err?.status === 409 || msg.includes('token APKT tersimpan') || msg.includes('tidak dapat dibaca lagi'))) {
+        setUseSavedToken(false)
+      }
     } finally {
       setApktStarting(false)
     }
