@@ -447,6 +447,8 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                     const dataset = s.options?.dataset
                     const isRptRctGangguan = isApkt && dataset === 'rpt-rct-gangguan'
                     const isRptRctKeluhan = isApkt && dataset === 'rpt-rct-keluhan'
+                    const isAnomaliGangguan = isApkt && dataset === 'anomali-gangguan'
+                    const isAnomaliKeluhan = isApkt && dataset === 'anomali-keluhan'
                     const isSaidiSaifi = isApkt && (dataset === 'saidi-saifi' || !dataset)
 
                     return (
@@ -472,6 +474,10 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                                 ? 'RPT/RCT Gangguan'
                                 : isRptRctKeluhan
                                 ? 'RPT/RCT Keluhan'
+                                : isAnomaliGangguan
+                                ? 'Anomali Gangguan'
+                                : isAnomaliKeluhan
+                                ? 'Anomali Keluhan'
                                 : isSaidiSaifi
                                 ? 'SAIDI/SAIFI (DIFI)'
                                 : s.kind || '-'}

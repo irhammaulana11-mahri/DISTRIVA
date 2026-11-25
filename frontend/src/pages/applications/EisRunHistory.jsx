@@ -93,6 +93,8 @@ export default function EisRunHistory() {
                 const isApkt = r.kind === 'apkt'
                 const isRptRctGangguan = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
                 const isRptRctKeluhan = isApkt && r.options?.dataset === 'rpt-rct-keluhan'
+                const isAnomaliGangguan = isApkt && r.options?.dataset === 'anomali-gangguan'
+                const isAnomaliKeluhan = isApkt && r.options?.dataset === 'anomali-keluhan'
                 return (
                   <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">{when(r.created_at)}</td>
@@ -108,6 +110,10 @@ export default function EisRunHistory() {
                           ? 'RPT/RCT Gangguan'
                           : isRptRctKeluhan
                           ? 'RPT/RCT Keluhan'
+                          : isAnomaliGangguan
+                          ? 'Anomali Gangguan'
+                          : isAnomaliKeluhan
+                          ? 'Anomali Keluhan'
                           : isApkt
                           ? 'SAIDI/SAIFI (APKT)'
                           : isPiutang
@@ -134,7 +140,15 @@ export default function EisRunHistory() {
                           )}
                           {isApkt && (
                             <div className="text-[10px] text-slate-400">
-                              {isRptRct ? 'Dataset: RPT/RCT WO Gangguan' : 'Dataset: SAIDI/SAIFI SE004'}
+                              {isRptRctGangguan
+                                ? 'Dataset: RPT/RCT WO Gangguan'
+                                : isRptRctKeluhan
+                                ? 'Dataset: RPT/RCT WO Keluhan'
+                                : isAnomaliGangguan
+                                ? 'Dataset: Anomali Gangguan'
+                                : isAnomaliKeluhan
+                                ? 'Dataset: Anomali Keluhan'
+                                : 'Dataset: SAIDI/SAIFI SE004'}
                             </div>
                           )}
                         </div>

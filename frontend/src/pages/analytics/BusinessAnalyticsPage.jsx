@@ -144,6 +144,7 @@ function MetricTrendChart({
 
   // Khusus rpt-rct-gangguan: kita tampilkan tab ukuran: RPT, RCT, Jumlah WO
   const isRptRctGangguan = metricCode === 'rpt-rct-gangguan'
+  const isApktMetric = metricCode === 'rpt-rct-gangguan' || metricCode === 'rpt-rct-keluhan' || metricCode === 'anomali-gangguan' || metricCode === 'anomali-keluhan'
   const [rptRctTab, setRptRctTab] = useState('rpt') // 'rpt' | 'rct' | 'jumlah'
 
   const activeSeries = useMemo(() => {
@@ -547,10 +548,10 @@ function MetricTrendChart({
                     cx={x}
                     cy={padTop + chartH + 18}
                     r={3.5}
-                    fill={isRptRctGangguan && incompleteMonths.includes(m) ? '#eab308' : incompleteMonths.includes(m) ? '#ef4444' : '#f59e0b'}
+                    fill={incompleteMonths.includes(m) && (isRptRctGangguan || isApktMetric) ? '#eab308' : incompleteMonths.includes(m) ? '#ef4444' : '#f59e0b'}
                   >
                     <title>
-                      {isRptRctGangguan && incompleteMonths.includes(m)
+                      {incompleteMonths.includes(m) && (isRptRctGangguan || isApktMetric)
                         ? `Bulan ${fmtMonth(m)}: Bulan berjalan, data APKT belum final`
                         : incompleteMonths.includes(m)
                         ? `Bulan ${fmtMonth(m)}: Data DIFI kemungkinan belum lengkap`
@@ -969,6 +970,8 @@ export default function BusinessAnalyticsPage() {
   // Metrik klasifikasi untuk aksi sinkronisasi spesifik
   const isOutageMetric = activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'rpt-rct-gangguan'
   const isKeluhanMetric = activeCode === 'rpt-rct-keluhan'
+  const isAnomaliGangguanMetric = activeCode === 'anomali-gangguan'
+  const isAnomaliKeluhanMetric = activeCode === 'anomali-keluhan'
   const isPiutangMetric = activeCode.startsWith('piutang')
   const isEisMetric = isPiutangMetric || activeCode === 'pelanggan' || activeCode === 'daya'
 
@@ -1369,6 +1372,24 @@ export default function BusinessAnalyticsPage() {
                 aria-label="Tarik APKT (RPT/RCT Keluhan)"
               >
                 Tarik APKT (RPT/RCT Keluhan)
+              </Button>
+            ) : isAnomaliGangguanMetric ? (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Tarik APKT (Anomali Gangguan)"
+              >
+                Tarik APKT (Anomali Gangguan)
+              </Button>
+            ) : isAnomaliKeluhanMetric ? (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Tarik APKT (Anomali Keluhan)"
+              >
+                Tarik APKT (Anomali Keluhan)
               </Button>
             ) : isEisMetric ? (
               <Button
@@ -3002,7 +3023,7 @@ export default function BusinessAnalyticsPage() {
             ? 'piutang'
             : activeCode === 'pelanggan' || activeCode === 'daya'
             ? 'permohonan'
-            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan' || activeCode === 'rpt-rct-keluhan'
+            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan' || activeCode === 'rpt-rct-keluhan' || activeCode === 'anomali-gangguan' || activeCode === 'anomali-keluhan'
             ? 'apkt'
             : null
         }
@@ -3011,6 +3032,10 @@ export default function BusinessAnalyticsPage() {
             ? 'rpt-rct-gangguan'
             : activeCode === 'rpt-rct-keluhan'
             ? 'rpt-rct-keluhan'
+            : activeCode === 'anomali-gangguan'
+            ? 'anomali-gangguan'
+            : activeCode === 'anomali-keluhan'
+            ? 'anomali-keluhan'
             : 'saidi-saifi'
         }
         onClose={() => setSyncDrawerOpen(false)}

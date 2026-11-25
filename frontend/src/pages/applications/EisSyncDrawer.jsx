@@ -766,6 +766,10 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                         ? 'Tarik RPT/RCT WO Gangguan APKT'
                         : apktDataset === 'rpt-rct-keluhan'
                         ? 'Tarik RPT/RCT WO Keluhan APKT'
+                        : apktDataset === 'anomali-gangguan'
+                        ? 'Tarik Anomali Gangguan APKT'
+                        : apktDataset === 'anomali-keluhan'
+                        ? 'Tarik Anomali Keluhan APKT'
                         : 'Tarik SAIDI/SAIFI APKT (DIFI)'}
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -773,6 +777,10 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                         ? 'Tarik durasi respons (RPT) dan pemulihan (RCT) WO gangguan langsung dari GraphQL APKT (tanpa & dengan clear temper).'
                         : apktDataset === 'rpt-rct-keluhan'
                         ? 'Tarik durasi respons (RPT) dan penyelesaian (RCT) WO keluhan pelanggan langsung dari GraphQL APKT (satuan jam).'
+                        : apktDataset === 'anomali-gangguan'
+                        ? 'Tarik penanganan anomali gangguan (berulang dan rating negatif) langsung dari GraphQL APKT.'
+                        : apktDataset === 'anomali-keluhan'
+                        ? 'Tarik penanganan anomali keluhan (berulang dan rating negatif) langsung dari GraphQL APKT.'
                         : 'Tarik Laporan SAIDI SAIFI SE004 bulanan langsung dari GraphQL APKT dan impor otomatis sebagai laporan DIFI ke DISTRIVA.'}
                     </p>
                   </div>
@@ -822,6 +830,30 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                       }`}
                     >
                       RPT/RCT WO Keluhan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setApktDataset('anomali-gangguan')}
+                      disabled={running}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                        apktDataset === 'anomali-gangguan'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      Anomali Gangguan (Berulang & Rating Negatif)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setApktDataset('anomali-keluhan')}
+                      disabled={running}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                        apktDataset === 'anomali-keluhan'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      Anomali Keluhan (Berulang & Rating Negatif)
                     </button>
                   </div>
                 </div>
@@ -1005,11 +1037,19 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                         ? 'Sedang menarik RPT/RCT Gangguan…'
                         : apktDataset === 'rpt-rct-keluhan'
                         ? 'Sedang menarik RPT/RCT Keluhan…'
+                        : apktDataset === 'anomali-gangguan'
+                        ? 'Sedang menarik Anomali Gangguan…'
+                        : apktDataset === 'anomali-keluhan'
+                        ? 'Sedang menarik Anomali Keluhan…'
                         : 'Sedang menarik SAIDI/SAIFI APKT…'
                       : apktDataset === 'rpt-rct-gangguan'
                       ? 'Tarik RPT/RCT Gangguan'
                       : apktDataset === 'rpt-rct-keluhan'
                       ? 'Tarik RPT/RCT Keluhan'
+                      : apktDataset === 'anomali-gangguan'
+                      ? 'Tarik Anomali Gangguan'
+                      : apktDataset === 'anomali-keluhan'
+                      ? 'Tarik Anomali Keluhan'
                       : 'Tarik SAIDI/SAIFI APKT'}
                   </Button>
 

@@ -1232,4 +1232,89 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getAllByText('jam').length).toBeGreaterThan(0)
     expect(screen.getByText(/Data RPT\/RCT keluhan 2026-10 adalah data bulan berjalan/i)).toBeInTheDocument()
   })
+
+  it('15. mendukung menu Anomali Gangguan dan Anomali Keluhan bersumber APKT dengan tombol Tarik APKT (Butir 28 & 29)', async () => {
+    const anomaliCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'anomali-gangguan',
+            name: 'Anomali Gangguan',
+            source: 'APKT – Anomali Penanganan Pengaduan Gangguan (Berulang dan Rating Negatif)',
+            polarity: 'down',
+            available: true,
+            series: [
+              { key: 'wo', name: 'Total Pengaduan (WO)', unit: 'kali' },
+              { key: 'berulang', name: 'Gangguan Berulang', unit: 'kali' },
+              { key: 'negatif', name: 'Rating Negatif', unit: 'kali' },
+            ],
+          },
+        ],
+      },
+    }
+
+    const anomaliDetail = {
+      data: {
+        ...MOCK_METRIC_DETAIL.data,
+        metric: {
+          code: 'anomali-gangguan',
+          name: 'Anomali Gangguan',
+          unit: 'kali',
+          polarity: 'down',
+          source: 'APKT – Anomali Penanganan Pengaduan Gangguan (Berulang dan Rating Negatif)',
+        },
+        from: '2026-10',
+        to: '2026-10',
+        months: ['2026-10'],
+        available_from: '2026-01',
+        available_to: '2026-10',
+        summary: [
+          { key: 'wo', name: 'Total Pengaduan (WO)', unit: 'kali', latest: 500, ytd: 500 },
+          { key: 'berulang', name: 'Gangguan Berulang', unit: 'kali', latest: 12, ytd: 12 },
+          { key: 'negatif', name: 'Rating Negatif', unit: 'kali', latest: 5, ytd: 5 },
+        ],
+        series: [
+          { key: 'wo', name: 'Total Pengaduan (WO)', unit: 'kali', values: [500], previous_year: [450] },
+          { key: 'berulang', name: 'Gangguan Berulang', unit: 'kali', values: [12], previous_year: [15] },
+          { key: 'negatif', name: 'Rating Negatif', unit: 'kali', values: [5], previous_year: [6] },
+        ],
+        warnings: [
+          {
+            code: 'apkt_current_month_partial',
+            severity: 'warning',
+            month: '2026-10',
+            message: 'Data anomali gangguan 2026-10 adalah data bulan berjalan dari APKT dan masih bertambah.',
+            days_elapsed: 25,
+            units_reporting: 1,
+          },
+        ],
+        companions: null,
+        reconciliations: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(anomaliCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'anomali-gangguan') {
+        return Promise.resolve(anomaliDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/anomali-gangguan'])
+
+    await waitFor(() => {
+      expect(pengusahaanApi.metric).toHaveBeenCalledWith(
+        'anomali-gangguan',
+        expect.objectContaining({ unit_id: 'up3-1' }),
+      )
+    })
+
+    // Verifikasi tombol Tarik APKT (Anomali Gangguan) tampil
+    expect(await screen.findByRole('button', { name: 'Tarik APKT (Anomali Gangguan)' })).toBeInTheDocument()
+    // Verifikasi peringatan bulan berjalan APKT
+    expect(screen.getByText(/Data anomali gangguan 2026-10 adalah data bulan berjalan dari APKT dan masih bertambah/i)).toBeInTheDocument()
+  })
 })

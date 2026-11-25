@@ -62,6 +62,8 @@ export default function EisRunResults({ run, units }) {
   const isApkt = run?.kind === 'apkt'
   const isRptRctGangguan = isApkt && run?.options?.dataset === 'rpt-rct-gangguan'
   const isRptRctKeluhan = isApkt && run?.options?.dataset === 'rpt-rct-keluhan'
+  const isAnomaliGangguan = isApkt && run?.options?.dataset === 'anomali-gangguan'
+  const isAnomaliKeluhan = isApkt && run?.options?.dataset === 'anomali-keluhan'
   const isTokenRejected = typeof run?.log === 'string' && run.log.toLowerCase().includes('token apkt ditolak')
 
   return (
@@ -79,7 +81,19 @@ export default function EisRunResults({ run, units }) {
                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                 : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
             }`}>
-              {isRptRctGangguan ? 'RPT/RCT Gangguan (APKT)' : isRptRctKeluhan ? 'RPT/RCT Keluhan (APKT)' : isApkt ? 'SAIDI/SAIFI APKT (DIFI)' : isPiutang ? 'Saldo Piutang' : 'Permohonan PB/PD'}
+              {isRptRctGangguan
+                ? 'RPT/RCT Gangguan (APKT)'
+                : isRptRctKeluhan
+                ? 'RPT/RCT Keluhan (APKT)'
+                : isAnomaliGangguan
+                ? 'Anomali Gangguan (APKT)'
+                : isAnomaliKeluhan
+                ? 'Anomali Keluhan (APKT)'
+                : isApkt
+                ? 'SAIDI/SAIFI APKT (DIFI)'
+                : isPiutang
+                ? 'Saldo Piutang'
+                : 'Permohonan PB/PD'}
             </span>
           </div>
           <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
@@ -87,6 +101,10 @@ export default function EisRunResults({ run, units }) {
               ? 'Ringkasan penarikan durasi dan jumlah RPT/RCT WO gangguan langsung dari GraphQL APKT (tanpa dan dengan clear temper).'
               : isRptRctKeluhan
               ? 'Ringkasan penarikan durasi respons dan penyelesaian RPT/RCT WO keluhan langsung dari GraphQL APKT (satuan jam).'
+              : isAnomaliGangguan
+              ? 'Ringkasan penarikan anomali penanganan pengaduan gangguan (berulang dan rating negatif) langsung dari GraphQL APKT.'
+              : isAnomaliKeluhan
+              ? 'Ringkasan penarikan anomali penanganan pengaduan keluhan (berulang dan rating negatif) langsung dari GraphQL APKT.'
               : isApkt
               ? 'Ringkasan penarikan laporan SAIDI/SAIFI SE004 (DIFI) langsung dari GraphQL APKT per unit ULP.'
               : isPiutang

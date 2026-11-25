@@ -381,4 +381,43 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
 
     expect(await screen.findByText('RPT/RCT Keluhan (APKT)')).toBeInTheDocument()
   })
+
+  it('dapat memilih dataset anomali-gangguan dan anomali-keluhan dan mengirim parameternya (Butir 28 & 29)', async () => {
+    eisSyncApi.apktTokenStatus.mockResolvedValue({
+      data: { saved: false, saved_at: null, last_used_at: null, last_result: null },
+    })
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r-anomali-ggn',
+        kind: 'apkt',
+        options: { dataset: 'anomali-gangguan', from_month: '2026-10', to_month: '2026-10' },
+        status: 'OK',
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="apkt" initialDataset="anomali-gangguan" onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik Anomali Gangguan APKT' })).toBeInTheDocument()
+    const tokenInput = screen.getByLabelText('Token APKT')
+    fireEvent.change(tokenInput, { target: { value: 'secret-anomali-token' } })
+
+    const toInput = screen.getByLabelText('Bulan akhir APKT')
+    fireEvent.change(toInput, { target: { value: '2026-10' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik Anomali Gangguan' })
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'apkt',
+        dataset: 'anomali-gangguan',
+        to_month: '2026-10',
+        from_month: '2026-10',
+        apkt_token: 'secret-anomali-token',
+      })
+    })
+
+    expect(await screen.findByText('Anomali Gangguan (APKT)')).toBeInTheDocument()
+  })
 })
