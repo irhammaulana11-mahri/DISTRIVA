@@ -26,7 +26,7 @@ class ReliabilityInsights
 
     private const TOP = 10;
 
-    public function __construct(private readonly OutageAnalysisService $outages, private readonly WeatherContext $weather) {}
+    public function __construct(private readonly OutageAnalysisService $outages, private readonly WeatherContext $weather, private readonly WeatherAlert $alert) {}
 
     /**
      * @param  list<string>  $units  ULP yang digabung
@@ -50,6 +50,7 @@ class ReliabilityInsights
                 'device' => $this->composition($units, $from, $end, 'e.device_group', 'Lainnya')],
             'risk' => $this->risk($units, $to, $partial),
             'weather' => $this->weather->monthly($units, $to),
+            'early_warning' => $this->alert->earlyWarning($units),
             'notes' => ['Pareto: kontribusi SAIDI dan SAIFI memakai aturan pengaturan sinkron gangguan (ambang menit) dan pelanggan aktif penyulang dari potret DIL; angka per penyulang adalah batas atas, terutama untuk recloser.',
                 'Skor risiko hanya memakai pola kejadian penyulang itu sendiri (rata-rata bergerak eksponensial dengan paruh waktu '.self::HALF_LIFE_MONTHS.' bulan dan indeks musim bulan kalender) dan belum memakai cuaca; akurasinya dinilai dari uji mundur '.self::BACKTEST_MONTHS.' bulan terakhir (sekitar dua sampai tiga kali tebakan acak, bukan ramalan pasti).'],
         ];

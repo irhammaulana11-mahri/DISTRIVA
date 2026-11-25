@@ -1214,6 +1214,51 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function detail_keandalan_memuat_peringatan_dini_bmkg_dengan_penyulang_prioritas_dan_tetap_tampil_bila_sumber_gagal(): void
+    {
+        Cache::flush();
+        $this->ulpA->forceFill(['code' => '51450'])->save();                                                    // ULP Mojoagung: terpetakan ke kode wilayah BMKG
+        $f1 = $this->feederOf($this->ulpA, 'F1');
+        $f2 = $this->feederOf($this->ulpA, 'F2');
+        foreach (['2026-03-10', '2026-03-15', '2026-04-01'] as $d) {                                            // F1: dua dari tiga gangguan pada hari hujan lebat menurut ERA5
+            $this->outage($f1, $this->ulpA, $d, 'PERMANEN', 60, 500);
+        }
+        $this->outage($f2, $this->ulpA, '2026-04-02', 'PERMANEN', 60, 500);                                      // F2: tidak pada hari hujan lebat
+        DB::table('substations')->insert(['id' => (string) Str::uuid(), 'code' => 'HD0002', 'organizational_unit_id' => $this->ulpA->id, 'latitude' => -7.5, 'longitude' => 112.4, 'created_at' => now(), 'updated_at' => now()]);
+        $url = "/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04";
+
+        $slots = fn (int $offset, float $tp, int $weather) => array_map(fn ($h) => ['local_datetime' => now('Asia/Jakarta')->addDays($offset)->format('Y-m-d').sprintf(' %02d:00:00', $h * 3), 'tp' => $tp, 'weather' => $weather, 'ws' => 12, 'analysis_date' => '2026-11-26T00:00:00'], range(0, 7));
+        $down = false;
+        Http::fake(function ($request) use (&$down, $slots) {
+            if (str_contains($request->url(), 'api.bmkg.go.id')) {
+                return $down ? Http::response('galat', 500) : Http::response(['lokasi' => ['desa' => 'Gambiran', 'kecamatan' => 'Mojoagung', 'kotkab' => 'Jombang'], 'data' => [['cuaca' => [$slots(0, 3.5, 3), $slots(1, 0.5, 95), $slots(2, 8.0, 61)]]]]);   // 28 mm, hujan petir, 64 mm
+            }
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $q);
+            $days = [];
+            for ($t = strtotime($q['start_date']); $t <= strtotime($q['end_date']); $t += 86400) {
+                $days[] = date('Y-m-d', $t);
+            }
+
+            return Http::response(['daily' => ['time' => $days, 'precipitation_sum' => array_map(fn ($d) => in_array($d, ['2026-03-10', '2026-03-15'], true) ? 30.0 : 1.0, $days)]]);
+        });
+        $w = $this->as($this->planner)->getJson($url)->assertOk()->json('data.detail.early_warning');
+
+        $this->assertTrue($w['available']);
+        $this->assertStringContainsString('BMKG', $w['attribution']);
+        $this->assertSame(3, $w['horizon_days']);
+        $u = $w['ulps'][0];
+        $this->assertSame(['tinggi', '35.17.06.2007', 'Gambiran'], [$u['max_level'], $u['adm4'], $u['location']['desa']]);
+        $this->assertEquals([['waspada', 28.0, false, 1.66], ['waspada', 4.0, true, 1.15], ['tinggi', 64.0, false, 1.66]], array_map(fn ($d) => [$d['level'], $d['rain_mm'], $d['thunderstorm'], $d['rate_ratio']], $u['days']));
+        $this->assertEquals([8, 12.0], [$u['days'][0]['slots'], $u['days'][0]['max_wind_kmh']]);
+        $this->assertCount(1, $w['watchlist']);                                                                  // hanya penyulang yang pernah terganggu pada hari hujan lebat
+        $this->assertEquals(['F1', 3, 2, 66.7], [$w['watchlist'][0]['code'], $w['watchlist'][0]['events_3y'], $w['watchlist'][0]['events_on_heavy_rain_days_3y'], $w['watchlist'][0]['heavy_rain_share_pct']]);
+
+        Cache::flush();
+        $down = true;
+        $this->assertSame([false, 'Prakiraan BMKG tidak dapat dihubungi.'], [$this->as($this->planner)->getJson($url)->assertOk()->json('data.detail.early_warning.available'), $this->as($this->planner)->getJson($url)->json('data.detail.early_warning.reason')]);
+    }
+
+    #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
         Cache::flush();

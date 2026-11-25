@@ -75,6 +75,36 @@ class WeatherContext
     }
 
     /**
+     * Curah hujan harian ERA5 per ULP (kunci tanggal) untuk rentang tertentu; kosong bila cuaca dinonaktifkan, koordinat belum ada, atau sumber gagal.
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, ?float>>
+     */
+    public function dailyRainByUnit(array $units, string $start, string $end): array
+    {
+        if (! config('distriva.weather.enabled')) {
+            return [];
+        }
+        $points = $this->points($units);
+        if ($points === []) {
+            return [];
+        }
+        try {
+            $series = $this->fetch($points, $start, $end);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [];
+        }
+        $out = [];
+        foreach ($points as $i => $p) {
+            $out[$p['unit_id']] = $series[$i] ?? [];
+        }
+
+        return $out;
+    }
+
+    /**
      * Titik tiap ULP: rata-rata koordinat gardu aktif ULP itu.
      *
      * @return list<array{unit_id: string, lat: float, lon: float}>

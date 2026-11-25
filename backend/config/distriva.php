@@ -103,6 +103,26 @@ return [
         'archive_url' => env('DISTRIVA_WEATHER_ARCHIVE_URL', 'https://archive-api.open-meteo.com/v1/archive'),
         'heavy_rain_mm' => (float) env('DISTRIVA_WEATHER_HEAVY_MM', 20),
         'timeout_seconds' => (int) env('DISTRIVA_WEATHER_TIMEOUT', 20),
+        // prakiraan cuaca BMKG (API publik resmi, 3 hari per 3 jam) untuk peringatan dini keandalan; atribusi wajib (docs/92 §8.2)
+        'bmkg' => [
+            'enabled' => filter_var(env('DISTRIVA_BMKG_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+            'url' => env('DISTRIVA_BMKG_URL', 'https://api.bmkg.go.id/publik/prakiraan-cuaca'),
+            'cache_minutes' => (int) env('DISTRIVA_BMKG_CACHE_MINUTES', 60),
+            'very_heavy_mm' => (float) env('DISTRIVA_BMKG_VERY_HEAVY_MM', 50),
+            // kode ULP (organizational_units.code) => kode wilayah kelurahan/desa (adm4) terdekat dari titik pusat gardu ULP (jarak 0,4 sampai 3,3 km)
+            'locations' => [
+                '51450' => '35.17.06.2007',   // ULP Mojoagung: Gambiran, Mojoagung
+                '51452' => '35.76.03.1002',   // ULP Mojokerto: Miji, Kranggan, Kota Mojokerto
+                '51453' => '35.17.09.2007',   // ULP Jombang: Kepatihan, Jombang
+                '51454' => '35.17.03.2003',   // ULP Ngoro: Rejoagung, Ngoro (Jombang)
+                '51455' => '35.17.14.2008',   // ULP Ploso: Jatibanjar, Ploso
+                '51456' => '35.16.08.1006',   // ULP Mojosari: Sawahan, Mojosari
+                '51457' => '35.16.03.2002',   // ULP Pacet: Wiyu, Pacet
+                '51458' => '35.18.08.2008',   // ULP Kertosono: Tembarak, Kertosono
+                '51459' => '35.18.11.2002',   // ULP Warujayeng: Sumberkepuh, Tanjunganom
+                '51460' => '35.18.13.1001',   // ULP Nganjuk: Jatirejo, Nganjuk
+            ],
+        ],
     ],
     'ap2t' => [
         'report_url' => env('DISTRIVA_AP2T_REPORT_URL', 'https://ap2t.pln.co.id/BillingTerpusatAP2TNew1-dr/ReportServlet'),
