@@ -573,20 +573,28 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
-    public function pendamping_rpt_rct_gangguan_apkt_tertimbang_jumlah_wo_dengan_dan_tanpa_clear_temper(): void
+    public function pendamping_rpt_rct_gangguan_apkt_tertimbang_jumlah_wo_dan_direkonsiliasi_dengan_ggnall(): void
     {
-        $this->report($this->ulpA, 'GGNALL', '2026-03-01', [['POSKO A', ['total' => 10, 'response_rata_menit' => 20, 'recovery_rata_menit' => 60, 'response_dalam_sla' => 8, 'response_lewat_sla' => 2]]]);
+        $this->report($this->ulpA, 'GGNALL', '2026-03-01', [['POSKO A', ['total' => 12, 'response_rata_menit' => 20, 'recovery_rata_menit' => 60, 'response_dalam_sla' => 8, 'response_lewat_sla' => 2, 'recovery_dalam_sla' => 10, 'recovery_lewat_sla' => 0]]]);
+        $this->report($this->ulpB, 'GGNALL', '2026-03-01', [['POSKO B', ['total' => 33, 'response_rata_menit' => 40, 'recovery_rata_menit' => 100, 'response_dalam_sla' => 15, 'response_lewat_sla' => 15, 'recovery_dalam_sla' => 30, 'recovery_lewat_sla' => 0]]]);
         $row = fn ($unit, bool $ct, float $rpt, int $n, float $rct) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $unit->id, 'period' => '2026-03-01', 'clear_temper' => $ct, 'rpt_total' => $rpt, 'rpt_count' => $n,
             'rct_total' => $rct, 'rct_count' => $n, 'created_at' => now(), 'updated_at' => now()];
-        DB::table('apkt_rpt_rct_records')->insert([$row($this->ulpA, false, 200, 10, 600), $row($this->ulpB, false, 1200, 30, 3000), $row($this->ulpA, true, 300, 15, 900)]);
+        DB::table('apkt_rpt_rct_records')->insert([$row($this->ulpA, false, 200, 4, 600), $row($this->ulpB, false, 1200, 10, 3000), $row($this->ulpA, true, 200, 10, 600), $row($this->ulpB, true, 1250, 30, 3100)]);
 
-        $c = collect($this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data.companions.series'))->keyBy('key');
+        $data = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
+        $c = collect($data['companions']['series'])->keyBy('key');
 
-        $this->assertEqualsWithDelta(35.0, $c['rpt_tanpa_ct']['latest'], 1e-9);     // (200 + 1200) / 40
-        $this->assertEqualsWithDelta(90.0, $c['rct_tanpa_ct']['latest'], 1e-9);
-        $this->assertEquals(40, $c['jumlah_tanpa_ct']['latest']);
-        $this->assertEqualsWithDelta(20.0, $c['rpt_dengan_ct']['latest'], 1e-9);
-        $this->assertEquals(15, $c['jumlah_dengan_ct']['latest']);
+        $this->assertEqualsWithDelta(1400 / 14, $c['rpt_tanpa_ct']['latest'], 1e-9);
+        $this->assertEquals(14, $c['jumlah_tanpa_ct']['latest']);
+        $this->assertEqualsWithDelta(1450 / 40, $c['rpt_dengan_ct']['latest'], 1e-9);
+        $this->assertEquals(40, $c['jumlah_dengan_ct']['latest']);
+
+        $rec = collect($data['reconciliations'])->keyBy('key');
+        $this->assertSame('avg', $rec['rpt']['mode']);
+        $this->assertEqualsWithDelta((20 * 10 + 40 * 30) / 40, $rec['rpt']['monthly'][0]['official_net'], 1e-9);   // GGNALL dibobot jumlah respons, bukan total WO
+        $this->assertEqualsWithDelta(1450 / 40 - 35, $rec['rpt']['monthly'][0]['difference'], 1e-9);              // APKT ULP B 1250 dibanding GGNALL 1200
+        $this->assertEqualsWithDelta(3700 / 40, $rec['rct']['ytd']['companion'], 1e-9);                           // kumulatif = jumlah total dibagi jumlah WO
+        $this->assertEqualsWithDelta((60 * 10 + 100 * 30) / 40, $rec['rct']['ytd']['official_net'], 1e-9);
     }
 
     #[Test]

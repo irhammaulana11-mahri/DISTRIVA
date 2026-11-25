@@ -69,13 +69,15 @@ class BusinessMetricService
         'rpt-rct-gangguan' => ['name' => 'RPT-RCT gangguan', 'source' => 'GGNALL', 'family' => 'GGNALL', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
             'series' => [['key' => 'rpt', 'name' => 'Response time rata-rata', 'unit' => 'menit', 'num' => 'rpt_x_n', 'den' => 'n'], ['key' => 'rct', 'name' => 'Recovery time rata-rata', 'unit' => 'menit', 'num' => 'rct_x_n', 'den' => 'n'],
                 ['key' => 'jumlah', 'name' => 'Jumlah gangguan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'rpt_sla', 'name' => 'Respons dalam SLA', 'unit' => '%', 'num' => 'rpt_in', 'den' => 'rpt_all', 'factor' => 100]],
-            // durasi APKT dalam menit (cocok dengan ekspor Excel APKT); belum direkonsiliasi dengan GGNALL dan `ytd` seri rata-rata (jumlah nilai bulanan) tidak bermakna
+            // durasi APKT dalam menit (cocok dengan ekspor Excel APKT); `ytd` seri rata-rata (jumlah nilai bulanan) tidak bermakna, kumulatif tertimbang ada pada rekonsiliasi (mode avg)
             'companion' => ['source' => 'APKT (WO gangguan: durasi response dan recovery per ULP), tanpa dan dengan clear temper', 'forecast' => null, 'reported' => true,
                 'series' => [['key' => 'rpt_tanpa_ct', 'name' => 'Response time rata-rata APKT tanpa clear temper', 'unit' => 'menit', 'num' => 'rpt_total_0', 'den' => 'rpt_count_0'], ['key' => 'rct_tanpa_ct', 'name' => 'Recovery time rata-rata APKT tanpa clear temper', 'unit' => 'menit', 'num' => 'rct_total_0', 'den' => 'rct_count_0'],
                     ['key' => 'jumlah_tanpa_ct', 'name' => 'Jumlah WO gangguan APKT tanpa clear temper', 'unit' => 'kali', 'num' => 'rpt_count_0'],
                     ['key' => 'rpt_dengan_ct', 'name' => 'Response time rata-rata APKT dengan clear temper', 'unit' => 'menit', 'num' => 'rpt_total_1', 'den' => 'rpt_count_1'], ['key' => 'rct_dengan_ct', 'name' => 'Recovery time rata-rata APKT dengan clear temper', 'unit' => 'menit', 'num' => 'rct_total_1', 'den' => 'rct_count_1'],
                     ['key' => 'jumlah_dengan_ct', 'name' => 'Jumlah WO gangguan APKT dengan clear temper', 'unit' => 'kali', 'num' => 'rpt_count_1']],
-                'reconcile' => []]],
+                // GGNALL rata-rata atas WO yang punya respons/recovery (dalam + lewat SLA), sama dengan semua laporan APKT (dengan clear temper): Jombang Oktober 2026 26,4 dan 62,85 menit dari 2.080 WO
+                'reconcile' => [['key' => 'rpt', 'mode' => 'avg', 'unit' => 'menit', 'official_name' => 'Response time rata-rata (GGNALL)', 'official' => ['num' => ['rpt_x_resp'], 'den' => 'rpt_all'], 'companion_name' => 'Response time rata-rata APKT dengan clear temper', 'companion' => ['num' => ['rpt_total_1'], 'den' => 'rpt_count_1']],
+                    ['key' => 'rct', 'mode' => 'avg', 'unit' => 'menit', 'official_name' => 'Recovery time rata-rata (GGNALL)', 'official' => ['num' => ['rct_x_resp'], 'den' => 'rct_all'], 'companion_name' => 'Recovery time rata-rata APKT dengan clear temper', 'companion' => ['num' => ['rct_total_1'], 'den' => 'rct_count_1']]]]],
         'anomali-keluhan' => ['name' => 'Anomali keluhan', 'source' => 'KLHBERULANG dan KLHNEGATIF (anomali penanganan pengaduan keluhan: berulang dan rating negatif)', 'family' => 'KLHBERULANG', 'families' => ['KLHBERULANG', 'KLHNEGATIF'], 'polarity' => 'down', 'ytd' => 'ratio',
             'breakdown' => 'Kanal pengaduan masuk', 'breakdown2' => 'Anomali menurut jenis dan kanal', 'no_matrix' => true,
             'series' => [['key' => 'wo', 'name' => 'Total pengaduan keluhan (WO)', 'unit' => 'kali', 'num' => 'wo'], ['key' => 'berulang', 'name' => 'Keluhan berulang', 'unit' => 'kali', 'num' => 'ber'], ['key' => 'berulang_pct', 'name' => 'Keluhan berulang terhadap total', 'unit' => '%', 'num' => 'ber', 'den' => 'wo', 'factor' => 100],
@@ -309,7 +311,7 @@ class BusinessMetricService
     /** @param list<array{label: string, values: array<string, mixed>}> $lines */
     private function fromResponse(array $lines, string $responseKey, string $recoveryKey): ?array
     {
-        $raw = ['n' => 0.0, 'rpt_x_n' => 0.0, 'rct_x_n' => 0.0, 'rpt_in' => 0.0, 'rpt_all' => 0.0];
+        $raw = ['n' => 0.0, 'rpt_x_n' => 0.0, 'rct_x_n' => 0.0, 'rpt_in' => 0.0, 'rpt_all' => 0.0, 'rpt_x_resp' => 0.0, 'rct_x_resp' => 0.0, 'rct_all' => 0.0];
         foreach ($lines as $l) {
             if (strtoupper($l['label']) === 'TOTAL') {
                 continue;   // baris total laporan menggandakan baris posko
@@ -321,6 +323,11 @@ class BusinessMetricService
             $raw['rct_x_n'] += (float) ($v[$recoveryKey] ?? 0) * $n;
             $raw['rpt_in'] += (float) ($v['response_dalam_sla'] ?? 0);
             $raw['rpt_all'] += (float) ($v['response_dalam_sla'] ?? 0) + (float) ($v['response_lewat_sla'] ?? 0);
+            $respN = (float) ($v['response_dalam_sla'] ?? 0) + (float) ($v['response_lewat_sla'] ?? 0);
+            $recN = (float) ($v['recovery_dalam_sla'] ?? 0) + (float) ($v['recovery_lewat_sla'] ?? 0);
+            $raw['rpt_x_resp'] += (float) ($v[$responseKey] ?? 0) * $respN;
+            $raw['rct_x_resp'] += (float) ($v[$recoveryKey] ?? 0) * $recN;
+            $raw['rct_all'] += $recN;
         }
 
         return $lines === [] ? null : ['raw' => $raw, 'bd' => []];
