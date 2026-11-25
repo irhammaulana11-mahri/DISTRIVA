@@ -12,7 +12,9 @@ use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\NkoPermissionSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -989,6 +991,51 @@ class BusinessAnalyticsTest extends PostgresTestCase
         // laporan tanpa jam x pelanggan pada baris Distribusi (tata letak lama) memakai ringkasan total sebagai cadangan
         $this->report($this->ulpB, 'DIFI', '2026-01-01', [['TOTAL KELOMPOK Distribusi', ['jumlah_gangguan' => 1, 'kwh_tak_tersalurkan' => 10]]], ['pelanggan' => 1000, 'saidi_menit' => 7.5, 'saifi_kali' => 0.2]);
         $this->assertEqualsWithDelta(7.5, app(NkoRealizationResolver::class)->systemValues($this->ulpB->id, 2026, 1)['saidi'], 1e-9);
+    }
+
+    #[Test]
+    public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
+    {
+        Cache::flush();
+        $f1 = $this->feederOf($this->ulpA, 'F1');
+        $this->outage($f1, $this->ulpA, '2026-03-10', 'PERMANEN', 60, 500);
+        $this->outage($f1, $this->ulpA, '2026-03-11', 'PERMANEN', 60, 500);
+        $url = "/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03";
+
+        $this->assertSame([false, 'Koordinat gardu ULP belum tersedia.'], $this->weatherOf($url, 'available', 'reason'));   // tanpa koordinat: tidak memanggil sumber luar
+
+        DB::table('substations')->insert(['id' => (string) Str::uuid(), 'code' => 'HD0001', 'organizational_unit_id' => $this->ulpA->id, 'latitude' => -7.5, 'longitude' => 112.4, 'created_at' => now(), 'updated_at' => now()]);
+        $days = array_map(fn ($i) => date('Y-m-d', strtotime("2025-04-01 +{$i} day")), range(0, 364));
+        $down = false;
+        Http::fake(function () use (&$down, $days) {
+            return $down ? Http::response('galat', 500) : Http::response(['daily' => ['time' => $days, 'precipitation_sum' => array_map(fn ($d) => in_array($d, ['2026-03-10', '2026-03-11'], true) ? 30.0 : 1.0, $days)]]);
+        });
+        $w = $this->as($this->planner)->getJson($url)->assertOk()->json('data.detail.weather');
+
+        $this->assertTrue($w['available']);
+        $this->assertSame(1, $w['ulp_count']);
+        $this->assertCount(12, $w['rows']);
+        $mar = collect($w['rows'])->firstWhere('month', '2026-03');
+        $this->assertEqualsWithDelta(29 * 1 + 2 * 30, $mar['rain_mm'], 0.05);
+        $this->assertEquals([2.0, 31, 2], [$mar['heavy_days'], $mar['days_covered'], $mar['events']]);
+        $this->assertStringContainsString('Open-Meteo', $w['attribution']);
+        Http::assertSentCount(1);
+
+        $this->as($this->planner)->getJson($url)->assertOk();                                                    // panggilan kedua dari cache
+        Http::assertSentCount(1);
+
+        Cache::flush();
+        $down = true;
+        $this->assertSame([false, 'Sumber cuaca tidak dapat dihubungi.'], $this->weatherOf($url, 'available', 'reason'));  // halaman tetap tampil
+        $this->assertSame('reliability', $this->as($this->planner)->getJson($url)->assertOk()->json('data.detail.kind'));
+    }
+
+    /** @return list<mixed> */
+    private function weatherOf(string $url, string ...$keys): array
+    {
+        $w = $this->as($this->planner)->getJson($url)->assertOk()->json('data.detail.weather');
+
+        return array_map(fn ($k) => $w[$k], $keys);
     }
 
     #[Test]

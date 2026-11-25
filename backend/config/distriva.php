@@ -98,6 +98,12 @@ return [
     // AP2T: laporan TAGSUS (daftar realisasi pendapatan penetapan tagihan susulan) diunduh per ULP per bulan lewat tautan laporan tanpa login. `verify`: bawaannya bundel CA di resources/certs/ap2t-ca-bundle.pem
     // (server AP2T tidak mengirim sertifikat perantara GeoTrust TLS RSA CA G1, jadi cURL gagal tanpa bundel; berlaku sampai perantara itu kedaluwarsa, 2 Nov 2027); ganti dengan DISTRIVA_AP2T_CA_BUNDLE (path)
     // atau DISTRIVA_AP2T_VERIFY_SSL=false hanya untuk uji, jangan mematikan verifikasi di produksi.
+    'weather' => [   // cuaca historis ERA5 lewat Open-Meteo untuk penjelasan lonjakan gangguan (docs/92 §8.1); lisensi non-komersial, atribusi wajib
+        'enabled' => filter_var(env('DISTRIVA_WEATHER_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'archive_url' => env('DISTRIVA_WEATHER_ARCHIVE_URL', 'https://archive-api.open-meteo.com/v1/archive'),
+        'heavy_rain_mm' => (float) env('DISTRIVA_WEATHER_HEAVY_MM', 20),
+        'timeout_seconds' => (int) env('DISTRIVA_WEATHER_TIMEOUT', 20),
+    ],
     'ap2t' => [
         'report_url' => env('DISTRIVA_AP2T_REPORT_URL', 'https://ap2t.pln.co.id/BillingTerpusatAP2TNew1-dr/ReportServlet'),
         'report_url_pelunasan' => env('DISTRIVA_AP2T_REPORT_URL_PELUNASAN', 'https://ap2t.pln.co.id/ap2t123javanew7-dr/ReportServlet'),   // laporan pelunasan PRR dan Ex PRR (alamat servlet lain)

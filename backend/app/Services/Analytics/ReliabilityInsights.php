@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Wawasan keandalan untuk menu SAIDI/SAIFI, ENS, dan Gangguan Penyulang (docs/92 §6.6), dari data gangguan penyulang tersinkron (`outage_events`): Pareto penyulang penyumbang SAIDI dan SAIFI,
  * penyulang dengan gangguan berulang, komposisi penyebab dan cuaca, serta skor risiko bulan depan per penyulang beserta uji mundurnya. Tanpa model pembelajaran mesin: aturannya sengaja sederhana
- * dan bisa dijelaskan; cuaca (prakiraan BMKG) belum dipakai.
+ * dan bisa dijelaskan; cuaca historis hanya menjadi konteks penjelasan (`weather`, docs/92 §8.1), prakiraan BMKG belum dipakai.
  */
 class ReliabilityInsights
 {
@@ -26,7 +26,7 @@ class ReliabilityInsights
 
     private const TOP = 10;
 
-    public function __construct(private readonly OutageAnalysisService $outages) {}
+    public function __construct(private readonly OutageAnalysisService $outages, private readonly WeatherContext $weather) {}
 
     /**
      * @param  list<string>  $units  ULP yang digabung
@@ -49,6 +49,7 @@ class ReliabilityInsights
             'composition' => ['cause' => $this->composition($units, $from, $end, 'e.category', 'Tanpa kategori'), 'weather' => $this->composition($units, $from, $end, 'e.weather', 'Tanpa cuaca'),
                 'device' => $this->composition($units, $from, $end, 'e.device_group', 'Lainnya')],
             'risk' => $this->risk($units, $to, $partial),
+            'weather' => $this->weather->monthly($units, $to),
             'notes' => ['Pareto: kontribusi SAIDI dan SAIFI memakai aturan pengaturan sinkron gangguan (ambang menit) dan pelanggan aktif penyulang dari potret DIL; angka per penyulang adalah batas atas, terutama untuk recloser.',
                 'Skor risiko hanya memakai pola kejadian penyulang itu sendiri (rata-rata bergerak eksponensial dengan paruh waktu '.self::HALF_LIFE_MONTHS.' bulan dan indeks musim bulan kalender) dan belum memakai cuaca; akurasinya dinilai dari uji mundur '.self::BACKTEST_MONTHS.' bulan terakhir (sekitar dua sampai tiga kali tebakan acak, bukan ramalan pasti).'],
         ];
