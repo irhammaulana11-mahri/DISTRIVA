@@ -16,7 +16,7 @@ class LossInsights
     /** Bulan ditandai bila kWh beli turunannya menyimpang lebih dari ini dari median ULP itu pada tahun yang sama. */
     public const ANOMALY_RATIO = 0.25;
 
-    public function __construct(private readonly BusinessMetricService $metrics, private readonly LossEstimator $estimator) {}
+    public function __construct(private readonly BusinessMetricService $metrics, private readonly LossEstimator $estimator, private readonly TechnicalLossProxy $technical) {}
 
     /**
      * @param  list<string>  $units  ULP yang digabung
@@ -67,12 +67,14 @@ class LossInsights
             }
         }
 
-        return ['kind' => 'loss_estimate', 'month' => $to, 'partial' => $to === now($tz)->format('Y-m'), 'history' => $history, 'ulps' => $this->ulps($units, $names, $cells, $yearStart, $to), 'anomalies' => $this->anomalies($units, $names, $cells, $yearStart, $to),
+        $ulpRows = $this->ulps($units, $names, $cells, $yearStart, $to);
+
+        return ['kind' => 'loss_estimate', 'month' => $to, 'partial' => $to === now($tz)->format('Y-m'), 'history' => $history, 'ulps' => $ulpRows, 'technical' => $this->technical->detail($units, $to, array_column($ulpRows, 'ytd_susut_pct', 'unit_id')), 'anomalies' => $this->anomalies($units, $names, $cells, $yearStart, $to),
             'backtest' => $this->estimator->backtest($units, $sales, $year, $to), 'has_manual_input' => $this->hasManualInput($units, $yearStart.'-01', $to.'-01'),
             'notes' => [
                 'kWh beli belum bersumber otomatis. Basis `input` = masukan bulanan; `turunan` = dihitung dari susut kumulatif realisasi NKO (angka acuan workbook) dan kWh jual 309 (beli kumulatif = jual kumulatif / (1 - susut kumulatif)); `prakiraan` = bulan sesudah realisasi susut terakhir, memakai susut kumulatif terakhir sebagai susut bulan itu.',
                 'Estimasi bukan data meter: ketelitiannya bergantung pada kesamaan kWh jual 309 dengan kWh jual yang dipakai perhitungan susut resmi. Uji mundur hanya mengukur kestabilan susut, bukan kecocokan dengan kWh beli sebenarnya; isi masukan kWh beli bulanan untuk menggantikannya.',
-                'Susut teknis per gardu dan kaitan susut nonteknis dengan P2TL belum disediakan.']];
+                'Proksi susut teknis per gardu ada pada `technical`; kaitan susut nonteknis dengan P2TL belum disediakan.']];
     }
 
     /** @return array<string, mixed> */

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Analytics\TechnicalLossProxy;
 use App\Services\Nko\NkoDefinitionImportService;
 use App\Services\Nko\NkoRealizationResolver;
 use Carbon\CarbonImmutable;
@@ -1256,6 +1257,64 @@ class BusinessAnalyticsTest extends PostgresTestCase
         Cache::flush();
         $down = true;
         $this->assertSame([false, 'Prakiraan BMKG tidak dapat dihubungi.'], [$this->as($this->planner)->getJson($url)->assertOk()->json('data.detail.early_warning.available'), $this->as($this->planner)->getJson($url)->json('data.detail.early_warning.reason')]);
+    }
+
+    /** Gardu dengan satu pengukuran: [id gardu]. $loading null berarti dihitung dari kVA beban dan kapasitas. */
+    private function gardu(OrganizationalUnit $ulp, string $code, float $capacity, ?float $loading, array $currents, string $measuredOn = '2026-08-10', string $ownership = 'PLN', ?float $loadKva = null): void
+    {
+        $id = (string) Str::uuid();
+        DB::table('substations')->insert(['id' => $id, 'code' => $code, 'organizational_unit_id' => $ulp->id, 'ownership' => $ownership, 'capacity_kva' => $capacity, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('substation_readings')->insert(['id' => (string) Str::uuid(), 'substation_id' => $id, 'measured_on' => $measuredOn, 'source' => 'SURVEY', 'loading_pct' => $loading, 'load_kva' => $loadKva, 'capacity_kva' => $capacity,
+            'current_r_a' => $currents[0], 'current_s_a' => $currents[1], 'current_t_a' => $currents[2], 'created_at' => now()]);
+    }
+
+    #[Test]
+    public function susut_memuat_proksi_susut_teknis_dari_pengukuran_gardu_dengan_tanda_data_diragukan_dan_korelasi_antar_ulp(): void
+    {
+        $this->gardu($this->ulpA, 'GA1', 100, 90, [100, 100, 100]);                                             // beban tinggi, seimbang
+        $this->gardu($this->ulpA, 'GA2', 100, 120, [150, 100, 50]);                                             // beban lebih, tidak seimbang (simpangan 33,3%)
+        $this->gardu($this->ulpA, 'GA3', 100, 300, [100, 100, 100]);                                            // beban 300%: dibatasi 200% dan ditandai data diragukan
+        $this->gardu($this->ulpA, 'GA4', 100, 50, [50, 50, 50], '2026-08-10', 'PELANGGAN');                     // milik pelanggan: tidak ikut
+        $this->gardu($this->ulpA, 'GA5', 100, null, [50, 50, 50], '2026-08-10', 'PLN', 50.0);                    // beban dihitung dari kVA beban / kapasitas = 50%
+        $this->gardu($this->ulpA, 'GA6', 100, 70, [60, 60, 60], '2024-01-10');                                  // pengukuran terlalu lama (lebih dari 14 bulan): tidak ikut
+        $this->gardu($this->ulpB, 'GB1', 100, 40, [40, 40, 40]);
+
+        $d = app(TechnicalLossProxy::class)->detail([$this->ulpA->id, $this->ulpB->id], '2026-09', []);
+
+        $this->assertTrue($d['available']);
+        $a = collect($d['ulps'])->firstWhere('unit_id', $this->ulpA->id);
+        $b = collect($d['ulps'])->firstWhere('unit_id', $this->ulpB->id);
+        $this->assertSame(4, $a['substations']);                                                                 // GA1, GA2, GA3, GA5
+        $this->assertEqualsWithDelta((90 + 120 + 200 + 50) / 4, $a['avg_loading_pct'], 0.05);                   // kapasitas sama: rata-rata biasa, GA3 dibatasi 200
+        $this->assertEquals([50.0, 75.0], [$a['overload_pct_of_substations'], $a['high_load_pct_of_substations']]);   // beban lebih (di atas 100%): GA2 dan GA3 = 2 dari 4; beban tinggi (di atas 80%): GA1, GA2, GA3 = 3 dari 4
+        $index = (0.81 + 1.44 * (1 + 3 * (100 / 300) ** 2) + 4.0 + 0.25) / 4;
+        $this->assertEqualsWithDelta($index, $a['loss_index'], 0.001);
+        $this->assertEqualsWithDelta(0.16, $b['loss_index'], 1e-9);
+        $this->assertSame($this->ulpA->id, $d['ulps'][0]['unit_id']);                                            // indeks terbesar dahulu
+
+        $w = collect($d['watchlist']);
+        $this->assertSame('GA3', $w[0]['code']);                                                                 // indeks 4 (dibatasi) paling besar
+        $this->assertEquals([300.0, ['beban_lebih', 'data_diragukan']], [$w[0]['loading_pct'], $w[0]['flags']]);
+        $ga2 = $w->firstWhere('code', 'GA2');
+        $this->assertEqualsWithDelta(33.3, $ga2['unbalance_pct'], 0.05);
+        $this->assertSame(['beban_lebih', 'tidak_seimbang'], $ga2['flags']);
+        $this->assertSame(['beban_tinggi'], $w->firstWhere('code', 'GA1')['flags']);
+        $this->assertNull($w->firstWhere('code', 'GA4'));
+        $this->assertNull($w->firstWhere('code', 'GA6'));
+        $this->assertFalse($d['correlation']['available']);                                                      // kurang dari enam ULP
+
+        // korelasi peringkat dengan susut: enam ULP, beban naik bersama susut => Spearman 1
+        $units = [$this->ulpA->id, $this->ulpB->id];
+        $susut = [$this->ulpA->id => 9.0, $this->ulpB->id => 3.0];
+        foreach ([60, 70, 80, 90] as $i => $load) {
+            $u = $this->makeUnit('ULP', $this->up3);
+            $this->gardu($u, "GX{$i}", 100, $load, [$load, $load, $load]);
+            $units[] = $u->id;
+            $susut[$u->id] = 4.0 + $i;
+        }
+        $c = app(TechnicalLossProxy::class)->detail($units, '2026-09', $susut)['correlation'];
+        $this->assertSame([true, 6], [$c['available'], $c['ulps']]);
+        $this->assertGreaterThan(0.7, $c['loss_index']);                                                         // ULP A beban rata-rata tertinggi dan susut 9
     }
 
     #[Test]
