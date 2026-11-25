@@ -113,7 +113,7 @@ export default function EisRunResults({ run, units }) {
               : isApkt
               ? 'Ringkasan penarikan laporan SAIDI/SAIFI SE004 (DIFI) langsung dari GraphQL APKT per unit ULP.'
               : isAp2t
-              ? 'Ringkasan penarikan laporan realisasi tagihan susulan (TAGSUS) P2TL langsung dari server AP2T per unit ULP.'
+              ? `Ringkasan penarikan laporan tagihan susulan P2TL langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x).join(', ')})` : ''}.`
               : isPiutang
               ? 'Ringkasan penarikan laporan saldo piutang (Per Golongan, Per Lembar, Kogol) per unit ULP.'
               : 'Ringkasan status sinkronisasi permohonan per unit ULP.'}

@@ -159,6 +159,11 @@ export default function EisRunHistory() {
                           {isAp2t && (
                             <div className="text-[10px] text-slate-400">
                               Dataset: TAGSUS P2TL
+                              {r.options?.reports && (
+                                <span className="block text-slate-400">
+                                  {r.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x).join(', ')}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>

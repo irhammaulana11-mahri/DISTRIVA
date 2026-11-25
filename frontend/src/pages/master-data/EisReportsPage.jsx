@@ -45,6 +45,7 @@ const FAMILY_LABELS = {
   AKHIRBULAN_EIS: 'AKHIRBULAN_EIS (Rekening Akhir Bulan)',
   AKHIEPERIODE_EIS: 'AKHIEPERIODE_EIS (Rekening Akhir Periode)',
   TAGSUS: 'TAGSUS (Tagihan Susulan P2TL)',
+  TAGSUS_BELUM: 'TAGSUS_BELUM (Tagihan Susulan Belum Realisasi - Potret per Tanggal Unduh)',
   UMURPIUTANG: 'UMURPIUTANG (Umur Tunggakan Pascabayar)',
 }
 
@@ -263,7 +264,7 @@ function UploadModal({ isOpen, onClose, onUploaded }) {
                 <strong>Arsip ZIP &amp; Folder:</strong> Mendukung berkas <span className="font-mono font-semibold">.zip</span> atau pilih folder langsung. Contoh susunan folder ZIP satu UP3: <span className="font-mono font-semibold">JOMBANG/2026-10/Rekap.xls</span> (nama folder dibaca otomatis sebagai unit dan bulan).
               </li>
               <li>
-                Mendukung jenis: <span className="font-mono">309, 309EIS, DIFI, GGNALL, KLHALL, PIUTANGLPB_EIS, AKHIRBULAN_EIS, AKHIEPERIODE_EIS, TAGSUS, UMURPIUTANG</span>.
+                Mendukung jenis: <span className="font-mono">309, 309EIS, DIFI, GGNALL, KLHALL, PIUTANGLPB_EIS, AKHIRBULAN_EIS, AKHIEPERIODE_EIS, TAGSUS, TAGSUS_BELUM, UMURPIUTANG</span>.
               </li>
             </ul>
           </div>
@@ -663,7 +664,7 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
     return (data.families_list || Object.keys(FAMILY_LABELS)).map((f) => ({
       code: f,
       name: FAMILY_LABELS[f] || f,
-      source: f === 'DIFI' || f.startsWith('GGN') || f.startsWith('KLH') ? 'APKT' : f === '309' || f === 'TAGSUS' ? 'AP2T' : 'EIS',
+      source: f === 'DIFI' || f.startsWith('GGN') || f.startsWith('KLH') ? 'APKT' : f === '309' || f === 'TAGSUS' || f === 'TAGSUS_BELUM' ? 'AP2T' : 'EIS',
       storage: 'file',
       used_by: [],
     }))
@@ -907,7 +908,7 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
                   return filteredDatasets.map((d, fIdx) => {
                     const rowMonths = u.datasets?.[d.code] || (d.family && u.families?.[d.family]) || {}
                     const isApkt = d.source === 'APKT'
-                    const isAp2tTagsus = d.code === 'AP2T.TAGSUS'
+                    const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
                     const usedByText = d.used_by && d.used_by.length > 0
                       ? `Dipakai menu: ${d.used_by.join(', ')}`
                       : 'Arsip / belum dipakai menu'
@@ -943,6 +944,11 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
                             <span className="text-[10px] font-mono text-slate-400">
                               {d.code}
                             </span>
+                            {d.code === 'AP2T.TAGSUS_BELUM_REALISASI' && (
+                              <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400" title="Potret per tanggal unduh, bukan angka bulan penuh">
+                                • Potret per tanggal unduh
+                              </span>
+                            )}
                             {d.used_by && d.used_by.length > 0 && (
                               <span className="text-[9px] text-slate-400 truncate max-w-[140px]" title={usedByText}>
                                 • {d.used_by.join(', ')}
@@ -1027,7 +1033,7 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
     return Object.keys(FAMILY_LABELS).map((fam) => ({
       code: fam,
       name: FAMILY_LABELS[fam] || fam,
-      source: fam === 'DIFI' || fam.startsWith('GGN') || fam.startsWith('KLH') ? 'APKT' : fam === '309' || fam === 'TAGSUS' ? 'AP2T' : 'EIS',
+      source: fam === 'DIFI' || fam.startsWith('GGN') || fam.startsWith('KLH') ? 'APKT' : fam === '309' || fam === 'TAGSUS' || fam === 'TAGSUS_BELUM' ? 'AP2T' : 'EIS',
       storage: 'file',
       family: fam,
       used_by: [],
@@ -1080,7 +1086,7 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
             {datasets.map((d) => {
               const rowMonths = d.months || {}
               const isApkt = d.source === 'APKT'
-              const isAp2tTagsus = d.code === 'AP2T.TAGSUS'
+              const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
               const usedByText = d.used_by && d.used_by.length > 0
                 ? `Dipakai menu: ${d.used_by.join(', ')}`
                 : 'Arsip / belum dipakai menu'
@@ -1098,6 +1104,11 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
                       <span className="text-[10px] font-mono text-slate-400">
                         {d.code}
                       </span>
+                      {d.code === 'AP2T.TAGSUS_BELUM_REALISASI' && (
+                        <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400" title="Potret per tanggal unduh, bukan angka bulan penuh">
+                          • Potret per tanggal unduh
+                        </span>
+                      )}
                       {d.used_by && d.used_by.length > 0 && (
                         <span className="text-[10px] text-slate-400">
                           • {usedByText}

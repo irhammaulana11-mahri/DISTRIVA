@@ -1386,4 +1386,81 @@ describe('BusinessAnalyticsPage', () => {
     // Verifikasi tombol Tarik AP2T (kWh P2TL) tampil
     expect(await screen.findByRole('button', { name: 'Tarik AP2T (kWh P2TL)' })).toBeInTheDocument()
   })
+
+  it('17. menampilkan companion belum realisasi potret AP2T pada kWh P2TL tanpa YoY (Butir 33)', async () => {
+    const p2tlCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'kwh-p2tl',
+            name: 'kWh P2TL',
+            source: 'TAGSUS',
+            polarity: 'up',
+            available: true,
+            series: [
+              { key: 'kwh', name: 'kWh Tagihan Susulan', unit: 'kWh' },
+            ],
+          },
+        ],
+      },
+    }
+
+    const p2tlDetail = {
+      data: {
+        ...MOCK_METRIC_DETAIL.data,
+        metric: {
+          code: 'kwh-p2tl',
+          name: 'kWh P2TL',
+          unit: 'kWh',
+          polarity: 'up',
+          source: 'TAGSUS',
+        },
+        from: '2026-03',
+        to: '2026-04',
+        months: ['2026-03', '2026-04'],
+        summary: [
+          { key: 'kwh', name: 'kWh Tagihan Susulan', unit: 'kWh', latest: 10, ytd: 180 },
+        ],
+        series: [
+          { key: 'kwh', name: 'kWh Tagihan Susulan', unit: 'kWh', values: [170, 10], previous_year: [100, 10] },
+        ],
+        warnings: [],
+        companions: {
+          source: 'AP2T – Penetapan tagihan susulan yang belum realisasi (potret per tanggal tarik: bulan lama hanya memuat sisa yang belum terealisasi saat laporan ditarik)',
+          series: [
+            { key: 'kwh_belum', name: 'kWh belum realisasi', unit: 'kWh', latest: 0, ytd: 35, values: [35, 0] },
+            { key: 'rp_belum', name: 'Rupiah belum realisasi', unit: 'Rp', latest: 0, ytd: 350, values: [350, 0] },
+            { key: 'jumlah_belum', name: 'Jumlah penetapan belum realisasi', unit: 'penetapan', latest: null, ytd: 3, values: [3, null] },
+          ],
+        },
+        reconciliations: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(p2tlCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'kwh-p2tl') {
+        return Promise.resolve(p2tlDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/kwh-p2tl'])
+
+    // Verifikasi tab Rekonsiliasi aktif/muncul karena companions ada
+    const recTab = await screen.findByRole('button', { name: 'Rekonsiliasi' })
+    expect(recTab).toBeInTheDocument()
+    await userEvent.click(recTab)
+
+    // Verifikasi pesan peringatan potret tampil
+    expect(await screen.findByText(/Potret per tanggal tarik: bulan lama hanya memuat sisa yang belum terealisasi; bukan angka bulan penuh dan tidak dibandingkan dengan tahun lalu/i)).toBeInTheDocument()
+
+    // Verifikasi badge sumber AP2T
+    expect(screen.getAllByText('AP2T').length).toBeGreaterThan(0)
+
+    // Verifikasi penanganan nilai null sebagai 'Belum ditarik'
+    expect(screen.getByText('Belum ditarik')).toBeInTheDocument()
+  })
 })

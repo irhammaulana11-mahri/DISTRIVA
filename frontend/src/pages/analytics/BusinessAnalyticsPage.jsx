@@ -585,8 +585,11 @@ function MetricTrendChart({
 }
 
 /** Komponen Data Penjelas Operasional (Companions) */
-function CompanionSection({ companions, toMonth }) {
+function CompanionSection({ companions, toMonth, metricCode }) {
   if (!companions || !companions.series || companions.series.length === 0) return null
+
+  const isKwhP2tl = metricCode === 'kwh-p2tl' || String(companions.source || '').toLowerCase().includes('potret')
+  const isAp2t = String(companions.source || '').toUpperCase().includes('AP2T')
 
   return (
     <div className={`${CARD} p-5 space-y-4`}>
@@ -596,12 +599,18 @@ function CompanionSection({ companions, toMonth }) {
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
               Data Penjelas Operasional
             </h3>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-              {companions.source || 'Operasional DISTRIVA'}
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
+              isAp2t
+                ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                : 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+            }`}>
+              {isAp2t ? 'AP2T' : companions.source || 'Operasional DISTRIVA'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Data operasional lapangan sebagai pembanding dan penjelas pergerakan angka resmi laporan PLN.
+            {isKwhP2tl
+              ? companions.source || 'Penetapan tagihan susulan yang belum realisasi dari AP2T.'
+              : 'Data operasional lapangan sebagai pembanding dan penjelas pergerakan angka resmi laporan PLN.'}
           </p>
         </div>
         {toMonth && (
@@ -610,6 +619,15 @@ function CompanionSection({ companions, toMonth }) {
           </span>
         )}
       </div>
+
+      {isKwhP2tl && (
+        <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+          <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">ℹ</span>
+          <p className="leading-relaxed">
+            Potret per tanggal tarik: bulan lama hanya memuat sisa yang belum terealisasi; bukan angka bulan penuh dan tidak dibandingkan dengan tahun lalu.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {companions.series.map((s) => (
@@ -622,8 +640,10 @@ function CompanionSection({ companions, toMonth }) {
                 {s.name}
               </span>
               <div className="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
-                {s.latest !== null && s.latest !== undefined ? fmtFloat(s.latest) : '-'}{' '}
-                <span className="text-xs font-normal text-slate-500">{s.unit}</span>
+                {s.latest !== null && s.latest !== undefined ? fmtFloat(s.latest) : 'Belum ditarik'}{' '}
+                {s.latest !== null && s.latest !== undefined && (
+                  <span className="text-xs font-normal text-slate-500">{s.unit}</span>
+                )}
               </div>
             </div>
 
@@ -634,7 +654,7 @@ function CompanionSection({ companions, toMonth }) {
                   ? '-'
                   : s.ytd !== null && s.ytd !== undefined ? fmtFloat(s.ytd) : '-'}{' '}
                 <span className="text-[10px] font-normal text-slate-400">
-                  {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_') ? '' : s.unit}
+                  {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_') || s.ytd === null || s.ytd === undefined ? '' : s.unit}
                 </span>
               </span>
             </div>
@@ -2289,13 +2309,16 @@ export default function BusinessAnalyticsPage() {
 
             let card3 = null
             if (comp0) {
+              const comp0Source = isKwhP2tlMetric
+                ? 'AP2T (Potret)'
+                : (d.companions.source || 'Operasional')
               card3 = {
                 title: comp0.name,
-                source: d.companions.source || 'Operasional',
-                value: fmtMetricValue(comp0.latest, comp0.unit),
-                unit: comp0.unit,
+                source: comp0Source,
+                value: comp0.latest !== null && comp0.latest !== undefined ? fmtMetricValue(comp0.latest, comp0.unit) : 'Belum ditarik',
+                unit: comp0.latest !== null && comp0.latest !== undefined ? comp0.unit : '',
                 footerLabel: 'Kumulatif YTD',
-                footerValue: `${fmtMetricValue(comp0.ytd, comp0.unit)} ${comp0.unit}`,
+                footerValue: comp0.ytd !== null && comp0.ytd !== undefined ? `${fmtMetricValue(comp0.ytd, comp0.unit)} ${comp0.unit}` : '-',
               }
             } else if (s1 && meta1) {
               card3 = {
@@ -2329,13 +2352,16 @@ export default function BusinessAnalyticsPage() {
                 footerValue: rec0.note || 'Perbandingan data resmi vs lapangan',
               }
             } else if (comp1) {
+              const comp1Source = isKwhP2tlMetric
+                ? 'AP2T (Potret)'
+                : (d.companions.source || 'Operasional')
               card4 = {
                 title: comp1.name,
-                source: d.companions.source || 'Operasional',
-                value: fmtMetricValue(comp1.latest, comp1.unit),
-                unit: comp1.unit,
+                source: comp1Source,
+                value: comp1.latest !== null && comp1.latest !== undefined ? fmtMetricValue(comp1.latest, comp1.unit) : 'Belum ditarik',
+                unit: comp1.latest !== null && comp1.latest !== undefined ? comp1.unit : '',
                 footerLabel: 'Kumulatif YTD',
-                footerValue: `${fmtMetricValue(comp1.ytd, comp1.unit)} ${comp1.unit}`,
+                footerValue: comp1.ytd !== null && comp1.ytd !== undefined ? `${fmtMetricValue(comp1.ytd, comp1.unit)} ${comp1.unit}` : '-',
               }
             } else if (s2 && meta2) {
               card4 = {
@@ -2994,7 +3020,7 @@ export default function BusinessAnalyticsPage() {
             <div className="space-y-6">
               {/* Data Penjelas Operasional (Companions) */}
               {d.companions && (
-                <CompanionSection companions={d.companions} toMonth={d.to} />
+                <CompanionSection companions={d.companions} toMonth={d.to} metricCode={activeCode} />
               )}
 
               {/* Rekonsiliasi Angka Resmi vs Operasional */}

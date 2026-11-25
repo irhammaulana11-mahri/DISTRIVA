@@ -449,9 +449,51 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
         kind: 'ap2t',
         to_month: '2026-10',
         from_month: '2026-10',
+        reports: ['realisasi', 'belum_realisasi'],
       })
     })
 
     expect(await screen.findByText('TAGSUS P2TL (AP2T)')).toBeInTheDocument()
+  })
+
+  it('dapat memilih opsi laporan AP2T realisasi dan belum realisasi (Butir 32)', async () => {
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r-ap2t-tagsus-custom',
+        kind: 'ap2t',
+        options: { dataset: 'tagsus', from_month: '2026-10', to_month: '2026-10', reports: ['realisasi'] },
+        status: 'OK',
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="ap2t" onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik TAGSUS AP2T (kWh P2TL)' })).toBeInTheDocument()
+
+    // Verifikasi checkbox laporan realisasi & belum_realisasi
+    const cbRealisasi = screen.getByLabelText('Laporan Realisasi')
+    const cbBelum = screen.getByLabelText('Laporan Belum realisasi')
+    expect(cbRealisasi).toBeChecked()
+    expect(cbBelum).toBeChecked()
+
+    // Hapus centang belum realisasi
+    await userEvent.click(cbBelum)
+    expect(cbBelum).not.toBeChecked()
+
+    const toInput = screen.getByLabelText('Bulan akhir AP2T')
+    fireEvent.change(toInput, { target: { value: '2026-10' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik TAGSUS AP2T' })
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'ap2t',
+        to_month: '2026-10',
+        from_month: '2026-10',
+        reports: ['realisasi'],
+      })
+    })
   })
 })

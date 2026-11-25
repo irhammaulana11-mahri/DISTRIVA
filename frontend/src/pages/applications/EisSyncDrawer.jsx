@@ -98,6 +98,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   // State untuk penarikan AP2T (TAGSUS kWh P2TL)
   const [ap2tFromMonth, setAp2tFromMonth] = useState('')
   const [ap2tToMonth, setAp2tToMonth] = useState(nowMonth)
+  const [ap2tReports, setAp2tReports] = useState(['realisasi', 'belum_realisasi'])
   const [ap2tStarting, setAp2tStarting] = useState(false)
   const [ap2tError, setAp2tError] = useState('')
 
@@ -274,6 +275,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     }
   }
 
+  const toggleAp2tReport = (rep) => {
+    setAp2tReports((prev) =>
+      prev.includes(rep) ? prev.filter((r) => r !== rep) : [...prev, rep]
+    )
+  }
+
   const startAp2t = async () => {
     setAp2tStarting(true)
     setAp2tError('')
@@ -283,6 +290,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
         kind: 'ap2t',
         to_month: ap2tToMonth,
         from_month: ap2tFromMonth || ap2tToMonth,
+        reports: ap2tReports,
       }
       if (units.length > 0 && selected.length < units.length) body.units = selected
       const res = await eisSyncApi.start(body)
@@ -1139,8 +1147,40 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Laporan AP2T:</div>
                   <p>
-                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan TAGSUS DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
+                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan</b> dan <b>Daftar Tagihan Susulan Belum Realisasi</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan TAGSUS & TAGSUS_BELUM DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
                   </p>
+                </div>
+
+                {/* Centang Laporan AP2T */}
+                <div className="space-y-2 pt-1">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                    Laporan yang Ditarik
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
+                    {[
+                      { key: 'realisasi', label: 'Realisasi' },
+                      { key: 'belum_realisasi', label: 'Belum realisasi' },
+                    ].map((rep) => (
+                      <label
+                        key={rep.key}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs cursor-pointer select-none transition ${
+                          ap2tReports.includes(rep.key)
+                            ? 'border-amber-300 bg-amber-50/70 text-amber-900 font-semibold dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={ap2tReports.includes(rep.key)}
+                          onChange={() => toggleAp2tReport(rep.key)}
+                          disabled={running}
+                          aria-label={`Laporan ${rep.label}`}
+                          className="rounded text-amber-600 focus:ring-amber-500"
+                        />
+                        <span>{rep.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Filter Rentang Bulan AP2T */}
@@ -1215,6 +1255,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                       !canApktSync ||
                       running ||
                       !ap2tToMonth ||
+                      ap2tReports.length === 0 ||
                       (units.length > 0 && selected.length === 0)
                     }
                     variant="primary"
