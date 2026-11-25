@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-(Tidak ada tugas terbuka saat ini)
+| # | Tanggal | Commit | Perubahan | Dokumen | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|---|
+| 21 | 2026-11-25 | 5f2998c (backend ikut terbawa commit frontend) | **Simpan token APKT seperti token MIMS**: `POST /eis-sync/runs` (`kind: "apkt"`) kini menerima `save_token` (boolean, simpan token yang ditempel) dan `use_saved_token` (boolean, pakai token tersimpan; `apkt_token` boleh kosong). Endpoint baru `GET /eis-sync/apkt-token` → `data: {saved, saved_at, last_used_at, last_result}` (`last_result`: `OK`, `REJECTED`, atau null) dan `DELETE /eis-sync/apkt-token`. Run memuat `options.token_source` (`saved` atau `pasted`) | docs/88 §5 | Pada kartu "SAIDI/SAIFI APKT (DIFI)" di `EisSyncDrawer`, tiru kartu penarikan MIMS: (a) saat kartu dibuka panggil `GET /eis-sync/apkt-token`. (b) Bila `saved`: tampilkan pilihan **"Pakai token tersimpan"** (bawaan terpilih) beserta keterangan disimpan pada `saved_at`, terakhir dipakai `last_used_at`, dan hasil terakhir; bila `last_result` = `REJECTED`, tampilkan peringatan "Token tersimpan ditolak APKT; tempel token baru" dan jadikan pilihan tempel token sebagai bawaan. Kirim `use_saved_token: true` tanpa `apkt_token`. (c) Bila memilih tempel token: kolom Token APKT seperti sekarang dan kotak centang **"Simpan token untuk penarikan berikutnya"** (`save_token: true`). (d) Tombol **"Hapus token tersimpan"** memanggil `DELETE /eis-sync/apkt-token`, lalu muat ulang status. (e) Setelah run selesai, muat ulang status supaya hasil terakhir terlihat. Galat 409 "Belum ada token APKT tersimpan…" atau "…tidak dapat dibaca lagi…": tampilkan pesan dan pindah ke pilihan tempel token. Token tidak pernah dikembalikan backend, jadi jangan menampilkan atau menyimpannya di peramban | BARU |
 
 ## Selesai
 
