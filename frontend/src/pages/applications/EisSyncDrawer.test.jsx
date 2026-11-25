@@ -4,7 +4,25 @@ import userEvent from '@testing-library/user-event'
 import EisSyncDrawer from './EisSyncDrawer.jsx'
 import { eisSyncApi } from '../../services/api.js'
 
-vi.mock('../../services/api.js', () => ({ eisSyncApi: { show: vi.fn(), save: vi.fn(), start: vi.fn(), run: vi.fn() } }))
+vi.mock('../../services/api.js', () => ({
+  eisSyncApi: {
+    show: vi.fn(),
+    save: vi.fn(),
+    start: vi.fn(),
+    run: vi.fn(),
+    apktTokenStatus: vi.fn().mockResolvedValue({ data: { saved: false, saved_at: null, last_result: null, last_used_at: null } }),
+    deleteApktToken: vi.fn().mockResolvedValue({ data: { ok: true } }),
+  },
+}))
+vi.mock('../../features/admin/AccessContext.jsx', () => ({
+  useAccess: () => ({
+    can: {
+      'eis_sync.manage': true,
+      'eis_reports.import': true,
+    },
+    isSysAdmin: true,
+  }),
+}))
 
 const settings = { eis_username: 'petugas.eis', has_password: true, power_min: 0, power_max: 99999999, lookback_days: 180, auto_enabled: false, auto_time: '18:13' }
 
@@ -134,5 +152,149 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     await userEvent.click(piutangTabBtn)
     expect(await screen.findByText('Tarik Laporan Piutang')).toBeInTheDocument()
     expect(screen.queryByText('Tarik Permohonan dari EIS Langsung')).not.toBeInTheDocument()
+
+    const apktTabBtn = screen.getByRole('button', { name: 'SAIDI/SAIFI APKT (DIFI)' })
+    expect(apktTabBtn).toBeInTheDocument()
+    await userEvent.click(apktTabBtn)
+    expect(screen.getByRole('heading', { level: 3, name: 'Tarik SAIDI/SAIFI APKT (DIFI)' })).toBeInTheDocument()
+    expect(screen.queryByText('Tarik Laporan Piutang')).not.toBeInTheDocument()
+  })
+
+  it('kartu Tarik SAIDI/SAIFI APKT (DIFI) mengirim token, mengosongkannya setelah submit, dan menampilkan badge jenis apkt', async () => {
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r3',
+        kind: 'apkt',
+        status: 'QUEUED',
+        log: null,
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+    eisSyncApi.run.mockResolvedValue({
+      data: {
+        id: 'r3',
+        kind: 'apkt',
+        status: 'OK',
+        log: '=== Bulan 2026-10 ===\nOK DIFI 51453 2026-10 BARU',
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="apkt" onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik SAIDI/SAIFI APKT (DIFI)' })).toBeInTheDocument()
+    const tokenInput = screen.getByLabelText('Token APKT')
+    expect(tokenInput).toHaveAttribute('type', 'password')
+
+    const toInput = screen.getByLabelText('Bulan akhir APKT')
+    const fromInput = screen.getByLabelText('Bulan awal APKT')
+    fireEvent.change(toInput, { target: { value: '2026-10' } })
+    fireEvent.change(fromInput, { target: { value: '2026-09' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik SAIDI/SAIFI APKT' })
+    expect(submitBtn).toBeDisabled() // belum ada token
+
+    fireEvent.change(tokenInput, { target: { value: 'secret-apkt-token-xyz' } })
+    const saveTokenBox = screen.getByLabelText('Simpan token APKT untuk penarikan berikutnya')
+    await userEvent.click(saveTokenBox)
+    expect(submitBtn).toBeEnabled()
+
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'apkt',
+        to_month: '2026-10',
+        from_month: '2026-09',
+        apkt_token: 'secret-apkt-token-xyz',
+        save_token: true,
+      })
+    })
+
+    // Token harus segera dikosongkan dari input setelah pengiriman
+    expect(tokenInput).toHaveValue('')
+
+    expect(await screen.findByText('Hasil Sinkronisasi EIS')).toBeInTheDocument()
+    expect(screen.getByText('SAIDI/SAIFI APKT (DIFI)')).toBeInTheDocument()
+  })
+
+  it('dapat menggunakan token APKT tersimpan tanpa perlu menempelkan token ulang', async () => {
+    eisSyncApi.apktTokenStatus.mockResolvedValue({
+      data: {
+        saved: true,
+        saved_at: '2026-11-25T08:00:00Z',
+        last_used_at: '2026-11-25T08:30:00Z',
+        last_result: 'OK',
+      },
+    })
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r4',
+        kind: 'apkt',
+        status: 'QUEUED',
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="apkt" onClose={() => {}} />)
+
+    expect(await screen.findByText(/Gunakan Token APKT Tersimpan/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Token APKT')).not.toBeInTheDocument() // input token disembunyikan jika pakai tersimpan
+
+    const toInput = screen.getByLabelText('Bulan akhir APKT')
+    fireEvent.change(toInput, { target: { value: '2026-11' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik SAIDI/SAIFI APKT' })
+    expect(submitBtn).toBeEnabled()
+
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'apkt',
+        to_month: '2026-11',
+        from_month: '2026-11',
+        use_saved_token: true,
+      })
+    })
+  })
+
+  it('menampilkan peringatan jika run log APKT memuat token ditolak', async () => {
+    eisSyncApi.apktTokenStatus.mockResolvedValue({
+      data: { saved: false, saved_at: null, last_used_at: null, last_result: null },
+    })
+    eisSyncApi.show.mockResolvedValue({
+      data: {
+        settings,
+        runs: [
+          {
+            id: 'r-fail',
+            kind: 'apkt',
+            status: 'FAILED',
+            log: 'Terjadi galat: token APKT ditolak oleh server APKT (401)',
+            created_at: '2026-11-25T10:00:00Z',
+          },
+        ],
+      },
+    })
+
+    const failedRun = {
+      id: 'r-fail',
+      kind: 'apkt',
+      status: 'FAILED',
+      log: 'Terjadi galat: token APKT ditolak oleh server APKT (401)',
+      created_at: '2026-11-25T10:00:00Z',
+    }
+    eisSyncApi.start.mockResolvedValue({ data: failedRun })
+    eisSyncApi.run.mockResolvedValue({ data: failedRun })
+
+    render(<EisSyncDrawer open mode="apkt" onClose={() => {}} />)
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik SAIDI/SAIFI APKT (DIFI)' })).toBeInTheDocument()
+
+    const tokenInput = await screen.findByLabelText('Token APKT')
+    fireEvent.change(tokenInput, { target: { value: 'expired-token' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Tarik SAIDI/SAIFI APKT' }))
+
+    expect(await screen.findByText(/Token APKT Ditolak atau Kedaluwarsa/)).toBeInTheDocument()
   })
 })

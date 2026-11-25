@@ -199,6 +199,41 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
 
   return (
     <div className="space-y-6">
+      {/* Peringatan Kelengkapan Data DIFI dll (docs/91 §3 & Butir 19) */}
+      {Array.isArray(d.warnings) && d.warnings.length > 0 && (
+        <div className="space-y-2.5">
+          {d.warnings.map((w, idx) => {
+            const isWarn = w.severity === 'warning'
+            const borderCls = isWarn
+              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+              : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200'
+
+            return (
+              <div
+                key={idx}
+                className={`p-4 rounded-xl border text-xs flex items-start gap-3 shadow-xs ${borderCls}`}
+              >
+                <IconAlertCircle
+                  size={18}
+                  className={`mt-0.5 shrink-0 ${isWarn ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}
+                />
+                <div className="space-y-1">
+                  <div className="font-bold flex items-center gap-2 flex-wrap">
+                    <span>Peringatan Kelengkapan Data:</span>
+                    {w.month && (
+                      <span className="px-2 py-0.2 rounded text-[10px] font-mono font-semibold bg-amber-200/60 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
+                        Bulan {monthLabel(w.month)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="leading-relaxed font-sans">{w.message}</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Kartu Header Informasi Sumber */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

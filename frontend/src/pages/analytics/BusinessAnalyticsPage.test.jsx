@@ -923,4 +923,92 @@ describe('BusinessAnalyticsPage', () => {
     // Bulan tanpa laporan DIFI menampilkan 'Belum ada' (bukan 0 atau tanda strip kosong biasa)
     expect(screen.getByText(/Belum ada/i)).toBeInTheDocument()
   })
+
+  it('menampilkan pita peringatan DIFI belum lengkap dan penanda pada grafik/tabel (Butir 19)', async () => {
+    const difiWarnDetail = {
+      data: {
+        ...MOCK_METRIC_DETAIL.data,
+        from: '2026-09',
+        to: '2026-10',
+        months: ['2026-09', '2026-10'],
+        metric: {
+          code: 'saidi-saifi',
+          name: 'SAIDI / SAIFI',
+          unit: 'jam/plg & kali/plg',
+          polarity: 'down',
+          source: 'Laporan DIFI',
+        },
+        warnings: [
+          {
+            code: 'difi_latest_month_incomplete',
+            severity: 'warning',
+            month: '2026-10',
+            message: 'Laporan DIFI 2026-10 kemungkinan belum lengkap: nol gangguan tidak terencana padahal tiga bulan sebelumnya rata-rata 16.7 kejadian.',
+            events_latest: 0,
+            events_previous_average: 16.7,
+            units_reporting: 10,
+          },
+        ],
+        reconciliations: [
+          {
+            key: 'saidi_penyulang',
+            title: 'Rekonsiliasi SAIDI Bagian Penyulang',
+            mode: 'flow',
+            unit: 'menit/plg',
+            official_name: 'DIFI Total',
+            companion_name: 'DIFI Bagian Penyulang',
+            monthly: [
+              { month: '2026-09', official_net: 0.05, companion: 0.05, difference: 0, units_compared: 1 },
+              { month: '2026-10', official_net: 0.02, companion: 0.02, difference: 0, units_compared: 1 },
+            ],
+            ytd: {
+              year: 2026,
+              official_net: 0.07,
+              companion: 0.07,
+              difference: 0,
+              units_compared: 1,
+              units_expected: 1,
+            },
+          },
+        ],
+      },
+    }
+
+    const saidiCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'saidi-saifi',
+            name: 'SAIDI / SAIFI',
+            source: 'Laporan DIFI & Data Gangguan',
+            polarity: 'down',
+            available: true,
+            series: [{ key: 'saidi', name: 'SAIDI', unit: 'menit/plg' }],
+          },
+        ],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(saidiCatalog)
+    pengusahaanApi.metric.mockResolvedValue(difiWarnDetail)
+
+    const user = userEvent.setup()
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/saidi-saifi'])
+
+    // Verifikasi pita peringatan muncul
+    expect(await screen.findByText(/Laporan DIFI 2026-10 kemungkinan belum lengkap/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Bulan Okt 26/i).length).toBeGreaterThan(0)
+
+    // Verifikasi tombol Tarik SAIDI/SAIFI APKT tersedia
+    expect(screen.getByRole('button', { name: 'Tarik SAIDI/SAIFI APKT' })).toBeInTheDocument()
+
+    // Buka tab Rekonsiliasi untuk melihat penanda belum lengkap
+    const recTab = screen.getByRole('button', { name: /^Rekonsiliasi$/i })
+    await user.click(recTab)
+    expect(await screen.findByText(/Mode Arus Bulanan/i)).toBeInTheDocument()
+    // Badge "belum lengkap" muncul di samping nama bulan pada tabel rekonsiliasi
+    expect(screen.getByText('belum lengkap')).toBeInTheDocument()
+  })
 })

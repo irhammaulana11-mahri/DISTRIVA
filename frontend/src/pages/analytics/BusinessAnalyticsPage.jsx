@@ -136,6 +136,7 @@ function MetricTrendChart({
   unitsExpected = 1,
   unitsReporting = [],
   polarity = 'up',
+  incompleteMonths = [],
 }) {
   const [hoverData, setHoverData] = useState(null)
   const containerRef = useRef(null)
@@ -494,14 +495,20 @@ function MetricTrendChart({
                   />
                 )}
 
-                {/* Indikator data belum utuh */}
-                {isIncomplete && (
+                {/* Indikator data belum utuh atau belum lengkap DIFI */}
+                {(isIncomplete || incompleteMonths.includes(m)) && (
                   <circle
                     cx={x}
                     cy={padTop + chartH + 18}
-                    r={3}
-                    fill="#f59e0b"
-                  />
+                    r={3.5}
+                    fill={incompleteMonths.includes(m) ? '#ef4444' : '#f59e0b'}
+                  >
+                    <title>
+                      {incompleteMonths.includes(m)
+                        ? `Bulan ${fmtMonth(m)}: Data DIFI kemungkinan belum lengkap`
+                        : `Bulan ${fmtMonth(m)}: ${unitsReporting[idx] || 0} dari ${unitsExpected} ULP`}
+                    </title>
+                  </circle>
                 )}
 
                 {/* Label Bulan pada Sumbu X (dijarangkan mis. tiap 3 bulan bila banyak bulan agar tidak bertumpuk) */}
@@ -586,7 +593,7 @@ function CompanionSection({ companions, toMonth }) {
 }
 
 /** Komponen Rekonsiliasi Angka Resmi vs Data Operasional */
-function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode = '' }) {
+function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode = '', incompleteMonths = [] }) {
   const [recPages, setRecPages] = useState({})
   const [recPerPages, setRecPerPages] = useState({})
 
@@ -787,7 +794,17 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode 
                         return (
                           <tr key={m.month} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                             <td className="py-2 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
-                              {fmtMonth(m.month)}
+                              <div className="flex items-center gap-1.5">
+                                <span>{fmtMonth(m.month)}</span>
+                                {incompleteMonths.includes(m.month) && (
+                                  <span
+                                    title="Data Laporan DIFI bulan ini kemungkinan belum lengkap diisi di APKT"
+                                    className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0"
+                                  >
+                                    belum lengkap
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
                               {m.official_net !== null ? (
@@ -1266,14 +1283,24 @@ export default function BusinessAnalyticsPage() {
               Segarkan
             </Button>
             {isOutageMetric ? (
-              <Button
-                variant="primary"
-                onClick={() => setOutageSyncDrawerOpen(true)}
-                icon={IconRefresh}
-                aria-label="Sinkronisasi Gangguan"
-              >
-                Sinkronisasi Gangguan
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  onClick={() => setOutageSyncDrawerOpen(true)}
+                  icon={IconRefresh}
+                  aria-label="Sinkronisasi Gangguan"
+                >
+                  Sinkronisasi Gangguan
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setSyncDrawerOpen(true)}
+                  icon={IconRefresh}
+                  aria-label="Tarik SAIDI/SAIFI APKT"
+                >
+                  Tarik SAIDI/SAIFI APKT
+                </Button>
+              </div>
             ) : isEisMetric ? (
               <Button
                 variant="primary"
@@ -1882,6 +1909,41 @@ export default function BusinessAnalyticsPage() {
         />
       ) : (
         <div className="space-y-6">
+          {/* Warnings List (Pita Peringatan Kelengkapan Data DIFI dll, docs/91 §3 & Butir 19) */}
+          {Array.isArray(d.warnings) && d.warnings.length > 0 && (
+            <div className="space-y-2.5">
+              {d.warnings.map((w, idx) => {
+                const isWarn = w.severity === 'warning'
+                const borderCls = isWarn
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                  : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200'
+
+                return (
+                  <div
+                    key={idx}
+                    className={`p-4 rounded-xl border text-xs flex items-start gap-3 shadow-xs ${borderCls}`}
+                  >
+                    <IconAlertCircle
+                      size={18}
+                      className={`mt-0.5 shrink-0 ${isWarn ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}
+                    />
+                    <div className="space-y-1">
+                      <div className="font-bold flex items-center gap-2 flex-wrap">
+                        <span>Peringatan Data Laporan:</span>
+                        {w.month && (
+                          <span className="px-2 py-0.2 rounded text-[10px] font-mono font-semibold bg-amber-200/60 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
+                            Bulan {fmtMonth(w.month)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="leading-relaxed font-sans">{w.message}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           {/* Warning Banner: Angka UP3 belum utuh */}
           {isLatestIncomplete && (
             <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start justify-between gap-3 flex-wrap">
@@ -2231,6 +2293,7 @@ export default function BusinessAnalyticsPage() {
                   unitsExpected={d.units_expected || 1}
                   unitsReporting={d.units_reporting || []}
                   polarity={d.metric?.polarity || 'up'}
+                  incompleteMonths={(d.warnings || []).map((w) => w.month).filter(Boolean)}
                 />
               </div>
 
@@ -2637,6 +2700,7 @@ export default function BusinessAnalyticsPage() {
                   reconciliations={d.reconciliations || (d.reconciliation ? [d.reconciliation] : [])}
                   unitsExpected={unitsExpected}
                   metricCode={activeCode}
+                  incompleteMonths={(d.warnings || []).map((w) => w.month).filter(Boolean)}
                 />
               )}
             </div>
@@ -2658,10 +2722,18 @@ export default function BusinessAnalyticsPage() {
         }}
       />
 
-      {/* Drawer Sinkronisasi Data EIS */}
+      {/* Drawer Sinkronisasi Data EIS / APKT */}
       <EisSyncDrawer
         open={syncDrawerOpen}
-        mode={activeCode.startsWith('piutang') ? 'piutang' : (activeCode === 'pelanggan' || activeCode === 'daya' ? 'permohonan' : null)}
+        mode={
+          activeCode.startsWith('piutang')
+            ? 'piutang'
+            : activeCode === 'pelanggan' || activeCode === 'daya'
+            ? 'permohonan'
+            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan'
+            ? 'apkt'
+            : null
+        }
         onClose={() => setSyncDrawerOpen(false)}
         onSynced={() => {
           loadCatalog()

@@ -771,6 +771,8 @@ export const eisSyncApi = {
   save: (body) => request('/eis-sync/settings', { method: 'PUT', body }),
   start: (body = {}) => request('/eis-sync/runs', { method: 'POST', body }),
   run: (id) => request(`/eis-sync/runs/${id}`),
+  apktTokenStatus: () => request('/eis-sync/apkt-token'),
+  deleteApktToken: () => request('/eis-sync/apkt-token', { method: 'DELETE' }),
 }
 
 export const whatsappSettingsApi = {

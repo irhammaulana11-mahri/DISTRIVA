@@ -8,6 +8,7 @@ use App\Services\Applications\EisSyncService;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\EisReports\ApktSaidiSaifiSync;
 use Carbon\Carbon;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -52,7 +53,7 @@ class EisSyncController extends Controller
         $this->authorizer->authorizeScope($request->user(), $piutang ? 'eis_reports.import' : 'applications.import');
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
         $rules = ['kind' => ['sometimes', 'in:permohonan,piutang,apkt'], 'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']];
-        $apkt && $rules += ['apkt_token' => ['required', 'string', 'max:700']];
+        $apkt && $rules += ['apkt_token' => ['nullable', 'required_unless:use_saved_token,true', 'string', 'max:700'], 'save_token' => ['sometimes', 'boolean'], 'use_saved_token' => ['sometimes', 'boolean']];
         $rules += $piutang
             ? ['from_month' => ['nullable', 'date_format:Y-m'], 'to_month' => ['required', 'date_format:Y-m', 'after_or_equal:from_month'], 'reports' => ['sometimes', 'array', 'min:1'], 'reports.*' => ['in:GOLONGAN,LEMBAR,KOGOL,PRABAYAR']]
             : ['from' => ['nullable', 'date_format:Y-m-d', 'required_with:to'], 'to' => ['nullable', 'date_format:Y-m-d', 'required_with:from', 'after_or_equal:from'], 'complete_old' => ['sometimes', 'boolean']];
@@ -67,8 +68,16 @@ class EisSyncController extends Controller
                 throw new AssignmentRuleViolation('Paling banyak 24 bulan per penarikan.');
             }
             if ($apkt) {
-                $token = ApktSaidiSaifiSync::cleanToken($d['apkt_token']) ?? throw new AssignmentRuleViolation('Token APKT tidak valid: salin nilai header Authorization dari permintaan /graphql di APKT (dengan atau tanpa awalan "Bearer").');
-                $options = ['from_month' => $from, 'to_month' => $d['to_month'], 'token_encrypted' => Crypt::encryptString($token)];     // hanya hidup selama proses berjalan, tidak pernah dikembalikan
+                $useSaved = (bool) ($d['use_saved_token'] ?? false);
+                $token = $useSaved ? $this->savedApktToken((string) $request->user()->getKey())
+                    : (ApktSaidiSaifiSync::cleanToken($d['apkt_token'] ?? null) ?? throw new AssignmentRuleViolation('Token APKT tidak valid: salin nilai header Authorization dari permintaan /graphql di APKT (dengan atau tanpa awalan "Bearer").'));
+                $save = ! $useSaved && (bool) ($d['save_token'] ?? false);
+                if ($save) {      // disimpan saat penarikan dimulai; hasil pemakaiannya (OK atau REJECTED) dicatat oleh penarikan itu
+                    DB::table('user_apkt_tokens')->upsert([['user_id' => $request->user()->getKey(), 'token_encrypted' => Crypt::encryptString($token), 'saved_at' => now(), 'last_used_at' => null, 'last_result' => null]],
+                        ['user_id'], ['token_encrypted', 'saved_at', 'last_used_at', 'last_result']);
+                }
+                $options = ['from_month' => $from, 'to_month' => $d['to_month'], 'token_source' => $useSaved ? 'saved' : 'pasted', 'token_saved' => $useSaved || $save,
+                    'token_encrypted' => Crypt::encryptString($token)];     // salinan untuk proses ini saja: dihapus begitu selesai, tidak pernah dikembalikan
                 $id = $this->sync->start('MANUAL', $request->user(), null, null, $units, false, 'APKT', $options);
             } else {
                 $options = ['from_month' => $from, 'to_month' => $d['to_month'], 'reports' => array_values(array_unique($d['reports'] ?? ['GOLONGAN', 'LEMBAR', 'KOGOL', 'PRABAYAR']))];
@@ -89,6 +98,45 @@ class EisSyncController extends Controller
         $r = DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.id', $run)->first(['r.*', 'u.email as started_by_email']) ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
 
         return response()->json(['data' => $this->run($r, true)]);
+    }
+
+    /** GET /eis-sync/apkt-token — apakah pengguna menyimpan token APKT (tidak pernah tokennya). */
+    public function apktTokenStatus(Request $request): JsonResponse
+    {
+        $this->authorizeApkt($request);
+        $row = DB::table('user_apkt_tokens')->where('user_id', $request->user()->getKey())->first(['saved_at', 'last_used_at', 'last_result']);
+
+        return response()->json(['data' => ['saved' => $row !== null, 'saved_at' => $row->saved_at ?? null, 'last_used_at' => $row->last_used_at ?? null, 'last_result' => $row->last_result ?? null]]);
+    }
+
+    /** DELETE /eis-sync/apkt-token */
+    public function apktTokenForget(Request $request): JsonResponse
+    {
+        $this->authorizeApkt($request);
+        DB::table('user_apkt_tokens')->where('user_id', $request->user()->getKey())->delete();
+
+        return response()->json(['message' => 'Token APKT tersimpan dihapus.']);
+    }
+
+    private function authorizeApkt(Request $request): void
+    {
+        $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
+        $this->authorizer->authorizeScope($request->user(), 'eis_reports.import');
+    }
+
+    private function savedApktToken(string $userId): string
+    {
+        $row = DB::table('user_apkt_tokens')->where('user_id', $userId)->value('token_encrypted');
+        if ($row === null) {
+            throw new AssignmentRuleViolation('Belum ada token APKT tersimpan; tempel token sesi dan centang "Simpan token".');
+        }
+        try {
+            return Crypt::decryptString($row);
+        } catch (DecryptException) {
+            DB::table('user_apkt_tokens')->where('user_id', $userId)->delete();
+
+            throw new AssignmentRuleViolation('Token APKT tersimpan tidak dapat dibaca lagi; tempel token sesi yang baru.');
+        }
     }
 
     /**

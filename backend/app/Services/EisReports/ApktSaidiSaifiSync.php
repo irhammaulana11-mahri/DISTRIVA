@@ -77,6 +77,7 @@ GQL;
 
         $counts = ['BARU' => 0, 'DIGANTIKAN' => 0, 'DUPLIKAT' => 0, 'SUDAH_DIGANTIKAN' => 0];
         $failed = 0;
+        $accepted = false;
         $deadline = microtime(true) + (float) config('distriva.eis_sync.timeout_seconds');
         foreach ($months as $ym) {
             foreach ($ulps as $ulp) {
@@ -91,10 +92,12 @@ GQL;
                     $data = $this->fetch($token, (string) $ulp->code, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2));
                     $res = $this->importData($data, $ulp, $ym, $user);
                     $counts[$res['status']] = ($counts[$res['status']] ?? 0) + 1;
+                    $accepted = true;
                     $say(sprintf('%-11s %s (%d baris)', $res['status'], $label, $res['lines']));
                 } catch (ApktTokenRejected $e) {
                     $say("GAGAL  {$label}: {$e->getMessage()}");
                     $say('Penarikan dihentikan: tempel token APKT yang baru lalu ulangi.');
+                    $this->recordSavedToken($run, $o, $token, true);
 
                     return [1, $log];
                 } catch (EisReportException $e) {
@@ -107,10 +110,31 @@ GQL;
                 usleep((int) config('distriva.apkt.pause_ms') * 1000);
             }
         }
+        $accepted && $this->recordSavedToken($run, $o, $token, false);
         $in = $counts['BARU'] + $counts['DIGANTIKAN'] + $counts['DUPLIKAT'] + $counts['SUDAH_DIGANTIKAN'];
         $say(sprintf('Selesai: %d berkas masuk DISTRIVA (baru %d, menggantikan %d, duplikat %d); %d gagal atau ditolak.', $in, $counts['BARU'], $counts['DIGANTIKAN'], $counts['DUPLIKAT'] + $counts['SUDAH_DIGANTIKAN'], $failed));
 
         return [$failed === 0 ? 0 : 1, $log];
+    }
+
+    /**
+     * Hasil pemakaian token tersimpan (OK bila APKT menerimanya, REJECTED bila menolak), hanya bila token penarikan ini memang token yang tersimpan saat ini milik pemulainya.
+     * Token yang ditolak tidak dihapus: pengguna yang memutuskan kapan menggantinya (sama dengan token MIMS).
+     *
+     * @param  array<string, mixed>  $o
+     */
+    private function recordSavedToken(object $run, array $o, string $token, bool $rejected): void
+    {
+        if (empty($o['token_saved'])) {
+            return;
+        }
+        $enc = DB::table('user_apkt_tokens')->where('user_id', $run->started_by)->value('token_encrypted');
+        try {
+            $same = $enc !== null && hash_equals(Crypt::decryptString($enc), $token);
+        } catch (\Throwable) {
+            $same = false;
+        }
+        $same && DB::table('user_apkt_tokens')->where('user_id', $run->started_by)->update(['last_used_at' => now(), 'last_result' => $rejected ? 'REJECTED' : 'OK']);
     }
 
     /**

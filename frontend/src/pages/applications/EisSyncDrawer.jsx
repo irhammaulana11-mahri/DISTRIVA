@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { eisSyncApi } from '../../services/api.js'
+import { useAccess } from '../../features/admin/AccessContext.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
@@ -50,6 +51,9 @@ function Field({ label, hint, children }) {
  * - 'all' / null: menampilkan selector/tab atau mode kontekstual.
  */
 export default function EisSyncDrawer({ open, asPage = false, mode = null, onClose, onSynced }) {
+  const { can } = useAccess?.() || { can: {} }
+  const canApktSync = Boolean(can?.['eis_sync.manage'] && can?.['eis_reports.import'])
+
   const [settings, setSettings] = useState(null)
   const [form, setForm] = useState(null)
   const [runs, setRuns] = useState([])
@@ -66,12 +70,16 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Tab internal jika mode = 'all' atau tidak ditentukan
-  const [activeTab, setActiveTab] = useState(mode === 'piutang' ? 'piutang' : 'permohonan')
+  const [activeTab, setActiveTab] = useState(
+    mode === 'piutang' ? 'piutang' : mode === 'apkt' ? 'apkt' : 'permohonan'
+  )
 
   // Sinkronkan activeTab bila prop mode berubah
   useEffect(() => {
     if (mode === 'piutang') {
       setActiveTab('piutang')
+    } else if (mode === 'apkt') {
+      setActiveTab('apkt')
     } else if (mode === 'permohonan') {
       setActiveTab('permohonan')
     }
@@ -84,6 +92,17 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
   const [piutangReports, setPiutangReports] = useState(['GOLONGAN', 'LEMBAR', 'KOGOL', 'PRABAYAR'])
   const [piutangStarting, setPiutangStarting] = useState(false)
   const [piutangError, setPiutangError] = useState('')
+
+  // State untuk penarikan SAIDI/SAIFI APKT (DIFI)
+  const [apktToken, setApktToken] = useState('')
+  const [saveApktToken, setSaveApktToken] = useState(false)
+  const [useSavedToken, setUseSavedToken] = useState(false)
+  const [savedTokenInfo, setSavedTokenInfo] = useState({ saved: false, saved_at: null, last_result: null, last_used_at: null })
+  const [apktFromMonth, setApktFromMonth] = useState('')
+  const [apktToMonth, setApktToMonth] = useState(nowMonth)
+  const [apktStarting, setApktStarting] = useState(false)
+  const [apktError, setApktError] = useState('')
+  const [deletingToken, setDeletingToken] = useState(false)
 
   const timer = useRef(null)
   const logRef = useRef(null)
@@ -106,10 +125,25 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
       setUnits(res?.data?.units || [])
       const live = (res?.data?.runs || []).find((r) => r.status === 'QUEUED' || r.status === 'RUNNING')
       if (live) setCurrent((c) => c || live)
+
+      // Cek status token APKT tersimpan
+      if (canApktSync) {
+        try {
+          const tRes = await eisSyncApi.apktTokenStatus?.()
+          if (tRes?.data) {
+            setSavedTokenInfo(tRes.data)
+            if (tRes.data.saved && tRes.data.last_result !== 'REJECTED') {
+              setUseSavedToken(true)
+            }
+          }
+        } catch {
+          // Abaikan bila endpoint belum tersedia atau izin terbatas
+        }
+      }
     } catch (err) {
       setError(err?.message || 'Gagal memuat pengaturan sinkronisasi EIS.')
     }
-  }, [])
+  }, [canApktSync])
 
   useEffect(() => {
     if (open) {
@@ -225,21 +259,82 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
     }
   }
 
+  const startApkt = async () => {
+    setApktStarting(true)
+    setApktError('')
+    setNotice('')
+    const token = apktToken.trim()
+    // Segera kosongkan input token demi keamanan; jangan pernah simpan di browser storage
+    setApktToken('')
+
+    try {
+      const body = {
+        kind: 'apkt',
+        to_month: apktToMonth,
+        from_month: apktFromMonth || apktToMonth,
+      }
+      if (useSavedToken) {
+        body.use_saved_token = true
+      } else {
+        body.apkt_token = token
+        if (saveApktToken) body.save_token = true
+      }
+      if (units.length > 0 && selected.length < units.length) body.units = selected
+      const res = await eisSyncApi.start(body)
+      setCurrent(res?.data)
+      // Refresh status token
+      if (saveApktToken) {
+        setSavedTokenInfo((prev) => ({ ...prev, saved: true, saved_at: new Date().toISOString() }))
+      }
+    } catch (err) {
+      // Backend mengirim pesan Indonesia apa adanya (422 / 409)
+      setApktError(err?.message || 'Gagal memulai penarikan SAIDI/SAIFI APKT.')
+    } finally {
+      setApktStarting(false)
+    }
+  }
+
+  const handleDeleteSavedApktToken = async () => {
+    setDeletingToken(true)
+    try {
+      await eisSyncApi.deleteApktToken()
+      setSavedTokenInfo({ saved: false, saved_at: null, last_result: null, last_used_at: null })
+      setUseSavedToken(false)
+      setNotice('Token APKT tersimpan berhasil dihapus.')
+    } catch (err) {
+      setApktError(err?.message || 'Gagal menghapus token APKT tersimpan.')
+    } finally {
+      setDeletingToken(false)
+    }
+  }
+
+  // Jika log memuat "token APKT ditolak", kosongkan token jika ada
+  useEffect(() => {
+    if (typeof current?.log === 'string' && current.log.toLowerCase().includes('token apkt ditolak')) {
+      setApktToken('')
+    }
+  }, [current?.log])
+
   const running = current && ['QUEUED', 'RUNNING'].includes(current.status)
   const ready = Boolean(settings?.eis_username && settings?.has_password)
 
   // Metrik Ringkasan KPI
   const lastRun = runs[0] || null
 
-  // Tentukan mode aktif: jika prop mode spesifik ('permohonan' | 'piutang'), kunci ke mode itu.
+  // Tentukan mode aktif: jika prop mode spesifik ('permohonan' | 'piutang' | 'apkt'), kunci ke mode itu.
   // Jika tidak ('all' / null), ikuti activeTab yang bisa di-switch pengguna.
   const isPermohonan = mode === 'permohonan' || (!mode && activeTab === 'permohonan')
   const isPiutang = mode === 'piutang' || (!mode && activeTab === 'piutang')
+  const isApkt = mode === 'apkt' || (!mode && activeTab === 'apkt')
 
-  const titleText = isPiutang && !isPermohonan
+  const titleText = isApkt
+    ? 'Tarik SAIDI/SAIFI APKT (DIFI)'
+    : isPiutang && !isPermohonan
     ? 'Sinkronisasi Saldo Piutang EIS'
     : 'Sinkronisasi EIS'
-  const subtitleText = isPiutang && !isPermohonan
+  const subtitleText = isApkt
+    ? 'Tarik laporan SAIDI/SAIFI SE004 bulanan langsung dari APKT ke format DIFI DISTRIVA'
+    : isPiutang && !isPermohonan
     ? 'Tarik laporan saldo piutang bulanan langsung dari server EIS ke DISTRIVA'
     : 'Tarik permohonan pelanggan PB/PD langsung dari server EIS ke DISTRIVA'
 
@@ -364,6 +459,17 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
                 }`}
               >
                 Laporan Saldo Piutang
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('apkt')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeTab === 'apkt'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                SAIDI/SAIFI APKT (DIFI)
               </button>
             </div>
           )}
@@ -627,6 +733,209 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
                   {!ready && (
                     <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
                       Simpan user dan password EIS terlebih dulu.
+                    </span>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Kartu Penarikan SAIDI/SAIFI APKT (DIFI) */}
+            {isApkt && (
+              <section className="p-5 rounded-2xl border border-purple-200 dark:border-purple-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                      Tarik SAIDI/SAIFI APKT (DIFI)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Tarik Laporan SAIDI SAIFI SE004 bulanan langsung dari GraphQL APKT dan impor otomatis sebagai laporan DIFI ke DISTRIVA.
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
+                    APKT GraphQL
+                  </span>
+                </div>
+
+                {apktError && <Alert kind="error">{apktError}</Alert>}
+
+                {/* Petunjuk Pengambilan Token APKT */}
+                <div className="p-3.5 bg-purple-50/60 dark:bg-purple-950/30 rounded-xl border border-purple-200/80 dark:border-purple-800/60 text-[11px] text-purple-950 dark:text-purple-200 space-y-2">
+                  <div className="font-bold flex items-center gap-1.5 text-purple-900 dark:text-purple-100">
+                    <span>Petunjuk Mengambil Token APKT:</span>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300">
+                    <li>Buka aplikasi APKT di peramban dan pastikan sudah dalam keadaan masuk (login).</li>
+                    <li>Masuk ke menu <span className="font-semibold">Saidi Saifi &gt; Laporan Saidi Saifi &gt; Laporan SAIDI SAIFI SE004</span>.</li>
+                    <li>Buka <b>Developer Tools</b> peramban (<kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 font-mono text-[10px]">F12</kbd> atau klik kanan &gt; Inspeksi), lalu pilih tab <b>Network</b>.</li>
+                    <li>Klik salah satu permintaan <span className="font-mono font-semibold">graphql</span>, buka bagian <b>Request Headers</b>, dan salin seluruh nilai <span className="font-mono font-semibold">authorization</span> (dengan atau tanpa kata &quot;Bearer&quot;).</li>
+                    <li>Tempelkan nilai tersebut ke kolom <b>Token APKT</b> di bawah.</li>
+                  </ol>
+                  <div className="text-[10px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-lg border border-amber-200 dark:border-amber-900/40">
+                    ⚠️ <b>Penting:</b> Jangan menutup atau me-logout sesi APKT selama penarikan berjalan. Token hanya dipakai selama proses penarikan di server dan tidak pernah disimpan secara permanen di database maupun di browser.
+                  </div>
+                </div>
+
+                {/* Opsi Penggunaan Token APKT Tersimpan / Tempel Token Baru */}
+                {savedTokenInfo.saved && (
+                  <div className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-950/20 space-y-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <label className="flex items-start gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useSavedToken}
+                          onChange={(e) => setUseSavedToken(e.target.checked)}
+                          disabled={running}
+                          aria-label="Gunakan token APKT tersimpan"
+                          className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                        />
+                        <div className="space-y-0.5">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            Gunakan Token APKT Tersimpan
+                          </span>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Tersimpan terenkripsi untuk akun Anda (disimpan {when(savedTokenInfo.saved_at)}).
+                            {savedTokenInfo.last_result === 'REJECTED' && (
+                              <span className="block text-rose-600 dark:text-rose-400 font-semibold mt-0.5">
+                                ⚠️ Terakhir ditolak oleh APKT (sesi mungkin sudah kedaluwarsa). Silakan tempel token baru.
+                              </span>
+                            )}
+                            {savedTokenInfo.last_result === 'OK' && (
+                              <span className="block text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                                ✓ Terakhir berhasil digunakan {when(savedTokenInfo.last_used_at)}.
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleDeleteSavedApktToken}
+                        disabled={running || deletingToken}
+                        className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline shrink-0 cursor-pointer"
+                      >
+                        {deletingToken ? 'Menghapus…' : 'Hapus Token'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Form Input APKT */}
+                <div className="space-y-3 pt-1">
+                  {!useSavedToken && (
+                    <div className="space-y-2">
+                      <Field
+                        label="Token APKT (Wajib)"
+                        hint="Tempel nilai header Authorization dari permintaan GraphQL di APKT. Kolom ini langsung dikosongkan setelah pengiriman."
+                      >
+                        <input
+                          aria-label="Token APKT"
+                          type="password"
+                          autoComplete="off"
+                          value={apktToken}
+                          onChange={(e) => setApktToken(e.target.value)}
+                          placeholder="Tempel nilai token / header Authorization APKT di sini..."
+                          className={inputCls}
+                          disabled={running}
+                        />
+                      </Field>
+
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={saveApktToken}
+                          onChange={(e) => setSaveApktToken(e.target.checked)}
+                          disabled={running}
+                          aria-label="Simpan token APKT untuk penarikan berikutnya"
+                          className="rounded text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                          Simpan token ini (terenkripsi untuk akun Anda) agar tidak perlu menempel ulang setiap penarikan
+                        </span>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field
+                      label="Bulan akhir (wajib)"
+                      hint="Bulan terakhir laporan yang ditarik (format YYYY-MM)."
+                    >
+                      <input
+                        aria-label="Bulan akhir APKT"
+                        type="month"
+                        value={apktToMonth}
+                        onChange={(e) => setApktToMonth(e.target.value)}
+                        className={inputCls}
+                        disabled={running}
+                      />
+                    </Field>
+
+                    <Field
+                      label="Bulan awal (opsional)"
+                      hint="Kosongkan bila hanya ingin menarik satu bulan (bulan akhir)."
+                    >
+                      <input
+                        aria-label="Bulan awal APKT"
+                        type="month"
+                        value={apktFromMonth}
+                        onChange={(e) => setApktFromMonth(e.target.value)}
+                        className={inputCls}
+                        disabled={running}
+                      />
+                    </Field>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    💡 Paling banyak <b>24 bulan</b> per penarikan. Untuk rentang panjang (mis. beberapa tahun), disarankan memecah penarikan per tahun agar proses lebih cepat dan terhindar dari batas waktu sesi APKT.
+                  </p>
+                </div>
+
+                {/* Pilih unit ULP yang ditarik */}
+                {units.length > 0 && (
+                  <fieldset className="space-y-2 pt-1" aria-label="Unit APKT yang disinkronkan">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                        Unit yang ditarik <span className="font-normal text-slate-500">({selected.length} dari {units.length}, kosong = semua ULP)</span>
+                      </legend>
+                      <div className="flex gap-3 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {units.map((u) => (
+                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-purple-300 bg-purple-50/60 dark:border-purple-800 dark:bg-purple-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
+                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Tarik APKT ${u.code} ${u.name}`} />
+                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+
+                {/* Tombol Eksekusi Penarikan APKT */}
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <Button
+                    onClick={startApkt}
+                    loading={apktStarting}
+                    disabled={
+                      !canApktSync ||
+                      running ||
+                      (!useSavedToken && !apktToken.trim()) ||
+                      !apktToMonth ||
+                      (units.length > 0 && selected.length === 0)
+                    }
+                    variant="primary"
+                    size="md"
+                    className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white cursor-pointer"
+                  >
+                    <IconRefresh size={14} className={running && current?.kind === 'apkt' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {running && current?.kind === 'apkt' ? 'Sedang menarik SAIDI/SAIFI APKT…' : 'Tarik SAIDI/SAIFI APKT'}
+                  </Button>
+
+                  {!canApktSync && (
+                    <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                      Anda membutuhkan izin eis_sync.manage dan eis_reports.import untuk menjalankan penarikan ini.
                     </span>
                   )}
                 </div>

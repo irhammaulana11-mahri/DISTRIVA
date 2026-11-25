@@ -177,6 +177,8 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::get('/eis-sync', [EisSyncController::class, 'show']);
     Route::put('/eis-sync/settings', [EisSyncController::class, 'save']);
     Route::post('/eis-sync/runs', [EisSyncController::class, 'start']);
+    Route::get('/eis-sync/apkt-token', [EisSyncController::class, 'apktTokenStatus']);
+    Route::delete('/eis-sync/apkt-token', [EisSyncController::class, 'apktTokenForget']);
     Route::get('/maximo-sync', [MaximoSyncController::class, 'show']);
     Route::put('/maximo-sync/settings', [MaximoSyncController::class, 'save']);
     Route::get('/maximo-sync/runs', [MaximoSyncController::class, 'runs']);

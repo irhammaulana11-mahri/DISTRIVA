@@ -979,6 +979,58 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function an_apkt_token_can_be_saved_per_user_reused_without_pasting_and_forgotten_like_the_mims_token(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.apkt.pause_ms' => 0, 'distriva.apkt.graphql_url' => 'https://apkt.test/graphql']);
+        Storage::fake('documents');
+        $secret = 'save0123456789abcdef0123456789abcdef0123456789';
+        Http::fake(['apkt.test/*' => Http::response(['data' => ['getLaporanSaidiSaifiSE004' => ['status' => true, 'data' => $this->apktTree()]]])]);
+
+        $this->as($this->sysAdmin)->getJson('/api/eis-sync/apkt-token')->assertOk()->assertJsonPath('data.saved', false);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'use_saved_token' => true])->assertStatus(409)->assertJsonFragment(['message' => 'Belum ada token APKT tersimpan; tempel token sesi dan centang "Simpan token".']);
+
+        // pasted and saved: kept encrypted for this user, the run records that APKT accepted it
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret, 'save_token' => true])->assertStatus(202)->json('data');
+        $this->assertSame('pasted', $run['options']['token_source']);
+        $stored = (string) DB::table('user_apkt_tokens')->where('user_id', $this->sysAdmin->getKey())->value('token_encrypted');
+        $this->assertStringNotContainsString($secret, $stored);
+        $this->assertSame($secret, Crypt::decryptString($stored));
+        $status = $this->as($this->sysAdmin)->getJson('/api/eis-sync/apkt-token')->assertOk()->json('data');
+        $this->assertTrue($status['saved']);
+        $this->assertSame('OK', $status['last_result']);
+        $this->assertNotNull($status['last_used_at']);
+        $this->assertStringNotContainsString($secret, json_encode($status));
+
+        // reused without pasting
+        Http::swap(new Factory);
+        Http::fake(['apkt.test/*' => Http::response(['data' => ['getLaporanSaidiSaifiSE004' => ['status' => true, 'data' => $this->apktTree()]]])]);
+        $again = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'units' => ['51453'], 'use_saved_token' => true])->assertStatus(202)->json('data');
+        $this->assertSame('saved', $again['options']['token_source']);
+        $this->assertSame('OK', DB::table('eis_sync_runs')->where('id', $again['id'])->value('status'));
+        Http::assertSent(fn ($r) => $r->hasHeader('Authorization', 'Bearer '.$secret));
+        $this->assertStringNotContainsString('token_encrypted', (string) DB::table('eis_sync_runs')->where('id', $again['id'])->value('options'));
+
+        // another user does not see or use it
+        $this->assertNull(DB::table('user_apkt_tokens')->where('user_id', $this->retailA1->getKey())->value('user_id'));
+
+        // a rejected saved token is marked, not deleted: the user decides when to replace it
+        Http::swap(new Factory);
+        Http::fake(['apkt.test/*' => Http::response(['message' => 'Unauthorized'], 401)]);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'use_saved_token' => true])->assertStatus(202);
+        $this->as($this->sysAdmin)->getJson('/api/eis-sync/apkt-token')->assertOk()->assertJsonPath('data.saved', true)->assertJsonPath('data.last_result', 'REJECTED');
+
+        // a pasted token that is not saved leaves the saved one and its result alone
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'to_month' => '2026-10', 'apkt_token' => 'other0123456789abcdef0123456789'])->assertStatus(202);
+        $this->assertSame($secret, Crypt::decryptString((string) DB::table('user_apkt_tokens')->where('user_id', $this->sysAdmin->getKey())->value('token_encrypted')));
+
+        $this->as($this->sysAdmin)->deleteJson('/api/eis-sync/apkt-token')->assertOk();
+        $this->as($this->sysAdmin)->getJson('/api/eis-sync/apkt-token')->assertOk()->assertJsonPath('data.saved', false);
+        $this->as($this->retailA1)->getJson('/api/eis-sync/apkt-token')->assertOk()->assertJsonPath('data.saved', false);   // per user: another user's status is their own
+        $this->as($this->vendor)->getJson('/api/eis-sync/apkt-token')->assertForbidden();
+    }
+
+    #[Test]
     public function an_apkt_workbook_of_the_same_data_is_byte_identical_even_when_built_seconds_apart(): void
     {
         $svc = app(ApktSaidiSaifiSync::class);
