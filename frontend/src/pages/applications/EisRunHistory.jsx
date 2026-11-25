@@ -91,7 +91,8 @@ export default function EisRunHistory() {
               {runs.map((r) => {
                 const isPiutang = r.kind === 'piutang'
                 const isApkt = r.kind === 'apkt'
-                const isRptRct = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
+                const isRptRctGangguan = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
+                const isRptRctKeluhan = isApkt && r.options?.dataset === 'rpt-rct-keluhan'
                 return (
                   <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">{when(r.created_at)}</td>
@@ -103,7 +104,15 @@ export default function EisRunHistory() {
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
                           : 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
                       }`}>
-                        {isRptRct ? 'RPT/RCT (APKT)' : isApkt ? 'SAIDI/SAIFI (APKT)' : isPiutang ? 'Saldo Piutang' : 'Permohonan'}
+                        {isRptRctGangguan
+                          ? 'RPT/RCT Gangguan'
+                          : isRptRctKeluhan
+                          ? 'RPT/RCT Keluhan'
+                          : isApkt
+                          ? 'SAIDI/SAIFI (APKT)'
+                          : isPiutang
+                          ? 'Saldo Piutang'
+                          : 'Permohonan'}
                       </span>
                     </td>
                     <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">

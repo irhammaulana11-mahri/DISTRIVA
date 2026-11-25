@@ -137,16 +137,34 @@ function MetricTrendChart({
   unitsReporting = [],
   polarity = 'up',
   incompleteMonths = [],
+  metricCode,
 }) {
   const [hoverData, setHoverData] = useState(null)
   const containerRef = useRef(null)
 
+  // Khusus rpt-rct-gangguan: kita tampilkan tab ukuran: RPT, RCT, Jumlah WO
+  const isRptRctGangguan = metricCode === 'rpt-rct-gangguan'
+  const [rptRctTab, setRptRctTab] = useState('rpt') // 'rpt' | 'rct' | 'jumlah'
+
   const activeSeries = useMemo(() => {
+    if (isRptRctGangguan) {
+      const key = rptRctTab // 'rpt' | 'rct' | 'jumlah'
+      return series.find((s) => s.key === key) || series[0]
+    }
     return series.find((s) => s.key === activeSeriesKey) || series[0]
-  }, [series, activeSeriesKey])
+  }, [series, activeSeriesKey, isRptRctGangguan, rptRctTab])
+
+  // Seri sekunder untuk rpt-rct-gangguan: varian Tanpa Clear Temper
+  const companionSeries = useMemo(() => {
+    if (isRptRctGangguan) {
+      const nctKey = `${rptRctTab}_tanpa_ct`
+      return series.find((s) => s.key === nctKey) || null
+    }
+    return null
+  }, [series, isRptRctGangguan, rptRctTab])
 
   const values = activeSeries?.values || []
-  const previousYear = activeSeries?.previous_year || []
+  const previousYear = isRptRctGangguan ? (companionSeries?.values || []) : (activeSeries?.previous_year || [])
 
   // Hitung rentang nilai min & max
   const allNums = useMemo(() => {
@@ -277,8 +295,36 @@ function MetricTrendChart({
 
   return (
     <div className="space-y-3 relative" ref={containerRef} onMouseLeave={() => setHoverData(null)}>
-      {/* Series Selector Buttons (bila lebih dari 1 seri) */}
-      {series.length > 1 && (
+      {/* Selector Tab Ukuran untuk RPT-RCT Gangguan atau Series Selector Buttons untuk metrik lain */}
+      {isRptRctGangguan ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500">Pilih Ukuran:</span>
+            {[
+              { id: 'rpt', label: 'RPT (Response Time)', unit: 'menit' },
+              { id: 'rct', label: 'RCT (Recovery Time)', unit: 'menit' },
+              { id: 'jumlah', label: 'Jumlah WO Gangguan', unit: 'kali' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setRptRctTab(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  rptRctTab === tab.id
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                {tab.label} ({tab.unit})
+              </button>
+            ))}
+          </div>
+
+          <span className="text-[11px] text-slate-400">
+            Sumber APKT &bull; Garis tebal solid vs garis putus-putus
+          </span>
+        </div>
+      ) : series.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <span className="text-xs font-semibold text-slate-500">Pilih Seri:</span>
           {series.map((s) => (
@@ -304,13 +350,13 @@ function MetricTrendChart({
           <div className="flex items-center gap-2">
             <span className="w-4 h-1.5 rounded-full bg-indigo-600 shrink-0" />
             <span className="font-semibold text-slate-700 dark:text-slate-300">
-              Tahun Berjalan ({activeSeries?.unit})
+              {isRptRctGangguan ? 'Semua Laporan (Utama)' : `Tahun Berjalan (${activeSeries?.unit})`}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-4 h-1 rounded-full border-b-2 border-dashed border-slate-400 bg-slate-300 dark:bg-slate-600 shrink-0" />
             <span className="text-slate-500 dark:text-slate-400">
-              Bulan Sama Tahun Lalu
+              {isRptRctGangguan ? 'Laporan Tanpa Clear Temper (Pembanding)' : 'Bulan Sama Tahun Lalu'}
             </span>
           </div>
         </div>
@@ -326,7 +372,7 @@ function MetricTrendChart({
             transform: hoverData.xPct > 70 ? 'translateX(-100%)' : hoverData.xPct < 30 ? 'translateX(0%)' : 'translateX(-50%)',
           }}
         >
-          <div className="rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-xl p-3 min-w-[200px] backdrop-blur-xs text-xs space-y-1.5">
+          <div className="rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-xl p-3 min-w-[220px] backdrop-blur-xs text-xs space-y-1.5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5 font-bold text-slate-900 dark:text-slate-100">
               <span>Bulan {fmtMonth(hoverData.month)}</span>
               {unitsExpected > 1 && hoverData.unitsReporting !== undefined && (
@@ -342,7 +388,7 @@ function MetricTrendChart({
               <div className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0" />
-                  <span>Berjalan:</span>
+                  <span>{isRptRctGangguan ? 'Semua Laporan:' : 'Berjalan:'}</span>
                 </span>
                 <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
                   {hoverData.currentVal !== null ? `${fmtMetricValue(hoverData.currentVal, activeSeries?.unit)} ${activeSeries?.unit}` : '-'}
@@ -353,7 +399,7 @@ function MetricTrendChart({
                 <div className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-1.5 text-slate-500 font-medium">
                     <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0" />
-                    <span>Thn Lalu:</span>
+                    <span>{isRptRctGangguan ? 'Tanpa CT:' : 'Thn Lalu:'}</span>
                   </span>
                   <span className="font-mono text-slate-600 dark:text-slate-300 tabular-nums">
                     {fmtMetricValue(hoverData.prevVal, activeSeries?.unit)} {activeSeries?.unit}
@@ -363,7 +409,7 @@ function MetricTrendChart({
 
               {hoverData.yoyPct !== null && (
                 <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
-                  <span className="text-slate-500">Pertumbuhan YoY:</span>
+                  <span className="text-slate-500">{isRptRctGangguan ? 'Selisih Varian:' : 'Pertumbuhan YoY:'}</span>
                   <PolarityPctBadge pct={hoverData.yoyPct} polarity={polarity} />
                 </div>
               )}
@@ -495,16 +541,18 @@ function MetricTrendChart({
                   />
                 )}
 
-                {/* Indikator data belum utuh atau belum lengkap DIFI */}
+                {/* Indikator data belum utuh, belum lengkap DIFI, atau bulan berjalan APKT belum final */}
                 {(isIncomplete || incompleteMonths.includes(m)) && (
                   <circle
                     cx={x}
                     cy={padTop + chartH + 18}
                     r={3.5}
-                    fill={incompleteMonths.includes(m) ? '#ef4444' : '#f59e0b'}
+                    fill={isRptRctGangguan && incompleteMonths.includes(m) ? '#eab308' : incompleteMonths.includes(m) ? '#ef4444' : '#f59e0b'}
                   >
                     <title>
-                      {incompleteMonths.includes(m)
+                      {isRptRctGangguan && incompleteMonths.includes(m)
+                        ? `Bulan ${fmtMonth(m)}: Bulan berjalan, data APKT belum final`
+                        : incompleteMonths.includes(m)
                         ? `Bulan ${fmtMonth(m)}: Data DIFI kemungkinan belum lengkap`
                         : `Bulan ${fmtMonth(m)}: ${unitsReporting[idx] || 0} dari ${unitsExpected} ULP`}
                     </title>
@@ -920,6 +968,7 @@ export default function BusinessAnalyticsPage() {
 
   // Metrik klasifikasi untuk aksi sinkronisasi spesifik
   const isOutageMetric = activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'rpt-rct-gangguan'
+  const isKeluhanMetric = activeCode === 'rpt-rct-keluhan'
   const isPiutangMetric = activeCode.startsWith('piutang')
   const isEisMetric = isPiutangMetric || activeCode === 'pelanggan' || activeCode === 'daya'
 
@@ -1293,16 +1342,18 @@ export default function BusinessAnalyticsPage() {
             </Button>
             {isOutageMetric ? (
               <div className="flex items-center gap-2">
+                {activeCode !== 'rpt-rct-gangguan' && (
+                  <Button
+                    variant="primary"
+                    onClick={() => setOutageSyncDrawerOpen(true)}
+                    icon={IconRefresh}
+                    aria-label="Sinkronisasi Gangguan"
+                  >
+                    Sinkronisasi Gangguan
+                  </Button>
+                )}
                 <Button
-                  variant="primary"
-                  onClick={() => setOutageSyncDrawerOpen(true)}
-                  icon={IconRefresh}
-                  aria-label="Sinkronisasi Gangguan"
-                >
-                  Sinkronisasi Gangguan
-                </Button>
-                <Button
-                  variant="secondary"
+                  variant={activeCode === 'rpt-rct-gangguan' ? 'primary' : 'secondary'}
                   onClick={() => setSyncDrawerOpen(true)}
                   icon={IconRefresh}
                   aria-label={activeCode === 'rpt-rct-gangguan' ? 'Tarik APKT (RPT/RCT)' : 'Tarik SAIDI/SAIFI APKT'}
@@ -1310,6 +1361,15 @@ export default function BusinessAnalyticsPage() {
                   {activeCode === 'rpt-rct-gangguan' ? 'Tarik APKT (RPT/RCT)' : 'Tarik SAIDI/SAIFI APKT'}
                 </Button>
               </div>
+            ) : isKeluhanMetric ? (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Tarik APKT (RPT/RCT Keluhan)"
+              >
+                Tarik APKT (RPT/RCT Keluhan)
+              </Button>
             ) : isEisMetric ? (
               <Button
                 variant="primary"
@@ -2008,8 +2068,148 @@ export default function BusinessAnalyticsPage() {
               2. Pertumbuhan tahun berjalan (posisi: official_net lawan previous_year, atau kumulatif YTD lawan ytd_previous_year)
               3. Pendamping utama (companions.series[0], atau seri ke-2)
               4. Rekonsiliasi selisih (reconciliation.ytd.difference, atau seri ke-3/berikutnya)
+              Khusus rpt-rct-gangguan (butir 25): dua varian berdampingan (Semua Laporan vs Laporan Tanpa Clear Temper)
           */}
           {(() => {
+            if (activeCode === 'rpt-rct-gangguan') {
+              const sMap = (d.summary || []).reduce((acc, s) => {
+                acc[s.key] = s
+                return acc
+              }, {})
+
+              const rptAll = sMap['rpt']
+              const rctAll = sMap['rct']
+              const woAll = sMap['jumlah']
+              const rptNct = sMap['rpt_tanpa_ct']
+              const rctNct = sMap['rct_tanpa_ct']
+              const woNct = sMap['jumlah_tanpa_ct']
+              const pctCt = sMap['porsi_clear_temper']
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Kartu 1: RPT (Semua Laporan vs Tanpa Clear Temper) */}
+                  <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className="truncate pr-2 font-bold text-slate-700 dark:text-slate-300">RPT (Response Time)</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 shrink-0 font-semibold">
+                          Semua Laporan
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                        {fmtMetricValue(rptAll?.latest, 'menit')}{' '}
+                        <span className="text-sm font-normal text-slate-500">menit</span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <PolarityPctBadge pct={rptAll?.mom_pct} polarity="down" label="MoM" />
+                        <PolarityPctBadge pct={rptAll?.yoy_pct} polarity="down" label="YoY" />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-500">Tanpa Clear Temper:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                          {fmtMetricValue(rptNct?.latest, 'menit')} menit
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kartu 2: RCT (Semua Laporan vs Tanpa Clear Temper) */}
+                  <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className="truncate pr-2 font-bold text-slate-700 dark:text-slate-300">RCT (Recovery Time)</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 shrink-0 font-semibold">
+                          Semua Laporan
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                        {fmtMetricValue(rctAll?.latest, 'menit')}{' '}
+                        <span className="text-sm font-normal text-slate-500">menit</span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <PolarityPctBadge pct={rctAll?.mom_pct} polarity="down" label="MoM" />
+                        <PolarityPctBadge pct={rctAll?.yoy_pct} polarity="down" label="YoY" />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-500">Tanpa Clear Temper:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                          {fmtMetricValue(rctNct?.latest, 'menit')} menit
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kartu 3: Jumlah WO Gangguan */}
+                  <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className="truncate pr-2 font-bold text-slate-700 dark:text-slate-300">Jumlah WO Gangguan</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 shrink-0">
+                          {fmtMonth(d.to)}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                        {fmtMetricValue(woAll?.latest, 'kali')}{' '}
+                        <span className="text-sm font-normal text-slate-500">kali</span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <PolarityPctBadge pct={woAll?.mom_pct} polarity="down" label="MoM" />
+                        <PolarityPctBadge pct={woAll?.yoy_pct} polarity="down" label="YoY" />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-500">Tanpa Clear Temper:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                          {fmtMetricValue(woNct?.latest, 'kali')} kali
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kartu 4: Porsi WO Clear Temper */}
+                  <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className="truncate pr-2 font-bold text-slate-700 dark:text-slate-300">Porsi Clear Temper</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 shrink-0 border border-amber-200 dark:border-amber-800 font-semibold">
+                          Selisih Varian
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                        {pctCt?.latest !== null && pctCt?.latest !== undefined ? `${fmtFloat(pctCt.latest, 1)}%` : '-'}{' '}
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>Porsi kejadian dengan clear temper</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">Sumber Data</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        APKT (2 Varian)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
             const s0 = d.summary?.[0]
             const meta0 = d.series?.[0]
             const polarity = d.metric?.polarity || 'up'
@@ -2303,6 +2503,7 @@ export default function BusinessAnalyticsPage() {
                   unitsReporting={d.units_reporting || []}
                   polarity={d.metric?.polarity || 'up'}
                   incompleteMonths={(d.warnings || []).map((w) => w.month).filter(Boolean)}
+                  metricCode={activeCode}
                 />
               </div>
 
@@ -2519,10 +2720,18 @@ export default function BusinessAnalyticsPage() {
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                       <div>
                         <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          Perbandingan Antar ULP
+                          {activeCode === 'rpt-rct-gangguan'
+                            ? 'Perbandingan Antar ULP (Semua Laporan vs Tanpa Clear Temper)'
+                            : 'Perbandingan Antar ULP'}
                         </h3>
                         <p className="text-xs text-slate-500">
-                          Capaian bulan {fmtMonth(d.to)} diurutkan dari nilai terbesar
+                          Capaian bulan {fmtMonth(d.to)}
+                          {(d.warnings || []).some((w) => w.month === d.to && w.code === 'apkt_current_month_partial') && (
+                            <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              Bulan berjalan, belum final
+                            </span>
+                          )}
+                          {' '}&bull; diurutkan dari capaian ULP
                         </p>
                       </div>
                     </div>
@@ -2530,13 +2739,39 @@ export default function BusinessAnalyticsPage() {
                     <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                       <table className="w-full text-left text-xs">
                         <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                          <tr>
-                            <th className="py-2.5 px-3 w-10 text-center">#</th>
-                            <th className="py-2.5 px-3">Unit Layanan (ULP)</th>
-                            <th className="py-2.5 px-3 text-right">Bulan Ini</th>
-                            <th className="py-2.5 px-3 text-right">YoY</th>
-                            <th className="py-2.5 px-3 text-right">Kumulatif YTD</th>
-                          </tr>
+                          {activeCode === 'rpt-rct-gangguan' ? (
+                            <>
+                              <tr>
+                                <th rowSpan={2} className="py-2.5 px-3 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
+                                <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">Unit Layanan (ULP)</th>
+                                <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-950/20 text-purple-800 dark:text-purple-300 font-semibold">
+                                  Semua Laporan (Utama)
+                                </th>
+                                <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-800/50 font-semibold">
+                                  Tanpa Clear Temper (Pembanding)
+                                </th>
+                                <th rowSpan={2} className="py-2.5 px-3 text-right bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-semibold">
+                                  Porsi CT
+                                </th>
+                              </tr>
+                              <tr className="border-t border-slate-200 dark:border-slate-700">
+                                <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
+                                <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
+                                <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
+                                <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
+                                <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
+                                <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
+                              </tr>
+                            </>
+                          ) : (
+                            <tr>
+                              <th className="py-2.5 px-3 w-10 text-center">#</th>
+                              <th className="py-2.5 px-3">Unit Layanan (ULP)</th>
+                              <th className="py-2.5 px-3 text-right">Bulan Ini</th>
+                              <th className="py-2.5 px-3 text-right">YoY</th>
+                              <th className="py-2.5 px-3 text-right">Kumulatif YTD</th>
+                            </tr>
+                          )}
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                           {(d.comparison || [])
@@ -2549,15 +2784,43 @@ export default function BusinessAnalyticsPage() {
                               <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
                                 {c.unit_name}
                               </td>
-                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                                {c.latest !== null ? fmtFloat(c.latest) : '-'}
-                              </td>
-                              <td className="py-2.5 px-3 text-right">
-                                <PolarityPctBadge pct={c.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
-                                {c.ytd !== null ? fmtFloat(c.ytd) : '-'}
-                              </td>
+                              {activeCode === 'rpt-rct-gangguan' ? (
+                                <>
+                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                                    {c.jumlah !== undefined && c.jumlah !== null ? fmtFloat(c.jumlah, 0) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-2.5 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                                    {c.latest !== null ? fmtFloat(c.latest, 1) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800">
+                                    {c.rct !== undefined && c.rct !== null ? fmtFloat(c.rct, 1) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
+                                    {c.jumlah_tanpa_ct !== undefined && c.jumlah_tanpa_ct !== null ? fmtFloat(c.jumlah_tanpa_ct, 0) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                                    {c.rpt_tanpa_ct !== undefined && c.rpt_tanpa_ct !== null ? fmtFloat(c.rpt_tanpa_ct, 1) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
+                                    {c.rct_tanpa_ct !== undefined && c.rct_tanpa_ct !== null ? fmtFloat(c.rct_tanpa_ct, 1) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold text-amber-700 dark:text-amber-400">
+                                    {c.porsi_clear_temper !== undefined && c.porsi_clear_temper !== null ? `${fmtFloat(c.porsi_clear_temper, 1)}%` : '-'}
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                                    {c.latest !== null ? fmtFloat(c.latest) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right">
+                                    <PolarityPctBadge pct={c.yoy_pct} polarity={d.metric?.polarity || 'up'} />
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
+                                    {c.ytd !== null ? fmtFloat(c.ytd) : '-'}
+                                  </td>
+                                </>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -2739,11 +3002,17 @@ export default function BusinessAnalyticsPage() {
             ? 'piutang'
             : activeCode === 'pelanggan' || activeCode === 'daya'
             ? 'permohonan'
-            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan'
+            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan' || activeCode === 'rpt-rct-keluhan'
             ? 'apkt'
             : null
         }
-        initialDataset={activeCode === 'rpt-rct-gangguan' ? 'rpt-rct-gangguan' : 'saidi-saifi'}
+        initialDataset={
+          activeCode === 'rpt-rct-gangguan'
+            ? 'rpt-rct-gangguan'
+            : activeCode === 'rpt-rct-keluhan'
+            ? 'rpt-rct-keluhan'
+            : 'saidi-saifi'
+        }
         onClose={() => setSyncDrawerOpen(false)}
         onSynced={() => {
           loadCatalog()

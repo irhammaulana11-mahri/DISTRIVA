@@ -1012,7 +1012,7 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('belum lengkap')).toBeInTheDocument()
   })
 
-  it('menampilkan companions untuk RPT-RCT Gangguan dan tombol Tarik APKT (RPT/RCT) tanpa rekonsiliasi', async () => {
+  it('13. mendukung menu RPT-RCT Gangguan bersumber APKT dengan 2 varian berdampingan dan peringatan bulan berjalan (Butir 25 & 26)', async () => {
     const rptCatalog = {
       data: {
         ...MOCK_METRICS_CATALOG.data,
@@ -1021,10 +1021,18 @@ describe('BusinessAnalyticsPage', () => {
           {
             code: 'rpt-rct-gangguan',
             name: 'RPT-RCT Gangguan',
-            source: 'GGNALL',
+            source: 'APKT – Jumlah dan Durasi RPT RCT Gangguan (Semua Laporan; pembanding Laporan Tanpa Clear Temper)',
             polarity: 'down',
             available: true,
-            series: [{ key: 'rpt', name: 'Response time rata-rata', unit: 'menit' }],
+            series: [
+              { key: 'rpt', name: 'RPT – Semua laporan (APKT)', unit: 'menit' },
+              { key: 'rct', name: 'RCT – Semua laporan (APKT)', unit: 'menit' },
+              { key: 'jumlah', name: 'Jumlah WO – Semua laporan (APKT)', unit: 'kali' },
+              { key: 'rpt_tanpa_ct', name: 'RPT – Tanpa clear temper (APKT)', unit: 'menit' },
+              { key: 'rct_tanpa_ct', name: 'RCT – Tanpa clear temper (APKT)', unit: 'menit' },
+              { key: 'jumlah_tanpa_ct', name: 'Jumlah WO – Tanpa clear temper (APKT)', unit: 'kali' },
+              { key: 'porsi_clear_temper', name: 'Porsi WO clear temper', unit: '%' },
+            ],
           },
         ],
       },
@@ -1038,7 +1046,7 @@ describe('BusinessAnalyticsPage', () => {
           name: 'RPT-RCT Gangguan',
           unit: 'menit',
           polarity: 'down',
-          source: 'GGNALL',
+          source: 'APKT – Jumlah dan Durasi RPT RCT Gangguan (Semua Laporan; pembanding Laporan Tanpa Clear Temper)',
         },
         from: '2026-10',
         to: '2026-10',
@@ -1046,44 +1054,50 @@ describe('BusinessAnalyticsPage', () => {
         available_from: '2026-01',
         available_to: '2026-10',
         summary: [
-          { key: 'rpt', name: 'Response time rata-rata', unit: 'menit', latest: 25.5, ytd: 25.5 },
+          { key: 'rpt', name: 'RPT – Semua laporan (APKT)', unit: 'menit', latest: 35.0, ytd: 35.0, mom_pct: -5.0, yoy_pct: 10.0 },
+          { key: 'rct', name: 'RCT – Semua laporan (APKT)', unit: 'menit', latest: 90.0, ytd: 90.0, mom_pct: -2.0, yoy_pct: 5.0 },
+          { key: 'jumlah', name: 'Jumlah WO – Semua laporan (APKT)', unit: 'kali', latest: 40, ytd: 40, mom_pct: 0, yoy_pct: 0 },
+          { key: 'rpt_tanpa_ct', name: 'RPT – Tanpa clear temper (APKT)', unit: 'menit', latest: 27.1, ytd: 27.1 },
+          { key: 'rct_tanpa_ct', name: 'RCT – Tanpa clear temper (APKT)', unit: 'menit', latest: 80.0, ytd: 80.0 },
+          { key: 'jumlah_tanpa_ct', name: 'Jumlah WO – Tanpa clear temper (APKT)', unit: 'kali', latest: 14, ytd: 14 },
+          { key: 'porsi_clear_temper', name: 'Porsi WO clear temper', unit: '%', latest: 65.0, ytd: 65.0 },
         ],
-        trend: {
-          months: ['2026-10'],
-          official: [25.5],
-          previous_year: [20.0],
-        },
-        companions: {
-          source: 'APKT (WO gangguan: durasi response dan recovery per ULP)',
-          series: [
-            { key: 'rpt_tanpa_ct', name: 'Response time rata-rata APKT tanpa clear temper', unit: 'menit', latest: 22.3, ytd: 22.3 },
-            { key: 'jumlah_tanpa_ct', name: 'Jumlah WO gangguan APKT tanpa clear temper', unit: 'kali', latest: 5023, ytd: 5023 },
-          ],
-        },
-        reconciliations: [
+        series: [
+          { key: 'rpt', name: 'RPT – Semua laporan (APKT)', unit: 'menit', values: [35.0], previous_year: [30.0] },
+          { key: 'rct', name: 'RCT – Semua laporan (APKT)', unit: 'menit', values: [90.0], previous_year: [85.0] },
+          { key: 'jumlah', name: 'Jumlah WO – Semua laporan (APKT)', unit: 'kali', values: [40], previous_year: [40] },
+          { key: 'rpt_tanpa_ct', name: 'RPT – Tanpa clear temper (APKT)', unit: 'menit', values: [27.1], previous_year: [25.0] },
+          { key: 'rct_tanpa_ct', name: 'RCT – Tanpa clear temper (APKT)', unit: 'menit', values: [80.0], previous_year: [75.0] },
+          { key: 'jumlah_tanpa_ct', name: 'Jumlah WO – Tanpa clear temper (APKT)', unit: 'kali', values: [14], previous_year: [15] },
+          { key: 'porsi_clear_temper', name: 'Porsi WO clear temper', unit: '%', values: [65.0], previous_year: [62.5] },
+        ],
+        comparison: [
           {
-            key: 'rpt',
-            mode: 'avg',
-            unit: 'menit',
-            official_name: 'Response time rata-rata (GGNALL)',
-            companion_name: 'Response time rata-rata APKT dengan clear temper',
-            monthly: [
-              { month: '2026-10', official_net: 25.5, companion: 25.5, difference: 0, units_compared: 1 },
-            ],
-            ytd: {
-              year: 2026,
-              base_month: '2026-01',
-              to_month: '2026-10',
-              official_net: 25.5,
-              companion: 25.5,
-              difference: 0,
-              units: ['51453'],
-              units_compared: 1,
-              units_expected: 1,
-            },
-            note: 'Dua sumber dicatat dari WO yang sama dan seharusnya sama persis.',
+            unit_id: '51453',
+            unit_name: 'ULP Mojokerto Kota',
+            latest: 35.0,
+            yoy_pct: 10.0,
+            ytd: 35.0,
+            jumlah: 40,
+            rct: 90.0,
+            rpt_tanpa_ct: 27.1,
+            rct_tanpa_ct: 80.0,
+            jumlah_tanpa_ct: 14,
+            porsi_clear_temper: 65.0,
           },
         ],
+        warnings: [
+          {
+            code: 'apkt_current_month_partial',
+            severity: 'warning',
+            month: '2026-10',
+            message: 'Data RPT/RCT 2026-10 adalah data bulan berjalan dari APKT dan masih bertambah. Angka bulan ini belum final.',
+            days_elapsed: 25,
+            units_reporting: 1,
+          },
+        ],
+        companions: null,
+        reconciliations: [],
       },
     }
 
@@ -1105,21 +1119,117 @@ describe('BusinessAnalyticsPage', () => {
       )
     })
 
-    // Verifikasi tombol Tarik APKT (RPT/RCT)
+    // Verifikasi tombol Tarik APKT (RPT/RCT) tampil, dan tombol Sinkronisasi Gangguan tidak tampil
     expect(await screen.findByRole('button', { name: 'Tarik APKT (RPT/RCT)' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sinkronisasi Gangguan' })).not.toBeInTheDocument()
 
-    // Tab Rekonsiliasi ada karena memiliki companions (meski reconciliations kosong)
-    const recTab = await screen.findByRole('button', { name: /^Rekonsiliasi$/i })
-    expect(recTab).toBeInTheDocument()
-    await user.click(recTab)
+    // Verifikasi peringatan bulan berjalan APKT belum final (Butir 26)
+    expect(await screen.findByText(/Data RPT\/RCT 2026-10 adalah data bulan berjalan dari APKT dan masih bertambah/i)).toBeInTheDocument()
 
-    // Data Penjelas Operasional (CompanionSection) tampil
-    expect(await screen.findByText('Data Penjelas Operasional')).toBeInTheDocument()
-    expect(screen.getAllByText('Response time rata-rata APKT tanpa clear temper').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Jumlah WO gangguan APKT tanpa clear temper').length).toBeGreaterThan(0)
+    // Verifikasi kartu KPI menampilkan varian Semua Laporan vs Tanpa Clear Temper
+    expect(screen.getByText('RPT (Response Time)')).toBeInTheDocument()
+    expect(screen.getByText('RCT (Recovery Time)')).toBeInTheDocument()
+    expect(screen.getByText('Jumlah WO Gangguan')).toBeInTheDocument()
+    expect(screen.getByText('Porsi Clear Temper')).toBeInTheDocument()
+    expect(screen.getAllByText('Tanpa Clear Temper:').length).toBe(3)
+    expect(screen.getByText('65,0%')).toBeInTheDocument()
 
-    // Rekonsiliasi mode avg tampil
-    expect(await screen.findByText(/Mode Rata-rata Tertimbang \(Avg\)/i)).toBeInTheDocument()
-    expect(screen.getByText(/Rekonsiliasi: Response time rata-rata \(GGNALL\) vs Response time rata-rata APKT dengan clear temper/i)).toBeInTheDocument()
+    // Verifikasi grafik memiliki tab ukuran RPT / RCT / Jumlah WO
+    expect(screen.getByRole('button', { name: /RPT \(Response Time\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /RCT \(Recovery Time\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Jumlah WO Gangguan/i })).toBeInTheDocument()
+    expect(screen.getByText('Semua Laporan (Utama)')).toBeInTheDocument()
+    expect(screen.getByText('Laporan Tanpa Clear Temper (Pembanding)')).toBeInTheDocument()
+
+    // Verifikasi tab Rekonsiliasi tidak ada karena companions null & reconciliations kosong
+    expect(screen.queryByRole('button', { name: /^Rekonsiliasi$/i })).not.toBeInTheDocument()
+  })
+
+  it('14. mendukung menu RPT-RCT Keluhan bersumber APKT dengan satuan jam dan tombol tarik APKT (Butir 27)', async () => {
+    const keluhanCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'rpt-rct-keluhan',
+            name: 'RPT-RCT Keluhan',
+            source: 'APKT – Jumlah dan Durasi RPT RCT Keluhan',
+            polarity: 'down',
+            available: true,
+            series: [
+              { key: 'rpt', name: 'RPT – Response time rata-rata (APKT)', unit: 'jam' },
+              { key: 'rct', name: 'RCT – Recovery time rata-rata (APKT)', unit: 'jam' },
+              { key: 'jumlah', name: 'Jumlah WO keluhan (APKT)', unit: 'kali' },
+            ],
+          },
+        ],
+      },
+    }
+
+    const keluhanDetail = {
+      data: {
+        ...MOCK_METRIC_DETAIL.data,
+        metric: {
+          code: 'rpt-rct-keluhan',
+          name: 'RPT-RCT Keluhan',
+          unit: 'jam',
+          polarity: 'down',
+          source: 'APKT – Jumlah dan Durasi RPT RCT Keluhan',
+        },
+        from: '2026-10',
+        to: '2026-10',
+        months: ['2026-10'],
+        available_from: '2026-01',
+        available_to: '2026-10',
+        summary: [
+          { key: 'rpt', name: 'RPT – Response time rata-rata (APKT)', unit: 'jam', latest: 0.44, ytd: 0.44 },
+          { key: 'rct', name: 'RCT – Recovery time rata-rata (APKT)', unit: 'jam', latest: 6.0, ytd: 6.0 },
+          { key: 'jumlah', name: 'Jumlah WO keluhan (APKT)', unit: 'kali', latest: 355, ytd: 355 },
+        ],
+        series: [
+          { key: 'rpt', name: 'RPT – Response time rata-rata (APKT)', unit: 'jam', values: [0.44], previous_year: [0.5] },
+          { key: 'rct', name: 'RCT – Recovery time rata-rata (APKT)', unit: 'jam', values: [6.0], previous_year: [7.2] },
+          { key: 'jumlah', name: 'Jumlah WO keluhan (APKT)', unit: 'kali', values: [355], previous_year: [400] },
+        ],
+        warnings: [
+          {
+            code: 'apkt_current_month_partial',
+            severity: 'warning',
+            month: '2026-10',
+            message: 'Data RPT/RCT keluhan 2026-10 adalah data bulan berjalan dari APKT dan masih bertambah.',
+            days_elapsed: 25,
+            units_reporting: 1,
+          },
+        ],
+        companions: null,
+        reconciliations: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(keluhanCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'rpt-rct-keluhan') {
+        return Promise.resolve(keluhanDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/rpt-rct-keluhan'])
+
+    await waitFor(() => {
+      expect(pengusahaanApi.metric).toHaveBeenCalledWith(
+        'rpt-rct-keluhan',
+        expect.objectContaining({ unit_id: 'up3-1' }),
+      )
+    })
+
+    // Verifikasi tombol Tarik APKT (RPT/RCT Keluhan) tampil
+    expect(await screen.findByRole('button', { name: 'Tarik APKT (RPT/RCT Keluhan)' })).toBeInTheDocument()
+
+    // Verifikasi kartu KPI dengan satuan jam
+    expect(screen.getAllByText('0,44').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('jam').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Data RPT\/RCT keluhan 2026-10 adalah data bulan berjalan/i)).toBeInTheDocument()
   })
 })

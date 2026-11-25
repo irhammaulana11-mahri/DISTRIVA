@@ -247,14 +247,21 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {families.map((f) => (
-              <span
-                key={f}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono"
-              >
-                Laporan EIS: {f}
-              </span>
-            ))}
+            {families.map((f) => {
+              const isApkt = f === 'APKT_RPT_RCT'
+              return (
+                <span
+                  key={f}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold font-mono border ${
+                    isApkt
+                      ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                      : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                  }`}
+                >
+                  {isApkt ? 'Sumber: APKT' : `Laporan EIS: ${f}`}
+                </span>
+              )
+            })}
             {d.latest_month && (
               <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 Bulan Terakhir: {monthLabel(d.latest_month)}
@@ -435,31 +442,64 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
-                  {paginatedSyncs.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                      <td className="py-2 pr-2 whitespace-nowrap">{fmtDate(s.created_at)}</td>
-                      <td className="py-2 pr-2 font-mono text-[11px]">{s.source}</td>
-                      <td className="py-2 pr-2">
-                        {s.kind || '-'} ({s.trigger})
-                      </td>
-                      <td className="py-2 pr-2">
-                        <span
-                          className={`inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${
-                            s.status === 'OK'
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : s.status === 'RUNNING'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
-                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                          }`}
-                        >
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="py-2 text-slate-600 dark:text-slate-300">
-                        {s.message || (s.counts ? `${fmtInt(s.counts.read ?? 0)} baris` : '-')}
-                      </td>
-                    </tr>
-                  ))}
+                  {paginatedSyncs.map((s) => {
+                    const isApkt = s.kind === 'apkt' || s.source === 'eis-sync' && s.kind === 'apkt'
+                    const dataset = s.options?.dataset
+                    const isRptRctGangguan = isApkt && dataset === 'rpt-rct-gangguan'
+                    const isRptRctKeluhan = isApkt && dataset === 'rpt-rct-keluhan'
+                    const isSaidiSaifi = isApkt && (dataset === 'saidi-saifi' || !dataset)
+
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-2 pr-2 whitespace-nowrap">{fmtDate(s.created_at)}</td>
+                        <td className="py-2 pr-2">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${
+                              isApkt
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
+                                : s.source === 'outage-sync'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                            }`}
+                          >
+                            {isApkt ? 'APKT' : s.source}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                              {isRptRctGangguan
+                                ? 'RPT/RCT Gangguan'
+                                : isRptRctKeluhan
+                                ? 'RPT/RCT Keluhan'
+                                : isSaidiSaifi
+                                ? 'SAIDI/SAIFI (DIFI)'
+                                : s.kind || '-'}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              ({s.trigger === 'AUTO' ? 'Otomatis' : 'Manual'})
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2 pr-2">
+                          <span
+                            className={`inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                              s.status === 'OK'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : s.status === 'RUNNING'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                            }`}
+                          >
+                            {s.status}
+                          </span>
+                        </td>
+                        <td className="py-2 text-slate-600 dark:text-slate-300">
+                          {s.message || (s.counts ? `${fmtInt(s.counts.read ?? 0)} baris` : '-')}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -506,35 +546,49 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-500 text-left">
                     <th className="py-2 pr-2">Bulan</th>
                     <th className="py-2 pr-2">Unit</th>
-                    <th className="py-2 pr-2">Nama Berkas</th>
+                    <th className="py-2 pr-2">Sumber / Nama Berkas</th>
                     <th className="py-2 pr-2">Status</th>
                     <th className="py-2 pr-2 text-right">Baris</th>
                     <th className="py-2">Waktu Impor</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
-                  {paginatedFiles.map((f) => (
-                    <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                      <td className="py-2 pr-2 font-mono font-medium">{monthLabel(f.period)}</td>
-                      <td className="py-2 pr-2">{f.unit_name}</td>
-                      <td className="py-2 pr-2 font-mono text-[11px] truncate max-w-xs" title={f.original_name}>
-                        {f.original_name}
-                      </td>
-                      <td className="py-2 pr-2">
-                        <span
-                          className={`inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${
-                            f.status === 'AKTIF'
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                          }`}
-                        >
-                          {f.status}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-2 text-right tabular-nums">{fmtInt(f.line_count ?? 0)}</td>
-                      <td className="py-2 text-slate-500">{fmtDate(f.imported_at)}</td>
-                    </tr>
-                  ))}
+                  {paginatedFiles.map((f) => {
+                    const isApkt = f.family === 'APKT_RPT_RCT'
+                    return (
+                      <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-2 pr-2 font-mono font-medium">{monthLabel(f.period)}</td>
+                        <td className="py-2 pr-2">{f.unit_name}</td>
+                        <td className="py-2 pr-2 font-mono text-[11px] max-w-xs">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isApkt && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                                APKT
+                              </span>
+                            )}
+                            <span className="truncate" title={f.original_name}>
+                              {f.original_name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2 pr-2">
+                          <span
+                            className={`inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                              f.status === 'AKTIF'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            }`}
+                          >
+                            {f.status}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-2 text-right tabular-nums">
+                          {isApkt ? `${fmtInt(f.line_count ?? 0)} varian` : fmtInt(f.line_count ?? 0)}
+                        </td>
+                        <td className="py-2 text-slate-500">{fmtDate(f.imported_at)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

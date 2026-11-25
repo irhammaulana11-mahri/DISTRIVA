@@ -762,11 +762,17 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                      {apktDataset === 'rpt-rct-gangguan' ? 'Tarik RPT/RCT WO Gangguan APKT' : 'Tarik SAIDI/SAIFI APKT (DIFI)'}
+                      {apktDataset === 'rpt-rct-gangguan'
+                        ? 'Tarik RPT/RCT WO Gangguan APKT'
+                        : apktDataset === 'rpt-rct-keluhan'
+                        ? 'Tarik RPT/RCT WO Keluhan APKT'
+                        : 'Tarik SAIDI/SAIFI APKT (DIFI)'}
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       {apktDataset === 'rpt-rct-gangguan'
                         ? 'Tarik durasi respons (RPT) dan pemulihan (RCT) WO gangguan langsung dari GraphQL APKT (tanpa & dengan clear temper).'
+                        : apktDataset === 'rpt-rct-keluhan'
+                        ? 'Tarik durasi respons (RPT) dan penyelesaian (RCT) WO keluhan pelanggan langsung dari GraphQL APKT (satuan jam).'
                         : 'Tarik Laporan SAIDI SAIFI SE004 bulanan langsung dari GraphQL APKT dan impor otomatis sebagai laporan DIFI ke DISTRIVA.'}
                     </p>
                   </div>
@@ -804,6 +810,18 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                       }`}
                     >
                       RPT/RCT WO Gangguan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setApktDataset('rpt-rct-keluhan')}
+                      disabled={running}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                        apktDataset === 'rpt-rct-keluhan'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      RPT/RCT WO Keluhan
                     </button>
                   </div>
                 </div>
@@ -984,10 +1002,14 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                     <IconRefresh size={14} className={running && current?.kind === 'apkt' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
                     {running && current?.kind === 'apkt'
                       ? apktDataset === 'rpt-rct-gangguan'
-                        ? 'Sedang menarik RPT/RCT APKT…'
+                        ? 'Sedang menarik RPT/RCT Gangguan…'
+                        : apktDataset === 'rpt-rct-keluhan'
+                        ? 'Sedang menarik RPT/RCT Keluhan…'
                         : 'Sedang menarik SAIDI/SAIFI APKT…'
                       : apktDataset === 'rpt-rct-gangguan'
-                      ? 'Tarik RPT/RCT APKT'
+                      ? 'Tarik RPT/RCT Gangguan'
+                      : apktDataset === 'rpt-rct-keluhan'
+                      ? 'Tarik RPT/RCT Keluhan'
                       : 'Tarik SAIDI/SAIFI APKT'}
                   </Button>
 
