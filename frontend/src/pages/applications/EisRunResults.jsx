@@ -60,6 +60,7 @@ export default function EisRunResults({ run, units }) {
 
   const isPiutang = run?.kind === 'piutang'
   const isApkt = run?.kind === 'apkt'
+  const isAp2t = run?.kind === 'ap2t'
   const isRptRctGangguan = isApkt && run?.options?.dataset === 'rpt-rct-gangguan'
   const isRptRctKeluhan = isApkt && run?.options?.dataset === 'rpt-rct-keluhan'
   const isAnomaliGangguan = isApkt && run?.options?.dataset === 'anomali-gangguan'
@@ -77,6 +78,8 @@ export default function EisRunResults({ run, units }) {
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
               isApkt
                 ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
+                : isAp2t
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                 : isPiutang
                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                 : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
@@ -91,6 +94,8 @@ export default function EisRunResults({ run, units }) {
                 ? 'Anomali Keluhan (APKT)'
                 : isApkt
                 ? 'SAIDI/SAIFI APKT (DIFI)'
+                : isAp2t
+                ? 'TAGSUS P2TL (AP2T)'
                 : isPiutang
                 ? 'Saldo Piutang'
                 : 'Permohonan PB/PD'}
@@ -107,6 +112,8 @@ export default function EisRunResults({ run, units }) {
               ? 'Ringkasan penarikan anomali penanganan pengaduan keluhan (berulang dan rating negatif) langsung dari GraphQL APKT.'
               : isApkt
               ? 'Ringkasan penarikan laporan SAIDI/SAIFI SE004 (DIFI) langsung dari GraphQL APKT per unit ULP.'
+              : isAp2t
+              ? 'Ringkasan penarikan laporan realisasi tagihan susulan (TAGSUS) P2TL langsung dari server AP2T per unit ULP.'
               : isPiutang
               ? 'Ringkasan penarikan laporan saldo piutang (Per Golongan, Per Lembar, Kogol) per unit ULP.'
               : 'Ringkasan status sinkronisasi permohonan per unit ULP.'}

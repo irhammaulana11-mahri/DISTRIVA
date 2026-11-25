@@ -420,4 +420,38 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
 
     expect(await screen.findByText('Anomali Gangguan (APKT)')).toBeInTheDocument()
   })
+
+  it('dapat menjalankan penarikan TAGSUS AP2T tanpa token otorisasi (Butir 30)', async () => {
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r-ap2t-tagsus',
+        kind: 'ap2t',
+        options: { dataset: 'tagsus', from_month: '2026-10', to_month: '2026-10' },
+        status: 'OK',
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="ap2t" onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik TAGSUS AP2T (kWh P2TL)' })).toBeInTheDocument()
+    // Pastikan tidak ada kolom Token APKT
+    expect(screen.queryByLabelText('Token APKT')).not.toBeInTheDocument()
+
+    const toInput = screen.getByLabelText('Bulan akhir AP2T')
+    fireEvent.change(toInput, { target: { value: '2026-10' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik TAGSUS AP2T' })
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'ap2t',
+        to_month: '2026-10',
+        from_month: '2026-10',
+      })
+    })
+
+    expect(await screen.findByText('TAGSUS P2TL (AP2T)')).toBeInTheDocument()
+  })
 })

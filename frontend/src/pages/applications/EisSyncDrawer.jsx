@@ -71,7 +71,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
 
   // Tab internal jika mode = 'all' atau tidak ditentukan
   const [activeTab, setActiveTab] = useState(
-    mode === 'piutang' ? 'piutang' : mode === 'apkt' ? 'apkt' : 'permohonan'
+    mode === 'piutang' ? 'piutang' : mode === 'apkt' ? 'apkt' : mode === 'ap2t' ? 'ap2t' : 'permohonan'
   )
 
   // Sinkronkan activeTab bila prop mode berubah
@@ -80,6 +80,8 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
       setActiveTab('piutang')
     } else if (mode === 'apkt') {
       setActiveTab('apkt')
+    } else if (mode === 'ap2t') {
+      setActiveTab('ap2t')
     } else if (mode === 'permohonan') {
       setActiveTab('permohonan')
     }
@@ -92,6 +94,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   const [piutangReports, setPiutangReports] = useState(['GOLONGAN', 'LEMBAR', 'KOGOL', 'PRABAYAR'])
   const [piutangStarting, setPiutangStarting] = useState(false)
   const [piutangError, setPiutangError] = useState('')
+
+  // State untuk penarikan AP2T (TAGSUS kWh P2TL)
+  const [ap2tFromMonth, setAp2tFromMonth] = useState('')
+  const [ap2tToMonth, setAp2tToMonth] = useState(nowMonth)
+  const [ap2tStarting, setAp2tStarting] = useState(false)
+  const [ap2tError, setAp2tError] = useState('')
 
   // State untuk penarikan SAIDI/SAIFI APKT (DIFI) & RPT/RCT
   const [apktDataset, setApktDataset] = useState(initialDataset || 'saidi-saifi')
@@ -266,6 +274,26 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     }
   }
 
+  const startAp2t = async () => {
+    setAp2tStarting(true)
+    setAp2tError('')
+    setNotice('')
+    try {
+      const body = {
+        kind: 'ap2t',
+        to_month: ap2tToMonth,
+        from_month: ap2tFromMonth || ap2tToMonth,
+      }
+      if (units.length > 0 && selected.length < units.length) body.units = selected
+      const res = await eisSyncApi.start(body)
+      setCurrent(res?.data)
+    } catch (err) {
+      setAp2tError(err?.message || 'Gagal memulai penarikan TAGSUS AP2T.')
+    } finally {
+      setAp2tStarting(false)
+    }
+  }
+
   const startApkt = async () => {
     setApktStarting(true)
     setApktError('')
@@ -334,22 +362,39 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   // Metrik Ringkasan KPI
   const lastRun = runs[0] || null
 
-  // Tentukan mode aktif: jika prop mode spesifik ('permohonan' | 'piutang' | 'apkt'), kunci ke mode itu.
+  // Tentukan mode aktif: jika prop mode spesifik ('permohonan' | 'piutang' | 'apkt' | 'ap2t'), kunci ke mode itu.
   // Jika tidak ('all' / null), ikuti activeTab yang bisa di-switch pengguna.
   const isPermohonan = mode === 'permohonan' || (!mode && activeTab === 'permohonan')
   const isPiutang = mode === 'piutang' || (!mode && activeTab === 'piutang')
   const isApkt = mode === 'apkt' || (!mode && activeTab === 'apkt')
+  const isAp2t = mode === 'ap2t' || (!mode && activeTab === 'ap2t')
 
-  const titleText = isApkt
+  const titleText = isAp2t
+    ? 'Tarik TAGSUS AP2T (kWh P2TL)'
+    : isApkt
     ? apktDataset === 'rpt-rct-gangguan'
       ? 'Tarik RPT/RCT WO Gangguan APKT'
+      : apktDataset === 'rpt-rct-keluhan'
+      ? 'Tarik RPT/RCT WO Keluhan APKT'
+      : apktDataset === 'anomali-gangguan'
+      ? 'Tarik Anomali Gangguan APKT'
+      : apktDataset === 'anomali-keluhan'
+      ? 'Tarik Anomali Keluhan APKT'
       : 'Tarik SAIDI/SAIFI APKT (DIFI)'
     : isPiutang && !isPermohonan
     ? 'Sinkronisasi Saldo Piutang EIS'
     : 'Sinkronisasi EIS'
-  const subtitleText = isApkt
+  const subtitleText = isAp2t
+    ? 'Tarik laporan realisasi tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T ke DISTRIVA'
+    : isApkt
     ? apktDataset === 'rpt-rct-gangguan'
       ? 'Tarik durasi respons dan pemulihan WO gangguan langsung dari GraphQL APKT'
+      : apktDataset === 'rpt-rct-keluhan'
+      ? 'Tarik durasi respons dan penyelesaian WO keluhan pelanggan langsung dari GraphQL APKT'
+      : apktDataset === 'anomali-gangguan'
+      ? 'Tarik anomali penanganan pengaduan gangguan langsung dari GraphQL APKT'
+      : apktDataset === 'anomali-keluhan'
+      ? 'Tarik anomali penanganan pengaduan keluhan langsung dari GraphQL APKT'
       : 'Tarik laporan SAIDI/SAIFI SE004 bulanan langsung dari APKT ke format DIFI DISTRIVA'
     : isPiutang && !isPermohonan
     ? 'Tarik laporan saldo piutang bulanan langsung dari server EIS ke DISTRIVA'
@@ -487,6 +532,17 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 }`}
               >
                 SAIDI/SAIFI APKT (DIFI)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('ap2t')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeTab === 'ap2t'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                TAGSUS AP2T (kWh P2TL)
               </button>
             </div>
           )}
@@ -1051,6 +1107,122 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                       : apktDataset === 'anomali-keluhan'
                       ? 'Tarik Anomali Keluhan'
                       : 'Tarik SAIDI/SAIFI APKT'}
+                  </Button>
+
+                  {!canApktSync && (
+                    <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                      Anda membutuhkan izin eis_sync.manage dan eis_reports.import untuk menjalankan penarikan ini.
+                    </span>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {isAp2t && (
+              <section className="p-5 rounded-2xl border border-amber-200 dark:border-amber-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                      Tarik TAGSUS AP2T (kWh P2TL)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Tarik laporan realisasi pendapatan penetapan tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T tanpa token.
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+                    AP2T Server
+                  </span>
+                </div>
+
+                {ap2tError && <Alert kind="error">{ap2tError}</Alert>}
+
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Laporan AP2T:</div>
+                  <p>
+                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan TAGSUS DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
+                  </p>
+                </div>
+
+                {/* Filter Rentang Bulan AP2T */}
+                <div className="space-y-3 pt-1">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                    Rentang Bulan Laporan TAGSUS
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field
+                      label="Bulan akhir (wajib)"
+                      hint="Bulan terakhir laporan yang ditarik (format YYYY-MM)."
+                    >
+                      <input
+                        aria-label="Bulan akhir AP2T"
+                        type="month"
+                        value={ap2tToMonth}
+                        onChange={(e) => setAp2tToMonth(e.target.value)}
+                        className={inputCls}
+                        disabled={running}
+                      />
+                    </Field>
+
+                    <Field
+                      label="Bulan awal (opsional)"
+                      hint="Kosongkan bila hanya ingin menarik satu bulan (bulan akhir)."
+                    >
+                      <input
+                        aria-label="Bulan awal AP2T"
+                        type="month"
+                        value={ap2tFromMonth}
+                        onChange={(e) => setAp2tFromMonth(e.target.value)}
+                        className={inputCls}
+                        disabled={running}
+                        placeholder={ap2tToMonth}
+                      />
+                    </Field>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Bila bulan awal diisi, DISTRIVA akan menarik rentang bulan secara berurutan (paling banyak 24 bulan per sesi).
+                  </p>
+                </div>
+
+                {/* Pilih unit yang disinkronkan untuk AP2T */}
+                {units.length > 0 && (
+                  <fieldset className="space-y-2 pt-1" aria-label="Unit AP2T yang disinkronkan">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                        Unit yang ditarik <span className="font-normal text-slate-500">({selected.length} dari {units.length}, kosong = semua ULP)</span>
+                      </legend>
+                      <div className="flex gap-3 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {units.map((u) => (
+                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
+                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Tarik AP2T ${u.code} ${u.name}`} />
+                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+
+                {/* Tombol Eksekusi Penarikan AP2T */}
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <Button
+                    onClick={startAp2t}
+                    loading={ap2tStarting}
+                    disabled={
+                      !canApktSync ||
+                      running ||
+                      !ap2tToMonth ||
+                      (units.length > 0 && selected.length === 0)
+                    }
+                    variant="primary"
+                    size="md"
+                    className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white cursor-pointer"
+                  >
+                    <IconRefresh size={14} className={running && current?.kind === 'ap2t' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {running && current?.kind === 'ap2t' ? 'Sedang menarik TAGSUS AP2T…' : 'Tarik TAGSUS AP2T'}
                   </Button>
 
                   {!canApktSync && (

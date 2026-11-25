@@ -1317,4 +1317,73 @@ describe('BusinessAnalyticsPage', () => {
     // Verifikasi peringatan bulan berjalan APKT
     expect(screen.getByText(/Data anomali gangguan 2026-10 adalah data bulan berjalan dari APKT dan masih bertambah/i)).toBeInTheDocument()
   })
+
+  it('16. mendukung menu kWh P2TL dengan tombol Tarik AP2T (Butir 30)', async () => {
+    const p2tlCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'kwh-p2tl',
+            name: 'kWh P2TL',
+            source: 'TAGSUS',
+            polarity: 'up',
+            available: true,
+            series: [
+              { key: 'kwh', name: 'kWh Tagihan Susulan', unit: 'kWh' },
+              { key: 'rupiah', name: 'Rupiah Tagihan Susulan', unit: 'Rp' },
+            ],
+          },
+        ],
+      },
+    }
+
+    const p2tlDetail = {
+      data: {
+        ...MOCK_METRIC_DETAIL.data,
+        metric: {
+          code: 'kwh-p2tl',
+          name: 'kWh P2TL',
+          unit: 'kWh',
+          polarity: 'up',
+          source: 'TAGSUS',
+        },
+        from: '2026-10',
+        to: '2026-10',
+        months: ['2026-10'],
+        available_from: '2026-01',
+        available_to: '2026-10',
+        summary: [
+          { key: 'kwh', name: 'kWh Tagihan Susulan', unit: 'kWh', latest: 12500, ytd: 12500 },
+        ],
+        series: [
+          { key: 'kwh', name: 'kWh Tagihan Susulan', unit: 'kWh', values: [12500], previous_year: [10000] },
+        ],
+        warnings: [],
+        companions: null,
+        reconciliations: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(p2tlCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'kwh-p2tl') {
+        return Promise.resolve(p2tlDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/kwh-p2tl'])
+
+    await waitFor(() => {
+      expect(pengusahaanApi.metric).toHaveBeenCalledWith(
+        'kwh-p2tl',
+        expect.objectContaining({ unit_id: 'up3-1' }),
+      )
+    })
+
+    // Verifikasi tombol Tarik AP2T (kWh P2TL) tampil
+    expect(await screen.findByRole('button', { name: 'Tarik AP2T (kWh P2TL)' })).toBeInTheDocument()
+  })
 })

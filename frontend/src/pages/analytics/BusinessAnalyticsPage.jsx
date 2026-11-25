@@ -972,6 +972,7 @@ export default function BusinessAnalyticsPage() {
   const isKeluhanMetric = activeCode === 'rpt-rct-keluhan'
   const isAnomaliGangguanMetric = activeCode === 'anomali-gangguan'
   const isAnomaliKeluhanMetric = activeCode === 'anomali-keluhan'
+  const isKwhP2tlMetric = activeCode === 'kwh-p2tl'
   const isPiutangMetric = activeCode.startsWith('piutang')
   const isEisMetric = isPiutangMetric || activeCode === 'pelanggan' || activeCode === 'daya'
 
@@ -1390,6 +1391,15 @@ export default function BusinessAnalyticsPage() {
                 aria-label="Tarik APKT (Anomali Keluhan)"
               >
                 Tarik APKT (Anomali Keluhan)
+              </Button>
+            ) : isKwhP2tlMetric ? (
+              <Button
+                variant="primary"
+                onClick={() => setSyncDrawerOpen(true)}
+                icon={IconRefresh}
+                aria-label="Tarik AP2T (kWh P2TL)"
+              >
+                Tarik AP2T (kWh P2TL)
               </Button>
             ) : isEisMetric ? (
               <Button
@@ -3015,7 +3025,7 @@ export default function BusinessAnalyticsPage() {
         }}
       />
 
-      {/* Drawer Sinkronisasi Data EIS / APKT */}
+      {/* Drawer Sinkronisasi Data EIS / APKT / AP2T */}
       <EisSyncDrawer
         open={syncDrawerOpen}
         mode={
@@ -3023,6 +3033,8 @@ export default function BusinessAnalyticsPage() {
             ? 'piutang'
             : activeCode === 'pelanggan' || activeCode === 'daya'
             ? 'permohonan'
+            : activeCode === 'kwh-p2tl'
+            ? 'ap2t'
             : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan' || activeCode === 'rpt-rct-keluhan' || activeCode === 'anomali-gangguan' || activeCode === 'anomali-keluhan'
             ? 'apkt'
             : null

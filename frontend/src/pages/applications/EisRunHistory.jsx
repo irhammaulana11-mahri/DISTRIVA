@@ -91,6 +91,7 @@ export default function EisRunHistory() {
               {runs.map((r) => {
                 const isPiutang = r.kind === 'piutang'
                 const isApkt = r.kind === 'apkt'
+                const isAp2t = r.kind === 'ap2t'
                 const isRptRctGangguan = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
                 const isRptRctKeluhan = isApkt && r.options?.dataset === 'rpt-rct-keluhan'
                 const isAnomaliGangguan = isApkt && r.options?.dataset === 'anomali-gangguan'
@@ -102,6 +103,8 @@ export default function EisRunHistory() {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
                         isApkt
                           ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300'
+                          : isAp2t
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
                           : isPiutang
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
                           : 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
@@ -116,6 +119,8 @@ export default function EisRunHistory() {
                           ? 'Anomali Keluhan'
                           : isApkt
                           ? 'SAIDI/SAIFI (APKT)'
+                          : isAp2t
+                          ? 'TAGSUS (AP2T)'
                           : isPiutang
                           ? 'Saldo Piutang'
                           : 'Permohonan'}
@@ -126,7 +131,7 @@ export default function EisRunHistory() {
                       {r.complete_old && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px] font-bold" title="Dengan pelengkapan permohonan lama (maks. 180 hari sebelum rentang)">+ pelengkapan</span>}
                     </td>
                     <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
-                      {isPiutang || isApkt ? (
+                      {isPiutang || isApkt || isAp2t ? (
                         <div className="space-y-0.5">
                           <div className="font-mono font-medium">
                             {r.options?.from_month === r.options?.to_month
@@ -149,6 +154,11 @@ export default function EisRunHistory() {
                                 : isAnomaliKeluhan
                                 ? 'Dataset: Anomali Keluhan'
                                 : 'Dataset: SAIDI/SAIFI SE004'}
+                            </div>
+                          )}
+                          {isAp2t && (
+                            <div className="text-[10px] text-slate-400">
+                              Dataset: TAGSUS P2TL
                             </div>
                           )}
                         </div>

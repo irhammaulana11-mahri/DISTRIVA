@@ -443,13 +443,15 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
                   {paginatedSyncs.map((s) => {
-                    const isApkt = s.kind === 'apkt' || s.source === 'eis-sync' && s.kind === 'apkt'
+                    const isApkt = s.kind === 'apkt' || (s.source === 'eis-sync' && s.kind === 'apkt')
+                    const isAp2t = s.kind === 'ap2t' || s.source === 'AP2T' || (s.source === 'eis-sync' && s.kind === 'ap2t')
                     const dataset = s.options?.dataset
                     const isRptRctGangguan = isApkt && dataset === 'rpt-rct-gangguan'
                     const isRptRctKeluhan = isApkt && dataset === 'rpt-rct-keluhan'
                     const isAnomaliGangguan = isApkt && dataset === 'anomali-gangguan'
                     const isAnomaliKeluhan = isApkt && dataset === 'anomali-keluhan'
                     const isSaidiSaifi = isApkt && (dataset === 'saidi-saifi' || !dataset)
+                    const isTagsus = isAp2t || dataset === 'tagsus'
 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
@@ -459,12 +461,14 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                             className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${
                               isApkt
                                 ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
+                                : isAp2t
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                                 : s.source === 'outage-sync'
                                 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                                 : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
                             }`}
                           >
-                            {isApkt ? 'APKT' : s.source}
+                            {isApkt ? 'APKT' : isAp2t ? 'AP2T' : s.source}
                           </span>
                         </td>
                         <td className="py-2 pr-2">
@@ -480,6 +484,8 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                                 ? 'Anomali Keluhan'
                                 : isSaidiSaifi
                                 ? 'SAIDI/SAIFI (DIFI)'
+                                : isTagsus
+                                ? 'TAGSUS (AP2T)'
                                 : s.kind || '-'}
                             </span>
                             <span className="text-[10px] text-slate-400">
