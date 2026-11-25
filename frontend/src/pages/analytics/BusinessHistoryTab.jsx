@@ -43,8 +43,8 @@ const MONTH_NAMES_SHORT = [
 export default function BusinessHistoryTab({ metricCode, unitId }) {
   const [state, setState] = useState({ loading: true, error: '', data: null })
 
-  // State filter tahun untuk Matriks Kelengkapan 1 Tahun
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  // State filter tahun untuk Matriks Kelengkapan 1 Tahun (null saat pertama kali agar backend memakai default atau latest)
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear())
 
   // State pagination untuk tabel Sesi Sinkronisasi
   const [syncsPage, setSyncsPage] = useState(1)
@@ -60,16 +60,20 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
 
   useEffect(() => {
     let alive = true
-    setState({ loading: true, error: '', data: null })
+    setState((s) => ({ ...s, loading: true, error: '' }))
 
     pengusahaanApi
-      .history(metricCode, { unit_id: unitId || undefined })
+      .history(metricCode, {
+        unit_id: unitId || undefined,
+        year: selectedYear || undefined,
+      })
       .then((res) => {
         if (!alive) return
         setState({ loading: false, error: '', data: res?.data || null })
-        if (res?.data?.latest_month) {
-          const yr = parseInt(res.data.latest_month.slice(0, 4), 10)
-          if (!Number.isNaN(yr)) setSelectedYear(yr)
+        // Sinkronisasi tahun bila backend mengembalikan year aktif atau latest_month
+        const backendYear = res?.data?.year || (res?.data?.latest_month ? parseInt(res.data.latest_month.slice(0, 4), 10) : null)
+        if (backendYear && backendYear !== selectedYear && !res?.data?.year) {
+          setSelectedYear(backendYear)
         }
       })
       .catch((err) => {
@@ -84,7 +88,7 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
     return () => {
       alive = false
     }
-  }, [metricCode, unitId])
+  }, [metricCode, unitId, selectedYear])
 
   const d = state.data
   const coverage = d?.coverage
@@ -94,8 +98,11 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
   const syncs = d?.syncs
   const families = d?.families || (d?.family ? [d.family] : [])
 
-  // Ekstrak tahun unik dari data months untuk pilihan filter tahun
+  // Pilihan tahun dari available_years backend (docs/91 §3c, Butir 18)
   const availableYears = useMemo(() => {
+    if (Array.isArray(d?.available_years) && d.available_years.length > 0) {
+      return d.available_years
+    }
     const yrSet = new Set()
     months.forEach((m) => {
       const y = parseInt(m.slice(0, 4), 10)
@@ -105,42 +112,57 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
     yrSet.add(curYear)
     yrSet.add(curYear - 1)
     return Array.from(yrSet).sort((a, b) => b - a)
-  }, [months])
+  }, [d?.available_years, months])
 
-  // Filter 12 bulan (Jan - Des) untuk tahun terpilih
+  // Bulan 12 bulan (Jan - Des) dari respons backend months atau fallback
   const yearMonths = useMemo(() => {
+    if (months.length === 12 && months[0].startsWith(String(selectedYear))) {
+      return months
+    }
     const yrStr = String(selectedYear)
     return Array.from({ length: 12 }, (_, i) => {
       const mm = String(i + 1).padStart(2, '0')
       return `${yrStr}-${mm}`
     })
-  }, [selectedYear])
+  }, [months, selectedYear])
 
-  // Hitung ketersediaan per unit untuk 12 bulan tahun terpilih
+  // Hitung ketersediaan per unit untuk 12 bulan tahun terpilih langsung dari coverage backend
   const yearCoverageUnits = useMemo(() => {
     if (!coverage?.units) return []
-    return coverage.units.map((u) => {
-      // Map ketersediaan bulan dari data backend
-      const monthMap = {}
-      months.forEach((m, idx) => {
-        monthMap[m] = u.months?.[idx] ?? false
-      })
+    const dueList = coverage.due || []
 
-      const unitYearMonths = yearMonths.map((ym) => Boolean(monthMap[ym]))
-      const missingCount = unitYearMonths.filter((has) => !has).length
+    return coverage.units.map((u) => {
+      // Bila months dari backend sudah 12 bulan sejajar, pakai langsung
+      let unitMonths = u.months || []
+      if (months.length !== 12 || !months[0]?.startsWith(String(selectedYear))) {
+        const monthMap = {}
+        months.forEach((m, idx) => {
+          monthMap[m] = u.months?.[idx] ?? false
+        })
+        unitMonths = yearMonths.map((ym) => Boolean(monthMap[ym]))
+      }
+
+      // Missing count dari backend (hanya yang sudah jatuh tempo)
+      const missingCount = typeof u.missing_count === 'number'
+        ? u.missing_count
+        : unitMonths.filter((has, idx) => !has && (dueList[idx] !== false)).length
 
       return {
         unit_id: u.unit_id,
         unit_name: u.unit_name,
-        months: unitYearMonths,
+        months: unitMonths,
         missing_count: missingCount,
       }
     })
-  }, [coverage?.units, months, yearMonths])
+  }, [coverage, months, selectedYear, yearMonths])
 
+  // Total kekurangan dari backend (coverage.missing_total) bila ada
   const totalMissingYear = useMemo(() => {
+    if (typeof coverage?.missing_total === 'number') {
+      return coverage.missing_total
+    }
     return yearCoverageUnits.reduce((acc, u) => acc + u.missing_count, 0)
-  }, [yearCoverageUnits])
+  }, [coverage?.missing_total, yearCoverageUnits])
 
   // Pagination untuk Sesi Sinkronisasi
   const paginatedSyncs = useMemo(() => {
@@ -276,11 +298,20 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                   <th className="py-2 pr-3 text-left font-semibold sticky left-0 bg-white dark:bg-slate-900 z-10 w-44">
                     Unit ULP
                   </th>
-                  {yearMonths.map((ym, i) => (
-                    <th key={ym} className="px-1 py-1.5 text-center font-mono text-[10px] w-10">
-                      {MONTH_NAMES_SHORT[i]}
-                    </th>
-                  ))}
+                  {yearMonths.map((ym, i) => {
+                    const isDue = coverage?.due ? coverage.due[i] !== false : true
+                    return (
+                      <th
+                        key={ym}
+                        className={`px-1 py-1.5 text-center font-mono text-[10px] w-10 ${
+                          !isDue ? 'text-slate-400 dark:text-slate-500 italic' : ''
+                        }`}
+                        title={!isDue ? `${ym} (belum jatuh tempo)` : ym}
+                      >
+                        {MONTH_NAMES_SHORT[i]}
+                      </th>
+                    )
+                  })}
                   <th className="py-2 pl-2 text-right font-semibold w-16">Kurang</th>
                 </tr>
               </thead>
@@ -290,18 +321,29 @@ export default function BusinessHistoryTab({ metricCode, unitId }) {
                     <td className="py-2 pr-3 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap sticky left-0 bg-white dark:bg-slate-900 z-10">
                       {u.unit_name}
                     </td>
-                    {u.months.map((has, i) => (
-                      <td key={yearMonths[i]} className="p-1 text-center">
-                        <span
-                          title={`${u.unit_name} - ${yearMonths[i]}: ${has ? 'Lengkap' : 'Belum Ada'}`}
-                          className={`inline-block w-4 h-4 rounded-xs transition-transform hover:scale-125 cursor-default ${
-                            has
-                              ? 'bg-emerald-500'
-                              : 'bg-rose-400 dark:bg-rose-600 opacity-80'
-                          }`}
-                        />
-                      </td>
-                    ))}
+                    {u.months.map((has, i) => {
+                      const isDue = coverage?.due ? coverage.due[i] !== false : true
+                      const tooltip = has
+                        ? `${u.unit_name} - ${yearMonths[i]}: Lengkap`
+                        : !isDue
+                        ? `${u.unit_name} - ${yearMonths[i]}: Belum jatuh tempo`
+                        : `${u.unit_name} - ${yearMonths[i]}: Belum Ada`
+
+                      const colorCls = has
+                        ? 'bg-emerald-500'
+                        : !isDue
+                        ? 'bg-slate-200 dark:bg-slate-700 opacity-60'
+                        : 'bg-rose-400 dark:bg-rose-600 opacity-80'
+
+                      return (
+                        <td key={yearMonths[i]} className="p-1 text-center">
+                          <span
+                            title={tooltip}
+                            className={`inline-block w-4 h-4 rounded-xs transition-transform hover:scale-125 cursor-default ${colorCls}`}
+                          />
+                        </td>
+                      )
+                    })}
                     <td className="py-2 pl-2 text-right font-mono font-semibold">
                       {u.missing_count > 0 ? (
                         <span className="text-rose-600">{u.missing_count}</span>

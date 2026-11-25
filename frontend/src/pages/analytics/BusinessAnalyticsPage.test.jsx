@@ -71,10 +71,23 @@ vi.mock('../../services/api.js', () => ({
     history: vi.fn().mockResolvedValue({
       data: {
         family: '309',
-        months: ['2026-09', '2026-10'],
+        year: 2026,
+        latest_month: '2026-10',
+        expected_until: '2026-10',
+        available_years: [2026, 2025],
+        months: ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'],
         coverage: {
+          due: [true, true, true, true, true, true, true, true, true, true, false, false],
+          expected_total: 10,
+          missing_total: 0,
           units: [
-            { unit_id: 'u-1', unit_name: 'ULP Jombang', months: [true, true], missing: [], missing_count: 0 },
+            {
+              unit_id: 'u-1',
+              unit_name: 'ULP Jombang',
+              months: [true, true, true, true, true, true, true, true, true, true, false, false],
+              missing: [],
+              missing_count: 0,
+            },
           ],
         },
         files: [
@@ -724,6 +737,11 @@ describe('BusinessAnalyticsPage', () => {
     expect(pengusahaanApi.history).toHaveBeenCalledWith('pelanggan', expect.any(Object))
     expect(await screen.findByText(/Matriks Kelengkapan Laporan/i)).toBeInTheDocument()
     expect(screen.getByText(/309-51453-202610\.xls/i)).toBeInTheDocument()
+
+    // Butir 18: Mengganti pilihan tahun memanggil ulang history dengan parameter year
+    const yearSelect = screen.getByLabelText(/Filter Tahun Matriks Kelengkapan/i)
+    await user.selectOptions(yearSelect, '2025')
+    expect(pengusahaanApi.history).toHaveBeenCalledWith('pelanggan', expect.objectContaining({ year: 2025 }))
   })
 
   it('10. mendukung Butir 15: menu Anomali Gangguan dan Anomali Keluhan dengan polarity down', async () => {
