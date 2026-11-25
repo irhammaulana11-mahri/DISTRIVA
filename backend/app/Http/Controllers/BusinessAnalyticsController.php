@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
+use App\Services\Analytics\AnomalyInsights;
 use App\Services\Analytics\BusinessForecastService;
 use App\Services\Analytics\BusinessInputWorkbook;
 use App\Services\Analytics\BusinessMetricService;
@@ -32,7 +33,7 @@ class BusinessAnalyticsController extends Controller
     private const INPUT_PERMISSION = 'pengusahaan.input';
 
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $inputWorkbook, private readonly BusinessMetricWorkbook $workbook,
-        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable, private readonly SalesInsights $sales, private readonly ResponseInsights $response) {}
+        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable, private readonly SalesInsights $sales, private readonly ResponseInsights $response, private readonly AnomalyInsights $anomaly) {}
 
     /** GET /pengusahaan/metrics: katalog metrik dan unit yang boleh dilihat. */
     public function index(Request $request): JsonResponse
@@ -130,6 +131,7 @@ class BusinessAnalyticsController extends Controller
             'pelunasan-prr' => $this->receivable->repayment('PRR', $ids, $to),
             'pelunasan-ex-prr' => $this->receivable->repayment('EXPRR', $ids, $to),
             'rpt-rct-gangguan', 'rpt-rct-keluhan' => $this->response->detail($code, $ids, $to),
+            'anomali-gangguan', 'anomali-keluhan' => $this->anomaly->detail($code, $ids, $to),
             default => null,
         }]
             + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to, fn (array $ytd) => $this->targets->targets($code, $unit, $to, $ytd));

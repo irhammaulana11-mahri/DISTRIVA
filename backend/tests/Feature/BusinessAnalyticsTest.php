@@ -1032,6 +1032,38 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function detail_anomali_menandai_ulp_dengan_kejadian_jarang_melebihi_porsi_wo_dan_merangkum_kanal(): void
+    {
+        $rows = [];
+        foreach (['2026-01-01', '2026-02-01', '2026-03-01'] as $i => $m) {
+            $rows[] = $this->anomaliGangguanRow($this->ulpA, $m, 'BERULANG', [300, 600, 0, 100, 1000, $i === 0 ? 1 : 0, 0, 0, 0, $i === 0 ? 1 : 0, 0]);
+            $rows[] = $this->anomaliGangguanRow($this->ulpA, $m, 'NEGATIF', [300, 600, 0, 100, 1000, 3, 4, 0, 0, 3, 4]);          // ULP A: tujuh rating negatif per bulan (21)
+            $rows[] = $this->anomaliGangguanRow($this->ulpB, $m, 'BERULANG', [300, 600, 0, 100, 1000, 0, 0, 0, 0, 0, 0]);
+            $rows[] = $this->anomaliGangguanRow($this->ulpB, $m, 'NEGATIF', [300, 600, 0, 100, 1000, $i === 2 ? 1 : 0, $i === 2 ? 1 : 0, 0, 0, $i === 2 ? 1 : 0, $i === 2 ? 1 : 0]);   // ULP B: dua (2)
+        }
+        DB::table('apkt_anomali_gangguan_records')->insert($rows);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/anomali-gangguan?unit_id={$this->up3->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+
+        $this->assertSame(['anomaly', 'anomali-gangguan', 2026], [$d['kind'], $d['focus'], $d['year']]);
+        $this->assertEquals([6000, 1, 23], [$d['ytd']['wo'], $d['ytd']['berulang'], $d['ytd']['negatif']]);
+        $this->assertEqualsWithDelta(23 / 6000 * 10000, $d['ytd']['rate_per_10k_negatif'], 0.01);
+        $a = collect($d['ulps'])->firstWhere('unit_id', $this->ulpA->id);
+        $b = collect($d['ulps'])->firstWhere('unit_id', $this->ulpB->id);
+        $this->assertSame($this->ulpA->id, $d['ulps'][0]['unit_id']);                                          // terbanyak dahulu
+        $this->assertEquals([21, 11.5, true, 12], [$a['negatif'], $a['negatif_expected'], $a['negatif_flagged'], $a['negatif_nonmarking']]);
+        $this->assertEquals([2, false, false], [$b['negatif'], $b['negatif_flagged'], $a['berulang_flagged']]);  // berulang hanya satu kejadian: di bawah minimum
+        $this->assertEquals(50.0, $a['wo_share_pct']);
+        $channel = collect($d['channels'])->first(fn ($c) => $c['kind'] === 'negatif' && $c['channel'] === 'PLN Mobile · Non Marking');
+        $this->assertSame(13, $channel['count']);                                                              // 4 x 3 bulan (A) + 1 (B)
+        $this->assertCount(3, $d['history']);
+        $this->assertEquals([2000, 1, 23], [$d['history'][2]['wo'], $d['history'][0]['berulang'] + $d['history'][1]['berulang'] + $d['history'][2]['berulang'], array_sum(array_column($d['history'], 'negatif'))]);
+
+        // keluhan: tanpa kolom NKO tanpa marking; menu non-anomali tanpa blok ini
+        $this->assertSame('anomaly', $this->as($this->planner)->getJson("/api/pengusahaan/metrics/anomali-keluhan?unit_id={$this->up3->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail.kind'));
+    }
+
+    #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
         Cache::flush();
