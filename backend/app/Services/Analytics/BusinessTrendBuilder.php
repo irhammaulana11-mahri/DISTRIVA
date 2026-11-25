@@ -179,7 +179,9 @@ class BusinessTrendBuilder
             $officialRow = fn (array $only, string $m): array => $this->sumRaw($raw, $only, $m);
             $officialVal = fn (array $only, string $m): ?float => $ratio($officialRow($only, $m), $off);
             $companionVal = fn (array $only, string $m): ?float => $ratio($sum($only, $m), $com);
-            $has = fn (string $u, string $m): bool => $zeroFill || isset($raw[$u][$m]);   // sumber tanpa laporan: bulan tanpa kejadian berarti nol
+            // sumber tanpa laporan: bulan tanpa kejadian berarti nol. Pendamping berbasis laporan (`reported`, mis. DIFI): bulan yang laporannya belum ada tidak dibandingkan, bukan dianggap nol
+            $reported = (bool) ($c['reported'] ?? false);
+            $has = fn (string $u, string $m): bool => ($zeroFill || isset($raw[$u][$m])) && (! $reported || isset($data[$u][$m]));
             $monthly = [];
             foreach ($months as $m) {
                 if ($spec['mode'] === 'net') {
@@ -192,7 +194,7 @@ class BusinessTrendBuilder
                     $set = array_values(array_filter($units, fn ($u) => $has($u, $m)));
                     $net = $set === [] ? null : $officialVal($set, $m);
                 }
-                $comp = $set === [] ? $companionVal($units, $m) : $companionVal($set, $m);
+                $comp = $set === [] ? ($reported ? null : $companionVal($units, $m)) : $companionVal($set, $m);
                 $monthly[] = ['month' => $m, 'official_net' => $net, 'companion' => $comp, 'difference' => $net === null || $comp === null ? null : $comp - $net, 'units_compared' => count($set)];
             }
             /** Kumulatif Januari sampai $end atas ULP kandidat yang memenuhi syarat mode; null bila tidak ada. */
@@ -270,7 +272,7 @@ class BusinessTrendBuilder
     {
         $y = $rec['ytd'];
         if ($y === null) {
-            return ['level' => 'info', 'text' => 'Rekonsiliasi '.strtolower($rec['official_name']).' belum dapat dihitung: laporan resmi belum ada pada ULP yang sama di seluruh periode pembanding.'];
+            return ['level' => 'info', 'text' => 'Rekonsiliasi '.strtolower($rec['official_name']).' dengan '.strtolower($rec['companion_name']).' belum dapat dihitung kumulatif: data salah satu sumber belum ada untuk semua bulan pada ULP yang sama (bulan tanpa laporan tidak dibandingkan).'];
         }
         $unit = $rec['unit'];
         $f = fn (float $v) => match (true) {

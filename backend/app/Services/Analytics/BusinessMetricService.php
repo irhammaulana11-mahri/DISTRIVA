@@ -78,24 +78,32 @@ class BusinessMetricService
             'series' => [['key' => 'wo', 'name' => 'Total pengaduan gangguan (WO)', 'unit' => 'kali', 'num' => 'wo'], ['key' => 'berulang', 'name' => 'Gangguan berulang', 'unit' => 'kali', 'num' => 'ber'], ['key' => 'berulang_pct', 'name' => 'Gangguan berulang terhadap total', 'unit' => '%', 'num' => 'ber', 'den' => 'wo', 'factor' => 100],
                 ['key' => 'negatif', 'name' => 'Rating negatif', 'unit' => 'kali', 'num' => 'neg'], ['key' => 'negatif_pct', 'name' => 'Rating negatif terhadap total', 'unit' => '%', 'num' => 'neg', 'den' => 'neg_wo', 'factor' => 100],
                 ['key' => 'negatif_nonmarking', 'name' => 'Rating negatif tanpa marking (ukuran NKO)', 'unit' => 'kali', 'num' => 'neg_non']]],
-        'saidi-saifi' => ['name' => 'SAIDI dan SAIFI', 'source' => 'Laporan DIFI (ringkasan)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'sum', 'breakdown' => null,
-            'series' => [['key' => 'saidi', 'name' => 'SAIDI', 'unit' => 'menit/plg', 'num' => 'saidi_x_plg', 'den' => 'plg'], ['key' => 'saifi', 'name' => 'SAIFI', 'unit' => 'kali/plg', 'num' => 'saifi_x_plg', 'den' => 'plg']],
-            'companion' => ['source' => 'Data gangguan penyulang tersinkron (APKT): gangguan lebih dari ambang menit, pelanggan penyulang dari potret DIL (batas atas)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
+        'saidi-saifi' => ['name' => 'SAIDI dan SAIFI', 'source' => 'Laporan DIFI (ringkasan; rincian tingkat penyulang dari baris Gardu Induk 20 kV dan Penyulang)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'sum', 'breakdown' => null,
+            'series' => [['key' => 'saidi', 'name' => 'SAIDI', 'unit' => 'menit/plg', 'num' => 'saidi_x_plg', 'den' => 'plg'], ['key' => 'saifi', 'name' => 'SAIFI', 'unit' => 'kali/plg', 'num' => 'saifi_x_plg', 'den' => 'plg'],
+                ['key' => 'saidi_penyulang', 'name' => 'SAIDI karena gangguan penyulang', 'unit' => 'menit/plg', 'num' => 'pny_ggn_saidi_x_plg', 'den' => 'plg'], ['key' => 'saifi_penyulang', 'name' => 'SAIFI karena gangguan penyulang', 'unit' => 'kali/plg', 'num' => 'pny_ggn_plg', 'den' => 'plg']],
+            'companion' => ['source' => 'Data gangguan penyulang dari spreadsheet: gangguan lebih dari ambang menit, pelanggan penyulang dari potret DIL (batas atas)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
                 'series' => [['key' => 'saidi_hitung', 'name' => 'SAIDI hitung DISTRIVA', 'unit' => 'menit/plg', 'num' => 'saidi_x_base', 'den' => 'base'], ['key' => 'saifi_hitung', 'name' => 'SAIFI hitung DISTRIVA', 'unit' => 'kali/plg', 'num' => 'saifi_x_base', 'den' => 'base']],
-                'reconcile' => [['key' => 'saidi', 'mode' => 'flow', 'unit' => 'menit/plg', 'official_name' => 'SAIDI Laporan DIFI', 'official' => ['num' => ['saidi_x_plg'], 'den' => 'plg'], 'companion_name' => 'SAIDI hitung DISTRIVA', 'companion' => ['num' => ['saidi_x_base'], 'den' => 'base']],
-                    ['key' => 'saifi', 'mode' => 'flow', 'unit' => 'kali/plg', 'official_name' => 'SAIFI Laporan DIFI', 'official' => ['num' => ['saifi_x_plg'], 'den' => 'plg'], 'companion_name' => 'SAIFI hitung DISTRIVA', 'companion' => ['num' => ['saifi_x_base'], 'den' => 'base']]]]],
-        'ens' => ['name' => 'ENS', 'source' => 'Laporan DIFI (TOTAL KELOMPOK Distribusi)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
-            'series' => [['key' => 'ens', 'name' => 'Energi tak tersalurkan', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3]],
-            'companion' => ['source' => 'Data gangguan penyulang tersinkron (kolom ENS sheet, menurut ULP peristiwa)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
-                'series' => [['key' => 'ens_sheet', 'name' => 'ENS data gangguan tersinkron', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3]],
-                'reconcile' => [['key' => 'ens', 'mode' => 'flow', 'unit' => 'MWh', 'official_name' => 'ENS Laporan DIFI', 'official' => ['num' => ['ens_kwh'], 'factor' => 1e-3], 'companion_name' => 'ENS data gangguan tersinkron', 'companion' => ['num' => ['ens_kwh'], 'factor' => 1e-3]]]]],
+                // pembanding hanya bagian gangguan penyulang DIFI: spreadsheet hanya memuat gangguan penyulang, sedangkan SAIDI/SAIFI total DIFI juga memuat padam JTR, sambungan rumah, dan pemeliharaan
+                'reconcile' => [['key' => 'saidi', 'mode' => 'flow', 'unit' => 'menit/plg', 'official_name' => 'SAIDI gangguan penyulang (DIFI)', 'official' => ['num' => ['pny_ggn_saidi_x_plg'], 'den' => 'plg'], 'companion_name' => 'SAIDI hitung DISTRIVA', 'companion' => ['num' => ['saidi_x_base'], 'den' => 'base']],
+                    ['key' => 'saifi', 'mode' => 'flow', 'unit' => 'kali/plg', 'official_name' => 'SAIFI gangguan penyulang (DIFI)', 'official' => ['num' => ['pny_ggn_plg'], 'den' => 'plg'], 'companion_name' => 'SAIFI hitung DISTRIVA', 'companion' => ['num' => ['saifi_x_base'], 'den' => 'base']]]]],
+        'ens' => ['name' => 'ENS', 'source' => 'Laporan DIFI (TOTAL KELOMPOK Distribusi; rincian tingkat penyulang dari baris Gardu Induk 20 kV dan Penyulang)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
+            'series' => [['key' => 'ens', 'name' => 'Energi tak tersalurkan', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3], ['key' => 'ens_penyulang', 'name' => 'ENS karena gangguan penyulang', 'unit' => 'MWh', 'num' => 'pny_ggn_kwh', 'factor' => 1e-3]],
+            'companion' => ['source' => 'Data gangguan penyulang dari spreadsheet (kolom ENS, menurut ULP peristiwa)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
+                'series' => [['key' => 'ens_sheet', 'name' => 'ENS data gangguan penyulang', 'unit' => 'MWh', 'num' => 'ens_kwh', 'factor' => 1e-3]],
+                'reconcile' => [['key' => 'ens', 'mode' => 'flow', 'unit' => 'MWh', 'official_name' => 'ENS gangguan penyulang (DIFI)', 'official' => ['num' => ['pny_ggn_kwh'], 'factor' => 1e-3], 'companion_name' => 'ENS data gangguan penyulang', 'companion' => ['num' => ['ens_kwh'], 'factor' => 1e-3]]]]],
         'kwh-p2tl' => ['name' => 'kWh P2TL', 'source' => 'TAGSUS (golongan P1-P4, K2, tanpa golongan; tanpa TS kWh dan DKRP)', 'family' => 'TAGSUS', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Golongan pelanggaran',
             'series' => [['key' => 'kwh', 'name' => 'kWh P2TL', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp', 'name' => 'Rupiah tagihan susulan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah pelanggan', 'unit' => 'plg', 'num' => 'n']]],
-        'gangguan' => ['name' => 'Gangguan penyulang', 'source' => 'Data gangguan tersinkron', 'family' => null, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => 'Jenis gangguan',
-            'series' => [['key' => 'jumlah', 'name' => 'Jumlah gangguan', 'unit' => 'kali', 'num' => 'n'], ['key' => 'permanen', 'name' => 'Permanen', 'unit' => 'kali', 'num' => 'permanen'], ['key' => 'temporer', 'name' => 'Temporer', 'unit' => 'kali', 'num' => 'temporer']],
-            'companion' => ['source' => 'Laporan DIFI (TOTAL KELOMPOK Distribusi, jumlah gangguan)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
-                'series' => [['key' => 'difi_jumlah', 'name' => 'Jumlah gangguan menurut Laporan DIFI', 'unit' => 'kali', 'num' => 'n']],
-                'reconcile' => [['key' => 'gangguan', 'mode' => 'flow', 'unit' => 'kali', 'official_name' => 'Jumlah gangguan data tersinkron', 'official' => ['num' => ['n']], 'companion_name' => 'Jumlah gangguan Laporan DIFI', 'companion' => ['num' => ['n']]]]]],
+        'gangguan' => ['name' => 'Gangguan penyulang', 'source' => 'Data gangguan penyulang dari spreadsheet (gangguan feeder/penyulang: PMT dan recloser)', 'family' => null, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => 'Jenis gangguan',
+            'series' => [['key' => 'jumlah', 'name' => 'Jumlah gangguan penyulang', 'unit' => 'kali', 'num' => 'n'], ['key' => 'permanen', 'name' => 'Permanen', 'unit' => 'kali', 'num' => 'permanen'], ['key' => 'temporer', 'name' => 'Temporer', 'unit' => 'kali', 'num' => 'temporer'],
+                ['key' => 'dihitung', 'name' => 'Gangguan lebih dari ambang menit (masuk SAIDI/SAIFI)', 'unit' => 'kali', 'num' => 'n_hitung']],
+            // DIFI tingkat penyulang: jumlah dan pelanggan padam pada penyulang yang mengalami gangguan (padam tidak terencana dan bencana alam) atau pemeliharaan (padam terencana)
+            'companion' => ['source' => 'Laporan DIFI tingkat penyulang (Gardu Induk 20 kV dan Penyulang): gangguan = padam tidak terencana dan bencana alam, pemeliharaan = padam terencana', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'], 'reported' => true,
+                'series' => [['key' => 'difi_gangguan', 'name' => 'Gangguan penyulang (DIFI)', 'unit' => 'kali', 'num' => 'n'], ['key' => 'difi_pelanggan_gangguan', 'name' => 'Pelanggan padam karena gangguan penyulang (DIFI)', 'unit' => 'plg', 'num' => 'plg'],
+                    ['key' => 'difi_pemeliharaan', 'name' => 'Pemeliharaan penyulang (DIFI)', 'unit' => 'kali', 'num' => 'har_n'], ['key' => 'difi_pelanggan_pemeliharaan', 'name' => 'Pelanggan padam karena pemeliharaan penyulang (DIFI)', 'unit' => 'plg', 'num' => 'har_plg']],
+                // hanya gangguan yang masuk hitungan (lebih dari ambang menit): DIFI tidak mencatat padam singkat; pemeliharaan tidak ada di spreadsheet sehingga tidak direkonsiliasi
+                // pelanggan padam diambil dari DIFI (pelanggan pada penyulang yang padam), tidak diperkirakan dari DIL: perkiraan DIL menganggap seluruh pelanggan penyulang padam pada tiap gangguan
+                // (termasuk recloser yang hanya memadamkan sebagian) sehingga selalu jauh lebih besar
+                'reconcile' => [['key' => 'gangguan', 'mode' => 'flow', 'unit' => 'kali', 'official_name' => 'Gangguan penyulang lebih dari ambang menit (spreadsheet)', 'official' => ['num' => ['n_hitung']], 'companion_name' => 'Gangguan penyulang (DIFI)', 'companion' => ['num' => ['n']]]]]],
         'hpl-bp' => ['name' => 'HPL biaya penyambungan', 'source' => 'Permohonan PB/PD lunas (biaya, tanggal bayar)', 'family' => null, 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Jenis permohonan',
             'series' => [['key' => 'rp', 'name' => 'Biaya penyambungan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah permohonan lunas', 'unit' => 'permohonan', 'num' => 'n']]],
         'susut' => ['name' => 'Susut', 'source' => 'Masukan bulanan kWh beli, E-Min, PSSD (pengusahaan) dan kWh jual laporan 309', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
@@ -328,7 +336,53 @@ class BusinessMetricService
             }
         }
 
-        return ['raw' => ['plg' => $plg, 'saidi_x_plg' => (float) $summary['saidi_menit'] * $plg, 'saifi_x_plg' => (float) $summary['saifi_kali'] * $plg, 'ens_kwh' => $ens], 'bd' => []];
+        $f = $this->difiFeederLevel($lines);
+
+        return ['raw' => ['plg' => $plg, 'saidi_x_plg' => (float) $summary['saidi_menit'] * $plg, 'saifi_x_plg' => (float) $summary['saifi_kali'] * $plg, 'ens_kwh' => $ens,
+            'pny_ggn_n' => $f['ggn_n'], 'pny_ggn_plg' => $f['ggn_plg'], 'pny_ggn_saidi_x_plg' => $f['ggn_menit_x_plg'], 'pny_ggn_kwh' => $f['ggn_kwh'],
+            'pny_har_n' => $f['har_n'], 'pny_har_plg' => $f['har_plg'], 'pny_har_saidi_x_plg' => $f['har_menit_x_plg'], 'pny_har_kwh' => $f['har_kwh']], 'bd' => []];
+    }
+
+    /**
+     * Bagian tingkat penyulang (tegangan menengah) laporan DIFI kelompok Distribusi: baris subtotal fasilitas Gardu Induk (20 kV) dan Penyulang pada tiap sub kelompok, dijumlahkan menjadi
+     * gangguan (Padam Tidak Terencana dan Bencana Alam) dan pemeliharaan (Padam Terencana). Sub kelompok diketahui dari baris "TOTAL SUB KELOMPOK ..." yang menutup bagiannya.
+     * Padam JTR, gardu distribusi, dan sambungan rumah (di bawah penyulang) tidak ikut. Pelanggan padam DIFI = pelanggan pada penyulang yang padam; SAIDI = jam x pelanggan x 60 / pelanggan unit.
+     *
+     * @param  list<array{label: string, values: array<string, mixed>}>  $lines
+     * @return array<string, float>
+     */
+    private function difiFeederLevel(array $lines): array
+    {
+        $out = array_fill_keys(['ggn_n', 'ggn_plg', 'ggn_menit_x_plg', 'ggn_kwh', 'har_n', 'har_plg', 'har_menit_x_plg', 'har_kwh'], 0.0);
+        $pending = [];
+        foreach ($lines as $l) {
+            if (in_array($l['label'], ['SUB TOTAL FASILITAS Gardu Induk', 'SUB TOTAL FASILITAS Penyulang'], true)) {
+                $pending[] = $l['values'];
+
+                continue;
+            }
+            if (str_starts_with($l['label'], 'TOTAL SUB KELOMPOK ')) {
+                $kind = match (substr($l['label'], strlen('TOTAL SUB KELOMPOK '))) {
+                    'Padam Tidak Terencana', 'Bencana Alam' => 'ggn',
+                    'Padam Terencana' => 'har',
+                    default => null,
+                };
+                foreach ($kind === null ? [] : $pending as $v) {
+                    $out["{$kind}_n"] += (float) ($v['jumlah_gangguan'] ?? 0);
+                    $out["{$kind}_plg"] += (float) ($v['jml_plg_padam'] ?? 0);
+                    $out["{$kind}_menit_x_plg"] += (float) ($v['jam_x_plg'] ?? 0) * 60;
+                    $out["{$kind}_kwh"] += (float) ($v['kwh_tak_tersalurkan'] ?? 0);
+                }
+                $pending = [];
+
+                continue;
+            }
+            if ($l['label'] === 'TOTAL KELOMPOK Distribusi') {
+                break;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -409,20 +463,20 @@ class BusinessMetricService
     }
 
     /**
-     * Jumlah gangguan menurut laporan DIFI (baris TOTAL KELOMPOK Distribusi); pembanding data gangguan tersinkron, bukan metrik sendiri.
+     * Pendamping menu Gangguan Penyulang dari laporan DIFI tingkat penyulang: jumlah dan pelanggan padam karena gangguan penyulang dan karena pemeliharaan penyulang (bukan TOTAL KELOMPOK Distribusi,
+     * yang juga memuat padam JTR dan sambungan rumah).
      *
      * @param  list<array{label: string, values: array<string, mixed>}>  $lines
      * @param  array<string, mixed>  $summary
      */
     private function fromDifiCount(array $lines, array $summary): ?array
     {
-        foreach ($lines as $l) {
-            if ($l['label'] === 'TOTAL KELOMPOK Distribusi') {
-                return ['raw' => ['n' => (float) ($l['values']['jumlah_gangguan'] ?? 0)], 'bd' => []];
-            }
+        if (! in_array('TOTAL KELOMPOK Distribusi', array_column($lines, 'label'), true)) {
+            return null;
         }
+        $f = $this->difiFeederLevel($lines);
 
-        return null;
+        return ['raw' => ['n' => $f['ggn_n'], 'plg' => $f['ggn_plg'], 'har_n' => $f['har_n'], 'har_plg' => $f['har_plg']], 'bd' => []];
     }
 
     /** @param list<array{label: string, values: array<string, mixed>}> $lines */
@@ -463,6 +517,20 @@ class BusinessMetricService
             $r->t === 'TEMPORER' && $cell['raw']['temporer'] += (float) $r->n;
             $cell['bd'][ucfirst(strtolower($r->t))] = ($cell['bd'][ucfirst(strtolower($r->t))] ?? 0) + (float) $r->n;
             unset($cell);
+        }
+        // gangguan yang masuk hitungan SAIDI/SAIFI (aturan yang sama dengan analisis gangguan: minimal ambang menit, permanen saja bila diatur)
+        $set = DB::table('outage_sync_settings')->where('id', 1)->first();
+        $counted = DB::table('outage_events')->whereIn('organizational_unit_id', $units)->whereNull('source_removed_at')->whereNotNull('duration_minutes')->where('duration_minutes', '>=', (int) ($set->saidi_min_minutes ?? 5))
+            ->when((bool) ($set->saidi_only_permanent ?? false), fn ($q) => $q->where('outage_type', 'PERMANEN'))
+            ->whereRaw("(occurred_at at time zone 'Asia/Jakarta') >= ?", [$from])->whereRaw("(occurred_at at time zone 'Asia/Jakarta') < ?", [$end])
+            ->selectRaw("organizational_unit_id as u, to_char(occurred_at at time zone 'Asia/Jakarta', 'YYYY-MM') as m, count(*) as n")->groupBy('u', 'm')->get();
+        foreach ($counted as $r) {
+            $out[$r->u][$r->m]['raw']['n_hitung'] = (float) $r->n;
+        }
+        foreach ($out as $u => $byMonth) {
+            foreach ($byMonth as $m => $cell) {
+                $out[$u][$m] = ['raw' => ($cell['raw'] ?? []) + ['n' => 0.0, 'permanen' => 0.0, 'temporer' => 0.0, 'n_hitung' => 0.0], 'bd' => $cell['bd'] ?? []];
+            }
         }
 
         return $out;

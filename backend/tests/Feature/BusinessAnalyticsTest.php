@@ -209,14 +209,28 @@ class BusinessAnalyticsTest extends PostgresTestCase
             'gi_name' => 'GI X', 'feeder_name' => 'F', 'feeder_id' => $feeder, 'device_group' => 'RECLOSER', 'outage_type' => $type, 'ens_kwh' => $ens, 'category' => 'ROW', 'weather' => 'CERAH', 'created_at' => now(), 'updated_at' => now()]);
     }
 
-    /** Laporan DIFI satu bulan: ringkasan (SAIDI menit, SAIFI) dan baris TOTAL KELOMPOK Distribusi (jumlah gangguan, ENS kWh). */
-    private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, int $count, float $ensKwh): void
+    /**
+     * Laporan DIFI satu bulan dengan susunan baris aslinya: ringkasan unit (pelanggan 150, SAIDI dan SAIFI total), lalu kelompok Distribusi per sub kelompok (Padam Tidak Terencana, Padam Terencana,
+     * Bencana Alam) dengan subtotal fasilitas Gardu Induk dan Penyulang, ditambah padam JTR/sambungan rumah yang bukan tingkat penyulang dan hanya masuk TOTAL KELOMPOK Distribusi.
+     *
+     * @param  array{0: int, 1: int, 2: float, 3: float}  $feeder  gangguan penyulang: [kejadian, pelanggan padam, jam x pelanggan, kWh]
+     * @param  array{0: int, 1: int}  $maintenance  pemeliharaan penyulang: [kejadian, pelanggan padam]
+     */
+    private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, array $feeder, array $maintenance = [0, 0]): void
     {
-        $this->report($unit, 'DIFI', $period, [['TOTAL KELOMPOK Distribusi', ['jumlah_gangguan' => $count, 'kwh_tak_tersalurkan' => $ensKwh]]], ['pelanggan' => 150, 'saidi_menit' => $saidi, 'saifi_kali' => $saifi]);
+        $row = fn (int $n, int $plg, float $jxp, float $kwh) => ['jumlah_gangguan' => $n, 'jml_plg_padam' => $plg, 'jam_x_plg' => $jxp, 'kwh_tak_tersalurkan' => $kwh];
+        $this->report($unit, 'DIFI', $period, [
+            ['SUB TOTAL FASILITAS Gardu Induk', $row(0, 0, 0, 0)], ['SUB TOTAL FASILITAS Penyulang', $row(...$feeder)], ['SUB TOTAL FASILITAS JTR', $row(40, 40, 30, 7)],
+            ['TOTAL SUB KELOMPOK Padam Tidak Terencana', $row($feeder[0] + 40, $feeder[1] + 40, $feeder[2] + 30, $feeder[3] + 7)],
+            ['SUB TOTAL FASILITAS Gardu Induk', $row(0, 0, 0, 0)], ['SUB TOTAL FASILITAS Penyulang', $row($maintenance[0], $maintenance[1], 2, 50)], ['TOTAL SUB KELOMPOK Padam Terencana', $row($maintenance[0], $maintenance[1], 2, 50)],
+            ['SUB TOTAL FASILITAS Gardu Induk', $row(0, 0, 0, 0)], ['SUB TOTAL FASILITAS Penyulang', $row(0, 0, 0, 0)], ['TOTAL SUB KELOMPOK Bencana Alam', $row(0, 0, 0, 0)],
+            ['TOTAL KELOMPOK Distribusi', $row($feeder[0] + 40 + $maintenance[0], $feeder[1] + 40 + $maintenance[1], $feeder[2] + 32, $feeder[3] + 57)],
+            ['SUB TOTAL FASILITAS Penyulang', $row(99, 9999, 999, 999)], ['TOTAL SUB KELOMPOK Kelompok Tidak Terencana (Unplanned)', $row(99, 9999, 999, 999)], ['TOTAL KELOMPOK Transmisi', $row(99, 9999, 999, 999)],   // di luar Distribusi: tidak ikut
+        ], ['pelanggan' => 150, 'saidi_menit' => $saidi, 'saifi_kali' => $saifi]);
     }
 
     #[Test]
-    public function saidi_saifi_ens_dan_gangguan_dibandingkan_dengan_data_gangguan_tersinkron_secara_kumulatif(): void
+    public function gangguan_penyulang_saidi_saifi_dan_ens_dibandingkan_dengan_difi_tingkat_penyulang_bukan_total_distribusi(): void
     {
         $f1 = $this->feederOf($this->ulpA, 'F1');
         $f2 = $this->feederOf($this->ulpA, 'F2');
@@ -225,35 +239,45 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->outage($f1, $this->ulpA, '2026-01-10', 'PERMANEN', 60, 500);
         $this->outage($f2, $this->ulpA, '2026-01-12', 'PERMANEN', 30, 200);
         $this->outage($f1, $this->ulpA, '2026-02-03', 'TEMPORER', 10, 100);
-        foreach ([['2026-01-01', 40, 0.8, 2, 600], ['2026-02-01', 7, 0.7, 1, 100], ['2026-03-01', 0, 0, 0, 0]] as [$period, $saidi, $saifi, $count, $ens]) {
-            $this->difi($this->ulpA, $period, $saidi, $saifi, $count, $ens);
-        }
-        $url = fn (string $code) => "/api/pengusahaan/metrics/{$code}?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03";
-
-        $d = $this->as($this->planner)->getJson($url('saidi-saifi'))->assertOk()->json('data');
-        $this->assertSame(['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'], $d['forecast']);
-        $hitung = collect($d['companions']['series'])->keyBy('key');
-        $this->assertEqualsWithDelta(50.0, $hitung['saidi_hitung']['values'][0], 1e-6);                  // (100*60 + 50*30) / 150
-        $this->assertEqualsWithDelta(1000 / 150, $hitung['saidi_hitung']['values'][1], 1e-6);
-        $this->assertEqualsWithDelta(0.0, $hitung['saidi_hitung']['values'][2], 1e-9);                   // bulan tanpa gangguan = 0, bukan kosong
-        $this->assertSame(['saidi', 'saifi'], array_column($d['reconciliations'], 'key'));
-        $this->assertSame('saidi', $d['reconciliation']['key']);
-        $saidi = $d['reconciliations'][0]['ytd'];
-        $this->assertEqualsWithDelta(47.0, $saidi['official_net'], 1e-9);                                 // jumlah nilai bulanan DIFI
-        $this->assertEqualsWithDelta(50 + 1000 / 150, $saidi['companion'], 1e-6);
-        $this->assertSame([1, 1], [$saidi['units_compared'], $saidi['units_expected']]);
-        $this->assertSame('info', collect($d['insights'])->last()['level']);                              // 56,7 lawan 47: dalam kewajaran
-
-        $ens = $this->as($this->planner)->getJson($url('ens'))->assertOk()->json('data');
-        $this->assertEqualsWithDelta(0.7, $ens['reconciliation']['ytd']['official_net'], 1e-9);          // MWh
-        $this->assertEqualsWithDelta(0.8, $ens['reconciliation']['ytd']['companion'], 1e-9);
+        $this->outage($f1, $this->ulpA, '2026-02-04', 'TEMPORER', 2, 0);                          // di bawah ambang 5 menit: gangguan, tetapi tidak dibandingkan dengan DIFI
+        // DIFI tingkat penyulang sama dengan spreadsheet: Januari 2 gangguan, 150 pelanggan, 125 jam x pelanggan (= 100 x 1 jam + 50 x 0,5 jam), 600 kWh; Februari 1 gangguan, 100 pelanggan, 16,67 jam x pelanggan
+        $this->difi($this->ulpA, '2026-01-01', 80, 3.0, [2, 150, 125, 600], [1, 300]);
+        $this->difi($this->ulpA, '2026-02-01', 20, 1.5, [1, 100, 100 / 6, 100]);
+        $this->difi($this->ulpA, '2026-03-01', 5, 0.5, [0, 0, 0, 0]);
+        $url = fn (string $code, string $to = '2026-03') => "/api/pengusahaan/metrics/{$code}?unit_id={$this->ulpA->id}&from=2026-01&to={$to}";
 
         $g = $this->as($this->planner)->getJson($url('gangguan'))->assertOk()->json('data');
-        $this->assertEquals([3.0, 3.0, 0.0], [$g['reconciliation']['ytd']['official_net'], $g['reconciliation']['ytd']['companion'], $g['reconciliation']['ytd']['difference']]);   // bulan tanpa gangguan tetap dihitung (nol)
-        $this->assertSame('Jumlah gangguan Laporan DIFI', $g['reconciliation']['companion_name']);
+        $s = collect($g['series'])->keyBy('key');
+        $this->assertEquals([[2, 2, 0], [2, 1, 0]], [$s['jumlah']['values'], $s['dihitung']['values']]);     // Februari: 2 gangguan, 1 lebih dari ambang
+        $c = collect($g['companions']['series'])->keyBy('key');
+        $this->assertEquals([2, 1, 0], $c['difi_gangguan']['values']);                                      // bukan TOTAL KELOMPOK Distribusi (42, 41, 40) dan bukan kelompok Transmisi
+        $this->assertEquals([150, 100, 0], $c['difi_pelanggan_gangguan']['values']);
+        $this->assertEquals([[1, 0, 0], [300, 0, 0]], [$c['difi_pemeliharaan']['values'], $c['difi_pelanggan_pemeliharaan']['values']]);
+        $this->assertSame(['gangguan'], array_column($g['reconciliations'], 'key'));                         // pelanggan padam tidak diperkirakan dari DIL
+        $this->assertEquals([3, 3, 0], [$g['reconciliation']['ytd']['official_net'], $g['reconciliation']['ytd']['companion'], $g['reconciliation']['ytd']['difference']]);
+        $this->assertSame('info', collect($g['insights'])->last()['level']);
 
-        $rpt = $this->as($this->planner)->getJson($url('rpt-rct-gangguan'))->assertOk()->json('data');
-        $this->assertNull($rpt['reconciliations']);                                                       // laporan pengaduan, bukan gangguan penyulang
+        $d = $this->as($this->planner)->getJson($url('saidi-saifi'))->assertOk()->json('data');
+        $t = collect($d['series'])->keyBy('key');
+        $this->assertEqualsWithDelta(80.0, $t['saidi']['values'][0], 1e-9);                                 // total DIFI tetap angka utama (NKO)
+        $this->assertEqualsWithDelta(50.0, $t['saidi_penyulang']['values'][0], 1e-9);                       // 125 jam x pelanggan x 60 / 150 pelanggan
+        $this->assertEqualsWithDelta(1.0, $t['saifi_penyulang']['values'][0], 1e-9);                        // 150 / 150
+        $saidi = $d['reconciliations'][0]['ytd'];
+        $this->assertEqualsWithDelta(50 + 1000 / 150, $saidi['official_net'], 1e-6);                         // SAIDI gangguan penyulang DIFI ...
+        $this->assertEqualsWithDelta(50 + 1000 / 150, $saidi['companion'], 1e-6);                            // ... sama dengan hitungan DISTRIVA dari spreadsheet
+        $this->assertSame('SAIDI gangguan penyulang (DIFI)', $d['reconciliations'][0]['official_name']);
+
+        $e = $this->as($this->planner)->getJson($url('ens'))->assertOk()->json('data');
+        $this->assertEqualsWithDelta(0.7, $e['reconciliation']['ytd']['official_net'], 1e-9);                // ENS gangguan penyulang DIFI, bukan total distribusi (0,657 + 0,157 + 0,057)
+        $this->assertEqualsWithDelta(0.8, $e['reconciliation']['ytd']['companion'], 1e-9);
+        $this->assertEqualsWithDelta(0.657, collect($e['series'])->firstWhere('key', 'ens')['values'][0], 1e-9);
+
+        // bulan tanpa laporan DIFI tidak dibandingkan (bukan dianggap nol) dan kumulatif tidak dihitung
+        $this->outage($f1, $this->ulpA, '2026-04-02', 'PERMANEN', 40, 50);
+        $apr = $this->as($this->planner)->getJson($url('gangguan', '2026-04'))->assertOk()->json('data');
+        $this->assertSame([null, null], [$apr['reconciliation']['monthly'][3]['official_net'], $apr['reconciliation']['monthly'][3]['companion']]);
+        $this->assertNull($apr['reconciliation']['ytd']);
+        $this->assertStringContainsString('belum dapat dihitung', collect($apr['insights'])->last()['text']);
     }
 
     #[Test]
@@ -261,8 +285,8 @@ class BusinessAnalyticsTest extends PostgresTestCase
     {
         $f1 = $this->feederOf($this->ulpA, 'F1');
         $this->feederCustomers($f1, $this->ulpA, 100);
-        $this->outage($f1, $this->ulpA, '2026-01-10', 'PERMANEN', 60, 1000);          // data tersinkron: 1 MWh
-        $this->difi($this->ulpA, '2026-01-01', 10, 0.1, 1, 100);                      // laporan resmi: 0,1 MWh
+        $this->outage($f1, $this->ulpA, '2026-01-10', 'PERMANEN', 60, 1000);                      // spreadsheet: 1 MWh
+        $this->difi($this->ulpA, '2026-01-01', 10, 0.1, [1, 100, 100, 100]);                      // DIFI tingkat penyulang: 0,1 MWh
 
         $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/ens?unit_id={$this->ulpA->id}&from=2026-01&to=2026-01")->assertOk()->json('data');
 

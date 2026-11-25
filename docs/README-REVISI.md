@@ -16,6 +16,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 ## Terbuka
 
 (Tidak ada tugas terbuka saat ini)
+| 17 | 2026-11-25 | (belum di-commit) | **Perbaikan Gangguan Penyulang, SAIDI/SAIFI, ENS**: pembanding DIFI kini **tingkat penyulang** (Gardu Induk 20 kV + Penyulang), bukan TOTAL KELOMPOK Distribusi yang memuat padam JTR/sambungan rumah. `gangguan`: seri baru `dihitung` (gangguan lebih dari ambang menit); `companions.series` berganti menjadi `difi_gangguan`, `difi_pelanggan_gangguan`, `difi_pemeliharaan`, `difi_pelanggan_pemeliharaan` (kunci lama `difi_jumlah` dihapus); rekonsiliasi `gangguan` = spreadsheet lebih dari ambang lawan gangguan penyulang DIFI; bulan tanpa laporan DIFI bernilai `null` (bukan 0). `saidi-saifi`: seri baru `saidi_penyulang`, `saifi_penyulang`; `ens`: seri baru `ens_penyulang`; rekonsiliasinya lawan bagian penyulang tersebut | docs/91 §3 (tabel pendamping, paragraf DIFI tingkat penyulang) | (a) Menu Gangguan Penyulang: judul/keterangan sumber = **spreadsheet gangguan penyulang**; kartu: jumlah gangguan, permanen/temporer, dihitung (lebih dari ambang); bagian Penjelas DIFI: gangguan penyulang dan **pelanggan padam** (gangguan) serta pemeliharaan dan pelanggan padamnya; jangan tampilkan perkiraan pelanggan dari DIL. (b) Rekonsiliasi: tampilkan `null` sebagai "laporan DIFI belum ada" (bukan 0). (c) SAIDI/SAIFI dan ENS: tampilkan seri bagian penyulang di samping total, beri label bahwa total DIFI juga memuat padam JTR/sambungan rumah dan pemeliharaan | BARU | |
 
 ## Selesai
 
