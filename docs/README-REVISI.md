@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-(Tidak ada tugas terbuka saat ini)
+| # | Tanggal | Perubahan backend | Dokumen | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|
+| 23 | 2026-11-25 | **Histori sumber RPT-RCT Gangguan memuat data APKT**: `GET /pengusahaan/metrics/rpt-rct-gangguan/history` kini `families` = `["GGNALL","APKT_RPT_RCT"]`; `files` memuat baris per ULP dan bulan penarikan APKT (`family: "APKT_RPT_RCT"`, `line_count` = varian clear temper tersimpan, `id` = `unitId|YYYY-MM` bukan UUID); `coverage` = bulan ada bila GGNALL **atau** APKT ada; baru `coverage_by_source` (`GGNALL`, `APKT_RPT_RCT`); `syncs` memuat penarikan `kind: "apkt"` dataset `rpt-rct-gangguan` | docs/91 §1 (Histori RPT-RCT Gangguan) | `BusinessHistoryTab.jsx` untuk menu ini: tampilkan baris berkas APKT (label sumber, tanpa tautan unduh), matriks kelengkapan dari `coverage` (opsional pilihan per sumber lewat `coverage_by_source`), dan sesi penarikan APKT lewat `syncs` (badge `kind: "apkt"` dan `options.dataset`) | BARU |
 
 ## Selesai
 

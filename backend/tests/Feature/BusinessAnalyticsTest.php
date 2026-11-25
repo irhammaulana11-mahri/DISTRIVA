@@ -598,6 +598,34 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function histori_rpt_rct_gangguan_memuat_data_apkt_pada_berkas_kelengkapan_dan_sesi(): void
+    {
+        $run = (string) Str::uuid();
+        DB::table('eis_sync_runs')->insert(['id' => $run, 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'rpt-rct-gangguan', 'from_month' => '2026-03', 'to_month' => '2026-03', 'token_encrypted' => 'rahasia']), 'created_at' => now()]);
+        DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'saidi-saifi']), 'created_at' => now()]);
+        foreach ([false, true] as $ct) {
+            DB::table('apkt_rpt_rct_records')->insert(['id' => (string) Str::uuid(), 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-03-01', 'clear_temper' => $ct, 'rpt_total' => 10, 'rpt_count' => 1, 'rct_total' => 20, 'rct_count' => 1, 'sync_run_id' => $run, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
+
+        $d = $this->as($admin)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan/history?unit_id={$this->up3->id}&year=2026")->assertOk()->json('data');
+
+        $this->assertSame(['GGNALL', 'APKT_RPT_RCT'], $d['families']);
+        $apkt = collect($d['files'])->where('family', 'APKT_RPT_RCT')->values();
+        $this->assertCount(1, $apkt);
+        $this->assertSame(['ULP A', '2026-03', 2], [$apkt[0]['unit_name'], $apkt[0]['period'], $apkt[0]['line_count']]);
+        $cov = collect($d['coverage']['units'])->keyBy('unit_name');
+        $this->assertTrue($cov['ULP A']['months'][2]);                                                   // Maret ada dari APKT walau GGNALL tidak ada
+        $this->assertFalse($cov['ULP B']['months'][2]);
+        $this->assertFalse(collect($d['coverage_by_source']['GGNALL']['units'])->keyBy('unit_name')['ULP A']['months'][2]);
+        $this->assertTrue(collect($d['coverage_by_source']['APKT_RPT_RCT']['units'])->keyBy('unit_name')['ULP A']['months'][2]);
+        $this->assertCount(1, $d['syncs']);                                                              // hanya penarikan APKT dataset ini
+        $this->assertSame('apkt', $d['syncs'][0]['kind']);
+        $this->assertArrayNotHasKey('token_encrypted', $d['syncs'][0]['options']);
+    }
+
+    #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {
         $this->sales($this->ulpB, '2026-01-01', 1, 1);

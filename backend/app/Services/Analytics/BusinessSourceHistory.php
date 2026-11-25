@@ -54,6 +54,7 @@ class BusinessSourceHistory
                 }
             }
             $out['coverage'] = $this->coverage($ulps, $months, fn (string $u) => $have[$u] ?? [], $expectedUntil);
+            $code === 'rpt-rct-gangguan' && $out = $this->withApkt($out, $ulps, $months, $have, $expectedUntil);
         } elseif ($code === 'susut') {
             $have = DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', array_keys($ulps))->whereBetween('period', [$months[0].'-01', end($months).'-01'])
                 ->get(['organizational_unit_id', 'period'])->groupBy('organizational_unit_id')->map(fn ($rows) => $rows->map(fn ($r) => substr((string) $r->period, 0, 7))->all());
@@ -62,6 +63,38 @@ class BusinessSourceHistory
                 ->whereIn('i.organizational_unit_id', array_keys($ulps))->orderByDesc('i.updated_at')->limit(self::FILE_LIMIT)->get(['i.period', 'i.code', 'i.value', 'i.note', 'o.name as unit_name', 'u.name as entered_by', 'i.updated_at'])
                 ->map(fn ($r) => ['period' => substr((string) $r->period, 0, 7), 'code' => $r->code, 'value' => (float) $r->value, 'note' => $r->note, 'unit_name' => $r->unit_name, 'entered_by' => $r->entered_by, 'updated_at' => $r->updated_at])->all();
         }
+
+        return $out;
+    }
+
+    /**
+     * RPT/RCT gangguan punya dua sumber: laporan GGNALL (EIS) dan penarikan APKT (apkt_rpt_rct_records). Berkas APKT ditambahkan ke daftar `files` (satu baris per ULP dan bulan, family APKT_RPT_RCT),
+     * dan sebuah bulan dianggap ada bila salah satu sumber ada; kelengkapan tiap sumber terlihat pada `coverage_by_source`.
+     *
+     * @param  array<string, mixed>  $out
+     * @param  array<string, string>  $ulps
+     * @param  list<string>  $months
+     * @param  array<string, list<string>>  $haveGgnall
+     * @return array<string, mixed>
+     */
+    private function withApkt(array $out, array $ulps, array $months, array $haveGgnall, string $expectedUntil): array
+    {
+        $rows = DB::table('apkt_rpt_rct_records as r')->join('organizational_units as o', 'o.id', '=', 'r.organizational_unit_id')->leftJoin('eis_sync_runs as s', 's.id', '=', 'r.sync_run_id')->leftJoin('users as u', 'u.id', '=', 's.started_by')
+            ->whereIn('r.organizational_unit_id', array_keys($ulps))->groupBy('r.organizational_unit_id', 'r.period', 'o.name')
+            ->get(['r.organizational_unit_id', 'r.period', 'o.name as unit_name', DB::raw('count(*) as variants'), DB::raw('max(r.updated_at) as imported_at'), DB::raw('max(u.name) as uploaded_by')]);
+        $haveApkt = [];
+        foreach ($rows as $r) {
+            $haveApkt[$r->organizational_unit_id][] = substr((string) $r->period, 0, 7);
+        }
+        $apktFiles = $rows->map(fn ($r) => ['id' => $r->organizational_unit_id.'|'.substr((string) $r->period, 0, 7), 'family' => 'APKT_RPT_RCT', 'period' => substr((string) $r->period, 0, 7), 'unit_id' => $r->organizational_unit_id, 'unit_name' => $r->unit_name,
+            'original_name' => 'APKT RPT/RCT gangguan (dengan dan tanpa clear temper)', 'status' => 'AKTIF', 'line_count' => (int) $r->variants, 'warnings_count' => 0, 'imported_at' => $r->imported_at, 'uploaded_by' => $r->uploaded_by])->all();
+        $files = array_merge($out['files'], $apktFiles);
+        usort($files, fn ($a, $b) => strcmp((string) $b['imported_at'], (string) $a['imported_at']));
+        $union = fn (string $u): array => array_values(array_unique(array_merge($haveGgnall[$u] ?? [], $haveApkt[$u] ?? [])));
+        $out['files'] = array_slice($files, 0, self::FILE_LIMIT);
+        $out['families'] = ['GGNALL', 'APKT_RPT_RCT'];
+        $out['coverage_by_source'] = ['GGNALL' => $out['coverage'], 'APKT_RPT_RCT' => $this->coverage($ulps, $months, fn (string $u) => $haveApkt[$u] ?? [], $expectedUntil)];
+        $out['coverage'] = $this->coverage($ulps, $months, $union, $expectedUntil);
 
         return $out;
     }
@@ -105,6 +138,7 @@ class BusinessSourceHistory
             $code === 'susut' => DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->min('period'),
             default => null,
         };
+        $code === 'rpt-rct-gangguan' && $first = min(array_filter([$first, DB::table('apkt_rpt_rct_records')->whereIn('organizational_unit_id', $units)->min('period')]) ?: [null]);
         $to = (int) substr(max($latestMonth, $expectedUntil), 0, 4);
         $from = $first === null ? (int) substr($latestMonth, 0, 4) : min((int) substr((string) $first, 0, 4), $to);
 

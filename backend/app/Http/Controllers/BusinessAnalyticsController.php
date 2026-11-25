@@ -141,6 +141,16 @@ class BusinessAnalyticsController extends Controller
                 ->map(fn ($r) => ['source' => 'eis-sync', 'id' => $r->id, 'kind' => strtolower((string) $r->kind), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'options' => $r->options === null ? null : json_decode((string) $r->options, true),
                     'range_from' => $r->range_from, 'range_to' => $r->range_to, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
         }
+        if ($code === 'rpt-rct-gangguan') {
+            if ($this->authorizer->roleFor($user, 'eis_sync.manage') === null) {
+                return null;
+            }
+
+            return DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.kind', 'APKT')->whereRaw("r.options->>'dataset' = 'rpt-rct-gangguan'")->orderByDesc('r.created_at')->limit(20)
+                ->get(['r.id', 'r.trigger', 'r.status', 'r.kind', 'r.options', 'r.range_from', 'r.range_to', 'r.exit_code', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
+                ->map(fn ($r) => ['source' => 'eis-sync', 'id' => $r->id, 'kind' => strtolower((string) $r->kind), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'options' => $r->options === null ? null : array_diff_key((array) json_decode((string) $r->options, true), ['token_encrypted' => 1]),
+                    'range_from' => $r->range_from, 'range_to' => $r->range_to, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();
+        }
         if (in_array($code, ['gangguan', 'saidi-saifi', 'ens'], true)) {
             if ($this->authorizer->roleFor($user, 'outages.view') === null) {
                 return null;
