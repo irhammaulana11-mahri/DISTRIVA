@@ -1065,6 +1065,93 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertSame([$last, $current], [$risk['detail']['risk']['as_of_month'], $risk['detail']['risk']['target_month']]);   // dilatih sampai bulan lengkap terakhir, sasaran bulan berjalan
     }
 
+    /** Laporan umur tunggakan satu ULP: tiap elemen [jumlah lembar, pelanggan, rupiah]. */
+    private function umur(OrganizationalUnit $unit, string $period, array $classes): void
+    {
+        $this->report($unit, 'UMURPIUTANG', $period, array_map(fn (array $c) => [(string) $c[0], ['kogol' => '0', 'plg' => $c[1], 'lbr' => $c[1] * $c[0], 'gabungan' => $c[2]]], $classes));
+    }
+
+    #[Test]
+    public function wawasan_umur_tunggakan_menghitung_roll_rate_pelanggan_prakiraan_dan_menandai_keandalannya(): void
+    {
+        // deret tetap 14 bulan (Oktober 2025 sampai November 2026): kelas 1 bulan 100 pelanggan, 2 bulan 20, 3 bulan 6, lembar 4 (4-6) 3, lembar 8 (7-12) 2, dua ULP dengan angka sama
+        foreach (range(0, 13) as $i) {
+            $period = date('Y-m-01', strtotime("2025-10-01 +{$i} month"));
+            foreach ([$this->ulpA, $this->ulpB] as $unit) {
+                $this->umur($unit, $period, [[1, 100, 1000000], [2, 20, 400000], [3, 6, 250000], [4, 3, 3000000], [8, 2, 5000000]]);
+            }
+        }
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-pascabayar-umur?unit_id={$this->up3->id}&from=2026-01&to=2026-11")->assertOk()->json('data.detail');
+
+        $this->assertSame(['receivable_aging', true, '2026-11', '2026-12'], [$d['kind'], $d['available'], $d['as_of_month'], $d['target_month']]);
+        $this->assertEquals([100 * 2, 20 * 2, 6 * 2, 3 * 2, 2 * 2, 0], array_column($d['snapshot'], 'plg'));                      // dua ULP dijumlahkan
+        $this->assertEquals(2 * (1000000 + 400000 + 250000 + 3000000 + 5000000), $d['rp_total']);
+        $this->assertEqualsWithDelta((3000000 + 5000000) / (1000000 + 400000 + 250000 + 3000000 + 5000000) * 100, $d['over_3_pct'], 0.01);
+        $rows = collect($d['rates']['rows'])->keyBy('key');
+        $this->assertSame('plg', $d['rates']['basis']);
+        $this->assertEquals(200.0, $rows['1 bulan']['rate']);                                                                    // kelas pertama: tingkat, bukan laju
+        $this->assertEqualsWithDelta(20 / 120, $rows['2 bulan']['rate'], 1e-4);                                                  // 40 / (200 + 40)
+        $this->assertEqualsWithDelta(6 / 26, $rows['3 bulan']['rate'], 1e-4);
+        $this->assertEqualsWithDelta(3 / 9, $rows['4-6 bulan']['rate'], 1e-4);
+        $this->assertEqualsWithDelta(2 / 5, $rows['7-12 bulan']['rate'], 1e-4);
+        $this->assertEqualsWithDelta(20 / 120, $rows['2 bulan']['rate_last'], 1e-4);
+        $this->assertCount(12, $d['history']);
+
+        $f = $d['forecast'];
+        $this->assertSame(['pelanggan', 'plg'], [$f['unit'], $f['basis']]);
+        $this->assertEquals([200, 40, 12, 6, 4, 0], array_column($f['by_bucket'], 'value'));                                     // deret tetap diprakirakan tetap
+        $this->assertEquals(10, $f['over_3_months']);
+        $this->assertEquals(0.0, $d['forecast']['over_3_change_pct']);
+        $this->assertGreaterThanOrEqual(6, $f['backtest']['months']);
+        $this->assertFalse($f['reliable']);                                                                                       // sama dengan cara naif (kesalahan 0 dan 0): tidak lebih baik
+        $this->assertSame(['ULP A', 'ULP B'], array_column($d['units'], 'unit_name'));
+        $this->assertEqualsWithDelta(8000000 / 9650000 * 100, $d['units'][0]['over_3_pct'], 0.01);
+
+        // tanpa laporan umur tunggakan
+        $none = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-pascabayar?unit_id={$this->up3->id}&from=2026-01&to=2026-11")->assertOk()->json('data.detail');
+        $this->assertSame('receivable_aging', $none['kind']);
+    }
+
+    #[Test]
+    public function wawasan_umur_tunggakan_tidak_tersedia_tanpa_laporan_dan_prakiraan_ditolak_bila_riwayat_pendek(): void
+    {
+        $this->umur($this->ulpA, '2026-10-01', [[1, 10, 100], [2, 5, 50]]);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-pascabayar-umur?unit_id={$this->ulpA->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail');
+        $this->assertSame('2026-10', $d['as_of_month']);
+        $this->assertFalse($d['forecast']['available']);                                                                          // satu bulan: belum ada transisi
+
+        $empty = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-pascabayar-umur?unit_id={$this->ulpB->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail');
+        $this->assertFalse($empty['available']);
+        $this->assertStringContainsString('Belum ada laporan umur tunggakan', $empty['reason']);
+    }
+
+    #[Test]
+    public function wawasan_pelunasan_prr_membagi_rupiah_menurut_umur_bulan_tagihan_dan_hanya_unit_dalam_cakupan(): void
+    {
+        $line = fn (string $blth, float $rp) => [$blth, ['rp_prr' => $rp, 'rpptl' => $rp, 'pelanggan' => 1, 'transaksi' => 1]];
+        // dibayar Maret 2026: BLTH Maret 2026 (umur 0), Desember 2025 (3), September 2025 (6), Maret 2025 (12), Maret 2024 (24), Januari 2023 (38)
+        $this->report($this->ulpA, 'PRR', '2026-03-01', [$line('202603', 100), $line('202512', 200), $line('202509', 300), $line('202503', 400), $line('202403', 500), $line('202301', 600)], ['pelanggan' => 6, 'transaksi' => 6, 'sampai_tanggal' => 20260331]);
+        $this->report($this->ulpB, 'PRR', '2026-03-01', [$line('202603', 50)], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => 20260331]);
+        $this->report($this->ulpA, 'EXPRR', '2026-03-01', [$line('202601', 70)], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => 20260331]);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->up3->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+
+        $this->assertSame(['repayment_age', 2], [$d['kind'], $d['files']]);
+        $this->assertEquals(2150, $d['rp_total']);
+        $rows = collect($d['rows'])->pluck('rp', 'key')->all();
+        $this->assertEquals(['0 sampai 3 bulan' => 350, '4 sampai 6 bulan' => 300, '7 sampai 12 bulan' => 400, '13 sampai 24 bulan' => 500, 'lebih dari 24 bulan' => 600], $rows);
+        $this->assertEqualsWithDelta(350 / 2150 * 100, $d['rows'][0]['share_pct'], 0.01);
+        $this->assertSame(['2026-03'], array_column($d['monthly'], 'month'));
+
+        $ex = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-ex-prr?unit_id={$this->up3->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+        $this->assertEquals(70, $ex['rp_total']);
+        $this->assertEquals(70, collect($ex['rows'])->firstWhere('key', '0 sampai 3 bulan')['rp']);                              // BLTH Januari dibayar Maret: umur 2
+        $viewer = $this->as($this->viewer)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+        $this->assertEquals(2100, $viewer['rp_total']);                                                                           // peran ULP hanya melihat ULP-nya
+    }
+
     #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {

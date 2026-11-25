@@ -1,6 +1,6 @@
 # 92 — Standar Halaman dan Penajaman Analisa Pengusahaan (rancangan)
 
-Status: **rancangan disetujui pemilik (25 Nov 2026). Tahap 1 sisi backend selesai (target NKO, sumbangan ULP, diagnosis; kontrak di docs/91 `targets`, `contribution`, `diagnosis`). Tahap 2 (uji coba keandalan) sisi backend selesai: `detail` pada menu SAIDI/SAIFI, ENS, dan Gangguan (Pareto penyulang, gangguan berulang, komposisi penyebab dan cuaca, skor risiko dengan uji mundur); prakiraan cuaca BMKG belum. Sisi frontend dan tahap berikutnya belum.** Dokumen ini menetapkan arah; kontrak API tiap tahap ditulis di docs/91 dan dicatat di README-REVISI saat tahap itu dikerjakan backend. Berlaku untuk semua menu di bawah label **Analisa & Tren Pengusahaan** (katalog metrik docs/91 §1).
+Status: **rancangan disetujui pemilik (25 Nov 2026). Tahap 1 sisi backend selesai (target NKO, sumbangan ULP, diagnosis; kontrak di docs/91 `targets`, `contribution`, `diagnosis`). Tahap 2 (uji coba keandalan) sisi backend selesai: `detail` pada menu SAIDI/SAIFI, ENS, dan Gangguan (Pareto penyulang, gangguan berulang, komposisi penyebab dan cuaca, skor risiko dengan uji mundur); prakiraan cuaca BMKG belum. Tahap 3 (uji coba piutang) sisi backend selesai: `detail` pada menu umur tunggakan, piutang pascabayar, dan pelunasan PRR/Ex PRR (roll-rate pelanggan, prakiraan calon PRR dengan uji mundur, umur BLTH pelunasan); prakiraan berbasis rupiah ditolak karena kalah dari cara naif. Sisi frontend dan tahap berikutnya belum.** Dokumen ini menetapkan arah; kontrak API tiap tahap ditulis di docs/91 dan dicatat di README-REVISI saat tahap itu dikerjakan backend. Berlaku untuk semua menu di bawah label **Analisa & Tren Pengusahaan** (katalog metrik docs/91 §1).
 
 ## 1. Tujuan
 
@@ -108,7 +108,7 @@ Kolom "Data DISTRIVA" menyebut data yang sudah ada; "Data luar" adalah calon yan
   - **roll-rate**: persentase tunggakan kelas umur n yang menjadi kelas n+1 bulan berikutnya (1 → 2 → 3 → lebih dari 3 bulan), per ULP dan per kogol; ini mengubah daftar umur piutang yang statis menjadi peringatan dini;
   - efektivitas penagihan: tunggakan awal bulan yang lunas dalam bulan itu;
   - kogol dan ULP dengan roll-rate tertinggi sebagai daftar perhatian.
-- **Prakiraan:** saldo per kelas umur bulan depan = saldo sekarang × roll-rate (termasuk calon PRR). Hipotesis yang perlu diuji: Lebaran dan musim panen memengaruhi pembayaran di ULP agraris.
+- **Prakiraan:** jumlah pelanggan per kelas umur bulan depan dari roll-rate (termasuk calon PRR). **Hasil uji (26 Nov 2026):** dasar pelanggan mengalahkan cara naif (kesalahan 29,7% lawan 49,8%, 9 bulan uji mundur pada UP3), sedangkan dasar rupiah kalah jauh (86% lawan 23%) karena segelintir pelanggan besar; jadi hanya jumlah pelanggan yang diprakirakan. Hipotesis yang perlu diuji: Lebaran dan musim panen memengaruhi pembayaran di ULP agraris.
 
 ### 6.5 Pelunasan PRR dan Ex PRR (`pelunasan-prr`, `pelunasan-ex-prr`)
 
