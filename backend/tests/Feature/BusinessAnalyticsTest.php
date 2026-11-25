@@ -1064,6 +1064,52 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function detail_p2tl_memuat_corong_tingkat_realisasi_per_ulp_dan_perkiraan_dari_penetapan_dengan_uji_mundur(): void
+    {
+        $ts = fn (string $label, float $kwh, int $n) => [$label, ['kwh' => $kwh, 'rp_total' => $kwh * 1000, 'jumlah' => $n]];
+        $pen = fn (float $kwh) => [['Penetapan P2TL', 'PENETAPAN_P2TL', $kwh, $kwh * 1000]];
+        foreach (range(0, 5) as $i) {
+            $m = date('Y-m-01', strtotime("2026-01-01 +{$i} month"));
+            $penA = 1000 + 200 * $i;                                                                           // ULP A: realisasi 90% penetapan; ULP B: 80% (Juni hanya 600 dari 1.000)
+            $penB = 500 + 100 * $i;
+            $this->kontrol309($this->ulpA, $m, $pen($penA));
+            $this->kontrol309($this->ulpB, $m, $pen($penB));
+            $this->report($this->ulpA, 'TAGSUS', $m, [$ts('K2', $penA * 0.9, 2)]);
+            $this->report($this->ulpB, 'TAGSUS', $m, [$ts('P3', $i === 5 ? 600 : $penB * 0.8, 1)]);
+        }
+        $this->report($this->ulpA, 'TAGSUS_BELUM', '2026-06-01', [$ts('K2', 50, 1)]);
+        // definisi penetapan lama (sebelum 2026): jauh lebih kecil dari realisasi, tidak boleh masuk rasio
+        $this->kontrol309($this->ulpA, '2025-12-01', $pen(10));
+        $this->report($this->ulpA, 'TAGSUS', '2025-12-01', [$ts('K2', 900, 2)]);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-p2tl?unit_id={$this->up3->id}&from=2026-01&to=2026-06")->assertOk()->json('data.detail');
+
+        $this->assertSame(['p2tl', 2026], [$d['kind'], $d['year']]);
+        $jun = collect($d['funnel'])->firstWhere('month', '2026-06');
+        $this->assertEquals([3000, 2400, 50, 0.8], [$jun['penetapan_kwh'], $jun['realisasi_kwh'], $jun['belum_kwh'], $jun['ratio']]);
+        $this->assertTrue($jun['ratio_consistent']);
+        $this->assertFalse(collect($d['funnel'])->firstWhere('month', '2025-12')['ratio_consistent']);          // rasio 90 kali: definisi lama
+
+        $p = $d['projection'];
+        $this->assertTrue($p['available']);
+        $this->assertEqualsWithDelta(9100 / 10500, $p['ratio'], 0.001);              // rasio kumulatif Januari sampai Mei
+        $this->assertEquals([2600, 2400], [$p['expected_realisasi_kwh'], $p['actual_realisasi_kwh']]);
+        $this->assertEqualsWithDelta(92.3, $p['achieved_pct'], 0.05);
+        $this->assertEquals([2, 0.0], [$p['backtest']['months'], $p['backtest']['model_mape_pct']]);               // rasio tetap: model tepat; cara naif meleset
+        $this->assertGreaterThan(0, $p['backtest']['naive_mape_pct']);
+        $this->assertFalse($p['reliable']);                                                                      // riwayat uji kurang dari enam bulan
+        $this->assertNotNull($p['reliability_note']);
+
+        $rows = collect($d['ulps']['rows']);
+        $a = $rows->firstWhere('unit_id', $this->ulpA->id);
+        $b = $rows->firstWhere('unit_id', $this->ulpB->id);
+        $this->assertEquals([8100, 90.0, 12, 50.0], [$a['realisasi_kwh'], $a['realisasi_rate_pct'], $a['cases'], $a['belum_kwh']]);   // 2025 tidak ikut
+        $this->assertEquals([75.6, 1000], [$b['realisasi_rate_pct'], $b['rp_per_kwh']]);
+        $this->assertSame($this->ulpA->id, $d['ulps']['rows'][0]['unit_id']);
+        $this->assertSame(['K2', 'P3'], array_column($d['violations'], 'key'));
+    }
+
+    #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
         Cache::flush();

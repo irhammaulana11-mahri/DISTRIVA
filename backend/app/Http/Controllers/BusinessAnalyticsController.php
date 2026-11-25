@@ -11,6 +11,7 @@ use App\Services\Analytics\BusinessMetricWorkbook;
 use App\Services\Analytics\BusinessSourceHistory;
 use App\Services\Analytics\BusinessTargetService;
 use App\Services\Analytics\BusinessTrendBuilder;
+use App\Services\Analytics\P2tlInsights;
 use App\Services\Analytics\ReceivableInsights;
 use App\Services\Analytics\ReliabilityInsights;
 use App\Services\Analytics\ResponseInsights;
@@ -33,7 +34,7 @@ class BusinessAnalyticsController extends Controller
     private const INPUT_PERMISSION = 'pengusahaan.input';
 
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $inputWorkbook, private readonly BusinessMetricWorkbook $workbook,
-        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable, private readonly SalesInsights $sales, private readonly ResponseInsights $response, private readonly AnomalyInsights $anomaly) {}
+        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable, private readonly SalesInsights $sales, private readonly ResponseInsights $response, private readonly AnomalyInsights $anomaly, private readonly P2tlInsights $p2tl) {}
 
     /** GET /pengusahaan/metrics: katalog metrik dan unit yang boleh dilihat. */
     public function index(Request $request): JsonResponse
@@ -132,6 +133,7 @@ class BusinessAnalyticsController extends Controller
             'pelunasan-ex-prr' => $this->receivable->repayment('EXPRR', $ids, $to),
             'rpt-rct-gangguan', 'rpt-rct-keluhan' => $this->response->detail($code, $ids, $to),
             'anomali-gangguan', 'anomali-keluhan' => $this->anomaly->detail($code, $ids, $to),
+            'kwh-p2tl' => $this->p2tl->detail($ids, $to),
             default => null,
         }]
             + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to, fn (array $ytd) => $this->targets->targets($code, $unit, $to, $ytd));
