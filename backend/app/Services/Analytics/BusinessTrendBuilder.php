@@ -15,6 +15,9 @@ class BusinessTrendBuilder
     public const DIFI_METRICS = ['saidi-saifi', 'ens', 'gangguan'];
 
     /** Metrik yang bersumber penarikan APKT => tabel penyimpanannya. */
+    /** Metrik pelunasan AP2T per tanggal bayar (berkas): bulan berjalan hanya sampai tanggal tarik. */
+    public const PARTIAL_FILE_FAMILIES = ['pelunasan-prr' => 'PRR', 'pelunasan-ex-prr' => 'EXPRR'];
+
     public const APKT_TABLES = ['rpt-rct-gangguan' => 'apkt_rpt_rct_records', 'rpt-rct-keluhan' => 'apkt_rpt_rct_keluhan_records', 'anomali-gangguan' => 'apkt_anomali_gangguan_records', 'anomali-keluhan' => 'apkt_anomali_keluhan_records'];
 
     private const MONTHS = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -32,8 +35,42 @@ class BusinessTrendBuilder
         return match (true) {
             in_array($code, self::DIFI_METRICS, true) => $this->difi->check($units, $to),
             isset(self::APKT_TABLES[$code]) => $this->partialApktMonth($code, $units, $to),
+            isset(self::PARTIAL_FILE_FAMILIES[$code]) => $this->partialFileMonth(self::PARTIAL_FILE_FAMILIES[$code], $units, $to),
             default => [],
         };
+    }
+
+    /**
+     * Pelunasan PRR/ex-PRR bulan berjalan hanya memuat pembayaran sampai tanggal penarikan (`summary.sampai_tanggal`): bulan itu belum penuh dan tidak sebanding dengan bulan penuh.
+     *
+     * @param  list<string>  $units
+     * @return list<array<string, mixed>>
+     */
+    private function partialFileMonth(string $family, array $units, string $to): array
+    {
+        $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
+        $now = now($tz);
+        $current = $now->format('Y-m');
+        if ($units === [] || $to < $current) {
+            return [];
+        }
+        $files = DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->where('period', $current.'-01')->get(['summary', 'imported_at']);
+        if ($files->isEmpty()) {
+            return [];
+        }
+        $until = (int) $files->map(fn ($f) => (int) ((json_decode((string) $f->summary, true) ?: [])['sampai_tanggal'] ?? 0))->min();
+        $day = $until > 0 ? (int) substr((string) $until, 6, 2) : $now->day;
+
+        return [[
+            'code' => 'ap2t_current_month_partial',
+            'severity' => 'warning',
+            'month' => $current,
+            'message' => sprintf('Data %s %s hanya memuat pembayaran sampai tanggal %d (terakhir ditarik %s). Angka bulan ini belum penuh dan tidak sebanding dengan bulan penuh; tarik ulang setelah bulan berakhir.',
+                $family === 'PRR' ? 'pelunasan PRR' : 'pelunasan Ex PRR', $current, $day, Carbon::parse($files->max('imported_at'))->setTimezone($tz)->format('d-m-Y H:i')),
+            'days_elapsed' => $day,
+            'last_pulled_at' => Carbon::parse($files->max('imported_at'))->toIso8601String(),
+            'units_reporting' => $files->count(),
+        ]];
     }
 
     /**

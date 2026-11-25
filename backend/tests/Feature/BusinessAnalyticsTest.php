@@ -795,6 +795,64 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertEquals([100.0, 10.0, null], collect($d['series'])->firstWhere('key', 'kwh')['values']);  // angka utama tidak berubah
     }
 
+    /** Laporan pelunasan PRR atau ex-PRR satu ULP: baris per BLTH (label), ringkasan berkas berisi pelanggan, transaksi, dan tanggal akhir rentang bayar. */
+    private function pelunasan(OrganizationalUnit $unit, string $family, string $period, array $byBlth, array $summary): void
+    {
+        $this->report($unit, $family, $period, array_map(fn (string $blth, array $v) => [$blth, $v], array_keys($byBlth), $byBlth), $summary);
+    }
+
+    #[Test]
+    public function pelunasan_prr_dan_ex_prr_menjumlahkan_komponen_dan_bulan_tagihan_antar_ulp_dengan_sesi_dan_peringatan_bulan_berjalan(): void
+    {
+        $current = now(config('distriva.business_timezone'))->format('Y-m');
+        $today = (int) now(config('distriva.business_timezone'))->format('Ymd');
+        $run = fn (array $reports) => DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'AP2T', 'options' => json_encode(['dataset' => 'tagsus', 'reports' => $reports]), 'created_at' => now()]);
+        $run(['pelunasan_prr']);
+        $run(['realisasi']);
+        $this->pelunasan($this->ulpA, 'PRR', '2026-03-01', ['202601' => ['rpptl' => 1000, 'rp_trafo' => 0, 'rp_sewakap' => 0, 'rp_tagsus' => 200, 'rp_bk' => 50, 'rp_prr' => 1250, 'pelanggan' => 3, 'transaksi' => 3],
+            '202602' => ['rpptl' => 500, 'rp_bk' => 10, 'rp_prr' => 510, 'pelanggan' => 1, 'transaksi' => 1]], ['pelanggan' => 3, 'transaksi' => 4, 'sampai_tanggal' => 20260331]);
+        $this->pelunasan($this->ulpB, 'PRR', '2026-03-01', ['202601' => ['rpptl' => 100, 'rp_prr' => 100, 'pelanggan' => 1, 'transaksi' => 1]], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => 20260331]);
+        foreach (['2026-01-01', '2026-02-01'] as $quiet) {
+            $this->pelunasan($this->ulpA, 'PRR', $quiet, [], ['pelanggan' => 0, 'transaksi' => 0, 'sampai_tanggal' => 20260131]);      // Januari dan Februari tanpa pelunasan: kumulatif tetap dapat dihitung
+        }
+        $this->pelunasan($this->ulpA, 'PRR', '2026-04-01', [], ['pelanggan' => 0, 'transaksi' => 0, 'sampai_tanggal' => 20260430]);                      // April: tidak ada pelunasan = nol
+        $this->pelunasan($this->ulpA, 'PRR', $current.'-01', ['202610' => ['rpptl' => 70, 'rp_prr' => 70, 'pelanggan' => 1, 'transaksi' => 1]], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => $today]);
+        $this->pelunasan($this->ulpA, 'EXPRR', '2026-03-01', ['202512' => ['rpptl' => 40, 'rp_prr' => 40, 'pelanggan' => 1, 'transaksi' => 1]], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => 20260331]);
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
+
+        $d = $this->as($admin)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->up3->id}&from=2026-03&to=2026-04")->assertOk()->json('data');
+
+        $s = collect($d['series'])->keyBy('key');
+        $this->assertSame('up', $d['metric']['polarity']);
+        $this->assertEquals([1860.0, 0.0], $s['rp']['values']);                                              // Maret 1250 + 510 + 100; April tanpa pelunasan = 0
+        $this->assertEquals([4.0, 0.0], $s['pelanggan']['values']);                                           // 3 + 1 pelanggan (ULP berbeda)
+        $this->assertEquals([5.0, 0.0], $s['transaksi']['values']);
+        $this->assertEquals(1860.0, collect($d['summary'])->firstWhere('key', 'rp')['ytd']);                  // kumulatif = jumlah bulanan
+        $march = $this->as($admin)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
+        $this->assertSame('Komponen pelunasan', $march['breakdown']['dimension']);
+        $this->assertEquals(['Pemakaian listrik (RPPTL)' => 1600.0, 'Tagihan susulan (TS)' => 200.0, 'Biaya keterlambatan (BK)' => 60.0], collect($march['breakdown']['rows'])->pluck('value', 'key')->all());
+        $this->assertSame('Bulan tagihan (BLTH)', $march['breakdown_secondary']['dimension']);
+        $this->assertEquals(['2026-01' => 1350.0, '2026-02' => 510.0], collect($march['breakdown_secondary']['rows'])->pluck('value', 'key')->all());
+        $this->assertNull($march['matrix']);
+
+        $ex = $this->as($admin)->getJson("/api/pengusahaan/metrics/pelunasan-ex-prr?unit_id={$this->ulpA->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
+        $this->assertEquals([40.0], collect($ex['series'])->firstWhere('key', 'rp')['values']);
+
+        $h = $this->as($admin)->getJson("/api/pengusahaan/metrics/pelunasan-prr/history?unit_id={$this->up3->id}&year=2026")->assertOk()->json('data');
+        $this->assertSame('PRR', $h['family']);
+        $this->assertCount(1, $h['syncs']);                                                                    // hanya penarikan yang memuat laporan PRR
+        $partial = $this->as($admin)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->up3->id}&from=2026-03&to={$current}")->assertOk()->json('data.warnings');
+        $this->assertSame(['ap2t_current_month_partial'], array_column($partial, 'code'));
+        $this->assertSame([$current, 1], [$partial[0]['month'], $partial[0]['units_reporting']]);
+        $this->assertStringContainsString('pelunasan PRR', $partial[0]['message']);
+        $this->assertSame([], $d['warnings']);                                                                 // rentang berhenti sebelum bulan berjalan
+        foreach (['pelunasan-prr', 'pelunasan-ex-prr'] as $code) {                                           // prakiraan dan unduhan Excel generik tidak error untuk metrik baru
+            $this->as($admin)->getJson("/api/pengusahaan/metrics/{$code}/forecast?unit_id={$this->up3->id}")->assertOk();
+            $this->as($admin)->get("/api/pengusahaan/metrics/{$code}/export?unit_id={$this->up3->id}")->assertOk();
+        }
+    }
+
     #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {

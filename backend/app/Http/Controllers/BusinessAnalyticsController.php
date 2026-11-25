@@ -130,7 +130,11 @@ class BusinessAnalyticsController extends Controller
     private function syncs(Request $request, string $code): ?array
     {
         $user = $request->user();
-        $eis = ['pelanggan' => 'PERMOHONAN', 'daya' => 'PERMOHONAN', 'hpl-bp' => 'PERMOHONAN', 'piutang-prabayar' => 'PIUTANG', 'piutang-pascabayar' => 'PIUTANG', 'piutang-pascabayar-umur' => 'PIUTANG', 'kwh-p2tl' => 'AP2T'][$code] ?? null;
+        $eis = ['pelanggan' => 'PERMOHONAN', 'daya' => 'PERMOHONAN', 'hpl-bp' => 'PERMOHONAN', 'piutang-prabayar' => 'PIUTANG', 'piutang-pascabayar' => 'PIUTANG', 'piutang-pascabayar-umur' => 'PIUTANG'][$code] ?? null;
+        $ap2t = ['kwh-p2tl' => [['realisasi', 'belum_realisasi'], true], 'pelunasan-prr' => [['pelunasan_prr'], false], 'pelunasan-ex-prr' => [['pelunasan_ex_prr'], false]][$code] ?? null;      // penarikan AP2T yang memuat laporan menu ini (run TAGSUS lama tanpa `reports` dihitung untuk kWh P2TL)
+        if ($ap2t !== null) {
+            return $this->authorizer->roleFor($user, 'eis_sync.manage') === null ? null : $this->eisRuns('AP2T', null, $ap2t[0], $ap2t[1]);
+        }
         if ($eis !== null) {
             if ($this->authorizer->roleFor($user, 'eis_sync.manage') === null) {
                 return null;
@@ -169,10 +173,11 @@ class BusinessAnalyticsController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function eisRuns(string $kind, ?string $dataset = null): array
+    private function eisRuns(string $kind, ?string $dataset = null, ?array $reports = null, bool $orWithoutReports = false): array
     {
         return DB::table('eis_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.kind', $kind)
-            ->when($dataset !== null, fn ($q) => $q->whereRaw("coalesce(r.options->>'dataset', 'saidi-saifi') = ?", [$dataset]))->orderByDesc('r.created_at')->limit(20)
+            ->when($dataset !== null, fn ($q) => $q->whereRaw("coalesce(r.options->>'dataset', 'saidi-saifi') = ?", [$dataset]))
+            ->when($reports !== null, fn ($q) => $q->whereRaw('('.($orWithoutReports ? "r.options->'reports' is null or " : '')."jsonb_exists_any(r.options->'reports', ?::text[]))", ['{'.implode(',', $reports).'}']))->orderByDesc('r.created_at')->limit(20)
             ->get(['r.id', 'r.trigger', 'r.status', 'r.kind', 'r.options', 'r.range_from', 'r.range_to', 'r.exit_code', 'r.created_at', 'r.started_at', 'r.finished_at', 'u.email as started_by'])
             ->map(fn ($r) => ['source' => 'eis-sync', 'id' => $r->id, 'kind' => strtolower((string) $r->kind), 'trigger' => $r->trigger, 'status' => $r->status, 'started_by' => $r->started_by, 'options' => $r->options === null ? null : array_diff_key((array) json_decode((string) $r->options, true), ['token_encrypted' => 1]),
                 'range_from' => $r->range_from, 'range_to' => $r->range_to, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at])->all();

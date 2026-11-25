@@ -64,6 +64,11 @@ class BusinessMetricService
                 ['key' => 'lembar', 'name' => 'Lembar tunggakan', 'unit' => 'lbr', 'num' => 'lbr'], ['key' => 'umur_rata', 'name' => 'Umur rata-rata', 'unit' => 'bulan', 'num' => 'lbr', 'den' => 'plg'],
                 ['key' => 'lebih_3_bulan', 'name' => 'Tunggakan lebih dari 3 bulan', 'unit' => '%', 'num' => 'rp_lebih3', 'den' => 'rp', 'factor' => 100]]],
         // sumber tunggal APKT (apkt_rpt_rct_keluhan_records), durasi dalam jam (cocok dengan KLHALL: Jombang Oktober 2026 response 0,44 jam dan selesai 6 jam dari 355 WO); tanpa varian clear temper dan tanpa SLA. KLHALL tidak dipakai lagi di menu ini
+        // pelunasan piutang ragu-ragu (PRR) dan ex-PRR dari AP2T menurut tanggal bayar; `rp` = jumlah RP PRR (= pemakaian + trafo + sewa kapasitor + tagihan susulan + biaya keterlambatan); bulan berjalan sampai hari tarik
+        'pelunasan-prr' => ['name' => 'Pelunasan PRR', 'source' => 'AP2T – Laporan Pelunasan Piutang Ragu-Ragu (menurut tanggal bayar)', 'family' => 'PRR', 'polarity' => 'up', 'ytd' => 'sum', 'breakdown' => 'Komponen pelunasan', 'breakdown2' => 'Bulan tagihan (BLTH)', 'no_matrix' => true,
+            'series' => [['key' => 'rp', 'name' => 'Pelunasan PRR', 'unit' => 'Rp', 'num' => 'rp_prr'], ['key' => 'pelanggan', 'name' => 'Pelanggan yang melunasi', 'unit' => 'plg', 'num' => 'plg'], ['key' => 'transaksi', 'name' => 'Jumlah pembayaran (per pelanggan dan bulan tagihan)', 'unit' => 'kali', 'num' => 'trx']]],
+        'pelunasan-ex-prr' => ['name' => 'Pelunasan Ex PRR', 'source' => 'AP2T – Laporan Pelunasan Ex Piutang Ragu-Ragu (menurut tanggal bayar)', 'family' => 'EXPRR', 'polarity' => 'up', 'ytd' => 'sum', 'breakdown' => 'Komponen pelunasan', 'breakdown2' => 'Bulan tagihan (BLTH)', 'no_matrix' => true,
+            'series' => [['key' => 'rp', 'name' => 'Pelunasan Ex PRR', 'unit' => 'Rp', 'num' => 'rp_prr'], ['key' => 'pelanggan', 'name' => 'Pelanggan yang melunasi', 'unit' => 'plg', 'num' => 'plg'], ['key' => 'transaksi', 'name' => 'Jumlah pembayaran (per pelanggan dan bulan tagihan)', 'unit' => 'kali', 'num' => 'trx']]],
         'rpt-rct-keluhan' => ['name' => 'RPT-RCT keluhan', 'source' => 'APKT – Jumlah dan Durasi RPT RCT Keluhan', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => null,
             'series' => [['key' => 'rpt', 'name' => 'RPT – Response time rata-rata (APKT)', 'unit' => 'jam', 'num' => 'rpt_total', 'den' => 'rpt_count'], ['key' => 'rct', 'name' => 'RCT – Recovery time rata-rata (APKT)', 'unit' => 'jam', 'num' => 'rct_total', 'den' => 'rct_count'],
                 ['key' => 'jumlah', 'name' => 'Jumlah WO keluhan (APKT)', 'unit' => 'kali', 'num' => 'rpt_count']]],
@@ -140,6 +145,8 @@ class BusinessMetricService
             'piutang-prabayar' => $this->eis('PIUTANGLPB_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromPiutangLpb($lines)),
             'piutang-pascabayar-umur' => $this->eis('UMURPIUTANG', $units, $fromDate, $toDate, fn (array $lines) => $this->fromUmurPiutang($lines)),
             'piutang-pascabayar' => $this->eis('AKHIEPERIODE_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromAkhirPeriode($lines)),
+            'pelunasan-prr' => $this->eis('PRR', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromPelunasanRagu($lines, $summary)),
+            'pelunasan-ex-prr' => $this->eis('EXPRR', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromPelunasanRagu($lines, $summary)),
             'rpt-rct-keluhan' => $this->apktRptRctKeluhan($units, $fromDate, $toDate),
             'rpt-rct-gangguan' => $this->apktRptRct($units, $fromDate, $toDate),
             'saidi-saifi', 'ens' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifi($lines, $summary)),
@@ -350,6 +357,33 @@ class BusinessMetricService
         unset($byMonth);
 
         return $out;
+    }
+
+    /**
+     * Pelunasan PRR atau ex-PRR satu ULP satu bulan: jumlah RP PRR, pelanggan dan pembayaran yang melunasi (ringkasan berkas), komposisi menurut komponen, dan rincian menurut bulan tagihan (BLTH).
+     * Laporan tanpa baris (tidak ada pelunasan) adalah nol, bukan data kosong.
+     *
+     * @param  list<array{label: string, values: array<string, mixed>}>  $lines
+     * @param  array<string, mixed>  $summary
+     * @return array{raw: array<string, float>, bd: array<string, float>, bd2: array<string, float>}
+     */
+    private function fromPelunasanRagu(array $lines, array $summary): array
+    {
+        $components = ['rpptl' => 'Pemakaian listrik (RPPTL)', 'rp_trafo' => 'Trafo', 'rp_sewakap' => 'Sewa kapasitor', 'rp_tagsus' => 'Tagihan susulan (TS)', 'rp_bk' => 'Biaya keterlambatan (BK)'];
+        $bd = [];
+        $bd2 = [];
+        $total = 0.0;
+        foreach ($lines as $l) {
+            foreach ($components as $key => $name) {
+                $v = (float) ($l['values'][$key] ?? 0);
+                $v != 0.0 && $bd[$name] = ($bd[$name] ?? 0.0) + $v;
+            }
+            $rp = (float) ($l['values']['rp_prr'] ?? 0);
+            $total += $rp;
+            $rp != 0.0 && preg_match('/^(\d{4})(\d{2})$/', $l['label'], $m) && $bd2["{$m[1]}-{$m[2]}"] = $rp;
+        }
+
+        return ['raw' => ['rp_prr' => $total, 'plg' => (float) ($summary['pelanggan'] ?? 0), 'trx' => (float) ($summary['transaksi'] ?? 0)], 'bd' => $bd, 'bd2' => $bd2];
     }
 
     /**

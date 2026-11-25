@@ -15,10 +15,12 @@ use Illuminate\Support\Facades\Http;
  */
 class Ap2tTagsusSync
 {
-    /** @var array<string, array{report: string, title: string, family: string, label: string}> */
+    /** @var array<string, array{report: string, title?: string, family: string, label: string, range?: string, url?: string}> laporan `range` memakai tanggal bayar (tglAwal, tglAkhir) pada alamat laporan lain; sisanya memakai bulan (thbl) */
     public const REPORTS = [
         'realisasi' => ['report' => 'report/NONREK/rpt_ts_daftar_realisasi_pendapatan_penetapan_ts.xls', 'title' => 'DAFTAR REALISASI PENDAPATAN PENETAPAN TAGIHAN SUSULAN (TUNAI DAN ANGSURAN)', 'family' => 'TAGSUS', 'label' => 'realisasi'],
         'belum_realisasi' => ['report' => 'report/NONREK/rpt_ts_daftar_penetapan_ts_belum_realisasi.xls', 'title' => 'DAFTAR PENETAPAN TAGIHAN SUSULAN YANG BELUM REALISASI', 'family' => 'TAGSUS_BELUM', 'label' => 'belum realisasi'],
+        'pelunasan_prr' => ['report' => 'C:/Report/Laporan_LunasPRR.xls', 'range' => 'getLaporanLunasPRR', 'family' => 'PRR', 'label' => 'pelunasan PRR'],
+        'pelunasan_ex_prr' => ['report' => 'C:/Report/Laporan_LunasExPRR.xls', 'range' => 'getLaporanLunasExPRR', 'family' => 'EXPRR', 'label' => 'pelunasan Ex PRR'],
     ];
 
     private const LOG_LIMIT = 30000;
@@ -51,7 +53,7 @@ class Ap2tTagsusSync
             $months[] = $d->format('Y-m');
         }
         $reports = array_values(array_intersect(array_keys(self::REPORTS), (array) ($o['reports'] ?? array_keys(self::REPORTS))));
-        $say(sprintf('Penarikan laporan TAGSUS dari AP2T (%s): %d ULP x %d bulan (%s s.d. %s).', implode(', ', array_map(fn ($k) => self::REPORTS[$k]['label'], $reports)), $ulps->count(), count($months), $months[0] ?? '-', end($months) ?: '-'));
+        $say(sprintf('Penarikan laporan AP2T (%s): %d ULP x %d bulan (%s s.d. %s).', implode(', ', array_map(fn ($k) => self::REPORTS[$k]['label'], $reports)), $ulps->count(), count($months), $months[0] ?? '-', end($months) ?: '-'));
 
         $counts = ['BARU' => 0, 'DIGANTIKAN' => 0, 'DUPLIKAT' => 0, 'SUDAH_DIGANTIKAN' => 0];
         $failed = 0;
@@ -110,8 +112,16 @@ class Ap2tTagsusSync
     {
         $cfg = config('distriva.ap2t');
         $def = self::REPORTS[$report];
-        $res = Http::withOptions(['verify' => $cfg['verify']])->timeout((int) $cfg['timeout_seconds'])->retry(2, 1000, fn ($e) => $e instanceof ConnectionException, throw: false)
-            ->get((string) $cfg['report_url'], ['jenislaporan' => 'getlaporantsgab', 'report' => $def['report'], 'unitup' => $ulpCode, 'unitap' => $cfg['unitap'], 'unitupi' => $cfg['unitupi'], 'jenislap' => $def['title'], 'thbl' => substr($ym, 0, 4).substr($ym, 5, 2)]);
+        if (isset($def['range'])) {                                                                  // pelunasan: tanggal bayar sebulan (bulan berjalan sampai hari ini); userid pada tautan AP2T tidak diperlukan dan tidak dikirim
+            $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
+            $end = min(date('Ymt', (int) strtotime($ym.'-01')), now($tz)->format('Ymd'));
+            $url = (string) $cfg['report_url_pelunasan'];
+            $query = ['idjenislaporan' => $def['range'], 'tglAwal' => substr($ym, 0, 4).substr($ym, 5, 2).'01', 'tglAkhir' => $end, 'unitupi' => $cfg['unitupi'], 'unitap' => $cfg['unitap'], 'unitup' => $ulpCode, 'report' => $def['report']];
+        } else {
+            $url = (string) $cfg['report_url'];
+            $query = ['jenislaporan' => 'getlaporantsgab', 'report' => $def['report'], 'unitup' => $ulpCode, 'unitap' => $cfg['unitap'], 'unitupi' => $cfg['unitupi'], 'jenislap' => $def['title'], 'thbl' => substr($ym, 0, 4).substr($ym, 5, 2)];
+        }
+        $res = Http::withOptions(['verify' => $cfg['verify']])->timeout((int) $cfg['timeout_seconds'])->retry(2, 1000, fn ($e) => $e instanceof ConnectionException, throw: false)->get($url, $query);
         if (! $res->ok()) {
             throw new \RuntimeException('HTTP '.$res->status().' dari AP2T.');
         }

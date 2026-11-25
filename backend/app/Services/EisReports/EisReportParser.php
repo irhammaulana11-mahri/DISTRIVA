@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
  */
 final class EisReportParser
 {
-    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'TAGSUS', 'TAGSUS_BELUM', 'UMURPIUTANG'];
+    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'PRR', 'EXPRR', 'TAGSUS', 'TAGSUS_BELUM', 'UMURPIUTANG'];
 
     private const MONTHS = ['januari' => 1, 'pebruari' => 2, 'februari' => 2, 'maret' => 3, 'april' => 4, 'mei' => 5, 'juni' => 6, 'juli' => 7, 'agustus' => 8, 'september' => 9, 'oktober' => 10, 'nopember' => 11, 'november' => 11, 'desember' => 12];
 
@@ -93,6 +93,7 @@ final class EisReportParser
             'GGNBERULANG', 'GGNNEGATIF' => [$this->fixedByLetter('GGN'), null],
             'KLHBERULANG', 'KLHNEGATIF' => [$this->fixedByLetter('KLH'), null],
             'TAGSUS', 'TAGSUS_BELUM' => [$this->tagsus(), null],
+            'PRR', 'EXPRR' => $this->pelunasanRagu(),
             'UMURPIUTANG' => [$this->umurPiutang(), null],
         };
         if ($family === '309EIS' && $unitSource === 'nama' && $lines !== []) {                       // kode unit di kolom UNIT harus sama dengan kode pada nama berkas (pilihan unit di EIS tidak boleh meleset)
@@ -101,7 +102,7 @@ final class EisReportParser
                 throw new EisReportException("Kode unit di dalam berkas ({$inside}) berbeda dengan nama berkas ({$unitCode}).");
             }
         }
-        if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
+        if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM', 'PRR', 'EXPRR'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
         }
 
@@ -145,6 +146,8 @@ final class EisReportParser
         return match (true) {
             str_contains($text, 'LAPORAN PENJUALAN TENAGA LISTRIK') => '309',
             str_contains($text, 'LAPORAN SAIDI SAIFI') => 'DIFI',
+            str_contains($text, 'PELUNASAN EX PIUTANG RAGU-RAGU') => 'EXPRR',
+            str_contains($text, 'PELUNASAN PIUTANG RAGU-RAGU') => 'PRR',
             str_contains($text, 'TAGIHAN SUSULAN') && str_contains($text, 'BELUM REALISASI') => 'TAGSUS_BELUM',
             str_contains($text, 'TAGIHAN SUSULAN') => 'TAGSUS',
             str_contains($text, 'REKAPITULASI GANGGUAN ALL') => 'GGNALL',
@@ -239,6 +242,9 @@ final class EisReportParser
                 }
                 if (! is_string($v) || $v === '') {
                     continue;
+                }
+                if (preg_match('/TANGGAL\s+BAYAR\s+(20\d{2})(0[1-9]|1[0-2])\d{2}\s*S\/D/i', $v, $mm)) {         // laporan pelunasan: rentang tanggal bayar, bulan = bulan tanggal awal
+                    return "{$mm[1]}-{$mm[2]}-01";
                 }
                 if (preg_match('/\bbulan\s+('.$months.')\s+tahun\s+(20\d{2})/i', $v, $mm)
                     || preg_match('/(?:\d{1,2}\s*-\s*)?\b('.$months.')\b[\s-]+(20\d{2})/i', $v, $mm)) {
@@ -663,6 +669,65 @@ final class EisReportParser
     }
 
     /** Tagihan susulan: hanya ringkasan per golongan (jumlah dan rupiah); nama, alamat, dan nomor pelanggan tidak dibaca. */
+    /**
+     * Laporan pelunasan piutang ragu-ragu (PRR) dan ex-PRR (AP2T): baris per pelanggan (IDPEL) dan BLTH (bulan tagihan) dengan komponen yang dilunasi pada rentang tanggal bayar. Hanya jumlah per BLTH yang disimpan
+     * (IDPEL tidak pernah disimpan). Kolom data tidak sejajar dengan judul (judul RPPTL di E dan RP PRR di P, data di F dan O). `summary`: pelanggan (IDPEL berbeda), transaksi (baris), sampai_tanggal (YYYYMMDD akhir rentang).
+     *
+     * @return array{0: list<array<string, mixed>>, 1: array<string, float|null>}
+     */
+    private function pelunasanRagu(): array
+    {
+        $head = null;
+        $range = null;
+        for ($r = 1; $r <= min(14, $this->rowCount()); $r++) {
+            if (strtoupper((string) $this->cell($r, 'B')) === 'IDPEL' && strtoupper((string) $this->cell($r, 'D')) === 'BLTH') {
+                $head = $r;
+            }
+            foreach ($this->rows[$r - 1] as $v) {
+                is_string($v) && preg_match('/TANGGAL\s+BAYAR\s+(\d{8})\s*S\/D\s*(\d{8})/i', $v, $mm) && $range = [$mm[1], $mm[2]];
+            }
+        }
+        if ($head === null || $range === null) {
+            throw new EisReportException('Tata letak laporan pelunasan piutang ragu-ragu tidak dikenali: baris judul IDPEL dan BLTH atau rentang tanggal bayar tidak ditemukan.');
+        }
+        if (substr($range[0], 0, 6) !== substr($range[1], 0, 6)) {
+            throw new EisReportException("Rentang tanggal bayar {$range[0]} s/d {$range[1]} melintasi bulan; tarik satu bulan per berkas.");
+        }
+        $cols = ['F' => 'rpptl', 'G' => 'rp_trafo', 'H' => 'rp_sewakap', 'K' => 'rp_tagsus', 'L' => 'rp_bk', 'O' => 'rp_prr'];
+        $byMonth = [];
+        $first = [];
+        $customers = [];
+        $rows = 0;
+        for ($r = $head + 1; $r <= $this->rowCount(); $r++) {
+            $idpel = (string) $this->text($r, 'B');
+            $blth = (string) $this->text($r, 'D');
+            if (preg_match('/^\d{12}$/', $idpel) !== 1 || preg_match('/^(20\d{2})(0[1-9]|1[0-2])$/', $blth) !== 1) {
+                continue;
+            }
+            $first[$blth] ??= $r;
+            foreach ($cols as $c => $name) {
+                $byMonth[$blth][$name] = ($byMonth[$blth][$name] ?? 0) + ($this->num($this->cell($r, $c)) ?? 0);
+            }
+            $byMonth[$blth]['transaksi'] ??= 0;
+            $byMonth[$blth]['idpel'] ??= [];
+            if (($this->num($this->cell($r, 'O')) ?? 0) != 0) {                                  // baris bernilai nol bukan pembayaran: tidak dihitung sebagai pelanggan atau transaksi melunasi
+                $byMonth[$blth]['transaksi']++;
+                $byMonth[$blth]['idpel'][$idpel] = true;
+                $customers[$idpel] = true;
+                $rows++;
+            }
+        }
+        ksort($byMonth);
+        $lines = [];
+        foreach ($byMonth as $blth => $v) {
+            $v['pelanggan'] = count($v['idpel']);
+            unset($v['idpel']);
+            $lines[] = ['line_no' => $first[$blth], 'group_label' => null, 'label' => $blth, 'code' => null, 'values' => $v];
+        }
+
+        return [$lines, ['pelanggan' => (float) count($customers), 'transaksi' => (float) $rows, 'sampai_tanggal' => (float) $range[1]]];
+    }
+
     private function tagsus(): array
     {
         $head = null;

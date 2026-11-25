@@ -1187,6 +1187,88 @@ class EisImportTest extends PostgresTestCase
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'reports' => ['lainnya']])->assertStatus(422);
     }
 
+    /** Laporan pelunasan PRR AP2T kecil: dua pelanggan, satu membayar dua BLTH, baris bernilai nol tidak dihitung; kolom data tidak sejajar dengan judul seperti laporan asli. */
+    private function ap2tPelunasanBody(string $title, string $start, string $end, array $rows): string
+    {
+        $sheet = new Spreadsheet;
+        $ws = $sheet->getActiveSheet();
+        $ws->setCellValue('A3', 'UP3 MOJOKERTO');
+        $ws->setCellValue('A4', 'ULP JOMBANG');
+        $ws->setCellValue('E5', $title);
+        $ws->setCellValue('E6', "TANGGAL BAYAR {$start} S/D {$end}");
+        foreach (['B8' => 'IDPEL', 'D8' => 'BLTH', 'E8' => 'RPPTL', 'G8' => 'RP TRAFO', 'H8' => 'RPSEWAKAP', 'K8' => 'RP TAGSUS', 'L8' => 'RPBK', 'P8' => 'RP PRR'] as $cell => $v) {
+            $ws->setCellValue($cell, $v);
+        }
+        foreach ($rows as $i => [$idpel, $blth, $ptl, $trafo, $sewa, $ts, $bk]) {
+            $r = 9 + $i;
+            $ws->setCellValueExplicit("B{$r}", $idpel, 's');
+            $ws->setCellValueExplicit("D{$r}", $blth, 's');
+            foreach (['F' => $ptl, 'G' => $trafo, 'H' => $sewa, 'K' => $ts, 'L' => $bk, 'O' => $ptl + $trafo + $sewa + $ts + $bk] as $col => $v) {
+                $ws->setCellValue("{$col}{$r}", $v);
+            }
+        }
+        $path = tempnam(sys_get_temp_dir(), 'ap2tprr');
+        (new Xlsx($sheet))->save($path);
+        $body = (string) file_get_contents($path);
+        @unlink($path);
+
+        return $body;
+    }
+
+    #[Test]
+    public function an_ap2t_run_pulls_the_prr_and_ex_prr_payment_reports_by_payment_date_without_userid_and_stores_only_totals_per_billing_month(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url_pelunasan' => 'https://ap2t.test/PelunasanServlet']);
+        Storage::fake('documents');
+        $rows = [['514531988369', '202607', 0, 0, 0, 0, 0], ['514531988377', '202609', 75124, 0, 0, 0, 5000], ['514531988369', '202609', 75124, 0, 0, 0, 5000], ['514531988369', '202608', 0, 0, 0, 0, 2348]];
+        Http::fake(['ap2t.test/*' => fn ($r) => Http::response(str_contains((string) $r['idjenislaporan'], 'ExPRR')
+            ? $this->ap2tPelunasanBody('LAPORAN PELUNASAN EX PIUTANG RAGU-RAGU', '20261001', '20261031', [])
+            : $this->ap2tPelunasanBody('LAPORAN PELUNASAN PIUTANG RAGU-RAGU', '20261001', '20261031', $rows), 200, ['Content-Type' => 'application/vnd.ms-excel'])]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'from_month' => '2026-10', 'to_month' => '2026-10', 'units' => ['51453'], 'reports' => ['pelunasan_prr', 'pelunasan_ex_prr']])->assertStatus(202)->json('data');
+
+        $this->assertSame(['pelunasan_prr', 'pelunasan_ex_prr'], $run['options']['reports']);
+        Http::assertSent(fn ($r) => $r->method() === 'GET' && $r['idjenislaporan'] === 'getLaporanLunasPRR' && $r['tglAwal'] === '20261001' && $r['tglAkhir'] === '20261031' && $r['unitup'] === '51453' && $r['unitap'] === '51MJK' && $r['unitupi'] === '51'
+            && $r['report'] === 'C:/Report/Laporan_LunasPRR.xls' && ! isset($r->data()['userid']) && ! $r->hasHeader('Authorization'));
+        Http::assertSent(fn ($r) => $r['idjenislaporan'] === 'getLaporanLunasExPRR' && $r['report'] === 'C:/Report/Laporan_LunasExPRR.xls');
+        $row = DB::table('eis_sync_runs')->where('id', $run['id'])->first();
+        $this->assertSame('OK', $row->status);
+
+        $prr = DB::table('eis_report_files')->where('family', 'PRR')->where('unit_code', '51453')->first();
+        $this->assertSame(['2026-10-01', 'PRR-51453-102026.xls'], [$prr->period, $prr->original_name]);
+        $this->assertEquals(['pelanggan' => 2, 'transaksi' => 3, 'sampai_tanggal' => 20261031], json_decode($prr->summary, true));         // baris bernilai nol tidak dihitung; IDPEL tidak disimpan
+        $lines = DB::table('eis_report_lines')->where('file_id', $prr->id)->orderBy('label')->get()->mapWithKeys(fn ($l) => [$l->label => json_decode($l->values, true)]);
+        $this->assertSame(['202607', '202608', '202609'], array_map('strval', $lines->keys()->all()));
+        $this->assertEquals([150248, 10000, 160248, 2], [$lines['202609']['rpptl'], $lines['202609']['rp_bk'], $lines['202609']['rp_prr'], $lines['202609']['pelanggan']]);
+        $this->assertStringNotContainsString('51453198', json_encode(DB::table('eis_report_lines')->where('file_id', $prr->id)->get()));
+        $this->assertSame(0, (int) DB::table('eis_report_files')->where('family', 'EXPRR')->value('line_count'));                         // tidak ada pelunasan ex-PRR: laporan sah dengan nol baris
+
+        // bulan berjalan: tanggal akhir = hari ini
+        $today = now(config('distriva.business_timezone'));
+        Http::swap(new Factory);
+        Http::fake(['ap2t.test/*' => fn ($r) => Http::response($this->ap2tPelunasanBody('LAPORAN PELUNASAN PIUTANG RAGU-RAGU', $today->format('Ym').'01', $today->format('Ymd'), $rows), 200)]);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => $today->format('Y-m'), 'units' => ['51453'], 'reports' => ['pelunasan_prr']])->assertStatus(202);
+        Http::assertSent(fn ($r) => $r['tglAwal'] === $today->format('Ym').'01' && $r['tglAkhir'] === $today->format('Ymd'));
+        $this->assertSame($today->format('Y-m').'-01', DB::table('eis_report_files')->where('family', 'PRR')->orderByDesc('period')->value('period'));
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'reports' => ['pelunasan_lain']])->assertStatus(422);
+    }
+
+    #[Test]
+    public function a_prr_report_whose_dates_cross_a_month_or_is_named_for_another_month_is_rejected(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url_pelunasan' => 'https://ap2t.test/PelunasanServlet']);
+        Http::fake(['ap2t.test/*' => Http::response($this->ap2tPelunasanBody('LAPORAN PELUNASAN PIUTANG RAGU-RAGU', '20261001', '20261115', []), 200)]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453'], 'reports' => ['pelunasan_prr']])->assertStatus(202)->json('data');
+
+        $row = DB::table('eis_sync_runs')->where('id', $run['id'])->first();
+        $this->assertSame('FAILED', $row->status);
+        $this->assertStringContainsString('melintasi bulan', (string) $row->log);
+        $this->assertSame(0, DB::table('eis_report_files')->where('family', 'PRR')->count());
+    }
+
     #[Test]
     public function an_ap2t_run_rejects_a_response_that_is_not_an_excel_file_and_a_forbidden_account_cannot_start_one(): void
     {
