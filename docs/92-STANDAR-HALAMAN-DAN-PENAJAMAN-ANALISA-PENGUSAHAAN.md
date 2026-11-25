@@ -195,6 +195,30 @@ Semua sumber luar diuji dulu di satu ULP sebelum dipakai luas. Lisensi dan kewaj
 
 Data spasial di atas umumnya tahunan dan kasar: gunanya untuk perencanaan 1 sampai 3 tahun (RKM, kapasitas gardu), bukan prakiraan bulanan.
 
+### 8.1 Hasil uji coba cuaca historis (26 Nov 2026)
+
+Uji: curah hujan dan embusan angin harian ERA5 (Open-Meteo archive, 1 Jan 2022 sampai 24 Nov 2026) pada titik pusat gardu tiap ULP, dibandingkan dengan jumlah gangguan penyulang per ULP per hari (`outage_events`). Cakupan: 10 ULP, 17.890 ULP-hari, 5.135 gangguan (rata-rata 0,287 per ULP-hari).
+
+| Kelas curah hujan harian | Gangguan per ULP-hari | Permanen per ULP-hari |
+|---|---|---|
+| < 0,5 mm | 0,230 | 0,045 |
+| 0,5 sampai 5 mm | 0,265 | 0,071 |
+| 5 sampai 20 mm | 0,345 | 0,083 |
+| 20 sampai 50 mm | 0,382 | 0,098 |
+
+Temuan:
+- **Hujan berpengaruh nyata tetapi sedang.** Hari hujan 20 mm atau lebih rata-rata 1,66 kali hari kering; setelah musim dikendalikan (dibandingkan dalam bulan kalender yang sama) rasionya 1,1 sampai 2,1 kali dan arahnya sama di 9 bulan yang diuji. Hujan hari sebelumnya jauh lebih lemah.
+- **Daya prediksi harian lemah**: AUC hari bergangguan 0,56 (hujan), 0,54 (hujan kemarin); 0,5 berarti acak. Pada tingkat bulanan, korelasi hujan dengan jumlah gangguan UP3 0,63, turun menjadi 0,26 setelah pola musiman dihapus.
+- **Embusan angin ERA5 tidak berguna** (AUC 0,50; gangguan per hari datar di semua kelas). Resolusi sekitar 25 km tidak menangkap angin kencang lokal.
+- Cuaca ERA5 sesuai catatan petugas: gangguan yang dicatat "hujan" rata-rata terjadi pada hari 14,9 mm, yang tidak dicatat hujan 5,7 mm; gangguan karena petir terjadi pada hari rata-rata 16,2 mm (semua hari 6,8 mm).
+
+Keputusan:
+1. Cuaca historis **tidak dipakai untuk prakiraan** jumlah gangguan (tidak lolos uji mundur seperti faktor Lebaran di §6.2, daya terlalu kecil).
+2. Dipakai sebagai **penjelasan**: pada bulan SAIDI/gangguan melonjak, tampilkan curah hujan bulanan dan jumlah hari hujan lebat (20 mm atau lebih) di samping, agar lonjakan bisa dibedakan dari penyebab non-cuaca. Tanpa mengubah angka metrik.
+3. Dipakai sebagai **peringatan dini** hanya dari prakiraan BMKG 7 hari (hujan lebat di wilayah ULP), sebagai pengganda risiko penyulang yang sudah ada (§6.6), bukan prakiraan angka. Perlu diuji ulang bila data historis prakiraan terkumpul.
+4. Lisensi: Open-Meteo archive gratis untuk non-komersial dengan atribusi; cukup untuk uji ini, penggunaan produksi perlu ditinjau ulang (langganan atau data BMKG). Data petir historis dan hujan stasiun perlu diminta ke BMKG dan bisa lebih tajam daripada ERA5.
+5. Data bangunan/tutupan lahan (Open Buildings, WorldCover) belum diuji: butuh Earth Engine dan hanya bermanfaat untuk perencanaan tahunan.
+
 ## 9. Tahapan
 
 1. **Standar halaman (semua menu):** kartu status dengan target NKO dan laju yang dibutuhkan, diagnosis, peringkat ULP, sumbangan ULP, susunan tab standar. Backend menambah `target`, `diagnosis`, `contribution`; frontend menyusun ulang halaman.
