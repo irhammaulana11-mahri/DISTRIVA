@@ -40,7 +40,7 @@ O-034 remains `OPEN/BLOCKING`, and its resource/lifecycle schema remains `PROPOS
 | [42 — Cross-Domain Resource Workflow Matrix](./42-CROSS-DOMAIN-RESOURCE-WORKFLOW-MATRIX.md) | Cross-domain proposal checked; no recommendation treated as an owner decision. |
 | [43 — Open Issues Resolution Report](./43-OPEN-ISSUES-RESOLUTION-REPORT.md) | Open-status summary; recommendations do not close issues. |
 | [44 — Owner Decision Register](./44-OWNER-DECISION-REGISTER.md) | Full register audited, including existing baselines, pending questions, dependencies and blank decision/sign-off rows. |
-| [AI-HANDOFF](./AI-HANDOFF.md), [root README](../README.md), [Master Prompt](../PROMPT_MASTER_DISTRIVA_AI_DEVELOPMENT.md), [Technical Design Status](./17-T4-TECHNICAL-DESIGN-STATUS.md), and [Change Log](./18-CHANGELOG-AND-SUPERSEDED-DECISIONS.md) | Synchronized to v3.11.0. |
+| [AI-HANDOFF](./AI-HANDOFF.md), [root README](../README.md), [Master Prompt](./prompts/PROMPT_MASTER_DISTRIVA_AI_DEVELOPMENT.md), [Technical Design Status](./17-T4-TECHNICAL-DESIGN-STATUS.md), and [Change Log](./18-CHANGELOG-AND-SUPERSEDED-DECISIONS.md) | Synchronized to v3.11.0. |
 | [PACKAGE-MANIFEST.json](../PACKAGE-MANIFEST.json) | Root manifest; prior v3.9.0 manifest did not include documents 44/45 and required refresh. |
 
 `docs/README.md` and `docs/CHANGELOG.md` do not exist; the actual README is at repository root and the existing changelog is document 18. The actual T4.2.4 filename is document 26 as listed above.

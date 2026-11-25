@@ -1,6 +1,6 @@
 # 59 — Analisis Jenis Konstruksi dan BOM (iterasi 2B-2 / 2C) — baca-saja
 
-**Tanggal:** 6 November 2026 · **Sumber:** `MASTER RAB & KKF.xlsx` (35 sheet; dibaca dengan pustaka standar, nilai cache + teks rumus; **tidak ada rumus/makro dieksekusi**) dan `ANALISA_RAB_KKF.md` · **Status:** analisis; **tidak ada kode produksi, tabel, atau data yang diubah.** Alat: `tools/analysis/wb.py`, `tools/analysis/xl_eval.py` (hanya analisis).
+**Tanggal:** 6 November 2026 · **Sumber:** `MASTER RAB & KKF.xlsx` (35 sheet; dibaca dengan pustaka standar, nilai cache + teks rumus; **tidak ada rumus/makro dieksekusi**) dan [`ANALISA_RAB_KKF.md`](./ANALISA_RAB_KKF.md) · **Status:** analisis; **tidak ada kode produksi, tabel, atau data yang diubah.** Alat: `tools/analysis/wb.py`, `tools/analysis/xl_eval.py` (hanya analisis).
 
 ## 1. Apa itu "jenis konstruksi" di data
 - Sheet `GAMBAR` memuat **147 entri berlabel** (kolom label `T`/`W`/`Z`, jumlah Psg/Bkr di kolom sebelahnya) dalam 9 kelompok pekerjaan: SUTM 48, MVTIC 29, SUTR 18, SKTM 2, Kubikel 2, GTT Umum 18, GTT Khusus 15, Estetika 9, PBPD 6. Contoh label: `A3C 150`, `Tibet 11 / 200`, `TM 1`, `Trf. 100 kVA`, `Kubikel 1 Inc`, `SKTM (NA2XSEYBY 3X150)`.
@@ -10,7 +10,7 @@
 ## 2. Bentuk BOM yang sebenarnya
 Setiap baris sheet BOM = satu **kode KHS** (kolom B) dengan volume pada kolom `H` (material) `I` (pasang) `J` (bongkar) `K` (retur) yang berupa **rumus**, bukan koefisien tertulis:
 `TRUNC((GAMBAR!U6*1.02*3)/1)*1` · `+GAMBAR!U48` · `TRUNC((I11*1.01)/1)*1` (turunan dari baris lain) · `TRUNC(((I14+I12)/1000)/1)*1` · `IF(OR(…),…)` · `SUMIF(…)`.
-Artinya BOM adalah **graf rumus** (baris dapat bergantung pada baris lain), bukan tabel sederhana "konstruksi × koefisien" seperti yang diasumsikan di `ANALISA_RAB_KKF.md` §3.2 dan `docs/23` §2.7 (`bom_items.quantity`). Tabel `bom_formula_definitions` (AST terstruktur, tanpa `eval`) di docs/23 memang dirancang untuk ini.
+Artinya BOM adalah **graf rumus** (baris dapat bergantung pada baris lain), bukan tabel sederhana "konstruksi × koefisien" seperti yang diasumsikan di [`ANALISA_RAB_KKF.md`](./ANALISA_RAB_KKF.md) §3.2 dan `docs/23` §2.7 (`bom_items.quantity`). Tabel `bom_formula_definitions` (AST terstruktur, tanpa `eval`) di docs/23 memang dirancang untuk ini.
 
 ## 3. Bukti terukur
 | Pengukuran | Hasil |
