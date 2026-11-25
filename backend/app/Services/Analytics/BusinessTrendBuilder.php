@@ -221,7 +221,14 @@ class BusinessTrendBuilder
             return $den == 0 ? null : $num / $den;
         };
         $nullWhenMissing = (bool) ($c['null_when_missing'] ?? false);                                   // sumber potret: bulan tanpa data null, bukan 0
-        $valueOf = fn (array $s, string $m): ?float => $nullWhenMissing && array_filter($units, fn ($u) => isset($data[$u][$m])) === [] ? null : $ratio($sum($units, $m), $s);
+        $valueOf = function (array $s, string $m) use ($nullWhenMissing, $sum, $ratio, $units): ?float {
+            $row = $sum($units, $m);
+            if ($nullWhenMissing && array_diff_key(array_flip((array) $s['num']), $row) === array_flip((array) $s['num'])) {      // tidak satu pun angka seri ini ada bulan itu
+                return null;
+            }
+
+            return $ratio($row, $s);
+        };
         $ytdOf = function (array $s, string $end) use ($valueOf): float {
             $total = 0.0;
             foreach ($this->months(substr($end, 0, 4).'-01', $end) as $m) {

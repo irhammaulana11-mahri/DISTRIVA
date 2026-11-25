@@ -85,7 +85,8 @@ class MycubeTest(unittest.TestCase):
         sh.fetch_mycube(s, "GOLONGAN", "51454", "2026-01")
         self.assertIn("jenis=saldo_lalu_eis&", s.gets[3])
         self.assertIn("PERGOLONGAN", unquote(s.gets[3]))
-        self.assertEqual(sh.LAPORAN, ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR"))
+        self.assertEqual(sh.LAPORAN, ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR", "KONTROL309"))
+        self.assertEqual(sh.DEFAULT_LAPORAN, ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR"))
 
 
 class ParentPageTest(unittest.TestCase):
@@ -122,6 +123,33 @@ class KogolTest(unittest.TestCase):
         self.assertEqual([p[1]["__EVENTTARGET"] for p in s.posts], ["btnLoad"])
         with self.assertRaisesRegex(sh.SaldoError, "judul laporan KOGOL tidak ditemukan"):
             sh.fetch_kogol(FakeSession(head="tanpa judul"), "51453", "2026-10")
+
+
+class Kontrol309Test(unittest.TestCase):
+    def test_load_data_then_export_with_the_plus_books_for_every_request(self):
+        s = FakeSession(head="KONTROL 309 , UP : 51453 ( MUTASI : 10/2026)")
+        data, ext = sh.fetch_kontrol309(s, "51453", "2026-10")
+        self.assertEqual(ext, "xls")
+        self.assertTrue(s.gets[0].endswith("/kontrol_309.aspx"))
+        self.assertEqual([p[1]["__EVENTTARGET"] for p in s.posts], ["btnLoad", "btnExport"])
+        for url, sent in s.posts:
+            self.assertTrue(url.endswith("/kontrol_309.aspx"))
+            self.assertEqual((sent["cbobuku_Value"], sent["cbobuku"], sent["cbobuku_SelIndex"]), ("plus", "Plus (Januari*)", "1"))
+            self.assertNotIn("btnLoad", sent)
+            self.assertNotIn("btnExport", sent)
+
+    def test_a_title_for_another_unit_or_month_is_refused_but_a_page_without_a_title_is_accepted(self):
+        s = FakeSession(head="KONTROL 309 , UP : 51453 ( MUTASI : 08/2026)")
+        with self.assertRaisesRegex(sh.SaldoError, "bukan 51453 10/2026"):
+            sh.fetch_kontrol309(s, "51453", "2026-10")
+        self.assertEqual([p[1]["__EVENTTARGET"] for p in s.posts], ["btnLoad"])
+        data, ext = sh.fetch_kontrol309(FakeSession(head="tanpa judul"), "51453", "2026-10")      # penjagaan akhir ada di DISTRIVA (kolom UNIT dan total 309)
+        self.assertEqual(ext, "xls")
+
+    def test_it_is_not_in_the_default_reports_and_follows_the_top_bar_like_kogol(self):
+        self.assertNotIn("KONTROL309", sh.DEFAULT_LAPORAN)
+        self.assertIn("KONTROL309", sh.LAPORAN)
+        self.assertEqual(set(sh.TOP_BAR), {"KOGOL", "KONTROL309"})
 
 
 class FormFieldsTest(unittest.TestCase):

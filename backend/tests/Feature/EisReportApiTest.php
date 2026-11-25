@@ -187,7 +187,7 @@ class EisReportApiTest extends PostgresTestCase
         $units = collect($cov->json('data.units'))->keyBy('unit_name');
         $this->assertSame(['ULP Jombang', 'ULP Ngoro'], $units->keys()->sort()->values()->all());
         $datasets = count($cov->json('data.datasets_list'));                                           // hanya dataset aktif yang dihitung kurang; jenis lama tidak
-        $this->assertSame(12, $datasets);
+        $this->assertSame(13, $datasets);
         $this->assertTrue($units['ULP Jombang']['families']['309'][4]);
         $this->assertTrue($units['ULP Jombang']['datasets']['AP2T.PENJUALAN_309'][4]);
         $this->assertSame($datasets * 12 - 1, $units['ULP Jombang']['missing_count']);
@@ -195,6 +195,7 @@ class EisReportApiTest extends PostgresTestCase
         $this->assertSame($datasets * 12, $units['ULP Ngoro']['missing_count']);
         $this->assertSame($datasets * 12 * 2 - 1, $cov->json('data.missing_total'));
         $this->assertContains('GGNALL', $cov->json('data.legacy_families'));
+        $this->assertNotContains('309EIS', $cov->json('data.legacy_families'));                         // 309EIS kini dataset aktif EIS.KONTROL_309
 
         // peran ULP hanya melihat ULP-nya
         $own = $this->as($this->niagaA)->getJson('/api/eis-reports/coverage?year=2025&up3_id='.$this->up3->getKey())->assertOk();

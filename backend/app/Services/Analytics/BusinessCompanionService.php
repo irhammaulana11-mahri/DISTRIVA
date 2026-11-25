@@ -24,9 +24,29 @@ class BusinessCompanionService
             'saidi-saifi', 'ens' => $this->outages->monthlyByUnit($units, $fromMonth, $toMonth),
             'kwh-jual', 'pendapatan' => $this->newCustomerContribution($units, $fromMonth, $toMonth),
             'gangguan' => array_map(fn (array $byMonth) => array_map(fn (array $cell) => $cell['raw'], $byMonth), $this->metrics->raw('difi-gangguan', $units, $fromMonth, $toMonth)),
-            'kwh-p2tl' => array_map(fn (array $byMonth) => array_map(fn (array $cell) => $cell['raw'], $byMonth), $this->metrics->raw('kwh-p2tl-belum', $units, $fromMonth, $toMonth)),
+            'kwh-p2tl' => $this->kwhP2tl($units, $fromMonth, $toMonth),
             default => [],
         };
+    }
+
+    /**
+     * Pendamping kWh P2TL: penetapan belum realisasi (potret AP2T) dan penetapan TS P2TL pada kontrol 309; tiap bulan hanya memuat angka sumber yang ada, sehingga seri sumber lain tetap null.
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array<string, float>>>
+     */
+    private function kwhP2tl(array $units, string $fromMonth, string $toMonth): array
+    {
+        $out = [];
+        foreach (['kwh-p2tl-belum', 'kwh-p2tl-penetapan'] as $source) {
+            foreach ($this->metrics->raw($source, $units, $fromMonth, $toMonth) as $u => $byMonth) {
+                foreach ($byMonth as $m => $cell) {
+                    $out[$u][$m] = ($out[$u][$m] ?? []) + $cell['raw'];
+                }
+            }
+        }
+
+        return $out;
     }
 
     /**

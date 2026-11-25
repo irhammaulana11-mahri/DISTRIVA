@@ -732,12 +732,67 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $main = collect($d['series'])->keyBy('key');
         $this->assertEquals([null, 170.0, 10.0, null], $main['kwh']['values']);                              // angka utama tetap dari laporan realisasi, tidak tercampur belum realisasi
         $c = collect($d['companions']['series'])->keyBy('key');
-        $this->assertSame(['kwh_belum', 'rp_belum', 'jumlah_belum'], array_keys($c->all()));
+        $this->assertSame(['kwh_penetapan', 'rp_penetapan', 'kwh_belum', 'rp_belum', 'jumlah_belum'], array_keys($c->all()));
+        $this->assertEquals([null, null, null, null], $c['kwh_penetapan']['values']);                       // tanpa kontrol 309 seri penetapan kosong, belum realisasi tetap terisi
         $this->assertEquals([null, 35.0, 0.0, null], $c['kwh_belum']['values']);                            // Februari dan Mei tanpa laporan = null, April = 0
         $this->assertEquals([null, 350.0, 0.0, null], $c['rp_belum']['values']);
         $this->assertEquals(3.0, $c['jumlah_belum']['values'][1]);
         $this->assertSame([], $d['reconciliations'] ?? []);
         $this->assertStringContainsString('potret per tanggal tarik', $d['companions']['source']);
+    }
+
+    /** Kontrol 309 EIS satu ULP: komponen (label berindentasi, sumber, kWh, Rp); baris tanpa sumber adalah judul atau subtotal. */
+    private function kontrol309(OrganizationalUnit $unit, string $period, array $rows): void
+    {
+        $lines = array_map(fn (array $r) => [trim($r[0]), array_filter(['sumber_laporan' => $r[1], 'jmlkwh' => $r[2], 'rpptl' => $r[3], 'indent' => strlen($r[0]) - strlen(ltrim($r[0])) ?: null], fn ($v) => $v !== null)], $rows);      // seperti parser: label dipangkas, indentasi disimpan
+        $this->report($unit, '309EIS', $period, $lines);
+    }
+
+    #[Test]
+    public function kwh_jual_dan_pendapatan_memuat_rincian_komponen_penjualan_dari_kontrol_309_yang_berjumlah_sama_dengan_309(): void
+    {
+        $this->report($this->ulpA, '309', '2026-03-01', [['JUMLAH', ['kwh_jumlah' => 1090, 'rp_jumlah' => 11900, 'pelanggan' => 10, 'daya_va' => 1000]]]);
+        $this->report($this->ulpB, '309', '2026-03-01', [['JUMLAH', ['kwh_jumlah' => 500, 'rp_jumlah' => 5000, 'pelanggan' => 5, 'daya_va' => 500]]]);
+        $this->kontrol309($this->ulpA, '2026-03-01', [['TUL III-07 (11)', 'T_307NEW', 1000, 10000], ['PENAMBAHAN', null, null, null], ['        Penetapan TS P2TL', 'PENETAPAN_P2TL', 100, 2000], ['                DP / Tunai P2TL', 'P2TL_TUNAI', 100, 2000],
+            ['SUB TOTAL 1 ( + )', null, 1100, 12000], ['PENGURANGAN', null, null, null], ['        Pembatalan Rekening (MEMO4)', 'DKRPLAMA', 10, 100], ['SUB TOTAL 2 ( - )', null, 10, 100], ['RUMUS (SUBTOTAL 1-2)', null, 1090, 11900],
+            ['CATATAN LPB', null, null, null], ['        PRA BAYAR (Pembelian Token PPOB)', 'PRABAYAR_PPOB', 5000, 50000]]);
+        $this->kontrol309($this->ulpB, '2026-03-01', [['TUL III-07 (11)', 'T_307NEW', 500, 5000]]);
+
+        $kwh = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
+        $rows = collect($kwh['breakdown_secondary']['rows'])->pluck('value', 'key')->all();
+        $this->assertSame('Komponen penjualan', $kwh['breakdown_secondary']['dimension']);
+        $this->assertEquals(['TUL III-07 (11)' => 1500.0, 'Penetapan TS P2TL' => 100.0, 'Pembatalan Rekening (MEMO4)' => -10.0], $rows);      // rincian tunai dan catatan LPB tidak ikut; pengurangan bernilai negatif
+        $this->assertEquals(1590.0, array_sum($rows));                                                                                         // sama dengan total kWh jual 309 (1090 + 500)
+        $this->assertEquals(1590, collect($kwh['series'])->firstWhere('key', 'kwh')['values'][0]);
+        $this->assertNull($kwh['matrix']);
+        $this->assertSame('Kelompok tarif', $kwh['breakdown']['dimension']);                                                                   // rincian per kelompok tarif tetap ada
+
+        $rp = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pendapatan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data');
+        $this->assertEquals(['TUL III-07 (11)' => 15000.0, 'Penetapan TS P2TL' => 2000.0, 'Pembatalan Rekening (MEMO4)' => -100.0], collect($rp['breakdown_secondary']['rows'])->pluck('value', 'key')->all());
+
+        // bulan tanpa kontrol 309: metrik tetap jalan, tanpa rincian komponen
+        $this->report($this->ulpA, '309', '2026-04-01', [['JUMLAH', ['kwh_jumlah' => 7, 'rp_jumlah' => 70, 'pelanggan' => 1, 'daya_va' => 1]]]);
+        $april = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpA->id}&from=2026-03&to=2026-04")->assertOk()->json('data');
+        $this->assertSame([], $april['breakdown_secondary']['rows']);
+    }
+
+    #[Test]
+    public function kwh_p2tl_memuat_penetapan_ts_p2tl_dari_kontrol_309_di_samping_belum_realisasi(): void
+    {
+        $ts = fn (string $label, float $kwh, float $rp, int $n) => [$label, ['kwh' => $kwh, 'rp_total' => $rp, 'jumlah' => $n]];
+        $this->report($this->ulpA, 'TAGSUS', '2026-03-01', [$ts('K2', 100, 1000, 2)]);
+        $this->report($this->ulpA, 'TAGSUS', '2026-04-01', [$ts('K2', 10, 100, 1)]);
+        $this->kontrol309($this->ulpA, '2026-03-01', [['TUL III-07 (11)', 'T_307NEW', 1000, 10000], ['PENAMBAHAN', null, null, null], ['        Penetapan TS P2TL', 'PENETAPAN_P2TL', 120, 2400], ['SUB TOTAL 2 ( - )', null, 0, 0]]);
+        $this->report($this->ulpA, 'TAGSUS_BELUM', '2026-04-01', [$ts('K2', 4, 40, 1)]);                    // April: hanya belum realisasi, tanpa kontrol 309
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-p2tl?unit_id={$this->ulpA->id}&from=2026-03&to=2026-05")->assertOk()->json('data');
+
+        $c = collect($d['companions']['series'])->keyBy('key');
+        $this->assertSame(['kwh_penetapan', 'rp_penetapan', 'kwh_belum', 'rp_belum', 'jumlah_belum'], array_keys($c->all()));
+        $this->assertEquals([120.0, null, null], $c['kwh_penetapan']['values']);                             // Maret ada kontrol 309; April dan Mei tidak
+        $this->assertEquals([2400.0, null, null], $c['rp_penetapan']['values']);
+        $this->assertEquals([null, 4.0, null], $c['kwh_belum']['values']);                                   // belum realisasi hanya April: tiap seri null sendiri-sendiri
+        $this->assertEquals([100.0, 10.0, null], collect($d['series'])->firstWhere('key', 'kwh')['values']);  // angka utama tidak berubah
     }
 
     #[Test]

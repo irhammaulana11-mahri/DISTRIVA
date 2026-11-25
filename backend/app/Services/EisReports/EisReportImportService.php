@@ -32,6 +32,7 @@ class EisReportImportService
         if ($allowedUnitIds !== null && ! in_array($unit->id, $allowedUnitIds, true)) {
             throw new EisReportException("Anda tidak berwenang mengimpor laporan untuk {$unit->name}.");
         }
+        $parsed['family'] === '309EIS' && $warnings = [...$warnings, ...$this->check309Total($parsed, $unit)];
         $sha = hash_file('sha256', $path);
         $base = ['family' => $parsed['family'], 'unit' => $unit->name, 'period' => substr($parsed['period'], 0, 7), 'warnings' => $warnings];
         $dup = DB::table('eis_report_files')->where(['family' => $parsed['family'], 'organizational_unit_id' => $unit->id, 'period' => $parsed['period'], 'sha256' => $sha, 'status' => 'AKTIF'])->value('id');
@@ -56,6 +57,29 @@ class EisReportImportService
         Storage::disk('documents')->put(self::storageKey((object) ['unit_code' => $unit->code, 'family' => $parsed['family'], 'period' => $parsed['period'], 'sha256' => $sha, 'original_name' => $originalName]), (string) file_get_contents($path));
 
         return $base + ['status' => $replaced ? 'DIGANTIKAN' : 'BARU', 'id' => $id, 'lines' => count($parsed['lines'])];
+    }
+
+    /**
+     * Total kontrol 309 (baris RUMUS) harus sama dengan baris JUMLAH laporan 309 unit dan bulan yang sama; bila berbeda, bulan atau unit berkas mungkin keliru (mis. EIS menampilkan bulan lain). Hanya peringatan: laporan 309 bisa saja diunggah ulang.
+     *
+     * @param  array<string, mixed>  $parsed
+     * @return list<string>
+     */
+    private function check309Total(array $parsed, object $unit): array
+    {
+        $rumus = collect($parsed['lines'])->first(fn ($l) => str_starts_with(strtoupper(trim((string) $l['label'])), 'RUMUS'));
+        $file = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unit->id)->where('period', $parsed['period'])->value('id');
+        if ($rumus === null || $file === null) {
+            return [];
+        }
+        $line = json_decode((string) DB::table('eis_report_lines')->where('file_id', $file)->where('label', 'JUMLAH')->orderByDesc('line_no')->value('values'), true);
+        $kontrol = (float) ($rumus['values']['jmlkwh'] ?? 0);
+        $official = (float) ($line['kwh_jumlah'] ?? 0);
+        if ($line === null || abs($kontrol - $official) <= 1) {
+            return [];
+        }
+
+        return [sprintf('Total kontrol 309 (%s kWh) tidak sama dengan laporan 309 bulan itu (%s kWh): periksa bulan dan unit berkas, atau unggah ulang laporan 309.', number_format($kontrol, 2, ',', '.'), number_format($official, 2, ',', '.'))];
     }
 
     /**

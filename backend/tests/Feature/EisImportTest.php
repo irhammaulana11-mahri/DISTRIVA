@@ -911,6 +911,11 @@ class EisImportTest extends PostgresTestCase
         $this->assertSame(['2026-10', '2026-10', 'GOLONGAN,LEMBAR,KOGOL,PRABAYAR'], [$seen[array_search('--dari', $seen, true) + 1], $seen[array_search('--sampai', $seen, true) + 1], $seen[array_search('--laporan', $seen, true) + 1]]);
         $this->assertNotContains('--unit', $seen);
 
+        $kontrol = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10', 'reports' => ['KONTROL309'], 'units' => ['51453']])->assertStatus(202)->json('data');       // kontrol penjualan 309 diminta sendiri
+        $this->assertSame(['KONTROL309'], $kontrol['options']['reports']);
+        $this->assertSame('KONTROL309', $args()[array_search('--laporan', $args(), true) + 1]);
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10', 'reports' => ['LAINNYA']])->assertUnprocessable();
+
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang'])->assertUnprocessable();                                              // the last month is required
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'from_month' => '2026-10', 'to_month' => '2026-01'])->assertUnprocessable();
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10', 'reports' => ['SEMUA']])->assertUnprocessable();

@@ -5,6 +5,7 @@ Tiga laporan (menu EIS "Saldo Akhir Bulan" dan "Saldo Akhir Periode"):
   LEMBAR    mycube.aspx?jenis=saldo_lalu_eis_lbr&parameter='<ULP>';'<YYYYMM>';'PERLEMBAR'      jenis impor UMURPIUTANG
   KOGOL     saldo_pal_20.aspx (tanpa parameter alamat; unit dan bulan mengikuti bilah atas)    jenis impor AKHIEPERIODE_EIS
   PRABAYAR  mycube.aspx?jenis=saldo_lalu_ap3t_tarif_up&parameter='<ULP>';'<AP>';'<UPI>';'<YYYYMM>'   jenis impor PIUTANGLPB_EIS (Saldo Prabayar Bulan Lalu, per tarif)
+  KONTROL309  kontrol_309.aspx (bilah atas seperti KOGOL; pembukuan selalu Plus)   jenis impor 309EIS (kontrol penjualan 309: rincian komponen yang berjumlah sama dengan laporan 309)
 
 Halaman mycube: GET halaman, lalu POST seluruh isian halaman dengan listExportFormatx=Excel dan btnSave=Save. Halaman KOGOL: pilih bulan (setTahun, setBulan) dan unit (finalUP) di bilah atas
 seperti kotaknya, GET halaman, POST btnLoad, cek judul laporan (unit dan bulan harus sama dengan yang diminta), lalu POST btnExport. Hasil satu bulan menjadi satu ZIP berfolder `ULP/BULAN/<LAPORAN>.xls`
@@ -27,7 +28,9 @@ from bs4 import BeautifulSoup
 from app import permohonan_http as eis
 from app.config import LOGIN_URL
 
-LAPORAN = ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR")
+LAPORAN = ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR", "KONTROL309")
+DEFAULT_LAPORAN = ("GOLONGAN", "LEMBAR", "KOGOL", "PRABAYAR")     # bawaan tanpa --laporan; KONTROL309 hanya bila diminta
+TOP_BAR = ("KOGOL", "KONTROL309")                       # laporan yang mengikuti pilihan bulan dan unit di bilah atas EIS (bukan alamat halaman)
 UP3_CODE = os.getenv("EIS_UP3_CODE", "51MJK")         # kode AP (UP3) dan UPI pada parameter laporan saldo prabayar; semua ULP yang disinkron berada di bawah UP3 ini
 UPI_CODE = os.getenv("EIS_UPI_CODE", "51")
 # laporan halaman mycube.aspx: jenis halaman dan pembuat parameter alamat (ULP, YYYYMM)
@@ -193,6 +196,25 @@ def fetch_kogol(session: requests.Session, ulp: str, month: str) -> tuple[bytes,
     return answer.content, check_excel(answer.content, answer.headers.get("Content-Type", ""), answer.status_code)
 
 
+def fetch_kontrol309(session: requests.Session, ulp: str, month: str) -> tuple[bytes, str]:
+    """Kontrol penjualan 309 (kontrol_309.aspx): bulan dan unit dari bilah atas (dipilih pemanggil), pembukuan selalu Plus (Januari*), Load Data lalu Export. Judul halaman dicek bila memuat "UP : <unit> ( MUTASI : BB/TTTT";
+    penjagaan akhir di DISTRIVA: kolom UNIT harus sama dengan kode pada nama berkas dan totalnya dibandingkan dengan laporan 309 bulan itu (peringatan bila berbeda)."""
+    year, mm = month.split("-")
+    url = f"{base()}/kontrol_309.aspx"
+    _response, payload = page_form(session, url, "GET Kontrol 309")
+    payload.update({"__EVENTTARGET": "btnLoad", "__EVENTARGUMENT": "", "cbobuku_Value": "plus", "cbobuku": "Plus (Januari*)", "cbobuku_SelIndex": "1"})
+    loaded = session.post(url, data=payload, timeout=(20, 180), headers=post_headers(url))
+    eis._check_response(loaded, "Load Data Kontrol 309")
+    head = _HEAD.search(BeautifulSoup(loaded.text, "html.parser").get_text(" ", strip=True))
+    if head and (head.group(1), head.group(2), head.group(3)) != (ulp, mm, year):
+        raise SaldoError(f"EIS menampilkan unit {head.group(1)} bulan {head.group(2)}/{head.group(3)}, bukan {ulp} {mm}/{year} (akun mungkin tidak boleh berpindah unit atau bulan)")
+    payload = form_fields(loaded.text)
+    payload.update({"__EVENTTARGET": "btnExport", "__EVENTARGUMENT": "", "cbobuku_Value": "plus", "cbobuku": "Plus (Januari*)", "cbobuku_SelIndex": "1"})
+    answer = session.post(url, data=payload, timeout=(20, 180), headers=post_headers(url))
+    eis._check_response(answer, "Export Kontrol 309")
+    return answer.content, check_excel(answer.content, answer.headers.get("Content-Type", ""), answer.status_code)
+
+
 # ---- satu putaran ------------------------------------------------------------------------------------------------------------------------------------------------------------
 def build_zip(files: list[tuple[str, bytes]]) -> bytes:
     buffer = io.BytesIO()
@@ -232,21 +254,24 @@ def run(client, units: list[tuple[str, str]], months: list[str], reports: list[s
         files: list[tuple[str, bytes]] = []
         print(f"=== Bulan {month} ===", flush=True)
         try:
-            if "KOGOL" in reports:
+            if any(r in TOP_BAR for r in reports):
                 attempt("bulan", lambda: select_month(session, month))
         except Exception as e:
             print(f"GAGAL  pilih bulan {month}: {e}", flush=True)
-            failed.extend(f"{r} {code} {month}" for code, _ in units for r in reports if r == "KOGOL")
-            reports_now = [r for r in reports if r != "KOGOL"]
+            failed.extend(f"{r} {code} {month}" for code, _ in units for r in reports if r in TOP_BAR)
+            reports_now = [r for r in reports if r not in TOP_BAR]
         else:
             reports_now = list(reports)
         for code, name in units:
+            unit_selected = False
             for report in reports_now:
                 label = f"{report} {name} {month}"
                 try:
-                    if report == "KOGOL":
-                        attempt(label, lambda: eis.select_unit(session, code))
-                        data, ext = attempt(label, lambda: fetch_kogol(session, code, month))
+                    if report in TOP_BAR:
+                        if not unit_selected:
+                            attempt(label, lambda: eis.select_unit(session, code))
+                            unit_selected = True
+                        data, ext = attempt(label, lambda: (fetch_kogol if report == "KOGOL" else fetch_kontrol309)(session, code, month))
                     else:
                         data, ext = attempt(label, lambda: fetch_mycube(session, report, code, month))
                     files.append((f"{code}/{month}/{report}.{ext}", data))
@@ -276,7 +301,7 @@ def run(client, units: list[tuple[str, str]], months: list[str], reports: list[s
             failed.append(f"unggahan {month} (tanpa hasil)")
             print(f"  GAGAL  unggahan {month}: DISTRIVA tidak mengembalikan hasil per berkas", flush=True)
     try:
-        if "KOGOL" in reports:
+        if any(r in TOP_BAR for r in reports):
             eis.select_unit(session, eis.ALL_UNITS)    # kembalikan pilihan unit ke SEMUA UP supaya sinkron lain tidak terfilter unit terakhir
     except Exception as e:
         print(f"PERINGATAN: pilihan unit EIS tidak dapat dikembalikan ke SEMUA UP ({e}).", flush=True)

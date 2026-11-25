@@ -95,6 +95,12 @@ final class EisReportParser
             'TAGSUS', 'TAGSUS_BELUM' => [$this->tagsus(), null],
             'UMURPIUTANG' => [$this->umurPiutang(), null],
         };
+        if ($family === '309EIS' && $unitSource === 'nama' && $lines !== []) {                       // kode unit di kolom UNIT harus sama dengan kode pada nama berkas (pilihan unit di EIS tidak boleh meleset)
+            $inside = (string) ($lines[0]['values']['unit'] ?? '');
+            if ($inside !== '' && strcasecmp($inside, (string) $unitCode) !== 0) {
+                throw new EisReportException("Kode unit di dalam berkas ({$inside}) berbeda dengan nama berkas ({$unitCode}).");
+            }
+        }
         if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
         }
@@ -358,8 +364,13 @@ final class EisReportParser
         $last = [];
         for ($r = $head + 1; $r <= $this->rowCount(); $r++) {
             $v = [];
+            $indent = 0;
             foreach ($names as $i => $name) {
                 $raw = $this->rows[$r - 1][$i] ?? null;
+                if ($name === $labelCol && is_string($raw)) {                                  // indentasi label (spasi biasa atau tidak pecah) menunjukkan induk dan rincian; disimpan sebelum label dipangkas
+                    preg_match('/^[\s\x{00A0}]*/u', $raw, $lead);
+                    $indent = mb_strlen($lead[0]);
+                }
                 $raw = is_string($raw) ? trim($raw) : $raw;
                 if (in_array($name, $textCols, true)) {
                     $t = $raw === null || $raw === '' ? null : (string) (is_float($raw) && floor($raw) === $raw ? (int) $raw : $raw);
@@ -373,6 +384,7 @@ final class EisReportParser
                     $n !== null && $v[$name] = $n;
                 }
             }
+            $indent > 0 && isset($v[$labelCol]) && $v['indent'] = $indent;
             $label = $v[$labelCol] ?? null;
             if ($label === null && isset($v['skema_bayar'])) {
                 $label = $v['skema_bayar'];

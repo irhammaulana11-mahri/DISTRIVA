@@ -15,6 +15,7 @@ class ReportDatasets
     public const ACTIVE = [
         'AP2T.PENJUALAN_309' => ['name' => 'Penjualan Tenaga Listrik (309)', 'source' => 'AP2T', 'storage' => 'file', 'family' => '309', 'used_by' => ['pelanggan', 'daya', 'kwh-jual', 'pendapatan', 'susut']],
         'AP2T.TAGSUS' => ['name' => 'Realisasi Tagihan Susulan (P2TL)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'TAGSUS', 'used_by' => ['kwh-p2tl']],
+        'EIS.KONTROL_309' => ['name' => 'Kontrol Penjualan 309 (rincian komponen)', 'source' => 'EIS', 'storage' => 'file', 'family' => '309EIS', 'used_by' => ['kwh-jual', 'pendapatan', 'kwh-p2tl']],
         'AP2T.TAGSUS_BELUM_REALISASI' => ['name' => 'Penetapan Tagihan Susulan Belum Realisasi (P2TL)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'TAGSUS_BELUM', 'used_by' => ['kwh-p2tl']],
         'APKT.SAIDI_SAIFI' => ['name' => 'Laporan SAIDI SAIFI', 'source' => 'APKT', 'storage' => 'file', 'family' => 'DIFI', 'used_by' => ['saidi-saifi', 'ens', 'gangguan']],
         'APKT.RPT_RCT_GANGGUAN' => ['name' => 'Jumlah dan Durasi RPT RCT Gangguan', 'source' => 'APKT', 'storage' => 'table', 'table' => 'apkt_rpt_rct_records', 'parts' => 2, 'used_by' => ['rpt-rct-gangguan']],
@@ -28,7 +29,7 @@ class ReportDatasets
     ];
 
     /** Jenis laporan EIS lama yang tidak lagi dipakai menu mana pun (digantikan penarikan APKT); tetap dapat diunggah dan disimpan, tidak masuk hitungan kelengkapan. */
-    public const LEGACY_FAMILIES = ['309EIS', 'GGNALL', 'GGNPERJENIS', 'GGNBERULANG', 'GGNNEGATIF', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF'];
+    public const LEGACY_FAMILIES = ['GGNALL', 'GGNPERJENIS', 'GGNBERULANG', 'GGNNEGATIF', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF'];
 
     /**
      * Metadata dataset aktif untuk tampilan.

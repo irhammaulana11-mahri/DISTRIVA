@@ -41,13 +41,13 @@ class BusinessMetricService
                         'companion' => ['source' => 'Permohonan EIS (tersambung menurut status PEREMAJAAN)', 'forecast' => ['kind' => 'VA_ADDED'],
                             'series' => [['key' => 'pb_kva', 'name' => 'Daya PB tersambung', 'unit' => 'MVA', 'num' => 'pb_kva', 'factor' => 1e-3], ['key' => 'pd_net_kva', 'name' => 'Perubahan daya (PD) neto', 'unit' => 'MVA', 'num' => 'pd_net_kva', 'factor' => 1e-3]],
                             'reconcile' => [['key' => 'daya', 'mode' => 'net', 'unit' => 'MVA', 'official_name' => 'Tambahan bersih (selisih daya tersambung Laporan 309)', 'official' => ['num' => ['daya_va'], 'factor' => 1e-6],
-                                'companion_name' => 'Daya PB + PD neto (permohonan)', 'companion' => ['num' => ['pb_kva', 'pd_net_kva'], 'factor' => 1e-3]]]]],        'kwh-jual' => ['name' => 'kWh jual', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif',
+                                'companion_name' => 'Daya PB + PD neto (permohonan)', 'companion' => ['num' => ['pb_kva', 'pd_net_kva'], 'factor' => 1e-3]]]]],        'kwh-jual' => ['name' => 'kWh jual', 'source' => 'Laporan 309 (baris JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif', 'breakdown2' => 'Komponen penjualan', 'no_matrix' => true,
                                     'series' => [['key' => 'kwh', 'name' => 'kWh jual', 'unit' => 'kWh', 'num' => 'kwh']],
                                     'companion' => ['source' => 'Permohonan EIS (daya PB tersambung per kelompok tarif) dikali kWh per kVA aktual kelompok itu dari Laporan 309 (perkiraan, bukan angka resmi)', 'forecast' => null,
                                         'series' => [['key' => 'est_kwh', 'name' => 'Perkiraan kWh dari pelanggan baru (PB 12 bulan terakhir)', 'unit' => 'kWh', 'num' => 'est_kwh']],
                                         'reconcile' => [['key' => 'kwh', 'mode' => 'yoy', 'unit' => 'kWh', 'official_name' => 'Kenaikan kWh jual dibanding tahun lalu (Laporan 309)', 'official' => ['num' => ['kwh']],
                                             'companion_name' => 'Perkiraan sumbangan pelanggan baru', 'companion' => ['num' => ['est_kwh']]]]]],
-        'pendapatan' => ['name' => 'Pendapatan', 'source' => 'Laporan 309 (rupiah JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif',
+        'pendapatan' => ['name' => 'Pendapatan', 'source' => 'Laporan 309 (rupiah JUMLAH)', 'family' => '309', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Kelompok tarif', 'breakdown2' => 'Komponen penjualan', 'no_matrix' => true,
             'series' => [['key' => 'rp', 'name' => 'Pendapatan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'rp_per_kwh', 'name' => 'Harga jual rata-rata', 'unit' => 'Rp/kWh', 'num' => 'rp', 'den' => 'kwh']],
             'companion' => ['source' => 'Permohonan EIS (daya PB tersambung per kelompok tarif) dikali rupiah per kVA aktual kelompok itu dari Laporan 309 (perkiraan, bukan angka resmi)', 'forecast' => null,
                 'series' => [['key' => 'est_rp', 'name' => 'Perkiraan pendapatan dari pelanggan baru (PB 12 bulan terakhir)', 'unit' => 'Rp', 'num' => 'est_rp']],
@@ -102,8 +102,8 @@ class BusinessMetricService
         'kwh-p2tl' => ['name' => 'kWh P2TL', 'source' => 'TAGSUS (golongan P1-P4, K2, tanpa golongan; tanpa TS kWh dan DKRP)', 'family' => 'TAGSUS', 'polarity' => 'up', 'ytd' => 'ratio', 'breakdown' => 'Golongan pelanggaran',
             'series' => [['key' => 'kwh', 'name' => 'kWh P2TL', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp', 'name' => 'Rupiah tagihan susulan', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah', 'name' => 'Jumlah pelanggan', 'unit' => 'plg', 'num' => 'n']],
             // potret AP2T per tanggal tarik, bukan angka bulan penuh: bulan lama hanya memuat sisa penetapan yang belum terealisasi saat laporan ditarik; bulan tanpa laporan bernilai null (bukan 0)
-            'companion' => ['source' => 'AP2T – Penetapan tagihan susulan yang belum realisasi (potret per tanggal tarik: bulan lama hanya memuat sisa yang belum terealisasi saat laporan ditarik)', 'forecast' => null, 'null_when_missing' => true,
-                'series' => [['key' => 'kwh_belum', 'name' => 'kWh belum realisasi', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp_belum', 'name' => 'Rupiah belum realisasi', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah_belum', 'name' => 'Jumlah penetapan belum realisasi', 'unit' => 'penetapan', 'num' => 'n']],
+            'companion' => ['source' => 'AP2T: penetapan tagihan susulan yang belum realisasi (potret per tanggal tarik: bulan lama hanya memuat sisa yang belum terealisasi saat laporan ditarik) dan penetapan TS P2TL pada kontrol 309 EIS (angka bulan penuh)', 'forecast' => null, 'null_when_missing' => true,
+                'series' => [['key' => 'kwh_penetapan', 'name' => 'kWh penetapan TS P2TL (kontrol 309)', 'unit' => 'kWh', 'num' => 'kwh_pen_p2tl'], ['key' => 'rp_penetapan', 'name' => 'Rupiah penetapan TS P2TL (kontrol 309)', 'unit' => 'Rp', 'num' => 'rp_pen_p2tl'], ['key' => 'kwh_belum', 'name' => 'kWh belum realisasi', 'unit' => 'kWh', 'num' => 'kwh'], ['key' => 'rp_belum', 'name' => 'Rupiah belum realisasi', 'unit' => 'Rp', 'num' => 'rp'], ['key' => 'jumlah_belum', 'name' => 'Jumlah penetapan belum realisasi', 'unit' => 'penetapan', 'num' => 'n']],
                 'reconcile' => []]],
         'gangguan' => ['name' => 'Gangguan penyulang', 'source' => 'Data gangguan penyulang dari spreadsheet (gangguan feeder/penyulang: PMT dan recloser)', 'family' => null, 'polarity' => 'down', 'ytd' => 'ratio', 'breakdown' => 'Jenis gangguan',
             'series' => [['key' => 'jumlah', 'name' => 'Jumlah gangguan penyulang', 'unit' => 'kali', 'num' => 'n'], ['key' => 'permanen', 'name' => 'Permanen', 'unit' => 'kali', 'num' => 'permanen'], ['key' => 'temporer', 'name' => 'Temporer', 'unit' => 'kali', 'num' => 'temporer'],
@@ -135,7 +135,8 @@ class BusinessMetricService
         $toDate = $to.'-01';
 
         return match ($code) {
-            'pelanggan', 'daya', 'kwh-jual', 'pendapatan' => $this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->from309($lines, $code)),
+            'pelanggan', 'daya' => $this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->from309($lines, $code)),
+            'kwh-jual', 'pendapatan' => $this->withKontrol309($this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->from309($lines, $code)), $code, $units, $fromDate, $toDate),
             'piutang-prabayar' => $this->eis('PIUTANGLPB_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromPiutangLpb($lines)),
             'piutang-pascabayar-umur' => $this->eis('UMURPIUTANG', $units, $fromDate, $toDate, fn (array $lines) => $this->fromUmurPiutang($lines)),
             'piutang-pascabayar' => $this->eis('AKHIEPERIODE_EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromAkhirPeriode($lines)),
@@ -146,6 +147,7 @@ class BusinessMetricService
             'anomali-keluhan', 'anomali-gangguan' => $this->apktAnomali($code, $units, $fromDate, $toDate),
             'difi-gangguan' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifiCount($lines, $summary)),
             'kwh-p2tl' => $this->eis('TAGSUS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
+            'kwh-p2tl-penetapan' => $this->eis('309EIS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromKontrol309($lines)),
             'kwh-p2tl-belum' => $this->eis('TAGSUS_BELUM', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
             'gangguan' => $this->outages($units, $fromDate, $toDate),
             'hpl-bp' => $this->connectionFees($units, $fromDate, $toDate),
@@ -348,6 +350,68 @@ class BusinessMetricService
         unset($byMonth);
 
         return $out;
+    }
+
+    /**
+     * Menambahkan rincian komponen penjualan (`bd2`) dari kontrol 309 EIS ke sel kWh jual atau pendapatan bulan yang sama; bulan tanpa kontrol 309 tetap tanpa rincian.
+     *
+     * @param  array<string, array<string, array<string, mixed>>>  $cells
+     * @param  list<string>  $units
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private function withKontrol309(array $cells, string $code, array $units, string $from, string $to): array
+    {
+        $column = $code === 'kwh-jual' ? 'jmlkwh' : 'rpptl';
+        foreach ($this->eis('309EIS', $units, $from, $to, fn (array $lines) => $this->fromKontrol309($lines)) as $u => $byMonth) {
+            foreach ($byMonth as $m => $cell) {
+                isset($cells[$u][$m]) && $cells[$u][$m]['bd2'] = $cell['components'][$column];
+            }
+        }
+
+        return $cells;
+    }
+
+    /**
+     * Kontrol 309 EIS: komponen penjualan (kWh `jmlkwh` dan rupiah `rpptl`) yang berjumlah sama dengan laporan 309. Komponen = baris dasar TUL III-07 sebelum PENAMBAHAN, lalu baris berindentasi pertama (indentasi disimpan parser sebagai `indent`) pada PENAMBAHAN (bertanda positif)
+     * dan PENGURANGAN (bertanda negatif) sampai SUB TOTAL 2; baris berindentasi lebih dalam adalah rincian tunai atau angsuran komponen induknya (tidak dijumlahkan lagi) dan catatan LPB setelah RUMUS tidak dipakai.
+     * Komponen bernilai nol tidak dimuat. `raw` memuat penetapan TS P2TL (`PENETAPAN_P2TL`) untuk pendamping kWh P2TL.
+     *
+     * @param  list<array{label: string, values: array<string, mixed>}>  $lines
+     * @return array{raw: array<string, float>, bd: array<string, float>, components: array{jmlkwh: array<string, float>, rpptl: array<string, float>}}|null
+     */
+    private function fromKontrol309(array $lines): ?array
+    {
+        $components = ['jmlkwh' => [], 'rpptl' => []];
+        $raw = [];
+        $sign = 1;
+        foreach ($lines as $l) {
+            $name = trim((string) preg_replace('/^[\s\x{00A0}]+|[\s\x{00A0}]+$/u', '', $l['label']));
+            $upper = strtoupper($name);
+            if (str_starts_with($upper, 'SUB TOTAL 2')) {
+                break;
+            }
+            if ($upper === 'PENGURANGAN') {
+                $sign = -1;
+
+                continue;
+            }
+            $source = $l['values']['sumber_laporan'] ?? null;
+            if ($source === null) {
+                continue;
+            }
+            if ((int) ($l['values']['indent'] ?? 0) > 10) {                                          // rincian tunai atau angsuran komponen induk (indentasi disimpan parser)
+                continue;
+            }
+            foreach (['jmlkwh', 'rpptl'] as $column) {
+                $value = (float) ($l['values'][$column] ?? 0);
+                $value != 0.0 && $components[$column][$name] = ($components[$column][$name] ?? 0.0) + $sign * $value;
+            }
+            if ($source === 'PENETAPAN_P2TL') {
+                $raw = ['kwh_pen_p2tl' => (float) ($l['values']['jmlkwh'] ?? 0), 'rp_pen_p2tl' => (float) ($l['values']['rpptl'] ?? 0)];
+            }
+        }
+
+        return $components['jmlkwh'] === [] && $components['rpptl'] === [] ? null : ['raw' => $raw + ['kwh_pen_p2tl' => 0.0, 'rp_pen_p2tl' => 0.0], 'bd' => [], 'components' => $components];
     }
 
     /**

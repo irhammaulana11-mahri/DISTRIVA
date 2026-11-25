@@ -324,6 +324,48 @@ class EisReportImportTest extends PostgresTestCase
         $this->assertStringNotContainsString('RAHASIA', json_encode(DB::table('eis_report_lines')->get()));
     }
 
+    /** Kontrol 309 EIS kecil: dasar TUL III-07, satu penetapan P2TL beserta rincian tunainya, satu pembatalan, RUMUS, dan catatan LPB setelahnya. */
+    private function kontrol309(string $unit = '51453', float $rumusKwh = 1090): string
+    {
+        $head = ['UNIT', 'NOMOR', 'KODE', 'KETERANGAN', 'SUMBER_LAPORAN', 'JMLPLG', 'JMLDAYA', 'JMLKWH', 'KELBKVARH', 'RPBEBAN', 'RPKWH', 'RPKVARH', 'RPPTL', 'PEMBUKUAN'];
+        $row = fn (int $n, ?string $label, ?string $source, float $kwh, float $rp) => [$unit, (string) $n, null, $label, $source, 0, 0, $kwh, 0, 0, 0, 0, $rp, 'plus'];
+        $nbsp = fn (int $n) => str_repeat(' ', $n);
+
+        return $this->book([
+            $head,
+            $row(1, 'TUL III-07 (11)', 'T_307NEW', 1000, 10000), $row(2, 'PENAMBAHAN', null, 0, 0),
+            $row(3, $nbsp(8).'Penetapan TS P2TL', 'PENETAPAN_P2TL', 100, 2000), $row(4, $nbsp(16).'DP / Tunai P2TL', 'P2TL_TUNAI', 100, 2000),
+            $row(5, 'SUB TOTAL 1 ( + )', null, 1100, 12000), $row(6, 'PENGURANGAN', null, 0, 0),
+            $row(7, $nbsp(8).'Pembatalan Rekening (MEMO4)', 'DKRPLAMA', 10, 100), $row(8, 'SUB TOTAL 2 ( - )', null, 10, 100),
+            $row(9, 'RUMUS (SUBTOTAL 1-2)', null, $rumusKwh, 11900),
+            $row(10, 'CATATAN LPB', null, 0, 0), $row(11, $nbsp(8).'PRA BAYAR (Pembelian Token PPOB)', 'PRABAYAR_PPOB', 5000, 50000),
+        ]);
+    }
+
+    #[Test]
+    public function kontrol_309_membandingkan_totalnya_dengan_laporan_309_dan_menolak_kode_unit_yang_berbeda(): void
+    {
+        // tanpa laporan 309 bulan itu: tidak ada pembanding, tidak ada peringatan
+        $first = $this->service()->import($this->kontrol309(), '309EIS-51453-102026.xlsx');
+        $this->assertSame(['309EIS', 'BARU', []], [$first['family'], $first['status'], $first['warnings']]);
+
+        $this->service()->import($this->report309('ULP JOMBANG', 'Oktober 2026'), '309-51453-102026.xlsx');
+        DB::table('eis_report_lines')->where('label', 'JUMLAH')->update(['values' => json_encode(['pelanggan' => 1, 'daya_va' => 1, 'kwh_jumlah' => 1090])]);
+        $same = $this->service()->import($this->kontrol309('51453', 1090.5), '309EIS-51453-102026.xlsx');                          // selisih 0,5 kWh: dalam toleransi
+        $this->assertSame([], $same['warnings']);
+
+        $off = $this->service()->import($this->kontrol309('51453', 2000), '309EIS-51453-102026.xlsx');
+        $this->assertCount(1, $off['warnings']);
+        $this->assertStringContainsString('Total kontrol 309 (2.000,00 kWh) tidak sama dengan laporan 309 bulan itu (1.090,00 kWh)', $off['warnings'][0]);
+
+        try {
+            $this->service()->import($this->kontrol309('51454'), '309EIS-51453-102026.xlsx');                                         // kolom UNIT 51454, nama berkas 51453
+            $this->fail('Seharusnya ditolak');
+        } catch (EisReportException $e) {
+            $this->assertStringContainsString('Kode unit di dalam berkas (51454) berbeda dengan nama berkas (51453)', $e->getMessage());
+        }
+    }
+
     #[Test]
     public function laporan_belum_realisasi_dikenali_sebagai_jenis_sendiri_dan_tidak_menggantikan_tagsus(): void
     {
