@@ -1109,6 +1109,63 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertSame(['K2', 'P3'], array_column($d['violations'], 'key'));
     }
 
+    /** Permohonan biaya penyambungan: lunas sehari setelah dibuat bila $paid, selain itu belum lunas dengan status $status. */
+    private function fee(OrganizationalUnit $ulp, string $type, float $cost, string $created, bool $paid = true, string $status = 'CONNECTION_DONE'): void
+    {
+        $this->connected($ulp, $type, 1, '2020-01-01');                                                         // memastikan templat permohonan ada; baris ini tidak lunas sehingga tidak terhitung
+        $id = DB::table('applications')->orderByDesc('created_at')->orderByDesc('id')->where('source_created_at', '2020-01-01 08:00:00')->value('id');
+        DB::table('applications')->where('id', $id)->update(['application_type' => $type, 'total_cost' => $cost, 'source_created_at' => $created.' 08:00:00', 'current_status' => $status,
+            'paid_at' => $paid ? date('Y-m-d 09:00:00', strtotime($created.' +1 day')) : null]);
+    }
+
+    #[Test]
+    public function detail_hpl_bp_memisahkan_kasus_besar_mengukur_lama_bayar_antrean_dan_menguji_prakiraan(): void
+    {
+        foreach (range(0, 7) as $i) {
+            $month = date('Y-m', strtotime("2026-01-01 +{$i} month"));
+            foreach (range(1, 10) as $k) {
+                $this->fee($this->ulpA, $k <= 6 ? 'PB' : 'PD', 1_000_000, "{$month}-1".($k % 9));                  // sepuluh kasus standar Rp 1 juta
+            }
+            $this->fee($this->ulpA, 'PD', (20 + 10 * $i) * 1_000_000, "{$month}-05");                           // satu kasus besar: 20 juta naik 10 juta per bulan
+        }
+        foreach ([1, 2, 3] as $k) {
+            $this->fee($this->ulpB, 'PB', 2_000_000, "2026-08-2{$k}");
+        }
+        $this->fee($this->ulpA, 'PB', 5_000_000, now()->subDays(3)->toDateString(), false, 'APPROVED');          // antrean: 0-7 hari
+        $this->fee($this->ulpA, 'PB', 2_000_000, now()->subDays(20)->toDateString(), false, 'APPROVED');         // 8-30 hari
+        $this->fee($this->ulpA, 'PD', 1_000_000, now()->subDays(100)->toDateString(), false, 'APPROVED');        // kedaluwarsa
+        $this->fee($this->ulpA, 'PD', 1_000_000, now()->subDays(200)->toDateString(), false, 'APPROVED');
+        $this->fee($this->ulpA, 'PB', 9_000_000, '2026-08-10', true, 'CANCELLED');                              // batal: tidak terhitung
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/hpl-bp?unit_id={$this->up3->id}&from=2026-01&to=2026-08")->assertOk()->json('data.detail');
+
+        $this->assertSame(['connection_fee', 20_000_000], [$d['kind'], $d['big_case_rp']]);
+        $aug = collect($d['history'])->firstWhere('month', '2026-08');
+        $this->assertEquals([14, 106_000_000, 16_000_000, 90_000_000, 1], [$aug['n'], $aug['rp'], $aug['rp_standard'], $aug['rp_big'], $aug['n_big']]);
+        $this->assertEqualsWithDelta(90 / 106 * 100, $aug['big_share_pct'], 0.05);
+        $this->assertEqualsWithDelta(12 / 106 * 100, $aug['pb_share_pct'], 0.05);                                // 6 PB standar A (6 juta) + 3 PB ULP B (6 juta)
+
+        $m = $d['month_detail'];
+        $this->assertEquals(106_000_000, $m['rp']);
+        $this->assertSame([90_000_000, 'PD'], [$m['top'][0]['rp'], $m['top'][0]['type']]);
+        $this->assertSame($this->ulpA->id, $m['ulps'][0]['unit_id']);
+        $this->assertEquals([100_000_000, 10_000_000, 3, 6_000_000], [$m['ulps'][0]['rp'], $m['ulps'][0]['rp_standard'], $m['ulps'][1]['n'], $m['ulps'][1]['rp']]);
+
+        $this->assertEquals(1.0, $d['lag']['median_days']);                                                      // semua lunas sehari setelah dibuat
+        $q = collect($d['queue']['buckets'])->keyBy('key');
+        $this->assertEquals([1, 5_000_000, 1, 2_000_000, 2, 2_000_000], [$q['0-7']['n'], $q['0-7']['rp'], $q['8-30']['n'], $q['8-30']['rp'], $q['>30']['n'], $q['>30']['rp']]);
+        $this->assertTrue($q['>30']['stale']);
+        $this->assertSame([0, 1, 3, 7, 14], array_column($d['queue']['odds_by_age'], 'age_days'));
+
+        $f = $d['forecast'];
+        $this->assertTrue($f['available']);
+        $this->assertSame(['2026-09', '2026-08'], [$f['month'], $f['based_on']]);
+        $this->assertEquals([12_000_000, 60_000_000, 40_000_000, 70_000_000], [$f['standard'], $f['big_median'], $f['big_low'], $f['big_high']]);                // standar: rata-rata Juni sampai Agustus (10 + 10 + 16) juta
+        $this->assertSame(2, $f['backtest']['months']);
+        $this->assertGreaterThan(0, $f['backtest']['model_mape_pct']);
+        $this->assertFalse($f['reliable']);                                                                      // cara naif lebih baik pada riwayat uji pendek ini
+    }
+
     #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
