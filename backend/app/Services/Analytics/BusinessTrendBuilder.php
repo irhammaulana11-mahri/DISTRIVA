@@ -15,7 +15,7 @@ class BusinessTrendBuilder
     public const DIFI_METRICS = ['saidi-saifi', 'ens', 'gangguan'];
 
     /** Metrik yang bersumber penarikan APKT => tabel penyimpanannya. */
-    public const APKT_TABLES = ['rpt-rct-gangguan' => 'apkt_rpt_rct_records', 'rpt-rct-keluhan' => 'apkt_rpt_rct_keluhan_records'];
+    public const APKT_TABLES = ['rpt-rct-gangguan' => 'apkt_rpt_rct_records', 'rpt-rct-keluhan' => 'apkt_rpt_rct_keluhan_records', 'anomali-gangguan' => 'apkt_anomali_gangguan_records'];
 
     private const MONTHS = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -62,7 +62,11 @@ class BusinessTrendBuilder
             'severity' => 'warning',
             'month' => $current,
             'message' => sprintf('Data %s %s adalah data bulan berjalan dari APKT (sampai tanggal %d, terakhir ditarik %s) dan masih bertambah. Angka bulan ini belum final dan tidak sebanding dengan bulan penuh; tarik ulang setelah bulan berakhir.',
-                $code === 'rpt-rct-keluhan' ? 'RPT/RCT keluhan' : 'RPT/RCT', $current, $now->day, Carbon::parse($updatedAt)->setTimezone($tz)->format('d-m-Y H:i')),
+                match ($code) {
+                    'rpt-rct-keluhan' => 'RPT/RCT keluhan',
+                    'anomali-gangguan' => 'anomali gangguan',
+                    default => 'RPT/RCT',
+                }, $current, $now->day, Carbon::parse($updatedAt)->setTimezone($tz)->format('d-m-Y H:i')),
             'days_elapsed' => $now->day,
             'last_pulled_at' => Carbon::parse($updatedAt)->toIso8601String(),
             'units_reporting' => (clone $rows)->distinct()->count('organizational_unit_id'),
@@ -75,7 +79,7 @@ class BusinessTrendBuilder
         $family = BusinessMetricService::CATALOG[$code]['family'] ?? null;
         $latest = match (true) {
             $code === 'susut' => DB::table('business_monthly_inputs')->where('code', 'kwh-beli')->whereIn('organizational_unit_id', $units)->max('period'),
-            in_array($code, ['rpt-rct-gangguan', 'rpt-rct-keluhan'], true) => DB::table(self::APKT_TABLES[$code])->whereIn('organizational_unit_id', $units)->max('period'),
+            isset(self::APKT_TABLES[$code]) => DB::table(self::APKT_TABLES[$code])->whereIn('organizational_unit_id', $units)->max('period'),
             $family !== null => DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->max('period'),
             default => null,
         };

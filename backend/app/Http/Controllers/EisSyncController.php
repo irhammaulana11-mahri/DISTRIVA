@@ -53,7 +53,7 @@ class EisSyncController extends Controller
         $this->authorizer->authorizeScope($request->user(), $piutang ? 'eis_reports.import' : 'applications.import');
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
         $rules = ['kind' => ['sometimes', 'in:permohonan,piutang,apkt'], 'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']];
-        $apkt && $rules += ['apkt_token' => ['nullable', 'required_unless:use_saved_token,true', 'string', 'max:700'], 'save_token' => ['sometimes', 'boolean'], 'use_saved_token' => ['sometimes', 'boolean'], 'dataset' => ['sometimes', 'in:saidi-saifi,rpt-rct-gangguan,rpt-rct-keluhan']];
+        $apkt && $rules += ['apkt_token' => ['nullable', 'required_unless:use_saved_token,true', 'string', 'max:700'], 'save_token' => ['sometimes', 'boolean'], 'use_saved_token' => ['sometimes', 'boolean'], 'dataset' => ['sometimes', 'in:saidi-saifi,rpt-rct-gangguan,rpt-rct-keluhan,anomali-gangguan']];
         $rules += $piutang
             ? ['from_month' => ['nullable', 'date_format:Y-m'], 'to_month' => ['required', 'date_format:Y-m', 'after_or_equal:from_month'], 'reports' => ['sometimes', 'array', 'min:1'], 'reports.*' => ['in:GOLONGAN,LEMBAR,KOGOL,PRABAYAR']]
             : ['from' => ['nullable', 'date_format:Y-m-d', 'required_with:to'], 'to' => ['nullable', 'date_format:Y-m-d', 'required_with:from', 'after_or_equal:from'], 'complete_old' => ['sometimes', 'boolean']];

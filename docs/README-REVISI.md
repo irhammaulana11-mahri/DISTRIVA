@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Semua butir telah selesai dikerjakan)*
+| # | Tanggal | Perubahan backend | Dokumen | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|
+| 28 | 2026-11-25 | **Tarik anomali gangguan APKT dan menu Anomali Gangguan bersumber APKT**: `POST /eis-sync/runs` `kind: "apkt"` menerima `dataset: "anomali-gangguan"` (berulang dan rating negatif, dua query per bulan). `GET /pengusahaan/metrics/anomali-gangguan` kini dari APKT (semua ULP); **bentuk respons dan kunci seri tidak berubah** (`wo`, `berulang`, `berulang_pct`, `negatif`, `negatif_pct`, `negatif_nonmarking`, `breakdown`, `breakdown_secondary`). `/history`: `families` = `["APKT_RPT_RCT"]` (sebelumnya `GGNBERULANG`, `GGNNEGATIF`), `files`, `coverage`, `syncs` dari APKT (baris tanpa unduh); `warnings[]` `apkt_current_month_partial` untuk bulan berjalan | docs/88 (anomali pengaduan gangguan APKT), docs/91 §1 dan §3 | (a) **Tombol Tarik APKT di menu Anomali Gangguan** seperti pada RPT-RCT: buka `EisSyncDrawer.jsx` dengan `initialDataset = 'anomali-gangguan'`; tambah pilihan dataset "Anomali Gangguan (Berulang dan Rating Negatif)" (mengirim `dataset`); label `EisRunResults`/`EisRunHistory` untuk `options.dataset === 'anomali-gangguan'`. (b) Tab Histori Sinkronisasi: sesuaikan dengan `families` baru (hapus peringatan penggabungan dua berkas EIS dari butir 15 untuk menu ini; bulan lengkap bila kedua jenis APKT ada); pita peringatan dan penanda titik bulan `month` memakai `warnings[]` (pola butir 26). Menu Anomali Keluhan tidak berubah (masih laporan EIS) | BARU |
 
 ## Selesai
 

@@ -79,7 +79,8 @@ class BusinessMetricService
             'breakdown' => 'Kanal pengaduan masuk', 'breakdown2' => 'Anomali menurut jenis dan kanal', 'no_matrix' => true,
             'series' => [['key' => 'wo', 'name' => 'Total pengaduan keluhan (WO)', 'unit' => 'kali', 'num' => 'wo'], ['key' => 'berulang', 'name' => 'Keluhan berulang', 'unit' => 'kali', 'num' => 'ber'], ['key' => 'berulang_pct', 'name' => 'Keluhan berulang terhadap total', 'unit' => '%', 'num' => 'ber', 'den' => 'wo', 'factor' => 100],
                 ['key' => 'negatif', 'name' => 'Rating negatif', 'unit' => 'kali', 'num' => 'neg'], ['key' => 'negatif_pct', 'name' => 'Rating negatif terhadap total', 'unit' => '%', 'num' => 'neg', 'den' => 'neg_wo', 'factor' => 100]]],
-        'anomali-gangguan' => ['name' => 'Anomali gangguan', 'source' => 'GGNBERULANG dan GGNNEGATIF (anomali penanganan pengaduan gangguan: berulang dan rating negatif)', 'family' => 'GGNBERULANG', 'families' => ['GGNBERULANG', 'GGNNEGATIF'], 'polarity' => 'down', 'ytd' => 'ratio',
+        // bersumber APKT (apkt_anomali_gangguan_records): query berulang dan rating negatif; sama dengan laporan GGNBERULANG dan GGNNEGATIF (kolom c_B sampai c_L). Bulan dihitung hanya bila kedua jenis ada. Laporan GGN* tidak dipakai lagi di menu ini (NKO tetap memakai GGNNEGATIF)
+        'anomali-gangguan' => ['name' => 'Anomali gangguan', 'source' => 'APKT – Anomali Penanganan Pengaduan Gangguan (berulang dan rating negatif)', 'family' => null, 'zero_fill' => false, 'polarity' => 'down', 'ytd' => 'ratio',
             'breakdown' => 'Kanal pengaduan masuk', 'breakdown2' => 'Anomali menurut jenis, kanal, dan penandaan', 'no_matrix' => true,
             'series' => [['key' => 'wo', 'name' => 'Total pengaduan gangguan (WO)', 'unit' => 'kali', 'num' => 'wo'], ['key' => 'berulang', 'name' => 'Gangguan berulang', 'unit' => 'kali', 'num' => 'ber'], ['key' => 'berulang_pct', 'name' => 'Gangguan berulang terhadap total', 'unit' => '%', 'num' => 'ber', 'den' => 'wo', 'factor' => 100],
                 ['key' => 'negatif', 'name' => 'Rating negatif', 'unit' => 'kali', 'num' => 'neg'], ['key' => 'negatif_pct', 'name' => 'Rating negatif terhadap total', 'unit' => '%', 'num' => 'neg', 'den' => 'neg_wo', 'factor' => 100],
@@ -138,7 +139,7 @@ class BusinessMetricService
             'saidi-saifi', 'ens' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifi($lines, $summary)),
             'grup-309' => $this->eis('309', $units, $fromDate, $toDate, fn (array $lines) => $this->fromGroups309($lines)),
             'anomali-keluhan' => $this->anomalies('KLH', $units, $fromDate, $toDate),
-            'anomali-gangguan' => $this->anomalies('GGN', $units, $fromDate, $toDate),
+            'anomali-gangguan' => $this->apktAnomaliGangguan($units, $fromDate, $toDate),
             'difi-gangguan' => $this->eis('DIFI', $units, $fromDate, $toDate, fn (array $lines, array $summary) => $this->fromDifiCount($lines, $summary)),
             'kwh-p2tl' => $this->eis('TAGSUS', $units, $fromDate, $toDate, fn (array $lines) => $this->fromTagsus($lines)),
             'gangguan' => $this->outages($units, $fromDate, $toDate),
@@ -165,7 +166,7 @@ class BusinessMetricService
 
             return array_filter(array_combine($units, array_map(fn ($u) => array_values(array_diff($months, $have[$u] ?? [])), $units)));
         }
-        if (in_array($code, ['rpt-rct-gangguan', 'rpt-rct-keluhan'], true) && $months !== []) {
+        if (isset(BusinessTrendBuilder::APKT_TABLES[$code]) && $months !== []) {
             $have = [];
             foreach ($this->raw($code, $units, $months[0], end($months)) as $u => $byMonth) {
                 $have[$u] = array_keys($byMonth);
@@ -457,8 +458,8 @@ class BusinessMetricService
      */
     private function anomalies(string $kind, array $units, string $from, string $to): array
     {
-        $ber = $this->eis($kind.'BERULANG', $units, $from, $to, fn (array $lines) => $this->anomalyRow($lines, $kind));
-        $neg = $this->eis($kind.'NEGATIF', $units, $from, $to, fn (array $lines) => $this->anomalyRow($lines, $kind));
+        $ber = $this->eis($kind.'BERULANG', $units, $from, $to, fn (array $lines) => $this->anomalyRow($lines));
+        $neg = $this->eis($kind.'NEGATIF', $units, $from, $to, fn (array $lines) => $this->anomalyRow($lines));
         $out = [];
         foreach ($ber as $u => $byMonth) {
             foreach ($byMonth as $m => $b) {
@@ -473,7 +474,43 @@ class BusinessMetricService
                 foreach ($n['anom'] as $label => $v) {
                     $bd2['Rating negatif · '.$label] = $v;
                 }
-                $out[$u][$m] = ['raw' => ['wo' => $b['wo'], 'ber' => $b['total'], 'neg' => $n['total'], 'neg_wo' => $n['wo'], 'neg_non' => $n['non'] ?? 0.0], 'bd' => $b['channels'], 'bd2' => $bd2];
+                $out[$u][$m] = ['raw' => ['wo' => $b['wo'], 'ber' => $b['total'], 'neg' => $n['total'], 'neg_wo' => $n['wo']], 'bd' => $b['channels'], 'bd2' => $bd2];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Anomali pengaduan gangguan dari penarikan APKT. Bulan dihitung hanya bila jenis berulang dan rating negatif ada. `bd` = kanal pengaduan masuk (dari jenis berulang), `bd2` = anomali menurut jenis, kanal, dan penandaan.
+     * Total anomali = marking + non marking; `neg_non` = rating negatif tanpa marking (ukuran NKO).
+     *
+     * @param  list<string>  $units
+     * @return array<string, array<string, array{raw: array<string, float>, bd: array<string, float>, bd2: array<string, float>}>>
+     */
+    private function apktAnomaliGangguan(array $units, string $from, string $to): array
+    {
+        $rows = [];
+        foreach (DB::table('apkt_anomali_gangguan_records')->whereIn('organizational_unit_id', $units)->whereBetween('period', [$from, $to])->get() as $r) {
+            $rows[$r->organizational_unit_id][substr((string) $r->period, 0, 7)][$r->jenis] = $r;
+        }
+        $out = [];
+        foreach ($rows as $u => $byMonth) {
+            foreach ($byMonth as $m => $kinds) {
+                if (! isset($kinds['BERULANG'], $kinds['NEGATIF'])) {
+                    continue;
+                }
+                [$b, $n] = [$kinds['BERULANG'], $kinds['NEGATIF']];
+                $bd2 = [];
+                foreach (['BERULANG' => 'Berulang', 'NEGATIF' => 'Rating negatif'] as $jenis => $label) {
+                    $k = $kinds[$jenis];
+                    $bd2["{$label} · PLN Mobile · Marking"] = (float) $k->anomali_pln_mobile_marking;
+                    $bd2["{$label} · PLN Mobile · Non Marking"] = (float) $k->anomali_pln_mobile_non_marking;
+                    $bd2["{$label} · CC 123 · Marking"] = (float) $k->anomali_cc123_marking;
+                    $bd2["{$label} · CC 123 · Non Marking"] = (float) $k->anomali_cc123_non_marking;
+                }
+                $out[$u][$m] = ['raw' => ['wo' => (float) $b->wo_total, 'ber' => (float) ($b->total_anomali_marking + $b->total_anomali_non_marking), 'neg' => (float) ($n->total_anomali_marking + $n->total_anomali_non_marking), 'neg_wo' => (float) $n->wo_total, 'neg_non' => (float) $n->total_anomali_non_marking],
+                    'bd' => ['CC 123' => (float) $b->wo_cc123, 'PLN Mobile' => (float) $b->wo_pln_mobile, 'Loket' => (float) $b->wo_loket, 'Lainnya' => (float) $b->wo_lainnya], 'bd2' => $bd2];
             }
         }
 
@@ -482,9 +519,9 @@ class BusinessMetricService
 
     /**
      * @param  list<array{label: string, values: array<string, mixed>}>  $lines
-     * @return array{wo: float, total: float, non?: float, channels: array<string, float>, anom: array<string, float>}|null
+     * @return array{wo: float, total: float, channels: array<string, float>, anom: array<string, float>}|null
      */
-    private function anomalyRow(array $lines, string $kind): ?array
+    private function anomalyRow(array $lines): ?array
     {
         foreach ($lines as $l) {
             $v = $l['values'];
@@ -493,11 +530,8 @@ class BusinessMetricService
             }
             $f = fn (string $k) => (float) ($v[$k] ?? 0);
             $row = ['wo' => $f('c_F'), 'channels' => ['CC 123' => $f('c_B'), 'PLN Mobile' => $f('c_C'), 'Loket' => $f('c_D'), 'Lainnya' => $f('c_E')]];
-            if ($kind === 'KLH') {
-                return $row + ['total' => $f('c_I'), 'anom' => ['PLN Mobile' => $f('c_G'), 'CC 123' => $f('c_H')]];
-            }
 
-            return $row + ['total' => $f('c_K') + $f('c_L'), 'non' => $f('c_L'), 'anom' => ['PLN Mobile · Marking' => $f('c_G'), 'PLN Mobile · Non Marking' => $f('c_H'), 'CC 123 · Marking' => $f('c_I'), 'CC 123 · Non Marking' => $f('c_J')]];
+            return $row + ['total' => $f('c_I'), 'anom' => ['PLN Mobile' => $f('c_G'), 'CC 123' => $f('c_H')]];
         }
 
         return null;

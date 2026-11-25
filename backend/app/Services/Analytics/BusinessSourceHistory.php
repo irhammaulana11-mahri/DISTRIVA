@@ -84,7 +84,11 @@ class BusinessSourceHistory
             ->whereIn('r.organizational_unit_id', array_keys($ulps))->groupBy('r.organizational_unit_id', 'r.period', 'o.name')->orderByDesc(DB::raw('max(r.updated_at)'))->limit(self::FILE_LIMIT)
             ->get(['r.organizational_unit_id', 'r.period', 'o.name as unit_name', DB::raw('count(*) as variants'), DB::raw('max(r.updated_at) as imported_at'), DB::raw('max(u.name) as uploaded_by')]);
         $out['files'] = $rows->map(fn ($r) => ['id' => $r->organizational_unit_id.'|'.substr((string) $r->period, 0, 7), 'family' => 'APKT_RPT_RCT', 'period' => substr((string) $r->period, 0, 7), 'unit_id' => $r->organizational_unit_id, 'unit_name' => $r->unit_name,
-            'original_name' => $code === 'rpt-rct-keluhan' ? 'APKT – Jumlah dan Durasi RPT RCT Keluhan' : 'APKT – Jumlah dan Durasi RPT RCT Gangguan (Semua Laporan dan Tanpa Clear Temper)', 'status' => 'AKTIF', 'line_count' => (int) $r->variants, 'warnings_count' => 0, 'imported_at' => $r->imported_at, 'uploaded_by' => $r->uploaded_by])->all();
+            'original_name' => match ($code) {
+                'rpt-rct-keluhan' => 'APKT – Jumlah dan Durasi RPT RCT Keluhan',
+                'anomali-gangguan' => 'APKT – Anomali Penanganan Pengaduan Gangguan (Berulang dan Rating Negatif)',
+                default => 'APKT – Jumlah dan Durasi RPT RCT Gangguan (Semua Laporan dan Tanpa Clear Temper)',
+            }, 'status' => 'AKTIF', 'line_count' => (int) $r->variants, 'warnings_count' => 0, 'imported_at' => $r->imported_at, 'uploaded_by' => $r->uploaded_by])->all();
         $have = [];
         foreach (DB::table($table)->whereIn('organizational_unit_id', array_keys($ulps))->whereBetween('period', [$months[0].'-01', end($months).'-01'])->distinct()->get(['organizational_unit_id', 'period']) as $r) {
             $have[$r->organizational_unit_id][] = substr((string) $r->period, 0, 7);

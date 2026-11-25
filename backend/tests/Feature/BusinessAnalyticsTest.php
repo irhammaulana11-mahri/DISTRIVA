@@ -508,7 +508,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->as($this->viewer)->get("/api/pengusahaan/metrics/pelanggan/export?unit_id={$this->ulpB->id}")->assertNotFound();    // ULP di luar cakupan
     }
 
-    /** Laporan anomali satu ULP: $v = nilai baris data (GGN B..R atau KLH B..L). */
+    /** Laporan anomali keluhan satu ULP: $v = nilai baris data (KLH B..L). */
     private function anomaly(OrganizationalUnit $unit, string $family, string $period, array $v): void
     {
         $cols = [];
@@ -516,7 +516,6 @@ class BusinessAnalyticsTest extends PostgresTestCase
             $cols['c_'.chr(ord('B') + $i)] = $x;
         }
         $lines = [[$unit->name, $cols]];
-        $family[0] === 'G' && $lines[] = [$unit->name, ['c_B' => 999, 'c_G' => 999, 'c_J' => 999]];   // tabel kedua tata letak lama: diabaikan
         $this->report($unit, $family, $period, $lines);
     }
 
@@ -526,11 +525,6 @@ class BusinessAnalyticsTest extends PostgresTestCase
         // keluhan Maret 2026: WO 10+50+0+5 = 65; berulang PLN Mobile 2 + CC123 1; rating negatif PLN Mobile 4 + CC123 2
         $this->anomaly($this->ulpA, 'KLHBERULANG', '2026-03-01', [10, 50, 0, 5, 65, 2, 1, 3, 3.08, 1.54, 4.62]);
         $this->anomaly($this->ulpA, 'KLHNEGATIF', '2026-03-01', [10, 50, 0, 5, 65, 4, 2, 6, 6.15, 3.08, 9.23]);
-        // gangguan Maret 2026: WO 100; berulang total marking 3 + non marking 3; negatif total marking 5 + non marking 4
-        $this->anomaly($this->ulpA, 'GGNBERULANG', '2026-03-01', [20, 70, 0, 10, 100, 2, 1, 1, 2, 3, 3, 0, 0, 0, 0, 0, 0]);
-        $this->anomaly($this->ulpA, 'GGNNEGATIF', '2026-03-01', [20, 70, 0, 10, 100, 3, 2, 2, 2, 5, 4, 0, 0, 0, 0, 0, 0]);
-        // gangguan Februari 2026: hanya laporan berulang (rating negatif belum diunggah)
-        $this->anomaly($this->ulpA, 'GGNBERULANG', '2026-02-01', [20, 70, 0, 10, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         $url = fn (string $code) => "/api/pengusahaan/metrics/{$code}?unit_id={$this->ulpA->id}&from=2026-02&to=2026-03";
 
         $k = $this->as($this->planner)->getJson($url('anomali-keluhan'))->assertOk()->json('data');
@@ -543,18 +537,47 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertSame('Kanal pengaduan masuk', $k['breakdown']['dimension']);
         $this->assertEquals(['Berulang · PLN Mobile' => 2.0, 'Berulang · CC 123' => 1.0, 'Rating negatif · PLN Mobile' => 4.0, 'Rating negatif · CC 123' => 2.0], collect($k['breakdown_secondary']['rows'])->pluck('value', 'key')->all());
         $this->assertNull($k['matrix']);
+    }
 
-        $g = $this->as($this->planner)->getJson($url('anomali-gangguan'))->assertOk()->json('data');
+    /** Baris penarikan APKT anomali gangguan (urutan kolom APKT: WO CC123, PLN Mobile, loket, lainnya, total; anomali PLN Mobile marking dan non, CC123 marking dan non; total marking dan non). */
+    private function anomaliGangguanRow(OrganizationalUnit $unit, string $period, string $jenis, array $v, ?string $run = null): array
+    {
+        $names = ['wo_cc123', 'wo_pln_mobile', 'wo_loket', 'wo_lainnya', 'wo_total', 'anomali_pln_mobile_marking', 'anomali_pln_mobile_non_marking', 'anomali_cc123_marking', 'anomali_cc123_non_marking', 'total_anomali_marking', 'total_anomali_non_marking'];
+
+        return ['id' => (string) Str::uuid(), 'organizational_unit_id' => $unit->id, 'period' => $period, 'jenis' => $jenis, 'sync_run_id' => $run, 'created_at' => now(), 'updated_at' => now()] + array_combine($names, $v);
+    }
+
+    #[Test]
+    public function anomali_gangguan_bersumber_apkt_menggabungkan_berulang_dan_rating_negatif_dengan_histori_dan_sesi(): void
+    {
+        $run = (string) Str::uuid();
+        DB::table('eis_sync_runs')->insert(['id' => $run, 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'APKT', 'options' => json_encode(['dataset' => 'anomali-gangguan', 'token_encrypted' => 'rahasia']), 'created_at' => now()]);
+        // Maret 2026: WO 100 (CC123 20, PLN Mobile 70, loket 0, lainnya 10); berulang marking 3 + non marking 3; negatif marking 5 + non marking 4
+        DB::table('apkt_anomali_gangguan_records')->insert([
+            $this->anomaliGangguanRow($this->ulpA, '2026-03-01', 'BERULANG', [20, 70, 0, 10, 100, 2, 1, 1, 2, 3, 3], $run),
+            $this->anomaliGangguanRow($this->ulpA, '2026-03-01', 'NEGATIF', [20, 70, 0, 10, 100, 3, 2, 2, 2, 5, 4], $run),
+            $this->anomaliGangguanRow($this->ulpA, '2026-02-01', 'BERULANG', [20, 70, 0, 10, 100, 0, 0, 0, 0, 0, 0], $run),      // Februari: rating negatif belum ada
+        ]);
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
+
+        $g = $this->as($admin)->getJson("/api/pengusahaan/metrics/anomali-gangguan?unit_id={$this->ulpA->id}&from=2026-02&to=2026-03")->assertOk()->json('data');
         $s = collect($g['series'])->keyBy('key');
-        $this->assertEquals([100, 6, 9, 4], [$s['wo']['values'][1], $s['berulang']['values'][1], $s['negatif']['values'][1], $s['negatif_nonmarking']['values'][1]]);   // tabel kedua diabaikan; non marking = ukuran NKO
+        $this->assertEquals([100, 6, 9, 4], [$s['wo']['values'][1], $s['berulang']['values'][1], $s['negatif']['values'][1], $s['negatif_nonmarking']['values'][1]]);   // non marking = ukuran NKO
+        $this->assertEqualsWithDelta(6.0, $s['berulang_pct']['values'][1], 1e-9);
+        $this->assertEqualsWithDelta(9.0, $s['negatif_pct']['values'][1], 1e-9);
         $this->assertEquals(['2026-02'], $g['coverage']['missing'][0]['months']);                       // Februari: rating negatif belum ada, bulan tidak dihitung
         $this->assertNull($s['wo']['values'][0]);
-        $this->assertEquals(2.0, collect($g['breakdown_secondary']['rows'])->firstWhere('key', 'Berulang · CC 123 · Non Marking')['value']);   // kolom J
+        $this->assertEquals(['PLN Mobile' => 70.0, 'CC 123' => 20.0, 'Lainnya' => 10.0, 'Loket' => 0.0], collect($g['breakdown']['rows'])->pluck('value', 'key')->all());
+        $this->assertEquals(2.0, collect($g['breakdown_secondary']['rows'])->firstWhere('key', 'Berulang · CC 123 · Non Marking')['value']);
+        $this->assertNull($g['matrix']);
 
-        $h = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/anomali-gangguan/history?unit_id={$this->ulpA->id}")->assertOk()->json('data');
-        $this->assertSame(['GGNBERULANG', 'GGNNEGATIF'], $h['families']);
-        $this->assertCount(3, $h['files']);                                                              // berulang Februari dan Maret, negatif Maret
-        $this->assertContains('2026-02', collect($h['coverage']['units'])->first()['missing']);
+        $h = $this->as($admin)->getJson("/api/pengusahaan/metrics/anomali-gangguan/history?unit_id={$this->ulpA->id}&year=2026")->assertOk()->json('data');
+        $this->assertSame(['APKT_RPT_RCT'], $h['families']);
+        $this->assertCount(2, $h['files']);                                                              // Februari (1 jenis) dan Maret (2 jenis)
+        $this->assertSame('APKT – Anomali Penanganan Pengaduan Gangguan (Berulang dan Rating Negatif)', $h['files'][0]['original_name']);
+        $this->assertCount(1, $h['syncs']);
+        $this->assertStringNotContainsString('rahasia', json_encode($h['syncs']));
     }
 
     /** Baris penarikan APKT: clear_temper true = Semua Laporan, false = Tanpa Clear Temper. */
