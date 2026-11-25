@@ -53,7 +53,7 @@ class EisSyncController extends Controller
         $this->authorizer->authorizeScope($request->user(), $piutang ? 'eis_reports.import' : 'applications.import');
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
         $rules = ['kind' => ['sometimes', 'in:permohonan,piutang,apkt'], 'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']];
-        $apkt && $rules += ['apkt_token' => ['nullable', 'required_unless:use_saved_token,true', 'string', 'max:700'], 'save_token' => ['sometimes', 'boolean'], 'use_saved_token' => ['sometimes', 'boolean']];
+        $apkt && $rules += ['apkt_token' => ['nullable', 'required_unless:use_saved_token,true', 'string', 'max:700'], 'save_token' => ['sometimes', 'boolean'], 'use_saved_token' => ['sometimes', 'boolean'], 'dataset' => ['sometimes', 'in:saidi-saifi,rpt-rct-gangguan']];
         $rules += $piutang
             ? ['from_month' => ['nullable', 'date_format:Y-m'], 'to_month' => ['required', 'date_format:Y-m', 'after_or_equal:from_month'], 'reports' => ['sometimes', 'array', 'min:1'], 'reports.*' => ['in:GOLONGAN,LEMBAR,KOGOL,PRABAYAR']]
             : ['from' => ['nullable', 'date_format:Y-m-d', 'required_with:to'], 'to' => ['nullable', 'date_format:Y-m-d', 'required_with:from', 'after_or_equal:from'], 'complete_old' => ['sometimes', 'boolean']];
@@ -76,7 +76,7 @@ class EisSyncController extends Controller
                     DB::table('user_apkt_tokens')->upsert([['user_id' => $request->user()->getKey(), 'token_encrypted' => Crypt::encryptString($token), 'saved_at' => now(), 'last_used_at' => null, 'last_result' => null]],
                         ['user_id'], ['token_encrypted', 'saved_at', 'last_used_at', 'last_result']);
                 }
-                $options = ['from_month' => $from, 'to_month' => $d['to_month'], 'token_source' => $useSaved ? 'saved' : 'pasted', 'token_saved' => $useSaved || $save,
+                $options = ['dataset' => $d['dataset'] ?? 'saidi-saifi', 'from_month' => $from, 'to_month' => $d['to_month'], 'token_source' => $useSaved ? 'saved' : 'pasted', 'token_saved' => $useSaved || $save,
                     'token_encrypted' => Crypt::encryptString($token)];     // salinan untuk proses ini saja: dihapus begitu selesai, tidak pernah dikembalikan
                 $id = $this->sync->start('MANUAL', $request->user(), null, null, $units, false, 'APKT', $options);
             } else {

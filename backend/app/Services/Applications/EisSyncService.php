@@ -4,6 +4,7 @@ namespace App\Services\Applications;
 
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
+use App\Services\EisReports\ApktRptRctSync;
 use App\Services\EisReports\ApktSaidiSaifiSync;
 use App\Services\MfaService;
 use Illuminate\Support\Facades\Artisan;
@@ -141,7 +142,8 @@ class EisSyncService
         $token = null;
         try {
             if (($run->kind ?? 'PERMOHONAN') === 'APKT') {
-                [$exit, $log] = app(ApktSaidiSaifiSync::class)->run($run, fn (string $l) => DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $l]));
+                $sync = (json_decode((string) $run->options, true)['dataset'] ?? 'saidi-saifi') === 'rpt-rct-gangguan' ? app(ApktRptRctSync::class) : app(ApktSaidiSaifiSync::class);
+                [$exit, $log] = $sync->run($run, fn (string $l) => DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $l]));
 
                 return;
             }

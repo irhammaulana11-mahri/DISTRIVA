@@ -76,6 +76,7 @@ Respons `GET /metrics/{code}` (`data`):
 
   | Metrik | Resmi | Pendamping (`series[].key`) | Mode rekonsiliasi |
   |---|---|---|---|
+  | `rpt-rct-gangguan` | GGNALL (RPT dan RCT rata-rata resmi) | APKT WO gangguan, tanpa dan dengan clear temper (`rpt_tanpa_ct`, `rct_tanpa_ct`, `jumlah_tanpa_ct`, `rpt_dengan_ct`, `rct_dengan_ct`, `jumlah_dengan_ct`; rata-rata tertimbang jumlah WO per ULP; ditarik lewat `POST /eis-sync/runs` `dataset: "rpt-rct-gangguan"`, docs/88) | tanpa rekonsiliasi; `ytd` seri rata-rata tidak bermakna (jumlah nilai bulanan), pakai `latest` dan `values`; bulan tanpa data APKT bernilai `null` |
   | `pelanggan` | Laporan 309 jumlah pelanggan | permohonan PB tersambung (`pb`), permohonan PB masuk (`req_pb`) | `net` |
   | `daya` | Laporan 309 daya tersambung | daya PB tersambung (`pb_kva`) dan PD neto (`pd_net_kva`), MVA | `net` |
   | `saidi-saifi` | DIFI SAIDI dan SAIFI (total, angka utama dan NKO) ditambah seri `saidi_penyulang`, `saifi_penyulang` = bagian **gangguan penyulang** DIFI | SAIDI dan SAIFI hitung DISTRIVA dari spreadsheet gangguan penyulang (`saidi_hitung`, `saifi_hitung`): gangguan lebih dari ambang menit, pelanggan penyulang dari potret DIL (batas atas) | `flow`, dua rekonsiliasi (`saidi`, `saifi`) **lawan bagian gangguan penyulang DIFI**, bukan total (total juga memuat padam JTR, sambungan rumah, dan pemeliharaan) |

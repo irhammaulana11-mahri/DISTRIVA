@@ -123,7 +123,7 @@ GQL;
      *
      * @param  array<string, mixed>  $o
      */
-    private function recordSavedToken(object $run, array $o, string $token, bool $rejected): void
+    public function recordSavedToken(object $run, array $o, string $token, bool $rejected): void
     {
         if (empty($o['token_saved'])) {
             return;

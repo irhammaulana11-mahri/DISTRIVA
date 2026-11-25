@@ -573,6 +573,23 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function pendamping_rpt_rct_gangguan_apkt_tertimbang_jumlah_wo_dengan_dan_tanpa_clear_temper(): void
+    {
+        $this->report($this->ulpA, 'GGNALL', '2026-03-01', [['POSKO A', ['total' => 10, 'response_rata_menit' => 20, 'recovery_rata_menit' => 60, 'response_dalam_sla' => 8, 'response_lewat_sla' => 2]]]);
+        $row = fn ($unit, bool $ct, float $rpt, int $n, float $rct) => ['id' => (string) Str::uuid(), 'organizational_unit_id' => $unit->id, 'period' => '2026-03-01', 'clear_temper' => $ct, 'rpt_total' => $rpt, 'rpt_count' => $n,
+            'rct_total' => $rct, 'rct_count' => $n, 'created_at' => now(), 'updated_at' => now()];
+        DB::table('apkt_rpt_rct_records')->insert([$row($this->ulpA, false, 200, 10, 600), $row($this->ulpB, false, 1200, 30, 3000), $row($this->ulpA, true, 300, 15, 900)]);
+
+        $c = collect($this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from=2026-03&to=2026-03")->assertOk()->json('data.companions.series'))->keyBy('key');
+
+        $this->assertEqualsWithDelta(35.0, $c['rpt_tanpa_ct']['latest'], 1e-9);     // (200 + 1200) / 40
+        $this->assertEqualsWithDelta(90.0, $c['rct_tanpa_ct']['latest'], 1e-9);
+        $this->assertEquals(40, $c['jumlah_tanpa_ct']['latest']);
+        $this->assertEqualsWithDelta(20.0, $c['rpt_dengan_ct']['latest'], 1e-9);
+        $this->assertEquals(15, $c['jumlah_dengan_ct']['latest']);
+    }
+
+    #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {
         $this->sales($this->ulpB, '2026-01-01', 1, 1);
