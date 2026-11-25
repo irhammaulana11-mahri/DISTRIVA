@@ -994,6 +994,44 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function detail_rpt_rct_membandingkan_ulp_pada_volume_sebanding_dan_mengukur_hubungan_volume_dengan_waktu_tanggap(): void
+    {
+        $rows = [];
+        foreach (range(0, 7) as $i) {
+            $m = date('Y-m-01', strtotime("2026-01-01 +{$i} month"));
+            $n = 100 + 20 * $i;                                                                                // ULP A: volume naik, RPT rata-rata ikut naik (20 + i menit)
+            $rows[] = $this->apktRow($this->ulpA, $m, true, $n * (20 + $i), $n, $n * 40);
+            $rows[] = $this->apktRow($this->ulpA, $m, false, $n / 4 * (20 + $i), $n / 4, $n / 4 * 40);
+            $rows[] = $this->apktRow($this->ulpB, $m, true, 120 * 15, 120, 120 * 30);                           // ULP B: volume dan RPT datar (15 menit)
+            $rows[] = $this->apktRow($this->ulpB, $m, false, 30 * 15, 30, 30 * 30);
+        }
+        DB::table('apkt_rpt_rct_records')->insert($rows);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-gangguan?unit_id={$this->up3->id}&from=2026-01&to=2026-08")->assertOk()->json('data.detail');
+
+        $this->assertSame(['response', 'menit', '2026-08', false, 'tanpa_clear_temper'], [$d['kind'], $d['unit'], $d['month'], $d['partial'], $d['basis']]);
+        $a = collect($d['ulps'])->firstWhere('unit_id', $this->ulpA->id);
+        $b = collect($d['ulps'])->firstWhere('unit_id', $this->ulpB->id);
+        $this->assertEquals([240, 27.0, 60, 27.0], [$a['wo'], $a['rpt'], $a['wo_nct'], $a['rpt_nct']]);
+        $this->assertEquals(75.0, $a['clear_temper_share_pct']);                                                // 180 dari 240 WO adalah clear temper
+        $this->assertSame($this->ulpB->id, $d['ulps'][0]['unit_id']);                                          // tercepat dahulu
+        $this->assertEquals([1, 2, 1, 1], [$b['rpt_rank'], $a['rpt_rank'], $a['peer_count'], $b['peer_count']]);
+        $this->assertEquals([12.0, -12.0], [$a['rpt_gap_to_peer_best'], $b['rpt_gap_to_peer_best']]);               // RPT tanpa clear temper A 27 lawan B 15
+        $this->assertCount(8, $d['history']);
+        $this->assertEquals(1.0, $d['volume_effect']['rpt_correlation']);                                      // dalam-ULP: volume dan RPT A naik bersama
+        $this->assertSame(1, $d['volume_effect']['ulps'] - 1);                                                  // B datar tidak menambah variasi tetapi ikut dihitung
+        $this->assertStringContainsString('memburuk', $d['volume_effect']['reading']);
+
+        // keluhan memakai jam dan tanpa kolom clear temper; menu non-RPT-RCT tanpa blok ini
+        DB::table('apkt_rpt_rct_keluhan_records')->insert(['id' => (string) Str::uuid(), 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-08-01', 'rpt_total' => 20, 'rpt_count' => 10, 'rct_total' => 50, 'rct_count' => 10,
+            'sync_run_id' => null, 'created_at' => now(), 'updated_at' => now()]);
+        $k = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/rpt-rct-keluhan?unit_id={$this->up3->id}&from=2026-08&to=2026-08")->assertOk()->json('data.detail');
+        $this->assertEquals(['jam', 'semua', 2.0, 5.0], [$k['unit'], $k['basis'], $k['ulps'][0]['rpt'], $k['ulps'][0]['rct']]);
+        $this->assertArrayNotHasKey('wo_nct', $k['ulps'][0]);
+        $this->assertFalse($k['volume_effect']['available']);
+    }
+
+    #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
         Cache::flush();
