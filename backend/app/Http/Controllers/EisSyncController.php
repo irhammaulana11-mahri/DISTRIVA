@@ -49,10 +49,11 @@ class EisSyncController extends Controller
     {
         $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
         $apkt = $request->input('kind') === 'apkt';
-        $piutang = $apkt || $request->input('kind') === 'piutang';      // keduanya menarik laporan bulanan ke impor laporan EIS
+        $ap2t = $request->input('kind') === 'ap2t';
+        $piutang = $apkt || $ap2t || $request->input('kind') === 'piutang';      // keduanya menarik laporan bulanan ke impor laporan EIS
         $this->authorizer->authorizeScope($request->user(), $piutang ? 'eis_reports.import' : 'applications.import');
         $scope = $this->authorizer->authorizeScope($request->user(), 'eis_sync.manage');
-        $rules = ['kind' => ['sometimes', 'in:permohonan,piutang,apkt'], 'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']];
+        $rules = ['kind' => ['sometimes', 'in:permohonan,piutang,apkt,ap2t'], 'units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']];
         $apkt && $rules += ['apkt_token' => ['nullable', 'required_unless:use_saved_token,true', 'string', 'max:700'], 'save_token' => ['sometimes', 'boolean'], 'use_saved_token' => ['sometimes', 'boolean'], 'dataset' => ['sometimes', 'in:saidi-saifi,rpt-rct-gangguan,rpt-rct-keluhan,anomali-gangguan,anomali-keluhan']];
         $rules += $piutang
             ? ['from_month' => ['nullable', 'date_format:Y-m'], 'to_month' => ['required', 'date_format:Y-m', 'after_or_equal:from_month'], 'reports' => ['sometimes', 'array', 'min:1'], 'reports.*' => ['in:GOLONGAN,LEMBAR,KOGOL,PRABAYAR']]
@@ -67,7 +68,9 @@ class EisSyncController extends Controller
             if (Carbon::createFromFormat('!Y-m', $from)->diffInMonths(Carbon::createFromFormat('!Y-m', $d['to_month'])) >= 24) {
                 throw new AssignmentRuleViolation('Paling banyak 24 bulan per penarikan.');
             }
-            if ($apkt) {
+            if ($ap2t) {
+                $id = $this->sync->start('MANUAL', $request->user(), null, null, $units, false, 'AP2T', ['dataset' => 'tagsus', 'from_month' => $from, 'to_month' => $d['to_month']]);
+            } elseif ($apkt) {
                 $useSaved = (bool) ($d['use_saved_token'] ?? false);
                 $token = $useSaved ? $this->savedApktToken((string) $request->user()->getKey())
                     : (ApktSaidiSaifiSync::cleanToken($d['apkt_token'] ?? null) ?? throw new AssignmentRuleViolation('Token APKT tidak valid: salin nilai header Authorization dari permintaan /graphql di APKT (dengan atau tanpa awalan "Bearer").'));

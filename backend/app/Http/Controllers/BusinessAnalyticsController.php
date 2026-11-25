@@ -130,7 +130,7 @@ class BusinessAnalyticsController extends Controller
     private function syncs(Request $request, string $code): ?array
     {
         $user = $request->user();
-        $eis = ['pelanggan' => 'PERMOHONAN', 'daya' => 'PERMOHONAN', 'hpl-bp' => 'PERMOHONAN', 'piutang-prabayar' => 'PIUTANG', 'piutang-pascabayar' => 'PIUTANG', 'piutang-pascabayar-umur' => 'PIUTANG'][$code] ?? null;
+        $eis = ['pelanggan' => 'PERMOHONAN', 'daya' => 'PERMOHONAN', 'hpl-bp' => 'PERMOHONAN', 'piutang-prabayar' => 'PIUTANG', 'piutang-pascabayar' => 'PIUTANG', 'piutang-pascabayar-umur' => 'PIUTANG', 'kwh-p2tl' => 'AP2T'][$code] ?? null;
         if ($eis !== null) {
             if ($this->authorizer->roleFor($user, 'eis_sync.manage') === null) {
                 return null;

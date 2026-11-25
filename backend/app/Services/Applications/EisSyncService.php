@@ -4,6 +4,7 @@ namespace App\Services\Applications;
 
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
+use App\Services\EisReports\Ap2tTagsusSync;
 use App\Services\EisReports\ApktRptRctSync;
 use App\Services\EisReports\ApktSaidiSaifiSync;
 use App\Services\MfaService;
@@ -61,7 +62,7 @@ class EisSyncService
     public function start(string $trigger, User $actor, ?string $from = null, ?string $to = null, ?array $units = null, bool $completeOld = false, string $kind = 'PERMOHONAN', ?array $options = null): string
     {
         $s = DB::table('eis_sync_settings')->where('id', 1)->first();
-        if ($kind !== 'APKT' && ($s->eis_username === null || $s->eis_password_encrypted === null)) {
+        if (! in_array($kind, ['APKT', 'AP2T'], true) && ($s->eis_username === null || $s->eis_password_encrypted === null)) {
             throw new AssignmentRuleViolation('User dan password EIS belum diisi pada pengaturan sinkronisasi.');
         }
         $this->expireStale();
@@ -141,6 +142,11 @@ class EisSyncService
         $exit = 1;
         $token = null;
         try {
+            if (($run->kind ?? 'PERMOHONAN') === 'AP2T') {
+                [$exit, $log] = app(Ap2tTagsusSync::class)->run($run, fn (string $l) => DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $l]));
+
+                return;
+            }
             if (($run->kind ?? 'PERMOHONAN') === 'APKT') {
                 $sync = in_array(json_decode((string) $run->options, true)['dataset'] ?? 'saidi-saifi', ['rpt-rct-gangguan', 'rpt-rct-keluhan', 'anomali-gangguan', 'anomali-keluhan'], true) ? app(ApktRptRctSync::class) : app(ApktSaidiSaifiSync::class);
                 [$exit, $log] = $sync->run($run, fn (string $l) => DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $l]));

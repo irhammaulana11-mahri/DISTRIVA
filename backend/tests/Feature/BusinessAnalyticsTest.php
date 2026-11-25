@@ -703,6 +703,20 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function histori_kwh_p2tl_memuat_sesi_penarikan_ap2t(): void
+    {
+        DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'AP2T', 'options' => json_encode(['dataset' => 'tagsus', 'from_month' => '2026-10', 'to_month' => '2026-10']), 'created_at' => now()]);
+        DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'OK', 'kind' => 'PIUTANG', 'created_at' => now()]);
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->up3);
+
+        $syncs = $this->as($admin)->getJson("/api/pengusahaan/metrics/kwh-p2tl/history?unit_id={$this->up3->id}")->assertOk()->json('data.syncs');
+
+        $this->assertSame(['ap2t'], array_column($syncs, 'kind'));                                       // hanya penarikan AP2T, bukan piutang
+        $this->assertSame('tagsus', $syncs[0]['options']['dataset']);
+    }
+
+    #[Test]
     public function peran_ulp_hanya_melihat_ulp_sendiri(): void
     {
         $this->sales($this->ulpB, '2026-01-01', 1, 1);

@@ -25,6 +25,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\PostgresTestCase;
 
@@ -1091,6 +1092,84 @@ class EisImportTest extends PostgresTestCase
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'apkt', 'dataset' => 'anomali-keluhan', 'to_month' => '2026-10', 'units' => ['51453'], 'apkt_token' => $secret])->assertStatus(202);
         $this->assertSame(2, DB::table('apkt_anomali_keluhan_records')->count());
         $this->assertSame(7, (int) DB::table('apkt_anomali_keluhan_records')->where('jenis', 'NEGATIF')->value('total_anomali'));
+    }
+
+    /** Isi berkas Excel laporan TAGSUS AP2T yang kecil: dua TS golongan K2 dan satu P3 untuk ULP Jombang. */
+    private function ap2tTagsusBody(int $kwh = 115): string
+    {
+        $sheet = new Spreadsheet;
+        $ws = $sheet->getActiveSheet();
+        $ws->setCellValue('A1', 'PT. PLN (PERSERO) UID JAWA TIMUR');
+        $ws->setCellValue('A2', 'UP3 MOJOKERTO');
+        $ws->setCellValue('A3', 'ULP JOMBANG');
+        $ws->setCellValue('D3', 'DAFTAR REALISASI PENDAPATAN PENETAPAN TAGIHAN SUSULAN (TUNAI DAN ANGSURAN)');
+        $ws->setCellValue('A4', 'BULAN  OKTOBER    TAHUN  2026');
+        $ws->setCellValue('A7', 'NO');
+        $ws->setCellValue('D7', 'IDPEL');
+        $rows = [['514531503554', 'K2', $kwh], ['514531503555', 'K2', 300], ['514530414505', 'P3', 2479]];
+        foreach ($rows as $i => [$idpel, $gol, $kw]) {
+            $r = 10 + $i;
+            $ws->setCellValue("A{$r}", $i + 1);
+            $ws->setCellValueExplicit("D{$r}", $idpel, 's');
+            $ws->setCellValue("H{$r}", $gol);
+            foreach (['L' => $kw, 'M' => 0, 'N' => $kw * 400, 'P' => $kw * 400, 'Z' => $kw * 440, 'AB' => $kw * 440, 'AC' => 0] as $col => $v) {
+                $ws->setCellValue("{$col}{$r}", $v);
+            }
+        }
+        $path = tempnam(sys_get_temp_dir(), 'ap2tfx');
+        (new Xlsx($sheet))->save($path);
+        $body = (string) file_get_contents($path);
+        @unlink($path);
+
+        return $body;
+    }
+
+    #[Test]
+    public function an_ap2t_run_downloads_the_tagsus_report_per_ulp_and_month_without_a_token_and_imports_it_idempotently(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url' => 'https://ap2t.test/ReportServlet']);
+        Storage::fake('documents');
+        Http::fake(['ap2t.test/*' => Http::response($this->ap2tTagsusBody(), 200, ['Content-Type' => 'application/vnd.ms-excel'])]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'from_month' => '2026-10', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202)->json('data');
+
+        $this->assertSame(['ap2t', 'tagsus'], [$run['kind'], $run['options']['dataset']]);
+        Http::assertSent(fn ($r) => $r->method() === 'GET' && $r['unitup'] === '51453' && $r['thbl'] === '202610' && $r['unitap'] === '51MJK' && $r['unitupi'] === '51' && $r['jenislaporan'] === 'getlaporantsgab'
+            && $r['report'] === 'report/NONREK/rpt_ts_daftar_realisasi_pendapatan_penetapan_ts.xls' && str_starts_with((string) $r['jenislap'], 'DAFTAR REALISASI PENDAPATAN PENETAPAN TAGIHAN SUSULAN') && ! $r->hasHeader('Authorization'));
+        $row = DB::table('eis_sync_runs')->where('id', $run['id'])->first();
+        $this->assertSame('OK', $row->status);
+        $this->assertStringContainsString('BARU', (string) $row->log);
+
+        $file = DB::table('eis_report_files')->where('family', 'TAGSUS')->where('unit_code', '51453')->first();
+        $this->assertSame(['2026-10-01', 'TAGSUS-51453-102026.xls'], [$file->period, $file->original_name]);
+        $kwh = DB::table('eis_report_lines')->where('file_id', $file->id)->get()->mapWithKeys(fn ($l) => [$l->label => json_decode($l->values, true)]);
+        $this->assertEquals([415, 2], [$kwh['K2']['kwh'], $kwh['K2']['jumlah']]);
+
+        $again = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202)->json('data.id');
+        $this->assertStringContainsString('DUPLIKAT', (string) DB::table('eis_sync_runs')->where('id', $again)->value('log'));
+        $this->assertSame(1, DB::table('eis_report_files')->where('family', 'TAGSUS')->where('status', 'AKTIF')->count());
+
+        Http::swap(new Factory);
+        Http::fake(['ap2t.test/*' => Http::response($this->ap2tTagsusBody(200), 200)]);                     // isi berbeda untuk ULP dan bulan sama menggantikan versi lama
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202);
+        $this->assertSame([1, 1], [DB::table('eis_report_files')->where('family', 'TAGSUS')->where('status', 'AKTIF')->count(), DB::table('eis_report_files')->where('family', 'TAGSUS')->where('status', 'DIGANTIKAN')->count()]);
+    }
+
+    #[Test]
+    public function an_ap2t_run_rejects_a_response_that_is_not_an_excel_file_and_a_forbidden_account_cannot_start_one(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url' => 'https://ap2t.test/ReportServlet']);
+        Http::fake(['ap2t.test/*' => Http::response('<html><body>Terjadi kesalahan pada server</body></html>', 200)]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10', 'units' => ['51453']])->assertStatus(202)->json('data');
+
+        $row = DB::table('eis_sync_runs')->where('id', $run['id'])->first();
+        $this->assertSame('FAILED', $row->status);
+        $this->assertStringContainsString('bukan berkas Excel', (string) $row->log);
+        $this->assertSame(0, DB::table('eis_report_files')->where('family', 'TAGSUS')->count());
+        $this->as($this->vendor)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'to_month' => '2026-10'])->assertForbidden();
     }
 
     #[Test]
