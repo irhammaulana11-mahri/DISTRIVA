@@ -95,13 +95,14 @@ return [
         'pause_ms' => (int) env('DISTRIVA_APKT_PAUSE_MS', 400),   // jeda antar permintaan supaya tidak membebani APKT
         'timeout_seconds' => (int) env('DISTRIVA_APKT_TIMEOUT', 60),
     ],
-    // AP2T: laporan TAGSUS (daftar realisasi pendapatan penetapan tagihan susulan) diunduh per ULP per bulan lewat tautan laporan tanpa login. `verify`: path bundel CA (DISTRIVA_AP2T_CA_BUNDLE) atau true/false;
-    // bila server tidak mengenal sertifikat AP2T (CA internal PLN), isi bundel CA, jangan mematikan verifikasi.
+    // AP2T: laporan TAGSUS (daftar realisasi pendapatan penetapan tagihan susulan) diunduh per ULP per bulan lewat tautan laporan tanpa login. `verify`: bawaannya bundel CA di resources/certs/ap2t-ca-bundle.pem
+    // (server AP2T tidak mengirim sertifikat perantara GeoTrust TLS RSA CA G1, jadi cURL gagal tanpa bundel; berlaku sampai perantara itu kedaluwarsa, 2 Nov 2027); ganti dengan DISTRIVA_AP2T_CA_BUNDLE (path)
+    // atau DISTRIVA_AP2T_VERIFY_SSL=false hanya untuk uji, jangan mematikan verifikasi di produksi.
     'ap2t' => [
         'report_url' => env('DISTRIVA_AP2T_REPORT_URL', 'https://ap2t.pln.co.id/BillingTerpusatAP2TNew1-dr/ReportServlet'),
         'unitap' => env('DISTRIVA_AP2T_UNITAP', '51MJK'),       // UP3 MOJOKERTO
         'unitupi' => env('DISTRIVA_AP2T_UNITUPI', '51'),        // UID Jawa Timur
-        'verify' => env('DISTRIVA_AP2T_CA_BUNDLE') ?: filter_var(env('DISTRIVA_AP2T_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+        'verify' => env('DISTRIVA_AP2T_CA_BUNDLE') ?: (filter_var(env('DISTRIVA_AP2T_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN) ? (is_file(resource_path('certs/ap2t-ca-bundle.pem')) ? resource_path('certs/ap2t-ca-bundle.pem') : true) : false),
         'pause_ms' => (int) env('DISTRIVA_AP2T_PAUSE_MS', 400),
         'timeout_seconds' => (int) env('DISTRIVA_AP2T_TIMEOUT', 120),
     ],

@@ -1173,6 +1173,18 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_ap2t_download_trusts_the_bundled_intermediate_and_root_ca_by_default(): void
+    {
+        $bundle = (string) config('distriva.ap2t.verify');
+
+        $this->assertFileExists($bundle);
+        $this->assertStringEndsWith('resources/certs/ap2t-ca-bundle.pem', $bundle);
+        $certs = (array) preg_split('/(?<=-----END CERTIFICATE-----)\s*/', trim((string) file_get_contents($bundle)), -1, PREG_SPLIT_NO_EMPTY);
+        $subjects = array_map(fn (string $pem) => (string) (openssl_x509_parse($pem)['subject']['CN'] ?? ''), $certs);
+        $this->assertSame(['GeoTrust TLS RSA CA G1', 'DigiCert Global Root G2'], $subjects);
+    }
+
+    #[Test]
     public function an_apkt_token_can_be_saved_per_user_reused_without_pasting_and_forgotten_like_the_mims_token(): void
     {
         $this->seed(EisReportPermissionSeeder::class);
