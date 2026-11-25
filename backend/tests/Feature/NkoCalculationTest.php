@@ -421,6 +421,42 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertEqualsWithDelta(27.5, $resolver->resolve($this->ulpA->id, 2026, 2)[NkoRealizationResolver::PELUNASAN_CODE]['value'], 1e-9);
     }
 
+    #[Test]
+    public function pelunasan_menambah_prr_dan_ex_prr_dari_ap2t_selama_semua_bulan_ada_dan_masukan_manual_diutamakan(): void
+    {
+        $resolver = app(NkoRealizationResolver::class);
+        $piutang = function (string $period, float $berjalan) {
+            $id = (string) Str::uuid();
+            DB::table('eis_report_files')->insert(['id' => $id, 'family' => 'PIUTANGLPB_EIS', 'unit_code' => $this->ulpA->code, 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'original_name' => 'P.xls',
+                'sha256' => hash('sha256', $id), 'size_bytes' => 1, 'status' => 'AKTIF', 'summary' => '{}', 'line_count' => 1, 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('eis_report_lines')->insert(['file_id' => $id, 'line_no' => 1, 'label' => 'BERJALAN', 'values' => json_encode(['rptag' => $berjalan])]);
+        };
+        $ragu = function (string $family, string $period, array $rp) {
+            $id = (string) Str::uuid();
+            DB::table('eis_report_files')->insert(['id' => $id, 'family' => $family, 'unit_code' => $this->ulpA->code, 'organizational_unit_id' => $this->ulpA->id, 'period' => $period, 'original_name' => "{$family}.xls",
+                'sha256' => hash('sha256', $id), 'size_bytes' => 1, 'status' => 'AKTIF', 'summary' => '{}', 'line_count' => count($rp), 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+            foreach ($rp as $i => $v) {
+                DB::table('eis_report_lines')->insert(['file_id' => $id, 'line_no' => $i + 1, 'label' => '20260'.($i + 1), 'values' => json_encode(['rp_prr' => $v])]);
+            }
+        };
+        $piutang('2025-12-01', 60e6);
+        $piutang('2026-01-01', 40e6);                                                                            // prabayar bulan Januari: lunas 20 juta
+        $piutang('2026-02-01', 40e6);                                                                            // Februari: 0
+        $code = NkoRealizationResolver::PELUNASAN_CODE;
+        $ragu('PRR', '2026-01-01', [2_000_000, 1_000_000]);                                                      // PRR Januari 3 juta
+        $this->assertEqualsWithDelta(23.0, $resolver->systemValues($this->ulpA->id, 2026, 1)[$code], 1e-9);
+        $ragu('EXPRR', '2026-01-01', [4_000_000]);
+        $this->assertEqualsWithDelta(27.0, $resolver->systemValues($this->ulpA->id, 2026, 1)[$code], 1e-9);      // + Ex-PRR 4 juta
+
+        $this->assertEqualsWithDelta(20.0, $resolver->systemValues($this->ulpA->id, 2026, 2)[$code], 1e-9);       // Februari belum punya laporan PRR dan Ex-PRR: komponen itu tidak dihitung (bukan sebagian), hanya prabayar
+        $ragu('PRR', '2026-02-01', []);                                                                           // laporan tanpa baris = nol, bulan lengkap
+        $ragu('EXPRR', '2026-02-01', [1_000_000]);
+        $this->assertEqualsWithDelta(20.0 + 3.0 + 5.0, $resolver->systemValues($this->ulpA->id, 2026, 2)[$code], 1e-9);
+
+        DB::table('kpi_manual_inputs')->insert(['id' => (string) Str::uuid(), 'definition_code' => 'prr-lunas', 'organizational_unit_id' => $this->ulpA->id, 'period' => '2026-02-01', 'value' => 10.0, 'created_at' => now(), 'updated_at' => now()]);
+        $this->assertEqualsWithDelta(20.0 + 10.0 + 5.0, $resolver->systemValues($this->ulpA->id, 2026, 2)[$code], 1e-9);   // manual PRR menggantikan PRR AP2T, Ex-PRR tetap dari AP2T
+    }
+
     private function difi(OrganizationalUnit $unit, string $period, float $saidi, float $saifi, float $kwh): void
     {
         $id = (string) Str::uuid();

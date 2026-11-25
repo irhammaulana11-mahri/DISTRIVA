@@ -137,7 +137,7 @@ class NkoRealizationResolver
     }
 
     /**
-     * Pelunasan (Rp juta, kumulatif) = komponen piutang prabayar dari laporan PIUTANGLPB_EIS + PRR + Ex-PRR (dua terakhir masukan manual pembantu, dianggap 0 bila kosong).
+     * Pelunasan (Rp juta, kumulatif) = komponen piutang prabayar dari laporan PIUTANGLPB_EIS + PRR + Ex-PRR (dua terakhir dari laporan AP2T Januari sampai bulan berjalan bila semua bulan ada; masukan manual pembantu bulan itu diutamakan; dianggap 0 bila keduanya kosong).
      * Pelunasan prabayar tiap bulan = (BARU + BERJALAN + TUNGGAKAN bulan lalu) - (BERJALAN + TUNGGAKAN bulan ini), nilai negatif dihitung 0, dijumlahkan Januari sampai bulan berjalan
      * (Januari memakai laporan Desember tahun lalu; semua laporan harus ada). Definisi dari pemilik; kumulatif September Jombang 117,36 lawan workbook 117,53 (bulan awal workbook belum terisi).
      *
@@ -171,9 +171,32 @@ class NkoRealizationResolver
             $prev = $cur;
         }
         $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))
-            ->whereIn('definition_code', array_keys(self::PELUNASAN_INPUTS))->pluck('value')->sum();
+            ->whereIn('definition_code', array_keys(self::PELUNASAN_INPUTS))->pluck('value', 'definition_code');
+        $extra = 0.0;
+        foreach (['prr-lunas' => 'PRR', 'ex-prr-lunas' => 'EXPRR'] as $code => $family) {                    // masukan manual (kumulatif) diutamakan; selain itu pelunasan AP2T Januari sampai bulan berjalan
+            $extra += isset($manual[$code]) ? (float) $manual[$code] : ($this->raguRepayment($unitId, $family, $year, $month) ?? 0.0);
+        }
 
-        return [self::PELUNASAN_CODE => $total / 1000000 + (float) $manual];
+        return [self::PELUNASAN_CODE => $total / 1000000 + $extra];
+    }
+
+    /**
+     * Pelunasan piutang ragu-ragu (PRR atau Ex-PRR, Rp juta, kumulatif) = jumlah Rp pelunasan seluruh baris laporan AP2T Januari sampai bulan berjalan; null bila ada bulan yang laporannya belum masuk.
+     * Laporan tanpa baris (tidak ada pelunasan) bernilai nol.
+     */
+    private function raguRepayment(string $unitId, string $family, int $year, int $month): ?float
+    {
+        $files = DB::table('eis_report_files')->where('family', $family)->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
+            ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->pluck('id');
+        if ($files->count() !== $month) {
+            return null;
+        }
+        $sum = 0.0;
+        foreach (DB::table('eis_report_lines')->whereIn('file_id', $files)->pluck('values') as $values) {
+            $sum += (float) (json_decode($values, true)['rp_prr'] ?? 0);
+        }
+
+        return $sum / 1000000;
     }
 
     /**
