@@ -91,7 +91,7 @@ class BusinessMetricService
             'series' => [['key' => 'wo', 'name' => 'Total pengaduan gangguan (WO)', 'unit' => 'kali', 'num' => 'wo'], ['key' => 'berulang', 'name' => 'Gangguan berulang', 'unit' => 'kali', 'num' => 'ber'], ['key' => 'berulang_pct', 'name' => 'Gangguan berulang terhadap total', 'unit' => '%', 'num' => 'ber', 'den' => 'wo', 'factor' => 100],
                 ['key' => 'negatif', 'name' => 'Rating negatif', 'unit' => 'kali', 'num' => 'neg'], ['key' => 'negatif_pct', 'name' => 'Rating negatif terhadap total', 'unit' => '%', 'num' => 'neg', 'den' => 'neg_wo', 'factor' => 100],
                 ['key' => 'negatif_nonmarking', 'name' => 'Rating negatif tanpa marking (ukuran NKO)', 'unit' => 'kali', 'num' => 'neg_non']]],
-        'saidi-saifi' => ['name' => 'SAIDI dan SAIFI', 'source' => 'Laporan DIFI (ringkasan; rincian tingkat penyulang dari baris Gardu Induk 20 kV dan Penyulang)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'sum', 'breakdown' => null,
+        'saidi-saifi' => ['name' => 'SAIDI dan SAIFI', 'source' => 'Laporan DIFI (TOTAL KELOMPOK Distribusi, sesuai kewenangan; rincian tingkat penyulang dari baris Gardu Induk 20 kV dan Penyulang)', 'family' => 'DIFI', 'polarity' => 'down', 'ytd' => 'sum', 'breakdown' => null,
             'series' => [['key' => 'saidi', 'name' => 'SAIDI', 'unit' => 'menit/plg', 'num' => 'saidi_x_plg', 'den' => 'plg'], ['key' => 'saifi', 'name' => 'SAIFI', 'unit' => 'kali/plg', 'num' => 'saifi_x_plg', 'den' => 'plg'],
                 ['key' => 'saidi_penyulang', 'name' => 'SAIDI karena gangguan penyulang', 'unit' => 'menit/plg', 'num' => 'pny_ggn_saidi_x_plg', 'den' => 'plg'], ['key' => 'saifi_penyulang', 'name' => 'SAIFI karena gangguan penyulang', 'unit' => 'kali/plg', 'num' => 'pny_ggn_plg', 'den' => 'plg']],
             'companion' => ['source' => 'Data gangguan penyulang dari spreadsheet: gangguan lebih dari ambang menit, pelanggan penyulang dari potret DIL (batas atas)', 'forecast' => ['kind' => 'OUTAGES', 'endpoint' => '/outages/forecast'],
@@ -475,15 +475,20 @@ class BusinessMetricService
         }
         $plg = (float) ($summary['pelanggan'] ?? 0) ?: 1.0;   // tanpa jumlah pelanggan, ULP berbobot sama
         $ens = 0.0;
+        // SAIDI dan SAIFI sesuai kewenangan = kelompok Distribusi saja (jam x pelanggan x 60 dan pelanggan padam); total keseluruhan laporan ikut menghitung kelompok Pembangkit dan Transmisi
+        // (mis. padam terencana pembangkit Juni 2026 yang membuat SAIDI ULP Jombang 183 menit, padahal Distribusi 1,9 menit dan workbook NKO 1,1), jadi hanya dipakai bila baris Distribusi tidak ada
+        $saidiMenitXPlg = (float) $summary['saidi_menit'] * $plg;
+        $saifiXPlg = (float) $summary['saifi_kali'] * $plg;
         foreach ($lines as $l) {
             if ($l['label'] === 'TOTAL KELOMPOK Distribusi') {
                 $ens = (float) ($l['values']['kwh_tak_tersalurkan'] ?? 0);
+                isset($l['values']['jam_x_plg'], $l['values']['jml_plg_padam']) && [$saidiMenitXPlg, $saifiXPlg] = [(float) $l['values']['jam_x_plg'] * 60, (float) $l['values']['jml_plg_padam']];
             }
         }
 
         $f = $this->difiFeederLevel($lines);
 
-        return ['raw' => ['plg' => $plg, 'saidi_x_plg' => (float) $summary['saidi_menit'] * $plg, 'saifi_x_plg' => (float) $summary['saifi_kali'] * $plg, 'ens_kwh' => $ens,
+        return ['raw' => ['plg' => $plg, 'saidi_x_plg' => $saidiMenitXPlg, 'saifi_x_plg' => $saifiXPlg, 'ens_kwh' => $ens,
             'pny_ggn_n' => $f['ggn_n'], 'pny_ggn_plg' => $f['ggn_plg'], 'pny_ggn_saidi_x_plg' => $f['ggn_menit_x_plg'], 'pny_ggn_kwh' => $f['ggn_kwh'],
             'pny_har_n' => $f['har_n'], 'pny_har_plg' => $f['har_plg'], 'pny_har_saidi_x_plg' => $f['har_menit_x_plg'], 'pny_har_kwh' => $f['har_kwh']], 'bd' => []];
     }

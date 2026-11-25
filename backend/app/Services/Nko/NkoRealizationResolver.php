@@ -271,16 +271,23 @@ class NkoRealizationResolver
         $ensKwh = 0.0;
         foreach ($files as $f) {
             $summary = json_decode($f->summary ?? '{}', true) ?: [];
-            if (! isset($summary['saidi_menit'], $summary['saifi_kali'])) {
-                return [];
-            }
-            $saidi += (float) $summary['saidi_menit'];
-            $saifi += (float) $summary['saifi_kali'];
             $line = DB::table('eis_report_lines')->where('file_id', $f->id)->where('label', 'TOTAL KELOMPOK Distribusi')->value('values');
             if ($line === null) {
                 return [];
             }
-            $ensKwh += (float) (json_decode($line, true)['kwh_tak_tersalurkan'] ?? 0);
+            $total = json_decode($line, true) ?: [];
+            $plg = (float) ($summary['pelanggan'] ?? 0);
+            // SAIDI dan SAIFI "sesuai kewenangan" = kelompok Distribusi saja; total keseluruhan laporan ikut menghitung Pembangkit dan Transmisi (Juni 2026 ULP Jombang: 183 menit lawan 1,9 menit, workbook 1,1)
+            if ($plg > 0 && isset($total['jam_x_plg'], $total['jml_plg_padam'])) {
+                $saidi += (float) $total['jam_x_plg'] * 60 / $plg;
+                $saifi += (float) $total['jml_plg_padam'] / $plg;
+            } elseif (isset($summary['saidi_menit'], $summary['saifi_kali'])) {
+                $saidi += (float) $summary['saidi_menit'];
+                $saifi += (float) $summary['saifi_kali'];
+            } else {
+                return [];
+            }
+            $ensKwh += (float) ($total['kwh_tak_tersalurkan'] ?? 0);
         }
 
         return ['saidi' => $saidi, 'saifi' => $saifi, 'ens' => $ensKwh / 1000];

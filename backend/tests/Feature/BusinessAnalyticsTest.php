@@ -264,7 +264,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
 
         $d = $this->as($this->planner)->getJson($url('saidi-saifi'))->assertOk()->json('data');
         $t = collect($d['series'])->keyBy('key');
-        $this->assertEqualsWithDelta(80.0, $t['saidi']['values'][0], 1e-9);                                 // total DIFI tetap angka utama (NKO)
+        $this->assertEqualsWithDelta(62.8, $t['saidi']['values'][0], 1e-9);                                 // angka utama = TOTAL KELOMPOK Distribusi (157 jam x pelanggan x 60 / 150), bukan ringkasan total laporan (80)
         $this->assertEqualsWithDelta(50.0, $t['saidi_penyulang']['values'][0], 1e-9);                       // 125 jam x pelanggan x 60 / 150 pelanggan
         $this->assertEqualsWithDelta(1.0, $t['saifi_penyulang']['values'][0], 1e-9);                        // 150 / 150
         $saidi = $d['reconciliations'][0]['ytd'];
@@ -966,6 +966,29 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertSame('METRIK', $up3['targets'][0]['realisasi_source']);                                    // UP3 belum punya perhitungan NKO: cadangan dari data menu
         $this->assertNull($up3['targets'][0]['validated']);
         $this->assertStringContainsString('Realisasi diambil dari data menu ini', $up3['diagnosis'][0]['text']);
+    }
+
+    #[Test]
+    public function saidi_dan_saifi_sesuai_kewenangan_hanya_kelompok_distribusi_pembangkit_dan_transmisi_tidak_ikut(): void
+    {
+        $row = fn (float $jxp, int $plg) => ['jumlah_gangguan' => 1, 'jml_plg_padam' => $plg, 'jam_x_plg' => $jxp, 'kwh_tak_tersalurkan' => 10];
+        // Juni 2026 seperti ULP Jombang: Distribusi 1,9 menit; padam terencana pembangkit memadamkan hampir semua pelanggan sehingga total laporan 183,8 menit
+        $this->report($this->ulpA, 'DIFI', '2026-06-01', [['TOTAL KELOMPOK Distribusi', $row(6000, 3000)], ['TOTAL KELOMPOK Pembangkit', $row(580000, 188000)], ['TOTAL KESELURUHAN', $row(586000, 191000)]],
+            ['pelanggan' => 190000, 'saidi_menit' => 185.05, 'saifi_kali' => 1.005, 'saidi_jam' => 3.0842]);
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/saidi-saifi?unit_id={$this->ulpA->id}&from=2026-06&to=2026-06")->assertOk()->json('data');
+        $s = collect($d['series'])->keyBy('key');
+        $this->assertEqualsWithDelta(6000 * 60 / 190000, $s['saidi']['values'][0], 1e-9);                      // 1,89 menit/plg
+        $this->assertEqualsWithDelta(3000 / 190000, $s['saifi']['values'][0], 1e-9);
+
+        $this->report($this->ulpA, 'DIFI', '2026-01-01', [['TOTAL KELOMPOK Distribusi', $row(3800, 1900)], ['TOTAL KESELURUHAN', $row(3800, 1900)]], ['pelanggan' => 190000, 'saidi_menit' => 1.2, 'saifi_kali' => 0.01]);
+        $nko = app(NkoRealizationResolver::class)->systemValues($this->ulpA->id, 2026, 1);
+        $this->assertEqualsWithDelta(3800 * 60 / 190000, $nko['saidi'], 1e-9);                                  // NKO memakai angka yang sama: kelompok Distribusi
+        $this->assertEqualsWithDelta(1900 / 190000, $nko['saifi'], 1e-9);
+
+        // laporan tanpa jam x pelanggan pada baris Distribusi (tata letak lama) memakai ringkasan total sebagai cadangan
+        $this->report($this->ulpB, 'DIFI', '2026-01-01', [['TOTAL KELOMPOK Distribusi', ['jumlah_gangguan' => 1, 'kwh_tak_tersalurkan' => 10]]], ['pelanggan' => 1000, 'saidi_menit' => 7.5, 'saifi_kali' => 0.2]);
+        $this->assertEqualsWithDelta(7.5, app(NkoRealizationResolver::class)->systemValues($this->ulpB->id, 2026, 1)['saidi'], 1e-9);
     }
 
     #[Test]
