@@ -581,8 +581,12 @@ function CompanionSection({ companions, toMonth }) {
             <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500">
               <span className="text-[11px] text-slate-400">Kumulatif YTD</span>
               <span className="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
-                {s.ytd !== null && s.ytd !== undefined ? fmtFloat(s.ytd) : '-'}{' '}
-                <span className="text-[10px] font-normal text-slate-400">{s.unit}</span>
+                {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_')
+                  ? '-'
+                  : s.ytd !== null && s.ytd !== undefined ? fmtFloat(s.ytd) : '-'}{' '}
+                <span className="text-[10px] font-normal text-slate-400">
+                  {s.unit === 'menit' || s.key?.startsWith('rpt_') || s.key?.startsWith('rct_') ? '' : s.unit}
+                </span>
               </span>
             </div>
           </div>
@@ -605,6 +609,7 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode 
       {list.map((rec) => {
         const isNet = rec.mode === 'net'
         const isYoy = rec.mode === 'yoy'
+        const isAvg = rec.mode === 'avg'
         const ytd = rec.ytd
         const monthly = rec.monthly || []
 
@@ -622,6 +627,10 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode 
         ) : isYoy ? (
           <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
             Mode Kenaikan Tahunan (YoY)
+          </span>
+        ) : isAvg ? (
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+            Mode Rata-rata Tertimbang (Avg)
           </span>
         ) : (
           <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
@@ -700,7 +709,7 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode 
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-slate-500 block">
-                      {isYoy ? 'Kenaikan Resmi YoY (YTD)' : isNet ? 'Tambahan Bersih Resmi (YTD)' : 'Nilai Resmi YTD'}
+                      {isYoy ? 'Kenaikan Resmi YoY (YTD)' : isNet ? 'Tambahan Bersih Resmi (YTD)' : isAvg ? 'Nilai Rata-rata Resmi (YTD)' : 'Nilai Resmi YTD'}
                     </span>
                     {ytd.official_change_pct !== null && ytd.official_change_pct !== undefined && (
                       <span className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.2 rounded ${
@@ -724,7 +733,7 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode 
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-slate-500 block">
-                      {isYoy ? 'Perkiraan Sumbangan PB (YTD)' : 'Data Pendamping YTD'}
+                      {isYoy ? 'Perkiraan Sumbangan PB (YTD)' : isAvg ? 'Data Pendamping Rata-rata (YTD)' : 'Data Pendamping YTD'}
                     </span>
                     {ytd.companion_change_pct !== null && ytd.companion_change_pct !== undefined && (
                       <span className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.2 rounded ${
@@ -1296,9 +1305,9 @@ export default function BusinessAnalyticsPage() {
                   variant="secondary"
                   onClick={() => setSyncDrawerOpen(true)}
                   icon={IconRefresh}
-                  aria-label="Tarik SAIDI/SAIFI APKT"
+                  aria-label={activeCode === 'rpt-rct-gangguan' ? 'Tarik APKT (RPT/RCT)' : 'Tarik SAIDI/SAIFI APKT'}
                 >
-                  Tarik SAIDI/SAIFI APKT
+                  {activeCode === 'rpt-rct-gangguan' ? 'Tarik APKT (RPT/RCT)' : 'Tarik SAIDI/SAIFI APKT'}
                 </Button>
               </div>
             ) : isEisMetric ? (
@@ -2730,10 +2739,11 @@ export default function BusinessAnalyticsPage() {
             ? 'piutang'
             : activeCode === 'pelanggan' || activeCode === 'daya'
             ? 'permohonan'
-            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan'
+            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan'
             ? 'apkt'
             : null
         }
+        initialDataset={activeCode === 'rpt-rct-gangguan' ? 'rpt-rct-gangguan' : 'saidi-saifi'}
         onClose={() => setSyncDrawerOpen(false)}
         onSynced={() => {
           loadCatalog()

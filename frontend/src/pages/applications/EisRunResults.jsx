@@ -60,6 +60,7 @@ export default function EisRunResults({ run, units }) {
 
   const isPiutang = run?.kind === 'piutang'
   const isApkt = run?.kind === 'apkt'
+  const isRptRct = isApkt && run?.options?.dataset === 'rpt-rct-gangguan'
   const isTokenRejected = typeof run?.log === 'string' && run.log.toLowerCase().includes('token apkt ditolak')
 
   return (
@@ -77,11 +78,13 @@ export default function EisRunResults({ run, units }) {
                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                 : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
             }`}>
-              {isApkt ? 'SAIDI/SAIFI APKT (DIFI)' : isPiutang ? 'Saldo Piutang' : 'Permohonan PB/PD'}
+              {isRptRct ? 'RPT/RCT Gangguan (APKT)' : isApkt ? 'SAIDI/SAIFI APKT (DIFI)' : isPiutang ? 'Saldo Piutang' : 'Permohonan PB/PD'}
             </span>
           </div>
           <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {isApkt
+            {isRptRct
+              ? 'Ringkasan penarikan durasi dan jumlah RPT/RCT WO gangguan langsung dari GraphQL APKT (tanpa dan dengan clear temper).'
+              : isApkt
               ? 'Ringkasan penarikan laporan SAIDI/SAIFI SE004 (DIFI) langsung dari GraphQL APKT per unit ULP.'
               : isPiutang
               ? 'Ringkasan penarikan laporan saldo piutang (Per Golongan, Per Lembar, Kogol) per unit ULP.'

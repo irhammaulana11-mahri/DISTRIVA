@@ -204,6 +204,7 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     await waitFor(() => {
       expect(eisSyncApi.start).toHaveBeenCalledWith({
         kind: 'apkt',
+        dataset: 'saidi-saifi',
         to_month: '2026-10',
         from_month: '2026-09',
         apkt_token: 'secret-apkt-token-xyz',
@@ -252,6 +253,7 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     await waitFor(() => {
       expect(eisSyncApi.start).toHaveBeenCalledWith({
         kind: 'apkt',
+        dataset: 'saidi-saifi',
         to_month: '2026-11',
         from_month: '2026-11',
         use_saved_token: true,
@@ -296,5 +298,48 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tarik SAIDI/SAIFI APKT' }))
 
     expect(await screen.findByText(/Token APKT Ditolak atau Kedaluwarsa/)).toBeInTheDocument()
+  })
+
+  it('dapat memilih dataset RPT/RCT WO Gangguan dan mengirim parameter dataset rpt-rct-gangguan', async () => {
+    eisSyncApi.apktTokenStatus.mockResolvedValue({
+      data: { saved: false, saved_at: null, last_used_at: null, last_result: null },
+    })
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r-rpt-rct',
+        kind: 'apkt',
+        options: { dataset: 'rpt-rct-gangguan', from_month: '2026-10', to_month: '2026-10' },
+        status: 'OK',
+        created_at: '2026-11-25T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="apkt" onClose={() => {}} />)
+
+    // Klik tombol dataset RPT/RCT WO Gangguan
+    const rptRctBtn = await screen.findByRole('button', { name: 'RPT/RCT WO Gangguan' })
+    await userEvent.click(rptRctBtn)
+
+    expect(screen.getByRole('heading', { level: 3, name: 'Tarik RPT/RCT WO Gangguan APKT' })).toBeInTheDocument()
+    const tokenInput = screen.getByLabelText('Token APKT')
+    fireEvent.change(tokenInput, { target: { value: 'secret-rpt-rct-token' } })
+
+    const toInput = screen.getByLabelText('Bulan akhir APKT')
+    fireEvent.change(toInput, { target: { value: '2026-10' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik RPT/RCT APKT' })
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'apkt',
+        dataset: 'rpt-rct-gangguan',
+        to_month: '2026-10',
+        from_month: '2026-10',
+        apkt_token: 'secret-rpt-rct-token',
+      })
+    })
+
+    expect(await screen.findByText('RPT/RCT Gangguan (APKT)')).toBeInTheDocument()
   })
 })

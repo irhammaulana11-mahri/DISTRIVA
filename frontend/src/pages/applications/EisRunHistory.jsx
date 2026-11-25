@@ -90,16 +90,20 @@ export default function EisRunHistory() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
               {runs.map((r) => {
                 const isPiutang = r.kind === 'piutang'
+                const isApkt = r.kind === 'apkt'
+                const isRptRct = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
                 return (
                   <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">{when(r.created_at)}</td>
                     <td className="py-3 px-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                        isPiutang
+                        isApkt
+                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300'
+                          : isPiutang
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
                           : 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
                       }`}>
-                        {isPiutang ? 'Saldo Piutang' : 'Permohonan'}
+                        {isRptRct ? 'RPT/RCT (APKT)' : isApkt ? 'SAIDI/SAIFI (APKT)' : isPiutang ? 'Saldo Piutang' : 'Permohonan'}
                       </span>
                     </td>
                     <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
@@ -107,16 +111,21 @@ export default function EisRunHistory() {
                       {r.complete_old && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[10px] font-bold" title="Dengan pelengkapan permohonan lama (maks. 180 hari sebelum rentang)">+ pelengkapan</span>}
                     </td>
                     <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-[11px]">
-                      {isPiutang ? (
+                      {isPiutang || isApkt ? (
                         <div className="space-y-0.5">
                           <div className="font-mono font-medium">
                             {r.options?.from_month === r.options?.to_month
                               ? r.options?.to_month || '-'
                               : `${r.options?.from_month || '-'} s/d ${r.options?.to_month || '-'}`}
                           </div>
-                          {r.options?.reports && (
+                          {isPiutang && r.options?.reports && (
                             <div className="text-[10px] text-slate-400">
                               {r.options.reports.join(', ')}
+                            </div>
+                          )}
+                          {isApkt && (
+                            <div className="text-[10px] text-slate-400">
+                              {isRptRct ? 'Dataset: RPT/RCT WO Gangguan' : 'Dataset: SAIDI/SAIFI SE004'}
                             </div>
                           )}
                         </div>

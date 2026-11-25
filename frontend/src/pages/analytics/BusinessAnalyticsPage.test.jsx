@@ -1011,4 +1011,115 @@ describe('BusinessAnalyticsPage', () => {
     // Badge "belum lengkap" muncul di samping nama bulan pada tabel rekonsiliasi
     expect(screen.getByText('belum lengkap')).toBeInTheDocument()
   })
+
+  it('menampilkan companions untuk RPT-RCT Gangguan dan tombol Tarik APKT (RPT/RCT) tanpa rekonsiliasi', async () => {
+    const rptCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'rpt-rct-gangguan',
+            name: 'RPT-RCT Gangguan',
+            source: 'GGNALL',
+            polarity: 'down',
+            available: true,
+            series: [{ key: 'rpt', name: 'Response time rata-rata', unit: 'menit' }],
+          },
+        ],
+      },
+    }
+
+    const rptDetail = {
+      data: {
+        ...MOCK_METRIC_DETAIL.data,
+        metric: {
+          code: 'rpt-rct-gangguan',
+          name: 'RPT-RCT Gangguan',
+          unit: 'menit',
+          polarity: 'down',
+          source: 'GGNALL',
+        },
+        from: '2026-10',
+        to: '2026-10',
+        months: ['2026-10'],
+        available_from: '2026-01',
+        available_to: '2026-10',
+        summary: [
+          { key: 'rpt', name: 'Response time rata-rata', unit: 'menit', latest: 25.5, ytd: 25.5 },
+        ],
+        trend: {
+          months: ['2026-10'],
+          official: [25.5],
+          previous_year: [20.0],
+        },
+        companions: {
+          source: 'APKT (WO gangguan: durasi response dan recovery per ULP)',
+          series: [
+            { key: 'rpt_tanpa_ct', name: 'Response time rata-rata APKT tanpa clear temper', unit: 'menit', latest: 22.3, ytd: 22.3 },
+            { key: 'jumlah_tanpa_ct', name: 'Jumlah WO gangguan APKT tanpa clear temper', unit: 'kali', latest: 5023, ytd: 5023 },
+          ],
+        },
+        reconciliations: [
+          {
+            key: 'rpt',
+            mode: 'avg',
+            unit: 'menit',
+            official_name: 'Response time rata-rata (GGNALL)',
+            companion_name: 'Response time rata-rata APKT dengan clear temper',
+            monthly: [
+              { month: '2026-10', official_net: 25.5, companion: 25.5, difference: 0, units_compared: 1 },
+            ],
+            ytd: {
+              year: 2026,
+              base_month: '2026-01',
+              to_month: '2026-10',
+              official_net: 25.5,
+              companion: 25.5,
+              difference: 0,
+              units: ['51453'],
+              units_compared: 1,
+              units_expected: 1,
+            },
+            note: 'Dua sumber dicatat dari WO yang sama dan seharusnya sama persis.',
+          },
+        ],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(rptCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'rpt-rct-gangguan') {
+        return Promise.resolve(rptDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    const user = userEvent.setup()
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true, 'eis_sync.manage': true, 'eis_reports.import': true }, ['/pengusahaan/rpt-rct-gangguan'])
+
+    await waitFor(() => {
+      expect(pengusahaanApi.metric).toHaveBeenCalledWith(
+        'rpt-rct-gangguan',
+        expect.objectContaining({ unit_id: 'up3-1' }),
+      )
+    })
+
+    // Verifikasi tombol Tarik APKT (RPT/RCT)
+    expect(await screen.findByRole('button', { name: 'Tarik APKT (RPT/RCT)' })).toBeInTheDocument()
+
+    // Tab Rekonsiliasi ada karena memiliki companions (meski reconciliations kosong)
+    const recTab = await screen.findByRole('button', { name: /^Rekonsiliasi$/i })
+    expect(recTab).toBeInTheDocument()
+    await user.click(recTab)
+
+    // Data Penjelas Operasional (CompanionSection) tampil
+    expect(await screen.findByText('Data Penjelas Operasional')).toBeInTheDocument()
+    expect(screen.getAllByText('Response time rata-rata APKT tanpa clear temper').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Jumlah WO gangguan APKT tanpa clear temper').length).toBeGreaterThan(0)
+
+    // Rekonsiliasi mode avg tampil
+    expect(await screen.findByText(/Mode Rata-rata Tertimbang \(Avg\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Rekonsiliasi: Response time rata-rata \(GGNALL\) vs Response time rata-rata APKT dengan clear temper/i)).toBeInTheDocument()
+  })
 })

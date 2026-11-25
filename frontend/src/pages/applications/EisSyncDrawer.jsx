@@ -50,7 +50,7 @@ function Field({ label, hint, children }) {
  * - 'piutang': hanya menampilkan form penarikan Laporan Saldo Piutang (Golongan, Lembar, Kogol).
  * - 'all' / null: menampilkan selector/tab atau mode kontekstual.
  */
-export default function EisSyncDrawer({ open, asPage = false, mode = null, onClose, onSynced }) {
+export default function EisSyncDrawer({ open, asPage = false, mode = null, initialDataset = 'saidi-saifi', onClose, onSynced }) {
   const { can } = useAccess?.() || { can: {} }
   const canApktSync = Boolean(can?.['eis_sync.manage'] && can?.['eis_reports.import'])
 
@@ -93,7 +93,8 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
   const [piutangStarting, setPiutangStarting] = useState(false)
   const [piutangError, setPiutangError] = useState('')
 
-  // State untuk penarikan SAIDI/SAIFI APKT (DIFI)
+  // State untuk penarikan SAIDI/SAIFI APKT (DIFI) & RPT/RCT
+  const [apktDataset, setApktDataset] = useState(initialDataset || 'saidi-saifi')
   const [apktToken, setApktToken] = useState('')
   const [saveApktToken, setSaveApktToken] = useState(false)
   const [useSavedToken, setUseSavedToken] = useState(false)
@@ -144,6 +145,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
       setError(err?.message || 'Gagal memuat pengaturan sinkronisasi EIS.')
     }
   }, [canApktSync])
+
+  useEffect(() => {
+    if (initialDataset) {
+      setApktDataset(initialDataset)
+    }
+  }, [initialDataset])
 
   useEffect(() => {
     if (open) {
@@ -270,6 +277,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
     try {
       const body = {
         kind: 'apkt',
+        dataset: apktDataset,
         to_month: apktToMonth,
         from_month: apktFromMonth || apktToMonth,
       }
@@ -333,12 +341,16 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
   const isApkt = mode === 'apkt' || (!mode && activeTab === 'apkt')
 
   const titleText = isApkt
-    ? 'Tarik SAIDI/SAIFI APKT (DIFI)'
+    ? apktDataset === 'rpt-rct-gangguan'
+      ? 'Tarik RPT/RCT WO Gangguan APKT'
+      : 'Tarik SAIDI/SAIFI APKT (DIFI)'
     : isPiutang && !isPermohonan
     ? 'Sinkronisasi Saldo Piutang EIS'
     : 'Sinkronisasi EIS'
   const subtitleText = isApkt
-    ? 'Tarik laporan SAIDI/SAIFI SE004 bulanan langsung dari APKT ke format DIFI DISTRIVA'
+    ? apktDataset === 'rpt-rct-gangguan'
+      ? 'Tarik durasi respons dan pemulihan WO gangguan langsung dari GraphQL APKT'
+      : 'Tarik laporan SAIDI/SAIFI SE004 bulanan langsung dari APKT ke format DIFI DISTRIVA'
     : isPiutang && !isPermohonan
     ? 'Tarik laporan saldo piutang bulanan langsung dari server EIS ke DISTRIVA'
     : 'Tarik permohonan pelanggan PB/PD langsung dari server EIS ke DISTRIVA'
@@ -744,21 +756,56 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
               </section>
             )}
 
-            {/* Kartu Penarikan SAIDI/SAIFI APKT (DIFI) */}
+            {/* Kartu Penarikan SAIDI/SAIFI APKT (DIFI) & RPT/RCT */}
             {isApkt && (
               <section className="p-5 rounded-2xl border border-purple-200 dark:border-purple-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                      Tarik SAIDI/SAIFI APKT (DIFI)
+                      {apktDataset === 'rpt-rct-gangguan' ? 'Tarik RPT/RCT WO Gangguan APKT' : 'Tarik SAIDI/SAIFI APKT (DIFI)'}
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Tarik Laporan SAIDI SAIFI SE004 bulanan langsung dari GraphQL APKT dan impor otomatis sebagai laporan DIFI ke DISTRIVA.
+                      {apktDataset === 'rpt-rct-gangguan'
+                        ? 'Tarik durasi respons (RPT) dan pemulihan (RCT) WO gangguan langsung dari GraphQL APKT (tanpa & dengan clear temper).'
+                        : 'Tarik Laporan SAIDI SAIFI SE004 bulanan langsung dari GraphQL APKT dan impor otomatis sebagai laporan DIFI ke DISTRIVA.'}
                     </p>
                   </div>
                   <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
                     APKT GraphQL
                   </span>
+                </div>
+
+                {/* Pemilih Dataset APKT */}
+                <div className="space-y-1.5">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                    Dataset APKT yang Ditarik
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setApktDataset('saidi-saifi')}
+                      disabled={running}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                        apktDataset === 'saidi-saifi'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      SAIDI/SAIFI SE004 (DIFI)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setApktDataset('rpt-rct-gangguan')}
+                      disabled={running}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                        apktDataset === 'rpt-rct-gangguan'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      RPT/RCT WO Gangguan
+                    </button>
+                  </div>
                 </div>
 
                 {apktError && <Alert kind="error">{apktError}</Alert>}
@@ -935,7 +982,13 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, onClo
                     className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white cursor-pointer"
                   >
                     <IconRefresh size={14} className={running && current?.kind === 'apkt' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                    {running && current?.kind === 'apkt' ? 'Sedang menarik SAIDI/SAIFI APKT…' : 'Tarik SAIDI/SAIFI APKT'}
+                    {running && current?.kind === 'apkt'
+                      ? apktDataset === 'rpt-rct-gangguan'
+                        ? 'Sedang menarik RPT/RCT APKT…'
+                        : 'Sedang menarik SAIDI/SAIFI APKT…'
+                      : apktDataset === 'rpt-rct-gangguan'
+                      ? 'Tarik RPT/RCT APKT'
+                      : 'Tarik SAIDI/SAIFI APKT'}
                   </Button>
 
                   {!canApktSync && (
