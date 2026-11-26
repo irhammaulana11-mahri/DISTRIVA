@@ -6,6 +6,7 @@ use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Applications\EisSyncService;
+use App\Services\EisReports\Ap2tTagsusSync;
 use App\Services\EisReports\ApktSaidiSaifiSync;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\EisReportPermissionSeeder;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -1349,6 +1351,34 @@ class EisImportTest extends PostgresTestCase
         @unlink($path);
 
         return $body;
+    }
+
+    #[Test]
+    public function an_ap2t_download_is_retried_after_a_transient_404(): void
+    {
+        Sleep::fake();
+        config(['distriva.ap2t.report_url_pelunasan' => 'https://ap2t.test/PelunasanServlet']);
+        $body = $this->ap2tHapusPrrBody([]);
+        Http::fake(['ap2t.test/*' => Http::sequence()->push('tidak ada', 404)->push('tidak ada', 404)->push($body, 200, ['Content-Type' => 'application/vnd.ms-excel'])]);
+
+        $this->assertSame($body, app(Ap2tTagsusSync::class)->download('51453', '2026-11', 'hapus_prr'));
+        Http::assertSentCount(3);
+    }
+
+    #[Test]
+    public function an_ap2t_download_that_keeps_returning_404_fails_with_the_status_after_the_retries(): void
+    {
+        Sleep::fake();
+        config(['distriva.ap2t.report_url_pelunasan' => 'https://ap2t.test/PelunasanServlet']);
+        Http::fake(['ap2t.test/*' => Http::response('tidak ada', 404)]);
+
+        try {
+            app(Ap2tTagsusSync::class)->download('51453', '2026-11', 'hapus_prr');
+            $this->fail('Unduhan yang terus 404 seharusnya gagal.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('HTTP 404 dari AP2T.', $e->getMessage());
+        }
+        Http::assertSentCount(4);
     }
 
     #[Test]

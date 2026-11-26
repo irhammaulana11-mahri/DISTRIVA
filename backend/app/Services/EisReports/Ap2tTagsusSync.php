@@ -4,6 +4,7 @@ namespace App\Services\EisReports;
 
 use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
@@ -26,6 +27,13 @@ class Ap2tTagsusSync
     ];
 
     private const LOG_LIMIT = 30000;
+
+    /** AP2T sesekali membalas 404 atau 5xx sesaat pada permintaan beruntun, lalu membalas 200 untuk alamat yang sama; unduhan diulang sebelum dianggap gagal. */
+    private const DOWNLOAD_TRIES = 4;
+
+    private const RETRY_WAIT_MS = 2000;
+
+    private const RETRY_STATUSES = [404, 429, 500, 502, 503, 504];
 
     public function __construct(private readonly EisReportImportService $importer) {}
 
@@ -126,7 +134,7 @@ class Ap2tTagsusSync
             $url = (string) $cfg['report_url'];
             $query = ['jenislaporan' => 'getlaporantsgab', 'report' => $def['report'], 'unitup' => $ulpCode, 'unitap' => $cfg['unitap'], 'unitupi' => $cfg['unitupi'], 'jenislap' => $def['title'], 'thbl' => substr($ym, 0, 4).substr($ym, 5, 2)];
         }
-        $res = Http::withOptions(['verify' => $cfg['verify']])->timeout((int) $cfg['timeout_seconds'])->retry(2, 1000, fn ($e) => $e instanceof ConnectionException, throw: false)->get($url, $query);
+        $res = Http::withOptions(['verify' => $cfg['verify']])->timeout((int) $cfg['timeout_seconds'])->retry(self::DOWNLOAD_TRIES, self::RETRY_WAIT_MS, fn ($e) => $e instanceof ConnectionException || ($e instanceof RequestException && in_array($e->response->status(), self::RETRY_STATUSES, true)), throw: false)->get($url, $query);
         if (! $res->ok()) {
             throw new \RuntimeException('HTTP '.$res->status().' dari AP2T.');
         }
