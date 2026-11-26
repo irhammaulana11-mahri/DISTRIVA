@@ -82,7 +82,7 @@ Dideklarasikan di `inputs`; kodenya huruf kecil, angka, dan garis bawah, tidak b
 
 ## 8. Pencocokan definisi (tahap 3, selesai)
 
-Dijalankan otomatis setelah `distriva:nko-import-definitions` membuat versi baru, dan dapat diulang kapan saja:
+Dijalankan otomatis setelah `distriva:nko-import-definitions` membuat versi baru atau setelah unggahan workbook disetujui (§10), dan dapat diulang kapan saja:
 
 ```
 php artisan distriva:nko-mapping 2026
@@ -146,3 +146,41 @@ Usulkan aturan untuk kode baru dengan `replaces_code` kode lama (rumus lama dan 
 - `GET /nko/inputs`: butir indikator memuat `mode` (null bila tanpa aturan) dan `required` (butuh realisasi bulan itu); masukan pembantu tidak memuat keduanya. `editable=false` juga pada mode `SISTEM`; `system_source=false` pada mode `MANUAL`.
 - `GET /nko/gaps`: indikator mode `SISTEM` yang kosong tetap dilaporkan.
 - `GET /nko/snapshots/{id}`: `values[]` memuat `formula`, rumus yang menghasilkan nilai sistem (null untuk nilai manual dan snapshot lama).
+
+## 10. Unggah workbook definisi (tahap 5)
+
+Item kinerja bertambah, berkurang, atau berganti nama, serta bobot dan target, tetap berasal dari workbook realisasi (docs/89). Sekarang workbook bisa diunggah dari aplikasi:
+
+1. PERENCANAAN mengunggah berkas. Berkas disimpan di disk dokumen (`nko-workbooks/`, ikut cadangan); **definisi belum berubah**.
+2. Pratinjau perubahan dibaca siapa pun yang punya `nko.view`.
+3. ASMAN_PERENCANAAN menyetujui (definisi versi baru aktif, versi lama `ARSIP`) atau menolak.
+
+Izin sama dengan aturan (§9): `nko.rules.propose` untuk mengunggah dan membatalkan, `nko.rules.approve` untuk memutus, keduanya hanya tingkat UP3. Tidak ada izin atau seeder baru. Pengunggah tidak boleh memutus unggahannya sendiri. Perintah `distriva:nko-import-definitions` tetap ada.
+
+### API (di bawah `/api/nko`)
+
+| Metode dan jalur | Fungsi |
+|---|---|
+| `GET /definition-sets?year=` | versi definisi, terbaru dulu: `id, year, unit_level, version, status` (`AKTIF, ARSIP`), `source_name, total_weight, warnings[], imported_at, imported_by {id,name}` (null bila dari server) |
+| `GET /definition-uploads?status=` | maksimal 100: `id, year, source_name, note, status` (`MENUNGGU, DISETUJUI, DITOLAK, DIBATALKAN`), `uploaded_by {id,name}, uploaded_at, decided_by, decided_at, decision_note` |
+| `GET /definition-uploads/{id}` | sama, ditambah `changes[]` |
+| `POST /definition-uploads` | multipart `file` (.xlsx, maksimal 8 MB) dan `note` (wajib); 201 `data.id`. 422 bila bukan workbook NKO atau isinya sudah pernah dimuat; 409 bila masih ada unggahan menunggu untuk tahun itu |
+| `POST /definition-uploads/{id}/decision` | `{decision: "approve"\|"reject", note?}`; `note` wajib saat menolak. Respons `data {status, sets[], mapping}`; `mapping` sama dengan `GET /rules/mapping` (null bila ditolak). 409 bila sudah diputus atau definisi aktif berubah sejak diunggah |
+| `DELETE /definition-uploads/{id}` | pengunggah membatalkan unggahan yang menunggu |
+
+### Isi `changes[]`
+
+Satu entri per tingkat unit (`UP3`, `ULP`):
+
+- `level`, `status` (`BARU, DIGANTIKAN`; `DUPLIKAT`/`SUDAH_DIGANTIKAN` = tingkat ini tidak berubah), `compared_with` (mis. `2026 v1`; bila tahun baru, versi aktif tahun sebelumnya; null bila belum ada), `items`
+- `added[]`: `code, name, weight, needs_realization, has_rule`
+- `removed[]`: `code, name, weight, has_rule`
+- `possible_renames[]`: `from_code, from_name, to_code, to_name, score` (hanya saran; tindak lanjutnya usulan aturan dengan `replaces_code`, §9)
+- `changed[]`: `code, name, fields`; `fields` berisi `{from, to}` per kolom: `name, level, polarity, unit_label, weight, weight_note, formula_text, source_sheet, scoring_rule, nilai_rule, scoring_formula, value_formula, monthly_formulas`. Beda spasi dan pergeseran baris workbook tidak dihitung
+- `total_rule_changed`: rumus total atau nilai akhir NKO berubah
+- `targets_changed`: `{nama unit: jumlah target bulanan yang berbeda}` untuk item yang ada di kedua versi (`[]` bila tidak ada, dan antartahun tidak dibandingkan)
+- `units[]` yang targetnya akan dimuat, `warnings[]`
+
+Angka acuan realisasi di dalam workbook (dipakai pratinjau rumus §9) ikut diganti saat disetujui, tetapi perbedaannya **tidak** ditampilkan di `changes[]`.
+
+Membaca workbook contoh (11 tab, 1,3 MB) sekitar 4 detik dan 175 MB memori; aplikasi menaikkan `memory_limit` sampai 512 MB untuk permintaan ini. `upload_max_filesize` PHP bawaan 2M, tetapi workbook contoh 1,3 MB; naikkan bila workbook membesar (docs/85).

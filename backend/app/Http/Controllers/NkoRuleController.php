@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
+use App\Http\Controllers\Concerns\AuthorizesNkoChanges;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\MfaService;
 use App\Services\Nko\NkoFormula;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\DB;
  */
 class NkoRuleController extends Controller
 {
+    use AuthorizesNkoChanges;
+
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly MfaService $mfa, private readonly NkoRealizationRules $rules,
         private readonly NkoRuleProposalService $proposalService, private readonly NkoRulePreviewService $previews, private readonly NkoMappingCheckService $mappings) {}
 
@@ -107,7 +110,7 @@ class NkoRuleController extends Controller
     /** POST /nko/rule-proposals */
     public function propose(Request $request): JsonResponse
     {
-        $this->authorizeRules($request, 'nko.rules.propose');
+        $this->authorizeChange($request, 'nko.rules.propose');
         $d = $request->validate(['definition_code' => ['required', 'string', 'max:80'], 'mode' => ['required', 'string'], 'formula' => ['nullable', 'string', 'max:500'], 'effective_from' => ['required', 'date_format:Y-m'],
             'is_validated' => ['nullable', 'boolean'], 'flag_when_negative' => ['nullable', 'boolean'], 'replaces_code' => ['nullable', 'string', 'max:80'], 'reason' => ['required', 'string', 'max:500']] + $this->inputRules());
         $id = $this->guard(fn () => $this->proposalService->propose([
@@ -121,7 +124,7 @@ class NkoRuleController extends Controller
     /** POST /nko/rule-proposals/{id}/decision {decision: approve|reject, note?} */
     public function decide(Request $request, string $proposal): JsonResponse
     {
-        $this->authorizeRules($request, 'nko.rules.approve');
+        $this->authorizeChange($request, 'nko.rules.approve');
         $d = $request->validate(['decision' => ['required', 'in:approve,reject'], 'note' => ['nullable', 'string', 'max:500']]);
         $result = $this->guard(fn () => $this->proposalService->decide($proposal, $d['decision'] === 'approve', $d['note'] ?? null, $request->user()));
 
@@ -131,29 +134,10 @@ class NkoRuleController extends Controller
     /** DELETE /nko/rule-proposals/{id}: pengusul membatalkan usulan yang masih menunggu. */
     public function cancel(Request $request, string $proposal): JsonResponse
     {
-        $this->authorizeRules($request, 'nko.rules.propose');
+        $this->authorizeChange($request, 'nko.rules.propose');
         $this->guard(fn () => $this->proposalService->cancel($proposal, $request->user()));
 
         return response()->json(['message' => 'Usulan dibatalkan.']);
-    }
-
-    private function authorizeRules(Request $request, string $key): void
-    {
-        $actor = $request->user();
-        if ($this->authorizer->scopeFor($actor, $key)['unrestricted']) {
-            if (! $this->mfa->satisfied($actor)) {
-                throw new AdministrationDenied('Aksi tulis SYS_ADMIN memerlukan verifikasi MFA.', 403);
-            }
-
-            return;
-        }
-        foreach ($this->authorizer->effectiveAssignments($actor) as $assignment) {
-            $unit = $assignment->organizationalUnit;
-            if ($unit?->unit_type === 'UP3' && $this->authorizer->holdsOnUp3($actor, $key, $unit->getKey())) {
-                return;
-            }
-        }
-        throw new AdministrationDenied('Tidak berwenang: aturan NKO hanya dapat diubah oleh peran tingkat UP3 yang berizin.', 403);
     }
 
     private function guard(callable $action): mixed

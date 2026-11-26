@@ -32,6 +32,8 @@ Impor idempoten dengan SHA-256 berkas: isi sama = `DUPLIKAT`; isi berbeda membua
 php artisan distriva:nko-import-definitions "tools/samples/REALISASI UP3 MJK&ULP 2026 REV 3 (2 JUN 2026).xlsx"
 ```
 
+Workbook juga bisa diunggah dari aplikasi dengan persetujuan berjenjang (docs/93 §10).
+
 Hasil muat contoh ke `distriva_db`: UP3 2026 v1 (51 definisi, 420 target, UP3 Mojokerto) dan ULP 2026 v1 (47 definisi, 3.840 target, sepuluh ULP). Unit dicocokkan dengan nama pada master (`UP3 Mojokerto`, `ULP Jombang`, dst.); tab unit yang belum ada di master dilewati dengan peringatan. Untuk UP3 lain (mis. Ponorogo) cukup tambah tab dengan tata letak yang sama pada workbook dan pastikan unitnya ada di master.
 
 Kode: `app/Services/Nko/NkoWorkbookReader.php` (baca tab), `NkoDefinitionImportService.php` (versi dan simpan), `app/Console/Commands/NkoDefinitionsImportCommand.php`; tes `tests/Feature/NkoDefinitionImportTest.php`.

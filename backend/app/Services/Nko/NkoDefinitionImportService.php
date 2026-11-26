@@ -22,39 +22,57 @@ class NkoDefinitionImportService
      */
     public function import(string $path, string $originalName, ?User $user = null): array
     {
-        $sha = hash('sha256', hash_file('sha256', $path).'|'.self::READER_VERSION);
-        $book = $this->reader->read($path);
-        $units = $this->unitIndex();
-
+        $book = $this->analyze($path);
         $sets = [];
-        foreach (['UP3', 'ULP'] as $level) {
-            $sheets = array_values(array_filter($book['sheets'], fn ($s) => $s['level'] === $level));
-            if ($sheets === []) {
-                continue;
-            }
-            $sets[] = $this->importLevel($level, $sheets, $book['year'], $sha, $originalName, $user, $units);
+        foreach ($book['levels'] as $level => $plan) {
+            $sets[] = $this->importLevel($level, $plan, $book['year'], $book['sha'], $originalName, $user);
         }
 
         return ['year' => $book['year'], 'sets' => $sets];
     }
 
     /**
+     * Membaca workbook dan menentukan apa yang akan terjadi bila diimpor, tanpa menulis apa pun (dipakai impor dan pratinjau unggahan).
+     * `status`: BARU, DIGANTIKAN, DUPLIKAT (sama dengan versi aktif), atau SUDAH_DIGANTIKAN (pernah dimuat lalu diganti).
+     *
+     * @return array{year: int, sha: string, levels: array<string, array{status: string, active: ?object, previous: ?object, canon: array<string, mixed>, sheets: list<array<string, mixed>>, unit_ids: array<string, string>, warnings: list<string>}>}
+     */
+    public function analyze(string $path): array
+    {
+        $sha = hash('sha256', hash_file('sha256', $path).'|'.self::READER_VERSION);
+        $book = $this->reader->read($path);
+        $units = $this->unitIndex();
+
+        $levels = [];
+        foreach (['UP3', 'ULP'] as $level) {
+            $sheets = array_values(array_filter($book['sheets'], fn ($s) => $s['level'] === $level));
+            if ($sheets === []) {
+                continue;
+            }
+            $levels[$level] = $this->plan($level, $sheets, $book['year'], $sha, $units);
+        }
+
+        return ['year' => $book['year'], 'sha' => $sha, 'levels' => $levels];
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $sheets
      * @param  array<string, string>  $units
-     * @return array{level: string, status: string, version: int, set_id: string, definitions: int, targets: int, units: list<string>, warnings: list<string>}
+     * @return array{status: string, active: ?object, previous: ?object, canon: array<string, mixed>, sheets: list<array<string, mixed>>, unit_ids: array<string, string>, warnings: list<string>}
      */
-    private function importLevel(string $level, array $sheets, int $year, string $sha, string $originalName, ?User $user, array $units): array
+    private function plan(string $level, array $sheets, int $year, string $sha, array $units): array
     {
+        $canon = $sheets[0];
         $active = DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $level)->where('status', 'AKTIF')->first();
+        $plan = ['status' => $active !== null ? 'DIGANTIKAN' : 'BARU', 'active' => $active, 'previous' => null, 'canon' => $canon, 'sheets' => $sheets, 'unit_ids' => [], 'warnings' => []];
         if ($active !== null && $active->source_sha256 === $sha) {
-            return $this->summary($level, 'DUPLIKAT', (int) $active->version, $active->id, [], json_decode($active->warnings ?? '[]', true) ?: []);
+            return ['status' => 'DUPLIKAT', 'previous' => $active, 'warnings' => json_decode($active->warnings ?? '[]', true) ?: []] + $plan;
         }
         $ever = DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $level)->where('source_sha256', $sha)->first();
         if ($ever !== null) {
-            return $this->summary($level, 'SUDAH_DIGANTIKAN', (int) $ever->version, $ever->id, [], ['Isi workbook ini pernah diimpor dan sudah digantikan versi yang lebih baru; tidak diaktifkan ulang.']);
+            return ['status' => 'SUDAH_DIGANTIKAN', 'previous' => $ever, 'warnings' => ['Isi workbook ini pernah diimpor dan sudah digantikan versi yang lebih baru; tidak diaktifkan ulang.']] + $plan;
         }
 
-        $canon = $sheets[0];
         $warnings = $this->consistencyWarnings($canon, $sheets);
         foreach ($sheets as $s) {
             foreach ($s['warnings'] as $w) {
@@ -63,15 +81,28 @@ class NkoDefinitionImportService
         }
         $warnings = array_values(array_unique($warnings));
 
-        $unitIds = [];
         foreach ($sheets as $s) {
             $key = Str::lower($level.' '.$s['unit_name']);
             if (isset($units[$key])) {
-                $unitIds[$s['sheet']] = $units[$key];
+                $plan['unit_ids'][$s['sheet']] = $units[$key];
             } else {
                 $warnings[] = "Tab {$s['sheet']}: unit tidak ada di master unit; target tab ini tidak dimuat.";
             }
         }
+
+        return ['warnings' => $warnings] + $plan;
+    }
+
+    /**
+     * @param  array<string, mixed>  $plan  hasil `analyze()` untuk satu tingkat
+     * @return array{level: string, status: string, version: int, set_id: string, definitions: int, targets: int, units: list<string>, warnings: list<string>}
+     */
+    private function importLevel(string $level, array $plan, int $year, string $sha, string $originalName, ?User $user): array
+    {
+        if (in_array($plan['status'], ['DUPLIKAT', 'SUDAH_DIGANTIKAN'], true)) {
+            return $this->summary($level, $plan['status'], (int) $plan['previous']->version, $plan['previous']->id, [], $plan['warnings']);
+        }
+        ['active' => $active, 'canon' => $canon, 'sheets' => $sheets, 'unit_ids' => $unitIds, 'warnings' => $warnings] = $plan;
 
         return DB::transaction(function () use ($level, $year, $sha, $originalName, $user, $active, $canon, $sheets, $unitIds, $warnings) {
             $version = (int) (DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $level)->max('version')) + 1;

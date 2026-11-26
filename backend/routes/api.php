@@ -34,6 +34,7 @@ use App\Http\Controllers\MaximoSyncController;
 use App\Http\Controllers\MfaController;
 use App\Http\Controllers\MtoController;
 use App\Http\Controllers\NkoController;
+use App\Http\Controllers\NkoDefinitionUploadController;
 use App\Http\Controllers\NkoRuleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OtpController;
@@ -350,6 +351,12 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::post('/rule-proposals', [NkoRuleController::class, 'propose']);
         Route::post('/rule-proposals/{proposal}/decision', [NkoRuleController::class, 'decide'])->whereUuid('proposal');
         Route::delete('/rule-proposals/{proposal}', [NkoRuleController::class, 'cancel'])->whereUuid('proposal');
+        Route::get('/definition-sets', [NkoDefinitionUploadController::class, 'sets']);
+        Route::get('/definition-uploads', [NkoDefinitionUploadController::class, 'index']);
+        Route::post('/definition-uploads', [NkoDefinitionUploadController::class, 'store']);
+        Route::get('/definition-uploads/{upload}', [NkoDefinitionUploadController::class, 'show'])->whereUuid('upload');
+        Route::post('/definition-uploads/{upload}/decision', [NkoDefinitionUploadController::class, 'decide'])->whereUuid('upload');
+        Route::delete('/definition-uploads/{upload}', [NkoDefinitionUploadController::class, 'cancel'])->whereUuid('upload');
     });
 
     Route::prefix('pengusahaan')->middleware('throttle:admin')->group(function () {
