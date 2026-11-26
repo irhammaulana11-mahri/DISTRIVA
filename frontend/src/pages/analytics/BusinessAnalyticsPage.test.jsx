@@ -2359,4 +2359,156 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('Rumah tangga')).toBeInTheDocument()
     expect(screen.getByText('+60,0%')).toBeInTheDocument()
   })
+
+  it('24. mendukung Butir 46, 49, 53: Analisis Susut (Estimasi kWh beli, proksi teknis gardu, dan sisa susut P2TL)', async () => {
+    const susutDetail = {
+      data: {
+        code: 'susut',
+        name: 'Susut Distribusi',
+        unit: '%',
+        polarity: 'down',
+        months: ['2026-08', '2026-09'],
+        from: '2026-08',
+        to: '2026-09',
+        detail: {
+          kind: 'loss_estimate',
+          month: '2026-09',
+          partial: false,
+          history: [
+            { month: '2026-08', beli_net_kwh: 520000000, jual_kwh: 490000000, susut_kwh: 30000000, susut_pct: 5.77, basis: 'turunan', units: 10 },
+            { month: '2026-09', beli_net_kwh: 535000000, jual_kwh: 504000000, susut_kwh: 31000000, susut_pct: 5.79, basis: 'turunan', units: 10 },
+          ],
+          ulps: [
+            {
+              unit_id: 'ulp-1',
+              unit_name: 'ULP Warujayeng',
+              month_susut_pct: 7.2,
+              month_basis: 'turunan',
+              ytd_susut_pct: 7.45,
+              ytd_basis: 'turunan',
+              target_pct: 5.64,
+              gap_pct_points: 1.81,
+            },
+            {
+              unit_id: 'ulp-2',
+              unit_name: 'ULP Mojokerto Kota',
+              month_susut_pct: 4.8,
+              month_basis: 'turunan',
+              ytd_susut_pct: 4.95,
+              ytd_basis: 'turunan',
+              target_pct: 5.5,
+              gap_pct_points: -0.55,
+            },
+          ],
+          anomalies: [
+            { unit_id: 'ulp-3', unit_name: 'ULP Ploso', month: '2026-05', beli_net_kwh: 31800000, median_kwh: 46900000, deviation_pct: -32.2 },
+          ],
+          backtest: {
+            observations: 80,
+            cumulative_mape_pct: 0.62,
+            monthly_mape_pct: 0.61,
+            naive_mape_pct: 5.33,
+          },
+          technical: {
+            available: true,
+            readings: 5700,
+            substations: 5200,
+            ulps: [
+              {
+                unit_id: 'ulp-1',
+                unit_name: 'ULP Warujayeng',
+                substations: 520,
+                capacity_mva: 105.5,
+                avg_loading_pct: 68.4,
+                overload_pct_of_substations: 12.5,
+                unbalanced_pct_of_measured: 18.0,
+                loss_index: 0.502,
+              },
+            ],
+            correlation: {
+              available: true,
+              loss_index: 0.86,
+              avg_loading: 0.83,
+              note: 'Korelasi peringkat antar ULP, bukan sebab-akibat.',
+            },
+            watchlist: [
+              {
+                id: 'sub-1',
+                code: 'WR001',
+                name: 'Gardu Pasar Waru',
+                feeder_code: 'WR01',
+                unit_name: 'ULP Warujayeng',
+                cap: 160,
+                loading: 112.5,
+                loading_raw: 112.5,
+                unbalance: 28.5,
+                index: 1.54,
+                flags: ['beban_lebih', 'tidak_seimbang'],
+              },
+            ],
+          },
+          nontechnical: {
+            available: true,
+            ulps_count: 10,
+            ulps: [
+              {
+                unit_id: 'ulp-1',
+                unit_name: 'ULP Warujayeng',
+                ytd_susut_pct: 7.45,
+                avg_loading_pct: 68.4,
+                expected_from_load_pct: 6.25,
+                residual_pct_points: 1.20,
+                residual_flag: 'di_atas_harapan',
+                p2tl_pct_of_sales: 0.85,
+                p2tl_cases_per_1000_customers: 4.2,
+                p2tl_kwh_per_case: 2450,
+              },
+            ],
+            correlation: {
+              susut_vs_p2tl_pct: 0.72,
+              note: 'Korelasi peringkat antar ULP, bukan sebab-akibat.',
+            },
+          },
+          notes: ['kWh beli diestimasi dari susut kumulatif NKO'],
+        },
+      },
+    }
+
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'susut') {
+        return Promise.resolve(susutDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/susut'])
+
+    // Verifikasi tombol tab Estimasi & Susut Teknis muncul
+    const susutTabBtn = await screen.findByRole('button', { name: 'Estimasi & Susut Teknis' })
+    expect(susutTabBtn).toBeInTheDocument()
+    await userEvent.click(susutTabBtn)
+
+    // Verifikasi (Butir 46): Estimasi kWh Beli
+    expect(await screen.findByText('Riwayat 12 Bulan: Estimasi kWh Beli & Susut Distribusi')).toBeInTheDocument()
+    expect(screen.getByText('Peringatan Anomali Data Estimasi kWh Beli:')).toBeInTheDocument()
+    expect(screen.getByText(/ULP Ploso/i)).toBeInTheDocument()
+    expect(screen.getByText('Perbandingan Realisasi Susut Kumulatif Antar ULP vs Target')).toBeInTheDocument()
+    expect(screen.getAllByText('ULP Warujayeng').length).toBeGreaterThan(0)
+    expect(screen.getByText('+1,81 poin')).toBeInTheDocument()
+
+    // Beralih ke sub-tab Susut Teknis & Sisa Susut (Butir 49 & 53)
+    const techBtn = screen.getByRole('button', { name: /Susut Teknis & Sisa Susut/i })
+    expect(techBtn).toBeInTheDocument()
+    await userEvent.click(techBtn)
+
+    // Verifikasi (Butir 49): Susut Teknis
+    expect(await screen.findByText('Proksi Susut Teknis Antar ULP (Pengukuran Gardu)')).toBeInTheDocument()
+    expect(screen.getByText('15 Gardu Prioritas (Kontribusi Rugi Tembaga Relatif Terbesar)')).toBeInTheDocument()
+    expect(screen.getByText('WR001')).toBeInTheDocument()
+
+    // Verifikasi (Butir 53): Sisa Susut & Sandingan P2TL
+    expect(screen.getByText(/Sisa Susut \(Nonteknis & Faktor Lain\) & Sandingan P2TL/i)).toBeInTheDocument()
+    expect(screen.getByText('Di atas harapan')).toBeInTheDocument()
+    expect(screen.getByText(/Korelasi Spearman Susut vs P2TL = 0,72/i)).toBeInTheDocument()
+  })
 })

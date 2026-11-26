@@ -16,6 +16,7 @@ import BusinessHistoryTab from './BusinessHistoryTab.jsx'
 import ReliabilityFeederTab from './ReliabilityFeederTab.jsx'
 import ReceivableAgingTab from './ReceivableAgingTab.jsx'
 import SalesDecompositionTab from './SalesDecompositionTab.jsx'
+import LossAnalysisTab from './LossAnalysisTab.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
@@ -1639,24 +1640,37 @@ export default function BusinessAnalyticsPage() {
           </>
         )}
 
-        {/* Tab Masukan kWh Beli khusus Susut */}
+        {/* Tab Masukan kWh Beli & Analisis Susut (Butir 46, 49, 53 docs/92 §6.10) */}
         {activeCode === 'susut' && (
-          <button
-            type="button"
-            onClick={() => setMainTab('susut_inputs')}
-            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-              mainTab === 'susut_inputs'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            <span>Masukan kWh Beli</span>
-            {canInput && (
-              <span className="px-1.5 py-0.2 rounded bg-blue-100 text-[10px] uppercase font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
-                Input
-              </span>
-            )}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setMainTab('susut_analysis')}
+              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                mainTab === 'susut_analysis'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              Estimasi &amp; Susut Teknis
+            </button>
+            <button
+              type="button"
+              onClick={() => setMainTab('susut_inputs')}
+              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+                mainTab === 'susut_inputs'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              <span>Masukan kWh Beli</span>
+              {canInput && (
+                <span className="px-1.5 py-0.2 rounded bg-blue-100 text-[10px] uppercase font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                  Input
+                </span>
+              )}
+            </button>
+          </>
         )}
 
         {/* Tab Umur & Calon PRR / Pelunasan menurut Umur BLTH (Butir 39 docs/92 §6.4 & §6.5) */}
@@ -3362,6 +3376,11 @@ export default function BusinessAnalyticsPage() {
           {/* Tab Pemecahan Penjualan (Butir 40 docs/92 §6.2 & §6.3) */}
           {mainTab === 'sales_decomposition' && (
             <SalesDecompositionTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Estimasi & Susut Teknis (Butir 46, 49, 53 docs/92 §6.10) */}
+          {mainTab === 'susut_analysis' && (
+            <LossAnalysisTab detail={d.detail} metricCode={activeCode} />
           )}
         </div>
         )}
