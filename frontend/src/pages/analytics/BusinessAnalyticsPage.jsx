@@ -14,6 +14,7 @@ import OutageSyncDrawer from '../outages/OutageSyncDrawer.jsx'
 import BusinessForecastTab from './BusinessForecastTab.jsx'
 import BusinessHistoryTab from './BusinessHistoryTab.jsx'
 import ReliabilityFeederTab from './ReliabilityFeederTab.jsx'
+import ReceivableAgingTab from './ReceivableAgingTab.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
@@ -1617,6 +1618,23 @@ export default function BusinessAnalyticsPage() {
                 Input
               </span>
             )}
+          </button>
+        )}
+
+        {/* Tab Umur & Calon PRR / Pelunasan menurut Umur BLTH (Butir 39 docs/92 §6.4 & §6.5) */}
+        {(d?.detail?.kind === 'receivable_aging' || d?.detail?.kind === 'repayment_age' || activeCode === 'piutang-pascabayar-umur' || activeCode === 'piutang-pascabayar' || activeCode === 'pelunasan-prr' || activeCode === 'pelunasan-ex-prr') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('receivable_aging')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'receivable_aging'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            {d?.detail?.kind === 'repayment_age' || activeCode === 'pelunasan-prr' || activeCode === 'pelunasan-ex-prr'
+              ? 'Umur BLTH Pelunasan'
+              : 'Umur & Calon PRR'}
           </button>
         )}
 
@@ -3280,6 +3298,11 @@ export default function BusinessAnalyticsPage() {
           {/* Tab Penyulang & Risiko Keandalan (Butir 38 docs/92 §6.6) */}
           {mainTab === 'feeder_detail' && (
             <ReliabilityFeederTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Umur & Calon PRR / Pelunasan BLTH (Butir 39 docs/92 §6.4 & §6.5) */}
+          {mainTab === 'receivable_aging' && (
+            <ReceivableAgingTab detail={d.detail} metricCode={activeCode} />
           )}
         </div>
         )}

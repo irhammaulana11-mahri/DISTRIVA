@@ -2011,4 +2011,151 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('Peringatan Dini Cuaca 3 Hari ke Depan')).toBeInTheDocument()
     expect(screen.getByText('Konteks Cuaca Historis 12 Bulan Terakhir')).toBeInTheDocument()
   })
+
+  it('22. mendukung Butir 39: Uji coba piutang tahap 3 (Umur tunggakan, calon PRR, roll-rate, forecast pelanggan, repayment BLTH)', async () => {
+    const receivableCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'piutang-pascabayar-umur',
+            name: 'Umur Piutang Pascabayar',
+            category: 'Piutang',
+            unit: 'Rp',
+            polarity: 'down',
+            order: 4,
+          },
+          {
+            code: 'pelunasan-prr',
+            name: 'Pelunasan PRR',
+            category: 'Piutang',
+            unit: 'Rp',
+            polarity: 'up',
+            order: 5,
+          },
+        ],
+      },
+    }
+
+    const agingDetail = {
+      data: {
+        code: 'piutang-pascabayar-umur',
+        name: 'Umur Piutang Pascabayar',
+        unit: 'Rp',
+        polarity: 'down',
+        months: ['2026-09', '2026-10'],
+        from: '2026-09',
+        to: '2026-10',
+        detail: {
+          kind: 'receivable_aging',
+          available: true,
+          as_of_month: '2026-10',
+          target_month: '2026-11',
+          buckets: ['1 bulan', '2 bulan', '3 bulan', '4-6 bulan', '7-12 bulan', '> 12 bulan'],
+          rp_total: 12500000000,
+          plg_total: 15400,
+          rp_over_3_months: 3750000000,
+          over_3_pct: 30.0,
+          snapshot: [
+            { key: '1 bulan', rp: 6000000000, plg: 10000, share_pct: 48.0, same_month_last_year: 5800000000, yoy_pct: 3.4 },
+            { key: '2 bulan', rp: 1750000000, plg: 2500, share_pct: 14.0, same_month_last_year: 1700000000, yoy_pct: 2.9 },
+            { key: '3 bulan', rp: 1000000000, plg: 1100, share_pct: 8.0, same_month_last_year: 950000000, yoy_pct: 5.3 },
+            { key: '4-6 bulan', rp: 1250000000, plg: 800, share_pct: 10.0, same_month_last_year: 1200000000, yoy_pct: 4.2 },
+            { key: '7-12 bulan', rp: 1500000000, plg: 600, share_pct: 12.0, same_month_last_year: 1400000000, yoy_pct: 7.1 },
+            { key: '> 12 bulan', rp: 1000000000, plg: 400, share_pct: 8.0, same_month_last_year: 900000000, yoy_pct: 11.1 },
+          ],
+          history: [
+            { month: '2026-09', rp_total: 12000000000, rp_over_3_months: 3500000000, over_3_pct: 29.17, rates: [10200, 0.25, 0.44, 0.72, 0.75, 0.66] },
+            { month: '2026-10', rp_total: 12500000000, rp_over_3_months: 3750000000, over_3_pct: 30.0, rates: [10000, 0.24, 0.42, 0.70, 0.73, 0.65] },
+          ],
+          rates: {
+            basis: 'plg',
+            transitions_averaged: 6,
+            rows: [
+              { key: '1 bulan', from: null, rate: 10100, rate_last: 10000, kind: 'level' },
+              { key: '2 bulan', from: '1 bulan', rate: 0.245, rate_last: 0.24, kind: 'roll' },
+              { key: '3 bulan', from: '2 bulan', rate: 0.43, rate_last: 0.42, kind: 'roll' },
+              { key: '4-6 bulan', from: '3 bulan', rate: 0.71, rate_last: 0.70, kind: 'roll' },
+              { key: '7-12 bulan', from: '4-6 bulan', rate: 0.74, rate_last: 0.73, kind: 'roll' },
+              { key: '> 12 bulan', from: '7-12 bulan', rate: 0.65, rate_last: 0.65, kind: 'roll' },
+            ],
+          },
+          forecast: {
+            available: true,
+            basis: 'plg',
+            unit: 'pelanggan',
+            month: '2026-11',
+            by_bucket: [
+              { key: '1 bulan', value: 10100 },
+              { key: '2 bulan', value: 2450 },
+              { key: '3 bulan', value: 1080 },
+              { key: '4-6 bulan', value: 780 },
+              { key: '7-12 bulan', value: 590 },
+              { key: '> 12 bulan', value: 390 },
+            ],
+            total: 15390,
+            over_3_months: 1760,
+            over_3_change_pct: -2.2,
+            reliable: true,
+            reliability_note: 'Uji mundur lebih baik dari cara naif.',
+            backtest: {
+              months: 12,
+              total_mape_pct: 22.4,
+              total_naive_mape_pct: 35.1,
+              over_3_mape_pct: 28.5,
+              over_3_naive_mape_pct: 46.2,
+            },
+          },
+          units: [
+            { unit_id: 'ulp-1', unit_name: 'ULP Mojokerto Kota', rp_total: 7500000000, rp_over_3_months: 2400000000, over_3_pct: 32.0, over_3_yoy_pct: 8.5 },
+            { unit_id: 'ulp-2', unit_name: 'ULP Mojoagung', rp_total: 5000000000, rp_over_3_months: 1350000000, over_3_pct: 27.0, over_3_yoy_pct: -1.2 },
+          ],
+          notes: ['Roll-rate diperkirakan dari agregat', 'Roll-rate dan prakiraan memakai jumlah pelanggan'],
+        },
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(receivableCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'piutang-pascabayar-umur') {
+        return Promise.resolve(agingDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/piutang-pascabayar-umur'])
+
+    // Verifikasi tombol tab Umur & Calon PRR muncul
+    const agingTabBtn = await screen.findByRole('button', { name: 'Umur & Calon PRR' })
+    expect(agingTabBtn).toBeInTheDocument()
+    await userEvent.click(agingTabBtn)
+
+    // Verifikasi (a) Kartu Tunggakan > 3 Bulan (Calon PRR)
+    expect(await screen.findByText('Tunggakan Lebih Dari 3 Bulan (Calon PRR)')).toBeInTheDocument()
+    expect(screen.getByText('30,00% dari total')).toBeInTheDocument()
+    expect(screen.getAllByText('Rp 3,75 M').length).toBeGreaterThan(0)
+
+    // Verifikasi (b) Komposisi Umur Tunggakan & Riwayat
+    expect(screen.getByText(/Komposisi Umur Tunggakan/i)).toBeInTheDocument()
+    expect(screen.getByText(/Riwayat 12 Bulan: Pergerakan Porsi Tunggakan > 3 Bulan/i)).toBeInTheDocument()
+
+    // Verifikasi (c) Tabel Roll-Rate
+    expect(screen.getByText('Laju Perpindahan Umur Tunggakan (Roll-Rate Pelanggan)')).toBeInTheDocument()
+    expect(screen.getAllByText('Persistensi / Laju Tua').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Laju Naik Kelas').length).toBeGreaterThan(0)
+
+    // Verifikasi (d) Prakiraan Bulan Depan (Pelanggan) & Backtest Wajib Tampil
+    expect(screen.getByText('Prakiraan Bulan Depan (Pelanggan)')).toBeInTheDocument()
+    expect(screen.getByText('15.390')).toBeInTheDocument()
+    expect(screen.getByText(/Calon PRR -2,2%/i)).toBeInTheDocument()
+    expect(screen.getByText('Evaluasi Uji Mundur (12 bulan)')).toBeInTheDocument()
+    expect(screen.getByText(/Model: 28,5%/i)).toBeInTheDocument()
+    expect(screen.getByText(/Naif: 46,2%/i)).toBeInTheDocument()
+
+    // Verifikasi (e) Peringkat ULP
+    expect(screen.getByText('Peringkat ULP Berdasarkan Porsi Tunggakan > 3 Bulan')).toBeInTheDocument()
+    expect(screen.getByText('ULP Mojokerto Kota')).toBeInTheDocument()
+    expect(screen.getByText('32,00%')).toBeInTheDocument()
+  })
 })
