@@ -387,14 +387,21 @@ class NkoRealizationResolver
     }
 
     /**
-     * Pendapatan biaya penyambungan (Rp miliar, kumulatif) = total biaya permohonan PB/PD yang dibayar Januari sampai bulan berjalan, tanpa yang dibatalkan atau direstitusi (sama dengan menu HPL BP).
-     * Belum cocok dengan angka workbook (selisih sekitar -8% sampai +15% per ULP, +7,8% UP3 September 2026), sehingga dapat dikoreksi dengan masukan manual disertai alasan.
+     * Pendapatan biaya penyambungan (Rp miliar, kumulatif) dengan dasar kas (keputusan pemilik 26 Nov 2026): jumlah penerimaan dikurangi restitusi (RPBP) Januari sampai bulan berjalan dari rekap laporan BP AP2T
+     * (`BP_REKAP`, sinkron `bp`), semua bulan semua ULP pada cakupan harus ada. Rekap BP tidak memuat UJL. Bila belum ditarik, dipakai perkiraan lama: total biaya permohonan PB/PD yang dibayar (sama dengan menu HPL BP),
+     * yang memuat UJL dan lebih besar sekitar 8% dari workbook. Belum cocok persis dengan angka workbook (Januari sampai September 2026: UP3 160,7 miliar lawan 167,2, per ULP -1,5% sampai -14,9%),
+     * sehingga dapat dikoreksi dengan masukan manual disertai alasan.
      *
      * @param  list<string>  $unitIds
      * @return array<string, float>
      */
     private function connectionFeeValues(array $unitIds, int $year, int $month): array
     {
+        $files = DB::table('eis_report_files')->where('family', 'BP_REKAP')->where('status', 'AKTIF')->whereIn('organizational_unit_id', $unitIds)
+            ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->get(['organizational_unit_id', 'period', 'summary']);
+        if ($files->count() === count($unitIds) * $month && $files->unique(fn ($f) => $f->organizational_unit_id.'|'.$f->period)->count() === $files->count()) {
+            return ['pendapatan-biaya-penyambungan' => $files->sum(fn ($f) => (float) (json_decode((string) $f->summary, true)['kas_rp'] ?? 0)) / 1_000_000_000];
+        }
         $end = date('Y-m-d', strtotime(sprintf('%04d-%02d-01 +1 month', $year, $month)));
         $rows = DB::table('applications')->whereIn('organizational_unit_id', $unitIds)->whereNotNull('paid_at')->whereNotIn('current_status', ['CANCELLED', 'REFUNDED'])
             ->whereRaw("(paid_at at time zone 'Asia/Jakarta') >= ?", ["{$year}-01-01"])->whereRaw("(paid_at at time zone 'Asia/Jakarta') < ?", [$end]);

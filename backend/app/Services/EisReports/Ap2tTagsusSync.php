@@ -7,6 +7,9 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Penarikan laporan TAGSUS ("Daftar realisasi pendapatan penetapan tagihan susulan (tunai dan angsuran)") per ULP per bulan dari AP2T lewat tautan laporan yang tidak memerlukan login.
@@ -23,6 +26,7 @@ class Ap2tTagsusSync
         'pelunasan_prr' => ['report' => 'C:/Report/Laporan_LunasPRR.xls', 'range' => 'getLaporanLunasPRR', 'family' => 'PRR', 'label' => 'pelunasan PRR'],
         'saldo_prr' => ['report' => 'C:/Report/Laporan_Daftar_PRR.xls', 'blth' => 'getLaporanDaftarPRR', 'family' => 'DAFTAR_PRR', 'label' => 'saldo PRR'],
         'hapus_prr' => ['report' => 'C:/Report/Laporan_Daftar_DUPPR.xls', 'blth' => 'getLaporanDaftarHapusPRR', 'family' => 'HAPUS_PRR', 'label' => 'penghapusan PRR'],
+        'bp' => ['cube' => 'rekap_laporan_bp_dtl', 'family' => 'BP_REKAP', 'label' => 'rekap BP'],
         'pelunasan_ex_prr' => ['report' => 'C:/Report/Laporan_LunasExPRR.xls', 'range' => 'getLaporanLunasExPRR', 'family' => 'EXPRR', 'label' => 'pelunasan Ex PRR'],
     ];
 
@@ -117,6 +121,52 @@ class Ap2tTagsusSync
         }
     }
 
+    /**
+     * Rekap BP dari kubus AP2T (halaman HTML pivot, tanpa login) diubah menjadi berkas Excel bertata letak yang dikenali parser: judul, THBLLAP dan bulannya, lalu nama status, JML, RPBP.
+     * Galat bila bulan pada halaman berbeda dari bulan yang diminta atau halaman tidak memuat pivot.
+     */
+    private function cubeWorkbook(string $html, string $ym): string
+    {
+        $text = (string) preg_replace('#<script.*?</script>#si', '', $html);
+        preg_match_all('#<td[^>]*>(.*?)</td>#si', $text, $m);
+        $cells = array_values(array_filter(array_map(fn ($c) => trim((string) preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($c)))), $m[1]), fn ($c) => $c !== ''));
+        $rows = [];
+        $month = null;
+        foreach ($cells as $i => $c) {
+            if ($month === null && preg_match('/^20\d{4}$/', $c) === 1) {
+                $month = $c;
+            }
+            if (preg_match('/^[A-Z] [A-Z_]+$/', $c) === 1 && isset($cells[$i + 2]) && preg_match('/^[\d,]+$/', $cells[$i + 1]) === 1 && preg_match('/^[\d,]+$/', $cells[$i + 2]) === 1) {
+                $rows[] = [$c, (int) str_replace(',', '', $cells[$i + 1]), (int) str_replace(',', '', $cells[$i + 2])];
+            }
+        }
+        $wanted = substr($ym, 0, 4).substr($ym, 5, 2);
+        if ($rows !== [] && $month !== $wanted) {
+            throw new \RuntimeException("rekap BP AP2T memuat bulan {$month}, bukan {$wanted} yang diminta.");
+        }
+        if ($rows === [] && ! str_contains($text, 'Grand Total') && ! str_contains($text, 'JENIS_STATUS_DATA')) {
+            throw new \RuntimeException('respons AP2T bukan pivot rekap BP: '.mb_substr(trim((string) preg_replace('/\s+/', ' ', strip_tags($html))), 0, 150));
+        }
+        $sheet = new Spreadsheet;
+        $ws = $sheet->getActiveSheet();
+        $ws->setCellValue('A1', 'REKAP LAPORAN BP');
+        $ws->setCellValue('A3', 'THBLLAP');
+        $ws->setCellValueExplicit('A4', $wanted, DataType::TYPE_STRING);
+        foreach ($rows as $i => [$label, $jml, $rp]) {
+            $ws->setCellValue('A'.(6 + $i), $label);
+            $ws->setCellValue('B'.(6 + $i), $jml);
+            $ws->setCellValue('C'.(6 + $i), $rp);
+        }
+        $path = (string) tempnam(sys_get_temp_dir(), 'ap2tbp');
+        try {
+            (new Xlsx($sheet))->save($path);
+
+            return (string) file_get_contents($path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
     /** Isi berkas Excel laporan; galat bila respons bukan berkas Excel (mis. halaman galat AP2T). */
     public function download(string $ulpCode, string $ym, string $report = 'realisasi'): string
     {
@@ -127,6 +177,14 @@ class Ap2tTagsusSync
             $end = min(date('Ymt', (int) strtotime($ym.'-01')), now($tz)->format('Ymd'));
             $url = (string) $cfg['report_url_pelunasan'];
             $query = ['idjenislaporan' => $def['range'], 'tglAwal' => substr($ym, 0, 4).substr($ym, 5, 2).'01', 'tglAkhir' => $end, 'unitupi' => $cfg['unitupi'], 'unitap' => $cfg['unitap'], 'unitup' => $ulpCode, 'report' => $def['report']];
+        } elseif (isset($def['cube'])) {                                                              // kubus (pivot HTML): bulan, ULP, UP3, UPI sebagai satu parameter; hasilnya diubah menjadi berkas Excel
+            $res = Http::withOptions(['verify' => $cfg['verify']])->timeout((int) $cfg['timeout_seconds'])->retry(self::DOWNLOAD_TRIES, self::RETRY_WAIT_MS, fn ($e) => $e instanceof ConnectionException || ($e instanceof RequestException && in_array($e->response->status(), self::RETRY_STATUSES, true)), throw: false)
+                ->get((string) $cfg['cube_url'], ['jenis' => $def['cube'], 'parameter' => sprintf("'%s';'%s';'%s';'%s'", substr($ym, 0, 4).substr($ym, 5, 2), $ulpCode, $cfg['unitap'], $cfg['unitupi'])]);
+            if (! $res->ok()) {
+                throw new \RuntimeException('HTTP '.$res->status().' dari AP2T.');
+            }
+
+            return $this->cubeWorkbook($res->body(), $ym);
         } elseif (isset($def['blth'])) {                                                              // saldo PRR (Daftar PRR): satu BLTH, servlet yang sama dengan pelunasan; userid tidak dikirim
             $url = (string) $cfg['report_url_pelunasan'];
             $query = ['idjenislaporan' => $def['blth'], 'unitupi' => $cfg['unitupi'], 'unitap' => $cfg['unitap'], 'unitup' => $ulpCode, 'blth' => substr($ym, 0, 4).substr($ym, 5, 2), 'report' => $def['report']];

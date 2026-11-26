@@ -1816,6 +1816,23 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertEquals([500, 40, 460, 8.0], [$own['cumulative_written_off_rp'], $own['cumulative_repaid_rp'], $own['estimated_balance_rp'], $own['recovery_pct']]);   // satu ULP: Februari ikut
     }
 
+    #[Test]
+    public function pendapatan_bp_nko_memakai_penerimaan_dikurangi_restitusi_dari_rekap_bp_hanya_bila_semua_bulan_dan_ulp_lengkap(): void
+    {
+        $bp = fn (OrganizationalUnit $u, string $period, float $terima, float $restitusi) => $this->report($u, 'BP_REKAP', $period, [['B PENERIMAAN', ['jml' => 1, 'rp_bp' => $terima]], ['G RESTITUSI', ['jml' => 1, 'rp_bp' => $restitusi]]],
+            ['penerimaan_rp' => $terima, 'restitusi_rp' => $restitusi, 'kas_rp' => $terima - $restitusi]);
+        $bp($this->ulpA, '2026-01-01', 1_000_000_000, 100_000_000);
+        $bp($this->ulpA, '2026-02-01', 500_000_000, 0);
+        $bp($this->ulpB, '2026-01-01', 300_000_000, 50_000_000);                      // ULP B Februari belum ditarik
+        $resolver = app(NkoRealizationResolver::class);
+        $code = 'pendapatan-biaya-penyambungan';
+
+        $this->assertEqualsWithDelta(0.9, $resolver->systemValues($this->ulpA->id, 2026, 1)[$code], 1e-9);          // (1.000 - 100) juta
+        $this->assertEqualsWithDelta(1.4, $resolver->systemValues($this->ulpA->id, 2026, 2)[$code], 1e-9);          // kumulatif Januari + Februari
+        $this->assertEqualsWithDelta(0.9 + 0.25, $resolver->systemValues($this->up3->id, 2026, 1)[$code], 1e-9);   // UP3 = jumlah ULP
+        $this->assertArrayNotHasKey($code, $resolver->systemValues($this->up3->id, 2026, 2));                     // satu ULP kosong: kosong, bukan jumlah sebagian
+    }
+
     /** Laporan 309 satu ULP dengan angka per golongan: [pelanggan, kWh, rupiah]. */
     private function groupSales(OrganizationalUnit $unit, string $period, array $groups): void
     {

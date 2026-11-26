@@ -127,6 +127,7 @@ return [
     'ap2t' => [
         'report_url' => env('DISTRIVA_AP2T_REPORT_URL', 'https://ap2t.pln.co.id/BillingTerpusatAP2TNew1-dr/ReportServlet'),
         'report_url_pelunasan' => env('DISTRIVA_AP2T_REPORT_URL_PELUNASAN', 'https://ap2t.pln.co.id/ap2t123javanew7-dr/ReportServlet'),   // laporan pelunasan PRR dan Ex PRR (alamat servlet lain)
+        'cube_url' => env('DISTRIVA_AP2T_CUBE_URL', 'https://ap2t.pln.co.id/cube/laporan.aspx'),   // laporan kubus (pivot HTML) AP2T, mis. rekap BP per ULP per bulan
         'unitap' => env('DISTRIVA_AP2T_UNITAP', '51MJK'),       // UP3 MOJOKERTO
         'unitupi' => env('DISTRIVA_AP2T_UNITUPI', '51'),        // UID Jawa Timur
         'verify' => env('DISTRIVA_AP2T_CA_BUNDLE') ?: (filter_var(env('DISTRIVA_AP2T_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN) ? (is_file(resource_path('certs/ap2t-ca-bundle.pem')) ? resource_path('certs/ap2t-ca-bundle.pem') : true) : false),

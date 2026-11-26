@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
  */
 final class EisReportParser
 {
-    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'PRR', 'EXPRR', 'DAFTAR_PRR', 'HAPUS_PRR', 'TAGSUS', 'TAGSUS_BELUM', 'UMURPIUTANG'];
+    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'PRR', 'EXPRR', 'DAFTAR_PRR', 'HAPUS_PRR', 'BP_REKAP', 'TAGSUS', 'TAGSUS_BELUM', 'UMURPIUTANG'];
 
     private const MONTHS = ['januari' => 1, 'pebruari' => 2, 'februari' => 2, 'maret' => 3, 'april' => 4, 'mei' => 5, 'juni' => 6, 'juli' => 7, 'agustus' => 8, 'september' => 9, 'oktober' => 10, 'nopember' => 11, 'november' => 11, 'desember' => 12];
 
@@ -96,6 +96,7 @@ final class EisReportParser
             'PRR', 'EXPRR' => $this->pelunasanRagu(),
             'DAFTAR_PRR' => $this->daftarPrr(),
             'HAPUS_PRR' => $this->hapusPrr(),
+            'BP_REKAP' => $this->bpRekap(),
             'UMURPIUTANG' => [$this->umurPiutang(), null],
         };
         if ($family === '309EIS' && $unitSource === 'nama' && $lines !== []) {                       // kode unit di kolom UNIT harus sama dengan kode pada nama berkas (pilihan unit di EIS tidak boleh meleset)
@@ -107,7 +108,7 @@ final class EisReportParser
         if ($lines === [] && $family === '309EIS') {
             throw new EisReportException('Kontrol 309 hanya berisi judul kolom tanpa baris data: bulan itu kemungkinan belum ditutup di EIS (laporan 309 baru ada setelah akhir bulan).');
         }
-        if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM', 'PRR', 'EXPRR', 'DAFTAR_PRR', 'HAPUS_PRR'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
+        if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM', 'PRR', 'EXPRR', 'DAFTAR_PRR', 'HAPUS_PRR', 'BP_REKAP'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
         }
 
@@ -153,6 +154,7 @@ final class EisReportParser
             str_contains($text, 'LAPORAN SAIDI SAIFI') => 'DIFI',
             str_contains($text, 'DAFTAR SALDO PIUTANG RAGU-RAGU') => 'DAFTAR_PRR',
             str_contains($text, 'DAFTAR PENGHAPUSAN PIUTANG RAGU-RAGU') => 'HAPUS_PRR',
+            str_contains($text, 'REKAP LAPORAN BP') => 'BP_REKAP',
             str_contains($text, 'PELUNASAN EX PIUTANG RAGU-RAGU') => 'EXPRR',
             str_contains($text, 'PELUNASAN PIUTANG RAGU-RAGU') => 'PRR',
             str_contains($text, 'TAGIHAN SUSULAN') && str_contains($text, 'BELUM REALISASI') => 'TAGSUS_BELUM',
@@ -771,6 +773,40 @@ final class EisReportParser
         }
 
         return [$lines, ['pelanggan' => (float) count($customers), 'baris' => (float) $total['baris'], 'lembar' => $total['lembar'], 'rp_prr' => $total['rp_prr']]];
+    }
+
+    /**
+     * Rekap laporan BP per ULP per bulan (AP2T kubus `rekap_laporan_bp_dtl`, pivot THBLLAP x JENIS_STATUS_DATA dengan JML dan RPBP): satu baris per jenis status (A SALDOAWAL, B PENERIMAAN, C TERIMAUNIT,
+     * F BP_INVESTASI_TAMBAH, G RESTITUSI, H KIRIMUNIT, J REMAJA, L PENDAPATAN_LAIN, M SALDOAKHIR). Berkas disusun dari halaman HTML oleh penarikan AP2T: judul "REKAP LAPORAN BP", THBLLAP dan bulannya di bawahnya,
+     * lalu kolom A nama status, B JML, C RPBP. `summary`: penerimaan_rp, restitusi_rp, kas_rp (penerimaan dikurangi restitusi, dasar pendapatan BP NKO), remaja_rp, saldo_awal_rp, saldo_akhir_rp.
+     *
+     * @return array{0: list<array<string, mixed>>, 1: array<string, float|null>}
+     */
+    private function bpRekap(): array
+    {
+        $titled = false;
+        foreach (array_slice($this->rows, 0, 6) as $row) {
+            foreach ($row as $v) {
+                is_string($v) && str_contains(strtoupper((string) preg_replace('/\s+/', ' ', $v)), 'REKAP LAPORAN BP') && $titled = true;
+            }
+        }
+        if (! $titled) {
+            throw new EisReportException('Tata letak rekap laporan BP tidak dikenali: judul "REKAP LAPORAN BP" tidak ditemukan.');
+        }
+        $lines = [];
+        $rp = [];
+        for ($r = 1; $r <= $this->rowCount(); $r++) {
+            $label = trim((string) $this->text($r, 'A'));
+            if (preg_match('/^([A-Z]) [A-Z_]+$/', $label, $m) !== 1) {
+                continue;
+            }
+            $jml = $this->num($this->cell($r, 'B')) ?? 0;
+            $value = $this->num($this->cell($r, 'C')) ?? 0;
+            $rp[$m[1]] = $value;
+            $lines[] = ['line_no' => $r, 'group_label' => null, 'label' => $label, 'code' => $m[1], 'values' => ['jml' => $jml, 'rp_bp' => $value]];
+        }
+
+        return [$lines, ['penerimaan_rp' => $rp['B'] ?? 0.0, 'restitusi_rp' => $rp['G'] ?? 0.0, 'kas_rp' => ($rp['B'] ?? 0.0) - ($rp['G'] ?? 0.0), 'remaja_rp' => $rp['J'] ?? 0.0, 'saldo_awal_rp' => $rp['A'] ?? 0.0, 'saldo_akhir_rp' => $rp['M'] ?? 0.0]];
     }
 
     /** Tagihan susulan: hanya ringkasan per golongan (jumlah dan rupiah); nama, alamat, dan nomor pelanggan tidak dibaca. */

@@ -20,6 +20,7 @@ class ReportDatasets
         'AP2T.PELUNASAN_EX_PRR' => ['name' => 'Pelunasan Ex Piutang Ragu-Ragu (Ex PRR)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'EXPRR', 'used_by' => ['pelunasan-ex-prr']],
         'AP2T.SALDO_PRR' => ['name' => 'Saldo Piutang Ragu-Ragu (Daftar PRR)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'DAFTAR_PRR', 'used_by' => ['pelunasan-prr']],
         'AP2T.HAPUS_PRR' => ['name' => 'Penghapusan Piutang Ragu-Ragu (Daftar DUPPR)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'HAPUS_PRR', 'used_by' => ['pelunasan-ex-prr']],
+        'AP2T.BP_REKAP' => ['name' => 'Rekap Laporan BP (penerimaan, restitusi, remaja)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'BP_REKAP', 'used_by' => ['pendapatan-biaya-penyambungan']],
         'AP2T.TAGSUS_BELUM_REALISASI' => ['name' => 'Penetapan Tagihan Susulan Belum Realisasi (P2TL)', 'source' => 'AP2T', 'storage' => 'file', 'family' => 'TAGSUS_BELUM', 'used_by' => ['kwh-p2tl']],
         'APKT.SAIDI_SAIFI' => ['name' => 'Laporan SAIDI SAIFI', 'source' => 'APKT', 'storage' => 'file', 'family' => 'DIFI', 'used_by' => ['saidi-saifi', 'ens', 'gangguan']],
         'APKT.RPT_RCT_GANGGUAN' => ['name' => 'Jumlah dan Durasi RPT RCT Gangguan', 'source' => 'APKT', 'storage' => 'table', 'table' => 'apkt_rpt_rct_records', 'parts' => 2, 'used_by' => ['rpt-rct-gangguan']],

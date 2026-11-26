@@ -1381,6 +1381,37 @@ class EisImportTest extends PostgresTestCase
         Http::assertSentCount(4);
     }
 
+    /** Halaman kubus AP2T (pivot HTML, tanpa login) seperti yang dikirim server: sel nama status, JML, dan RPBP. */
+    private function ap2tBpCubeHtml(string $blth, array $rows): string
+    {
+        $cells = '';
+        foreach ($rows as [$label, $jml, $rp]) {
+            $cells .= "<tr><td class=\"dxpgHeader\">{$label}</td><td>".number_format($jml).'</td><td>'.number_format($rp).'</td></tr>';
+        }
+
+        return "<html><script>function ShowDrillDown() { var x = '202501'; }</script><body><table><tr><td>JML</td><td>RPBP</td></tr><tr><td>Grand Total</td></tr><tr><td>{$blth}</td></tr>{$cells}<tr><td>{$blth} Total</td><td>1,650</td></tr></table></body></html>";
+    }
+
+    #[Test]
+    public function an_ap2t_run_pulls_the_bp_recap_pivot_into_a_workbook_with_cash_summary_and_rejects_a_wrong_month(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.cube_url' => 'https://ap2t.test/cube/laporan.aspx']);
+        Storage::fake('documents');
+        $rows = [['A SALDOAWAL', 79, 1_189_353_650], ['B PENERIMAAN', 733, 1_372_925_450], ['C TERIMAUNIT', 2, 1_686_000], ['G RESTITUSI', 11, 14_283_900], ['J REMAJA', 713, 1_649_007_300], ['M SALDOAKHIR', 80, 872_637_100]];
+        Http::fake(['ap2t.test/*' => fn ($r) => Http::response($this->ap2tBpCubeHtml($r['parameter'] === "'202611';'51453';'51MJK';'51'" ? '202609' : '202610', $rows), 200, ['Content-Type' => 'text/html'])]);
+
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'from_month' => '2026-10', 'to_month' => '2026-11', 'units' => ['51453'], 'reports' => ['bp']])->assertStatus(202);
+
+        Http::assertSent(fn ($r) => $r['jenis'] === 'rekap_laporan_bp_dtl' && $r['parameter'] === "'202610';'51453';'51MJK';'51'" && ! isset($r->data()['userid']));
+        $files = DB::table('eis_report_files')->where('family', 'BP_REKAP')->get();
+        $this->assertSame(['BP_REKAP-51453-102026.xls'], $files->pluck('original_name')->all());          // November ditolak: halaman memuat bulan 202609, bukan 202611
+        $this->assertEquals(['penerimaan_rp' => 1_372_925_450, 'restitusi_rp' => 14_283_900, 'kas_rp' => 1_358_641_550, 'remaja_rp' => 1_649_007_300, 'saldo_awal_rp' => 1_189_353_650, 'saldo_akhir_rp' => 872_637_100], json_decode($files[0]->summary, true));
+        $lines = DB::table('eis_report_lines')->where('file_id', $files[0]->id)->orderBy('line_no')->get();
+        $this->assertSame(['A SALDOAWAL', 'B PENERIMAAN', 'C TERIMAUNIT', 'G RESTITUSI', 'J REMAJA', 'M SALDOAKHIR'], $lines->pluck('label')->all());
+        $this->assertEquals([733, 1_372_925_450], [json_decode($lines[1]->values, true)['jml'], json_decode($lines[1]->values, true)['rp_bp']]);
+    }
+
     #[Test]
     public function an_ap2t_run_pulls_the_prr_write_off_list_and_accepts_an_empty_month(): void
     {
