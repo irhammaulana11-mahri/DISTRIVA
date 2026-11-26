@@ -3089,6 +3089,9 @@ describe('BusinessAnalyticsPage', () => {
             {
               month: '2026-10',
               baru: 480000000,
+              baru_angsuran_bp: 470000000,
+              baru_angsuran_p2tl: 1000000,
+              baru_lainnya: 9000000,
               berjalan: 130000000,
               tunggakan: 860000000,
               total: 1470000000,
@@ -3208,6 +3211,13 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('5 Bulan Statis')).toBeInTheDocument()
     expect(screen.getByText('Prakiraan Saldo Tunggakan (2026-11)')).toBeInTheDocument()
     expect(screen.getByText('Riwayat Komposisi Piutang Prabayar & Pelunasan')).toBeInTheDocument()
+    expect(screen.getByText('Total Baru (Rp)')).toBeInTheDocument()
+    expect(screen.getByText('Angsuran BP (Rp)')).toBeInTheDocument()
+    expect(screen.getByText(/Angsuran P2TL \(Rp\)\*/)).toBeInTheDocument()
+    expect(screen.getByText('Baru Lainnya (Rp)')).toBeInTheDocument()
+    expect(screen.getByText('Rp 470.0 Jt')).toBeInTheDocument()
+    expect(screen.getByText('Rp 1.0 Jt')).toBeInTheDocument()
+    expect(screen.getAllByText(/bukan merupakan piutang baru/i).length).toBeGreaterThan(0)
     expect(screen.getByText('Posisi Per ULP (2026-10)')).toBeInTheDocument()
     expect(screen.getByText('Tunggakan Per Golongan Tarif (2026-10)')).toBeInTheDocument()
     expect(screen.getByText('R1/450VA')).toBeInTheDocument()

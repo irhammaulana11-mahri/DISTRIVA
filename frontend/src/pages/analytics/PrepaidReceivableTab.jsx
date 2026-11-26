@@ -134,12 +134,19 @@ export default function PrepaidReceivableTab({ detail, metricCode }) {
       {/* Riwayat Bulanan Komposisi & Pelunasan (monthly) */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            Riwayat Komposisi Piutang Prabayar &amp; Pelunasan
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Pelunasan dihitung sesuai formula NKO antar bulan dengan jumlah ULP identik.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                Riwayat Komposisi Piutang Prabayar &amp; Pelunasan
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Pelunasan dihitung sesuai formula NKO antar bulan dengan jumlah ULP identik.
+              </p>
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-200/80 dark:border-slate-700">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Catatan Piutang Baru:</span> Hampir seluruhnya angsuran BP (pasang baru dicicil). Angsuran P2TL adalah sisa cicilan pelanggan tetap (berkurang satu/bln), bukan piutang baru yang terbit.
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -147,7 +154,18 @@ export default function PrepaidReceivableTab({ detail, metricCode }) {
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="py-2.5 px-3 font-semibold">Bulan</th>
-                <th className="py-2.5 px-3 font-semibold text-right">Baru (Rp)</th>
+                <th className="py-2.5 px-3 font-semibold text-right" title="Total piutang yang terbit pada bulan itu">
+                  Total Baru (Rp)
+                </th>
+                <th className="py-2.5 px-3 font-semibold text-right text-indigo-600 dark:text-indigo-400" title="Angsuran Biaya Penyambungan (pasang baru dicicil)">
+                  Angsuran BP (Rp)
+                </th>
+                <th className="py-2.5 px-3 font-semibold text-right text-amber-600 dark:text-amber-400" title="Angsuran P2TL: sisa cicilan kelompok pelanggan tetap yang berkurang satu per bulan, bukan piutang baru terbit">
+                  Angsuran P2TL (Rp)*
+                </th>
+                <th className="py-2.5 px-3 font-semibold text-right text-slate-500" title="Sisa komponen baru lainnya">
+                  Baru Lainnya (Rp)
+                </th>
                 <th className="py-2.5 px-3 font-semibold text-right">Berjalan (Rp)</th>
                 <th className="py-2.5 px-3 font-semibold text-right">Tunggakan (Rp)</th>
                 <th className="py-2.5 px-3 font-semibold text-right">Total Saldo (Rp)</th>
@@ -156,33 +174,48 @@ export default function PrepaidReceivableTab({ detail, metricCode }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {monthly.map((row) => (
-                <tr key={row.month} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                  <td className="py-2 px-3 font-medium text-slate-800 dark:text-slate-200">
-                    {row.month}
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                    Rp {(row.baru / 1e6).toFixed(1)} Jt
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                    Rp {(row.berjalan / 1e6).toFixed(1)} Jt
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                    Rp {(row.tunggakan / 1e6).toFixed(1)} Jt
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-100">
-                    Rp {(row.total / 1e6).toFixed(1)} Jt
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                    {row.pelunasan !== null && row.pelunasan !== undefined ? `Rp ${(row.pelunasan / 1e6).toFixed(1)} Jt` : '-'}
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono font-medium text-blue-600 dark:text-blue-400">
-                    {row.effectiveness_pct !== null && row.effectiveness_pct !== undefined ? `${row.effectiveness_pct.toFixed(1)}%` : '-'}
-                  </td>
-                </tr>
-              ))}
+              {monthly.map((row) => {
+                const hasBreakdown = row.baru_angsuran_bp !== undefined || row.baru_angsuran_p2tl !== undefined || row.baru_lainnya !== undefined
+                return (
+                  <tr key={row.month} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                    <td className="py-2 px-3 font-medium text-slate-800 dark:text-slate-200">
+                      {row.month}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-100">
+                      Rp {(row.baru / 1e6).toFixed(1)} Jt
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-indigo-600 dark:text-indigo-400">
+                      {hasBreakdown && row.baru_angsuran_bp !== undefined ? `Rp ${(row.baru_angsuran_bp / 1e6).toFixed(1)} Jt` : '-'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-amber-600 dark:text-amber-400">
+                      {hasBreakdown && row.baru_angsuran_p2tl !== undefined ? `Rp ${(row.baru_angsuran_p2tl / 1e6).toFixed(1)} Jt` : '-'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-slate-500 dark:text-slate-400">
+                      {hasBreakdown && row.baru_lainnya !== undefined ? `Rp ${(row.baru_lainnya / 1e6).toFixed(1)} Jt` : '-'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                      Rp {(row.berjalan / 1e6).toFixed(1)} Jt
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                      Rp {(row.tunggakan / 1e6).toFixed(1)} Jt
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-100">
+                      Rp {(row.total / 1e6).toFixed(1)} Jt
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                      {row.pelunasan !== null && row.pelunasan !== undefined ? `Rp ${(row.pelunasan / 1e6).toFixed(1)} Jt` : '-'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-medium text-blue-600 dark:text-blue-400">
+                      {row.effectiveness_pct !== null && row.effectiveness_pct !== undefined ? `${row.effectiveness_pct.toFixed(1)}%` : '-'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
+        </div>
+        <div className="p-3 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="font-semibold text-amber-700 dark:text-amber-400">* Keterangan Angsuran P2TL:</span> Pada kolom BARU, komponen angsuran P2TL merupakan sisa cicilan kelompok pelanggan tetap yang berkurang satu cicilan per bulan, bukan merupakan piutang baru yang terbit di bulan berjalan.
         </div>
       </div>
 
