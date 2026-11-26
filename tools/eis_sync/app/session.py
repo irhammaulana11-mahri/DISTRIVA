@@ -157,6 +157,32 @@ def run_eis_playwright():
             browser.close()
 
 
+LOGIN_ATTEMPTS = 3
+LOGIN_RETRY_WAIT_MS = 15000
+
+
+def _open_login_page(page):
+    """Buka halaman login EIS; ulangi bila server membalas galat 5xx.
+
+    EIS sesekali menjawab "500 Server Application Unavailable" selama beberapa menit (aplikasi
+    sedang dimuat ulang). Tanpa ini kegagalan baru terlihat setelah menunggu kolom login 30 detik
+    dengan galat Playwright yang tidak menjelaskan penyebabnya.
+    """
+    status = None
+    for attempt in range(1, LOGIN_ATTEMPTS + 1):
+        response = page.goto(f"{LOGIN_URL}/login.aspx")
+        status = response.status if response else None
+        if status is not None and status < 500:
+            return
+        print(f"⚠ EIS membalas HTTP {status} (percobaan {attempt}/{LOGIN_ATTEMPTS}).")
+        if attempt < LOGIN_ATTEMPTS:
+            page.wait_for_timeout(LOGIN_RETRY_WAIT_MS)
+    raise RuntimeError(
+        f"Server EIS sedang bermasalah (HTTP {status}, halaman login tidak tersedia). "
+        "Ini gangguan di sisi EIS, bukan di DISTRIVA; coba lagi beberapa menit lagi."
+    )
+
+
 def login_page(p, headless=False, force_login=False):
     """Open EIS in a logged-in Playwright browser.
 
@@ -180,7 +206,7 @@ def login_page(p, headless=False, force_login=False):
             context.add_cookies(cookies)
             page.goto(f"{LOGIN_URL}/default.aspx")
         else:
-            page.goto(f"{LOGIN_URL}/login.aspx")
+            _open_login_page(page)
             page.fill("#txtUserid", USERNAME)
             page.fill("#TxtPWDx", PASSWORD)
             page.get_by_role("button", name="Login", exact=True).click()
