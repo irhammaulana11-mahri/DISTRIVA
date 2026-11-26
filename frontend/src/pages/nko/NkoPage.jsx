@@ -999,7 +999,7 @@ export default function NkoPage() {
                               {it.flag === 'NEGATIF' && (
                                 <span
                                   className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 cursor-help"
-                                  title="Penambahan penjualan TL kumulatif bernilai minus terhadap periode sama tahun lalu"
+                                  title="Penambahan penjualan TL kumulatif bernilai minus terhadap baseline adjustment (BA)"
                                 >
                                   Minus
                                 </span>

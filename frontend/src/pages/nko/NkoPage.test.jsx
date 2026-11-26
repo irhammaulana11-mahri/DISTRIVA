@@ -261,7 +261,7 @@ const MOCK_INPUTS_WITH_AUXILIARY = {
         editable: true,
         auxiliary: false,
         system_source: true,
-        system_validated: false,
+        system_validated: true, // Butir 59: Penjualan TL memakai rumus workbook (BA) dan terverifikasi cocok (system_validated=true)
         value: -2.5,
         source: 'SISTEM',
         manual: null,
