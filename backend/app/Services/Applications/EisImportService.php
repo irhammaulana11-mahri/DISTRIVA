@@ -584,8 +584,22 @@ class EisImportService
         if ($exists) {
             return;
         }
+        $observed = $n['observed_at'] === null ? null : CarbonImmutable::parse($n['observed_at'], config('distriva.business_timezone'))->toDateTimeString();
         DB::table('application_external_status_histories')->insert(['id' => (string) Str::uuid(), 'application_id' => $appId, 'external_system' => self::SYSTEM, 'external_status_code' => $n['ext_status'],
-            'external_status_name' => $n['ext_status'], 'service_days' => $n['service_days'], 'observed_at' => $n['observed_at'] === null ? null : CarbonImmutable::parse($n['observed_at'], config('distriva.business_timezone'))->toDateTimeString(),
+            'external_status_name' => $n['ext_status'], 'service_days' => $n['service_days'], 'observed_at' => $observed,
             'received_at' => now(), 'batch_id' => $batchId, 'applied_internal_status' => $appliedInternal, 'note' => $n['internal_status'] === null ? 'Belum dipetakan ke status internal.' : null]);
+        $this->recordConnectionDate($appId, $n['ext_status'], $observed);
+    }
+
+    /**
+     * Tanggal sambung permohonan PB = tanggal pertama status PEREMAJAAN di EIS, disimpan pada `completed_at` (owner 26 Nov 2026). Hanya mengisi yang masih kosong: penutupan WO internal yang sudah
+     * mengisi `completed_at` tidak ditimpa, dan PD tidak diisi (tanggal PEREMAJAAN-nya adalah tanggal naik daya, bukan penyambungan baru).
+     */
+    private function recordConnectionDate(string $appId, string $extStatus, ?string $observed): void
+    {
+        if ($observed === null || mb_strtoupper(trim($extStatus)) !== 'PEREMAJAAN') {
+            return;
+        }
+        DB::table('applications')->where('id', $appId)->where('application_type', 'PB')->whereNull('completed_at')->update(['completed_at' => $observed, 'updated_at' => now()]);
     }
 }

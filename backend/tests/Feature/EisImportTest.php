@@ -645,6 +645,57 @@ class EisImportTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_connection_date_of_a_pb_is_kept_in_completed_at_from_the_first_peremajaan_and_never_overwrites_or_touches_pd(): void
+    {
+        $pb = $this->row(['NOAGENDA' => '514539912610278601', 'IDPEL' => '514530000601', 'NAMA' => 'PB SAMBUNG', 'STATUS_PERMOHONAN' => 'DISETUJUI', 'TGL_UPDATE_PERMOHONAN' => '5/11/2026']);
+        $this->confirm($this->stage([$pb])['id'])->assertOk();
+        $completed = fn (string $ref) => DB::table('applications')->where('source_reference_id', $ref)->value('completed_at');
+        $this->assertNull($completed('514539912610278601'));                                                                  // belum tersambung
+
+        $this->confirm($this->stage([array_merge($pb, ['STATUS_PERMOHONAN' => 'PEREMAJAAN', 'TGL_UPDATE_PERMOHONAN' => '9/11/2026'])])['id'])->assertOk();
+        $this->assertSame('2026-11-09', substr((string) $completed('514539912610278601'), 0, 10));                            // tanggal sambung = tanggal PEREMAJAAN
+
+        $this->confirm($this->stage([array_merge($pb, ['STATUS_PERMOHONAN' => 'PEREMAJAAN', 'TGL_UPDATE_PERMOHONAN' => '12/11/2026'])])['id'])->assertOk();
+        $this->assertSame('2026-11-09', substr((string) $completed('514539912610278601'), 0, 10));                            // tanggal berikutnya tidak menggeser yang sudah ada
+
+        $pd = $this->row(['NOAGENDA' => '514539922610278602', 'IDPEL' => '514530000602', 'NAMA' => 'PD NAIK DAYA', 'JENIS_TRANSAKSI' => 'PERUBAHAN DAYA', 'TARIF_LAMA' => 'R1T', 'DAYA_LAMA' => '2200', 'TARIF' => 'R2T', 'DAYA' => '3500',
+            'STATUS_PERMOHONAN' => 'PEREMAJAAN', 'TGL_UPDATE_PERMOHONAN' => '9/11/2026']);
+        $this->confirm($this->stage([$pd])['id'])->assertOk();
+        $this->assertNull($completed('514539922610278602'));                                                                  // PD: tanggal naik daya bukan tanggal sambung
+
+        $done = $this->row(['NOAGENDA' => '514539912610278603', 'IDPEL' => '514530000603', 'NAMA' => 'PB DITUTUP WO', 'STATUS_PERMOHONAN' => 'DISETUJUI', 'TGL_UPDATE_PERMOHONAN' => '5/11/2026']);
+        $this->confirm($this->stage([$done])['id'])->assertOk();
+        DB::table('applications')->where('source_reference_id', '514539912610278603')->update(['completed_at' => '2026-11-20 10:00:00']);   // ditutup oleh alur WO internal
+        $this->confirm($this->stage([array_merge($done, ['STATUS_PERMOHONAN' => 'PEREMAJAAN', 'TGL_UPDATE_PERMOHONAN' => '9/11/2026'])])['id'])->assertOk();
+        $this->assertSame('2026-11-20', substr((string) $completed('514539912610278603'), 0, 10));                            // nilai internal tidak ditimpa
+    }
+
+    #[Test]
+    public function the_backfill_command_fills_only_empty_pb_connection_dates_from_the_first_peremajaan(): void
+    {
+        $make = fn (string $ref, string $idpel, array $extra = []) => $this->confirm($this->stage([$this->row(array_merge(['NOAGENDA' => $ref, 'IDPEL' => $idpel, 'NAMA' => 'PELANGGAN '.$idpel, 'STATUS_PERMOHONAN' => 'DISETUJUI', 'TGL_UPDATE_PERMOHONAN' => '5/11/2026'], $extra))])['id'])->assertOk();
+        $history = fn (string $ref, string $code, string $at) => DB::table('application_external_status_histories')->insert(['id' => (string) Str::uuid(), 'application_id' => DB::table('applications')->where('source_reference_id', $ref)->value('id'),
+            'external_system' => 'EIS_AP2T', 'external_status_code' => $code, 'external_status_name' => $code, 'observed_at' => $at, 'received_at' => now()]);
+        $make('514539912610278701', '514530000701');
+        $make('514539912610278702', '514530000702');
+        $make('514539922610278703', '514530000703', ['JENIS_TRANSAKSI' => 'PERUBAHAN DAYA', 'TARIF_LAMA' => 'R1T', 'DAYA_LAMA' => '2200', 'TARIF' => 'R2T', 'DAYA' => '3500']);
+        $make('514539912610278704', '514530000704', ['STATUS_PERMOHONAN' => 'BATAL']);
+        foreach (['514539912610278701', '514539922610278703', '514539912610278704'] as $ref) {
+            $history($ref, 'PEREMAJAAN', '2026-10-20 00:00:00');
+        }
+        $history('514539912610278701', 'PEREMAJAAN', '2026-10-25 00:00:00');                                                  // yang pertama dipakai
+        $history('514539912610278702', 'BAYAR', '2026-10-01 00:00:00');                                                       // tanpa PEREMAJAAN
+        $date = fn (string $ref) => ($v = DB::table('applications')->where('source_reference_id', $ref)->value('completed_at')) === null ? null : substr((string) $v, 0, 10);
+
+        $this->artisan('distriva:applications-backfill-connection-date', ['--dry-run' => true])->expectsOutputToContain('1 permohonan PB akan diisi')->assertSuccessful();
+        $this->assertNull($date('514539912610278701'));                                                                       // uji coba tidak menyimpan
+
+        $this->artisan('distriva:applications-backfill-connection-date')->expectsOutputToContain('1 permohonan PB diisi')->assertSuccessful();
+        $this->assertSame(['2026-10-20', null, null, null], array_map($date, ['514539912610278701', '514539912610278702', '514539922610278703', '514539912610278704']));   // PB sambung; PB tanpa PEREMAJAAN, PD, dan yang batal tidak
+        $this->artisan('distriva:applications-backfill-connection-date')->expectsOutputToContain('0 permohonan PB diisi')->assertSuccessful();   // aman diulang
+    }
+
+    #[Test]
     public function the_service_days_are_kept_on_the_application_refreshed_by_each_import_and_shown(): void
     {
         $row = $this->row(['NOAGENDA' => '514539912610278501', 'IDPEL' => '514530000501', 'NAMA' => 'PELANGGAN HARI', 'STATUS_PERMOHONAN' => 'BAYAR', 'DURASI_HARI_KERJA' => '4']);
