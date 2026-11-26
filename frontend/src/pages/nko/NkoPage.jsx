@@ -996,6 +996,14 @@ export default function NkoPage() {
                                   Perlu Validasi Workbook
                                 </span>
                               )}
+                              {it.flag === 'NEGATIF' && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 cursor-help"
+                                  title="Penambahan penjualan TL kumulatif bernilai minus terhadap periode sama tahun lalu"
+                                >
+                                  Minus
+                                </span>
+                              )}
                             </div>
                             {it.unit_label && (
                               <span className="block text-[10px] font-normal text-slate-400">
@@ -1339,8 +1347,10 @@ export default function NkoPage() {
                                                 </td>
                                                 <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
                                                   {it.status === 'KOSONG'
-                                                    ? 'Belum ada realisasi. Isi manual atau unggah berkas EIS/DIFI yang bersangkutan.'
-                                                    : 'Nilai dihitung otomatis namun belum cocok workbook. Dapat dikoreksi manual dengan alasan.'}
+                                                    ? (u.unit_type === 'UP3'
+                                                        ? 'Belum ada realisasi UP3 karena ada data ULP yang belum lengkap. Pastikan seluruh ULP terisi atau isi manual UP3.'
+                                                        : 'Belum ada realisasi. Isi manual atau unggah berkas EIS/DIFI yang bersangkutan.')
+                                                    : 'Nilai dihitung otomatis oleh sistem namun belum tervalidasi terhadap workbook. Belum tervalidasi, dapat dikoreksi dengan alasan.'}
                                                 </td>
                                               </tr>
                                             ))}

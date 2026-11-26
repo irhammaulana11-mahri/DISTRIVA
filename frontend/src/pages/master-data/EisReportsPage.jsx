@@ -49,6 +49,7 @@ const FAMILY_LABELS = {
   UMURPIUTANG: 'UMURPIUTANG (Umur Tunggakan Pascabayar)',
   PRR: 'PRR (Pelunasan Piutang Ragu-Ragu)',
   EXPRR: 'EXPRR (Pelunasan Ex Piutang Ragu-Ragu)',
+  DAFTAR_PRR: 'DAFTAR_PRR (Saldo Piutang Ragu-Ragu)',
 }
 
 const MONTH_NAMES = [
@@ -911,7 +912,7 @@ function Up3CoverageView({ data, onSelectUlp, onTriggerSync }) {
                     const rowMonths = u.datasets?.[d.code] || (d.family && u.families?.[d.family]) || {}
                     const isApkt = d.source === 'APKT'
                     const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
-                    const isAp2tPrr = d.code === 'AP2T.PELUNASAN_PRR' || d.code === 'AP2T.PELUNASAN_EX_PRR'
+                    const isAp2tPrr = d.code === 'AP2T.PELUNASAN_PRR' || d.code === 'AP2T.PELUNASAN_EX_PRR' || d.code === 'AP2T.SALDO_PRR'
                     const isEisKontrol309 = d.code === 'EIS.KONTROL_309' || d.family === '309EIS'
                     const usedByText = d.used_by && d.used_by.length > 0
                       ? `Dipakai menu: ${d.used_by.join(', ')}`
@@ -1100,7 +1101,7 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
               const rowMonths = d.months || {}
               const isApkt = d.source === 'APKT'
               const isAp2tTagsus = d.code === 'AP2T.TAGSUS' || d.code === 'AP2T.TAGSUS_BELUM_REALISASI'
-              const isAp2tPrr = d.code === 'AP2T.PELUNASAN_PRR' || d.code === 'AP2T.PELUNASAN_EX_PRR'
+              const isAp2tPrr = d.code === 'AP2T.PELUNASAN_PRR' || d.code === 'AP2T.PELUNASAN_EX_PRR' || d.code === 'AP2T.SALDO_PRR'
               const isEisKontrol309 = d.code === 'EIS.KONTROL_309' || d.family === '309EIS'
               const usedByText = d.used_by && d.used_by.length > 0
                 ? `Dipakai menu: ${d.used_by.join(', ')}`
@@ -1289,6 +1290,9 @@ export default function EisReportsPage() {
     } else if (datasetCode === 'AP2T.PELUNASAN_EX_PRR') {
       targetMode = 'ap2t'
       reports = ['pelunasan_ex_prr']
+    } else if (datasetCode === 'AP2T.SALDO_PRR') {
+      targetMode = 'ap2t'
+      reports = ['saldo_prr']
     } else if (datasetCode === 'APKT.RPT_RCT_GANGGUAN') dataset = 'rpt-rct-gangguan'
     else if (datasetCode === 'APKT.RPT_RCT_KELUHAN') dataset = 'rpt-rct-keluhan'
     else if (datasetCode === 'APKT.ANOMALI_GANGGUAN') dataset = 'anomali-gangguan'

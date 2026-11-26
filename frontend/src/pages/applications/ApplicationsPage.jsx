@@ -778,7 +778,16 @@ export default function ApplicationsPage() {
 
                       {/* Date */}
                       <td className="py-3.5 px-6 text-xs text-slate-500 dark:text-slate-400">
-                        {app.eis_updated_at ? (
+                        {app.completed_at ? (
+                          <div title={app.application_type === 'PB' ? 'Tanggal sambung (status PEREMAJAAN EIS / penutupan WO)' : 'Tanggal naik daya (status PEREMAJAAN EIS / penutupan WO)'}>
+                            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                              {new Date(app.completed_at).toLocaleDateString('id-ID')}
+                            </span>
+                            <div className="text-[10px] text-slate-400">
+                              {app.application_type === 'PB' ? 'Tgl Sambung' : 'Tgl Naik Daya'}
+                            </div>
+                          </div>
+                        ) : app.eis_updated_at ? (
                           <div title="Tanggal pembaruan status permohonan di EIS">{`${app.eis_updated_at.slice(8, 10)}/${app.eis_updated_at.slice(5, 7)}/${app.eis_updated_at.slice(0, 4)}`}</div>
                         ) : (
                           <>
@@ -2260,6 +2269,20 @@ export function ApplicationDetailDrawer({
                     <span className="text-slate-400">Estimasi Total Biaya:</span>
                     <p className="font-medium text-slate-700 dark:text-slate-300 mt-0.5">
                       {app.total_cost ? `Rp ${app.total_cost.toLocaleString('id-ID')}` : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">
+                      {app.application_type === 'PB' ? 'Tanggal Sambung:' : 'Tanggal Naik Daya:'}
+                    </span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5 font-mono">
+                      {app.completed_at ? (
+                        new Date(app.completed_at).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                      ) : (
+                        <span className="text-slate-400 font-normal italic font-sans" title="Belum tersambung, dalam usulan jaringan, atau belum ada tanggal peremajaan EIS">
+                          Belum terisi
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>

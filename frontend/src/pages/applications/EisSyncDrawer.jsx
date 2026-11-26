@@ -387,7 +387,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   const isApkt = mode === 'apkt' || (!mode && activeTab === 'apkt')
   const isAp2t = mode === 'ap2t' || (!mode && activeTab === 'ap2t')
 
-  const isAp2tPrrMode = isAp2t && ap2tReports.length > 0 && ap2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr')
+  const isAp2tPrrMode = isAp2t && ap2tReports.length > 0 && ap2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr' || r === 'saldo_prr')
 
   const titleText = isAp2t
     ? (isAp2tPrrMode ? 'Tarik Laporan Pelunasan PRR (AP2T)' : 'Tarik TAGSUS AP2T (kWh P2TL)')
@@ -1162,7 +1162,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Laporan AP2T:</div>
                   <p>
-                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan (TAGSUS)</b>, <b>Daftar Tagihan Susulan Belum Realisasi</b>, <b>Pelunasan PRR</b>, dan/atau <b>Pelunasan Ex PRR</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
+                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan (TAGSUS)</b>, <b>Daftar Tagihan Susulan Belum Realisasi</b>, <b>Pelunasan PRR</b>, <b>Pelunasan Ex PRR</b>, dan/atau <b>Saldo PRR (Daftar PRR)</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
                   </p>
                 </div>
 
@@ -1177,6 +1177,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                       { key: 'belum_realisasi', label: 'Belum realisasi' },
                       { key: 'pelunasan_prr', label: 'Pelunasan PRR' },
                       { key: 'pelunasan_ex_prr', label: 'Pelunasan Ex PRR' },
+                      { key: 'saldo_prr', label: 'Saldo PRR (Daftar PRR)' },
                     ].map((rep) => (
                       <label
                         key={rep.key}

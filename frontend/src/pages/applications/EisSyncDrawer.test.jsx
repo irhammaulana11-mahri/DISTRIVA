@@ -572,4 +572,41 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
 
     expect(await screen.findByText('Pelunasan PRR (AP2T)')).toBeInTheDocument()
   })
+
+  it('dapat memilih opsi laporan Saldo PRR (Daftar PRR) pada mode AP2T (Butir 55)', async () => {
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'r-ap2t-saldo-prr',
+        kind: 'ap2t',
+        options: { from_month: '2026-11', to_month: '2026-11', reports: ['saldo_prr'] },
+        status: 'OK',
+        created_at: '2026-11-26T10:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="ap2t" initialReports={['saldo_prr']} onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik Laporan Pelunasan PRR (AP2T)' })).toBeInTheDocument()
+
+    // Verifikasi checkbox Saldo PRR (Daftar PRR) tercentang
+    const cbSaldo = screen.getByLabelText('Laporan Saldo PRR (Daftar PRR)')
+    expect(cbSaldo).toBeChecked()
+
+    const toInput = screen.getByLabelText('Bulan akhir AP2T')
+    fireEvent.change(toInput, { target: { value: '2026-11' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik Pelunasan PRR' })
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'ap2t',
+        to_month: '2026-11',
+        from_month: '2026-11',
+        reports: ['saldo_prr'],
+      })
+    })
+
+    expect(await screen.findByText('Pelunasan PRR (AP2T)')).toBeInTheDocument()
+  })
 })

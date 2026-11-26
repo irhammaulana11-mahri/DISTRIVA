@@ -94,7 +94,7 @@ export default function EisRunHistory() {
                 const isApkt = r.kind === 'apkt'
                 const isAp2t = r.kind === 'ap2t'
                 const ap2tReports = Array.isArray(r.options?.reports) ? r.options.reports : []
-                const isAp2tPrrOnly = isAp2t && ap2tReports.length > 0 && ap2tReports.every((x) => x === 'pelunasan_prr' || x === 'pelunasan_ex_prr')
+                const isAp2tPrrOnly = isAp2t && ap2tReports.length > 0 && ap2tReports.every((x) => x === 'pelunasan_prr' || x === 'pelunasan_ex_prr' || x === 'saldo_prr')
                 const isRptRctGangguan = isApkt && r.options?.dataset === 'rpt-rct-gangguan'
                 const isRptRctKeluhan = isApkt && r.options?.dataset === 'rpt-rct-keluhan'
                 const isAnomaliGangguan = isApkt && r.options?.dataset === 'anomali-gangguan'
@@ -166,7 +166,7 @@ export default function EisRunHistory() {
                               {isAp2tPrrOnly ? 'Dataset: Pelunasan PRR / Ex PRR' : 'Dataset: TAGSUS P2TL'}
                               {r.options?.reports && (
                                 <span className="block text-slate-400">
-                                  {r.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x).join(', ')}
+                                  {r.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x === 'saldo_prr' ? 'Saldo PRR' : x).join(', ')}
                                 </span>
                               )}
                             </div>

@@ -2511,4 +2511,824 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('Di atas harapan')).toBeInTheDocument()
     expect(screen.getByText(/Korelasi Spearman Susut vs P2TL = 0,72/i)).toBeInTheDocument()
   })
+
+  it('25. mendukung Butir 42 (RPT-RCT Gangguan & Keluhan) dan Butir 43 (Anomali Gangguan & Keluhan)', async () => {
+    const responseDetail = {
+      data: {
+        code: 'rpt-rct-gangguan',
+        name: 'RPT & RCT Gangguan',
+        unit: 'menit',
+        polarity: 'down',
+        months: ['2026-09', '2026-10'],
+        from: '2026-09',
+        to: '2026-10',
+        detail: {
+          kind: 'response',
+          focus: 'rpt-rct-gangguan',
+          unit: 'menit',
+          month: '2026-10',
+          partial: true,
+          basis: 'tanpa_clear_temper',
+          ulps: [
+            {
+              unit_id: 'ulp-1',
+              unit_name: 'ULP Warujayeng',
+              wo: 1200,
+              wo_nct: 1000,
+              clear_temper_share_pct: 16.7,
+              rpt: 24.5,
+              rct: 48.0,
+              rpt_nct: 21.0,
+              rct_nct: 42.0,
+              rpt_rank: 1,
+              rct_rank: 1,
+              peer_count: 3,
+              rpt_gap_to_peer_best: 0,
+              rct_gap_to_peer_best: 0,
+            },
+            {
+              unit_id: 'ulp-2',
+              unit_name: 'ULP Jombang',
+              wo: 1500,
+              wo_nct: 1300,
+              clear_temper_share_pct: 13.3,
+              rpt: 29.5,
+              rct: 55.0,
+              rpt_nct: 26.5,
+              rct_nct: 51.0,
+              rpt_rank: 2,
+              rct_rank: 2,
+              peer_count: 3,
+              rpt_gap_to_peer_best: 5.5,
+              rct_gap_to_peer_best: 9.0,
+            },
+          ],
+          history: [
+            { month: '2026-09', wo: 2600, rpt: 27.0, rct: 50.0, rpt_nct: 23.5, rct_nct: 46.0, clear_temper_share_pct: 15.0 },
+            { month: '2026-10', wo: 2700, rpt: 26.8, rct: 49.5, rpt_nct: 23.2, rct_nct: 45.5, clear_temper_share_pct: 15.2 },
+          ],
+          volume_effect: {
+            available: true,
+            basis: 'semua',
+            ulps: 10,
+            observations: 220,
+            rpt_correlation: 0.061,
+            rct_correlation: -0.012,
+            reading: 'Tidak ada hubungan berarti antara volume WO dan waktu tanggap; keterlambatan lebih mungkin berasal dari faktor lain (jarak, kru, jenis gangguan).',
+          },
+          notes: [
+            'Pembanding antar ULP dan jarak ke terbaik memakai laporan tanpa clear temper, sama dengan ukuran NKO; kolom lain memuat semua laporan.',
+          ],
+        },
+      },
+    }
+
+    const anomalyDetail = {
+      data: {
+        code: 'anomali-gangguan',
+        name: 'Anomali Gangguan',
+        unit: 'kali',
+        polarity: 'down',
+        months: ['2026-09', '2026-10'],
+        from: '2026-09',
+        to: '2026-10',
+        detail: {
+          kind: 'anomaly',
+          focus: 'anomali-gangguan',
+          month: '2026-10',
+          partial: false,
+          year: 2026,
+          ytd: {
+            wo: 189242,
+            berulang: 40,
+            negatif: 104,
+            rate_per_10k_berulang: 2.11,
+            rate_per_10k_negatif: 5.50,
+          },
+          ulps: [
+            {
+              unit_id: 'ulp-2',
+              unit_name: 'ULP Jombang',
+              months: 10,
+              wo: 35000,
+              wo_share_pct: 18.5,
+              berulang: 6,
+              berulang_per_10k: 1.71,
+              berulang_expected: 7.4,
+              berulang_flagged: false,
+              negatif: 33,
+              negatif_per_10k: 9.43,
+              negatif_expected: 16.3,
+              negatif_flagged: true,
+              negatif_nonmarking: 28,
+            },
+          ],
+          channels: [
+            { kind: 'berulang', channel: 'PLN Mobile', count: 35 },
+            { kind: 'negatif', channel: 'PLN Mobile', count: 90 },
+          ],
+          history: [
+            { month: '2026-09', wo: 18000, berulang: 4, negatif: 9 },
+            { month: '2026-10', wo: 19000, berulang: 3, negatif: 11 },
+          ],
+          notes: [
+            'Kejadian anomali sangat jarang dibanding jumlah WO, sehingga angka satu ULP satu bulan mudah berubah karena kebetulan.',
+          ],
+        },
+      },
+    }
+
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'rpt-rct-gangguan') {
+        return Promise.resolve(responseDetail)
+      }
+      if (code === 'anomali-gangguan') {
+        return Promise.resolve(anomalyDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    // 1. Verifikasi Butir 42: Tab Perbandingan ULP pada RPT-RCT Gangguan
+    const { unmount } = wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/rpt-rct-gangguan'])
+
+    const responseTabBtn = await screen.findByRole('button', { name: 'Perbandingan ULP' })
+    expect(responseTabBtn).toBeInTheDocument()
+    await userEvent.click(responseTabBtn)
+
+    expect(await screen.findByText('Perbandingan Waktu Tanggap Antar ULP (2026-10)')).toBeInTheDocument()
+    expect(screen.getByText('Volume dan Waktu Tanggap (Korelasi Dalam-ULP)')).toBeInTheDocument()
+    expect(screen.getByText(/Tidak ada hubungan berarti antara volume WO/i)).toBeInTheDocument()
+    expect(screen.getByText('Bulan berjalan belum lengkap (data bertambah)')).toBeInTheDocument()
+    expect(screen.getAllByText('ULP Warujayeng').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('ULP Jombang').length).toBeGreaterThan(0)
+    expect(screen.getByText('+5,5 menit')).toBeInTheDocument()
+    expect(screen.getByText(/Peringkat dan jarak ke ULP terbaik dihitung berdasarkan laporan tanpa clear temper/i)).toBeInTheDocument()
+
+    unmount()
+
+    // 2. Verifikasi Butir 43: Tab Per ULP pada Anomali Gangguan
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/anomali-gangguan'])
+
+    const anomalyTabBtn = await screen.findByRole('button', { name: 'Per ULP' })
+    expect(anomalyTabBtn).toBeInTheDocument()
+    await userEvent.click(anomalyTabBtn)
+
+    expect(await screen.findByText('Analisa Anomali Per ULP (Kejadian Jarang)')).toBeInTheDocument()
+    expect(screen.getByText('Daftar ULP dan Hasil Uji Kejadian Jarang (2026)')).toBeInTheDocument()
+    expect(screen.getByText('Total Volume WO (YTD)')).toBeInTheDocument()
+    expect(screen.getByText('189.242')).toBeInTheDocument()
+    expect(screen.getByText('Di atas harapan')).toBeInTheDocument()
+    expect(screen.getByText('Komposisi Kanal Pengaduan Berulang')).toBeInTheDocument()
+    expect(screen.getByText('Komposisi Kanal Rating Negatif')).toBeInTheDocument()
+    expect(screen.getByText(/Kejadian anomali sangat jarang dibanding jumlah WO/i)).toBeInTheDocument()
+  })
+
+  it('26. mendukung Butir 44 (kWh P2TL: Penetapan & Realisasi) dan Butir 45 (HPL Biaya BP: Kasus Besar & Antrean)', async () => {
+    const p2tlDetail = {
+      data: {
+        code: 'kwh-p2tl',
+        name: 'kWh P2TL',
+        unit: 'kWh',
+        polarity: 'up',
+        months: ['2026-09', '2026-10'],
+        from: '2026-09',
+        to: '2026-10',
+        detail: {
+          kind: 'p2tl',
+          month: '2026-10',
+          partial: false,
+          year: 2026,
+          funnel: [
+            {
+              month: '2026-09',
+              penetapan_kwh: 1200000,
+              realisasi_kwh: 1100000,
+              belum_kwh: 50000,
+              realisasi_rp: 1650000000,
+              penetapan_rp: 1800000000,
+              ratio: 0.917,
+              ratio_consistent: true,
+            },
+            {
+              month: '2026-10',
+              penetapan_kwh: 1300000,
+              realisasi_kwh: 1200000,
+              belum_kwh: 55000,
+              realisasi_rp: 1800000000,
+              penetapan_rp: 1950000000,
+              ratio: 0.923,
+              ratio_consistent: true,
+            },
+          ],
+          ulps: {
+            basis: 'year_to_date',
+            rows: [
+              {
+                unit_id: 'ulp-1',
+                unit_name: 'ULP Warujayeng',
+                months: 10,
+                realisasi_kwh: 950000,
+                realisasi_rp: 1425000000,
+                cases: 420,
+                kwh_per_case: 2262,
+                rp_per_kwh: 1500,
+                penetapan_kwh: 1150000,
+                realisasi_rate_pct: 82.6,
+                belum_kwh: 12000,
+                share_pct: 25.0,
+              },
+            ],
+          },
+          violations: [
+            { key: 'Golongan I (P1)', kwh: 650000, share_pct: 54.2 },
+            { key: 'Golongan II (P2)', kwh: 550000, share_pct: 45.8 },
+          ],
+          projection: {
+            available: true,
+            method: 'penetapan_x_rasio_kumulatif',
+            month: '2026-10',
+            ratio: 0.92,
+            penetapan_kwh: 1300000,
+            expected_realisasi_kwh: 1196000,
+            actual_realisasi_kwh: 1200000,
+            achieved_pct: 100.3,
+            reliable: true,
+            backtest: {
+              months: 7,
+              model_mape_pct: 3.6,
+              naive_mape_pct: 23.8,
+              mean3_mape_pct: 17.5,
+            },
+          },
+          notes: [
+            'Penetapan (kontrol 309) dan realisasi (TAGSUS) adalah dua sumber berbeda.',
+          ],
+        },
+      },
+    }
+
+    const bpDetail = {
+      data: {
+        code: 'hpl-bp',
+        name: 'Pendapatan Biaya Penyambungan (BP)',
+        unit: 'Rp',
+        polarity: 'up',
+        months: ['2026-09', '2026-10'],
+        from: '2026-09',
+        to: '2026-10',
+        detail: {
+          kind: 'connection_fee',
+          month: '2026-10',
+          partial: false,
+          big_case_rp: 20000000,
+          history: [
+            {
+              month: '2026-09',
+              n: 1150,
+              rp: 4500000000,
+              rp_standard: 2000000000,
+              rp_big: 2500000000,
+              n_big: 15,
+              big_share_pct: 55.6,
+              pb_share_pct: 70.0,
+              avg_rp: 3913043,
+            },
+            {
+              month: '2026-10',
+              n: 1200,
+              rp: 5200000000,
+              rp_standard: 2100000000,
+              rp_big: 3100000000,
+              n_big: 18,
+              big_share_pct: 59.6,
+              pb_share_pct: 72.0,
+              avg_rp: 4333333,
+            },
+          ],
+          month_detail: {
+            rp: 5200000000,
+            top10_share_pct: 48.5,
+            top: [
+              {
+                application_number: 'APP-BIG-001',
+                type: 'PB',
+                rp: 850000000,
+                unit_name: 'ULP Warujayeng',
+                paid_at: '2026-10-15',
+              },
+            ],
+            ulps: [
+              {
+                unit_id: 'ulp-1',
+                unit_name: 'ULP Warujayeng',
+                n: 180,
+                rp: 1450000000,
+                rp_big: 850000000,
+                rp_standard: 600000000,
+                avg_rp: 8055555,
+                share_pct: 27.9,
+              },
+            ],
+          },
+          lag: {
+            basis: 'dibuat_sampai_lunas',
+            n: 14200,
+            median_days: 1.0,
+            p90_days: 4.0,
+          },
+          queue: {
+            as_of: '2026-10-31',
+            live_days: 30,
+            buckets: [
+              { key: '0-7', n: 420, rp: 1850000000 },
+              { key: '8-30', n: 160, rp: 380000000 },
+              { key: '>30', n: 457, rp: 950000000, stale: true },
+            ],
+            odds_by_age: [
+              { age_days: 0, pay_probability_pct: 95.5, sample: 15000 },
+            ],
+          },
+          forecast: {
+            available: true,
+            method: 'standar_rata3_plus_median_besar',
+            month: '2026-11',
+            based_on: '2026-10',
+            standard: 2050000000,
+            big_median: 2700000000,
+            big_low: 1800000000,
+            big_high: 3500000000,
+            expected: 4750000000,
+            low: 3850000000,
+            high: 5550000000,
+            reliable: true,
+            backtest: {
+              months: 30,
+              model_mape_pct: 22.2,
+              naive_mape_pct: 33.6,
+              mean3_mape_pct: 27.0,
+            },
+          },
+          notes: [
+            'Rp bulanan didominasi sedikit kasus besar.',
+          ],
+        },
+      },
+    }
+
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'kwh-p2tl') {
+        return Promise.resolve(p2tlDetail)
+      }
+      if (code === 'hpl-bp') {
+        return Promise.resolve(bpDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    // 1. Verifikasi Butir 44: Tab Penetapan & Realisasi pada kWh P2TL
+    const { unmount } = wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/kwh-p2tl'])
+
+    const p2tlTabBtn = await screen.findByRole('button', { name: 'Penetapan & Realisasi' })
+    expect(p2tlTabBtn).toBeInTheDocument()
+    await userEvent.click(p2tlTabBtn)
+
+    expect(await screen.findByText('Corong Penetapan & Realisasi P2TL')).toBeInTheDocument()
+    expect(screen.getByText('Riwayat 12 Bulan: Corong Penetapan dan Realisasi')).toBeInTheDocument()
+    expect(screen.getByText('Perkiraan Realisasi Bulan Ini (2026-10)')).toBeInTheDocument()
+    expect(screen.getByText('Model Andal')).toBeInTheDocument()
+    expect(screen.getByText(/3,6%/i)).toBeInTheDocument()
+    expect(screen.getByText('Kinerja P2TL Antar ULP (2026)')).toBeInTheDocument()
+    expect(screen.getAllByText('ULP Warujayeng').length).toBeGreaterThan(0)
+    expect(screen.getByText('Komposisi Golongan Pelanggaran P2TL (2026)')).toBeInTheDocument()
+    expect(screen.getByText('Golongan I (P1)')).toBeInTheDocument()
+
+    unmount()
+
+    // 2. Verifikasi Butir 45: Tab Kasus Besar & Antrean pada HPL Biaya BP
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/hpl-bp'])
+
+    const bpTabBtn = await screen.findByRole('button', { name: 'Kasus Besar & Antrean' })
+    expect(bpTabBtn).toBeInTheDocument()
+    await userEvent.click(bpTabBtn)
+
+    expect(await screen.findByText('Analisa Kasus Besar & Antrean BP')).toBeInTheDocument()
+    expect(screen.getByText('Prakiraan Pendapatan BP Bulan Depan (2026-11)')).toBeInTheDocument()
+    expect(screen.getByText(/22,2%/i)).toBeInTheDocument()
+    expect(screen.getByText('Kecepatan Pembayaran (Permohonan Sampai Lunas)')).toBeInTheDocument()
+    expect(screen.getByText('1,0 hari')).toBeInTheDocument()
+    expect(screen.getByText('4,0 hari')).toBeInTheDocument()
+    expect(screen.getByText('Antrean Permohonan Disetujui Belum Lunas')).toBeInTheDocument()
+    expect(screen.getByText(/Kedaluwarsa \(> 30 hari\)/i)).toBeInTheDocument()
+    expect(screen.getByText('10 Permohonan BP Terbesar Bulan 2026-10')).toBeInTheDocument()
+    expect(screen.getByText('APP-BIG-001')).toBeInTheDocument()
+    expect(screen.getByText('Rincian Pendapatan BP Per ULP Bulan 2026-10')).toBeInTheDocument()
+  })
+
+  it('27. mendukung Butir 51 (Pelanggan & Daya: Tab Pertumbuhan) dan Butir 52 (Piutang Prabayar: Tab Tunggakan & Pelunasan)', async () => {
+    const customerDetail = {
+      data: {
+        code: 'pelanggan',
+        name: 'Jumlah Pelanggan',
+        unit: 'pelanggan',
+        polarity: 'up',
+        months: ['2026-09', '2026-10'],
+        from: '2026-09',
+        to: '2026-10',
+        detail: {
+          kind: 'customer_growth',
+          focus: 'pelanggan',
+          month: '2026-10',
+          partial: false,
+          reconciliation: [
+            {
+              month: '2026-10',
+              official: 1450,
+              official_unit: 'pelanggan',
+              connected: 1620,
+              pb_connected: 1620,
+              residual: 170,
+              residual_label: 'Pelanggan berhenti, bongkar, dan koreksi',
+            },
+          ],
+          lead_time: {
+            basis: 'bayar_sampai_sambung',
+            months: 12,
+            n: 18500,
+            median_days: 1.0,
+            p90_days: 3.5,
+            within_30_days_pct: 98.8,
+            ulps: [
+              {
+                unit_id: 'ulp-1',
+                unit_name: 'ULP Warujayeng',
+                n: 2100,
+                median_days: 1.0,
+                p90_days: 3.0,
+                within_30_days_pct: 99.1,
+              },
+            ],
+          },
+          queue: {
+            as_of: '2026-10-31',
+            live_days: 30,
+            live_0_7: 120,
+            live_8_30: 45,
+            stale: 38,
+            in_network_proposal: 25,
+            live_by_status: { APPROVED: 165 },
+            ulps: [
+              {
+                unit_id: 'ulp-1',
+                unit_name: 'ULP Warujayeng',
+                live: 40,
+                stale: 8,
+                in_network_proposal: 5,
+              },
+            ],
+          },
+          month_projection: {
+            month: '2026-10',
+            day: 25,
+            days_in_month: 31,
+            connected_so_far: 1350,
+            projected: 1674,
+            last_month: 1580,
+            method: 'laju_berjalan',
+            backtest: {
+              months: 18,
+              runrate_mape_pct: 4.2,
+              last_month_mape_pct: 12.8,
+            },
+            note: 'Proyeksi = sambungan sampai hari ini dibagi hari berjalan dikali hari dalam bulan',
+          },
+          areas: {
+            period: { from: '2026-01-01', to: '2026-10-31' },
+            added_total: 14200,
+            rows: [
+              {
+                kecamatan: 'Prambon',
+                customers: 42000,
+                added: 1850,
+                added_prev_year: 1620,
+                change_pct: 14.2,
+                share_pct: 13.0,
+              },
+            ],
+          },
+          gardu: {
+            period: { from: '2026-01-01', to: '2026-10-31' },
+            high_load_pct: 80,
+            rows: [
+              {
+                substation_id: 'g-1',
+                code: 'PRB01',
+                name: 'Gardu Desa Prambon',
+                feeder_code: 'PR01',
+                kecamatan: 'Prambon',
+                unit_name: 'ULP Warujayeng',
+                added: 45,
+                customers: 160,
+                capacity_kva: 100,
+                loading_pct: 85.5,
+                measured_on: '2026-06-15',
+                capacity_watch: true,
+              },
+            ],
+          },
+          power_changes: {
+            period: { from: '2026-01-01', to: '2026-10-31' },
+            total: 3500,
+            net_kva: 4850.5,
+            increase_kva: 5120.0,
+            groups: [
+              {
+                group: 'R',
+                group_name: 'Rumah Tangga',
+                count: 2800,
+                share_pct: 80.0,
+                up: 2700,
+                down: 80,
+                same: 20,
+                net_kva: 3500.0,
+                increase_kva: 3650.0,
+              },
+            ],
+          },
+          notes: [
+            'Rekonsiliasi: PB tersambung lawan selisih bulanan 309.',
+          ],
+        },
+      },
+    }
+
+    const prepaidDetail = {
+      data: {
+        code: 'piutang-prabayar',
+        name: 'Piutang Prabayar',
+        unit: 'Rp',
+        polarity: 'down',
+        months: ['2026-09', '2026-10'],
+        from: '2026-09',
+        to: '2026-10',
+        detail: {
+          kind: 'prepaid_receivable',
+          available: true,
+          month: '2026-10',
+          monthly: [
+            {
+              month: '2026-09',
+              baru: 450000000,
+              berjalan: 120000000,
+              tunggakan: 850000000,
+              total: 1420000000,
+              lembar: 8500,
+              units: 10,
+              pelunasan: 380000000,
+              effectiveness_pct: 26.8,
+            },
+            {
+              month: '2026-10',
+              baru: 480000000,
+              berjalan: 130000000,
+              tunggakan: 860000000,
+              total: 1470000000,
+              lembar: 8700,
+              units: 10,
+              pelunasan: 410000000,
+              effectiveness_pct: 28.9,
+            },
+          ],
+          frozen: {
+            arrears: 860000000,
+            share_of_total_pct: 58.5,
+            stable_months: 5,
+            tolerance_pct: 2.0,
+            frozen: true,
+          },
+          ulps: [
+            {
+              unit_id: 'ulp-1',
+              unit_name: 'ULP Warujayeng',
+              baru: 65000000,
+              berjalan: 18000000,
+              tunggakan: 120000000,
+              total: 203000000,
+              customers: 1200,
+              arrears_change_6m_pct: 1.2,
+              arrears_share_pct: 14.0,
+            },
+          ],
+          tariffs: [
+            {
+              tariff: 'R1/450VA',
+              tunggakan: 350000000,
+              baru: 150000000,
+              berjalan: 45000000,
+              arrears_share_pct: 40.7,
+            },
+          ],
+          anomalies: [
+            {
+              month: '2026-05',
+              baru: 920000000,
+              median_prev_12m: 460000000,
+              direction: 'tinggi',
+              top_ulp: {
+                unit_id: 'ulp-2',
+                unit_name: 'ULP Jombang',
+                baru: 410000000,
+              },
+            },
+          ],
+          forecast: {
+            available: true,
+            target: 'tunggakan',
+            month: '2026-11',
+            method: 'nilai_terakhir',
+            arrears: 860000000,
+            reliable: true,
+            backtest: {
+              months: 18,
+              naive_mape_pct: 1.8,
+              mean3_mape_pct: 2.5,
+            },
+          },
+          notes: [
+            'Laporan piutang prabayar tidak memuat umur tunggakan.',
+          ],
+        },
+      },
+    }
+
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'pelanggan') {
+        return Promise.resolve(customerDetail)
+      }
+      if (code === 'piutang-prabayar') {
+        return Promise.resolve(prepaidDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    // 1. Verifikasi Butir 51: Tab Pertumbuhan pada Pelanggan
+    const { unmount } = wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelanggan'])
+
+    const customerTabBtn = await screen.findByRole('button', { name: 'Pertumbuhan' })
+    expect(customerTabBtn).toBeInTheDocument()
+    await userEvent.click(customerTabBtn)
+
+    expect(await screen.findByText('Pertumbuhan & Dinamika Lapangan')).toBeInTheDocument()
+    expect(screen.getByText('Proyeksi Akhir Bulan Berjalan (2026-10)')).toBeInTheDocument()
+    expect(screen.getByText('Hari ke-25 dari 31')).toBeInTheDocument()
+    expect(screen.getByText('Kecepatan Penyambungan PB (Bayar Sampai Nyala)')).toBeInTheDocument()
+    expect(screen.getByText('Antrean Permohonan PB Hari Ini')).toBeInTheDocument()
+    expect(screen.getByText(/Menunggu Usulan Jaringan/i)).toBeInTheDocument()
+    expect(screen.getByText('Kedaluwarsa (> 30 hari)')).toBeInTheDocument()
+    expect(screen.getByText('Rekonsiliasi Bulanan: Tambahan Permohonan vs Selisih Posisi 309')).toBeInTheDocument()
+    expect(screen.getByText('Kecamatan Tumbuh Terbanyak (Tahun Berjalan)')).toBeInTheDocument()
+    expect(screen.getByText('Prambon')).toBeInTheDocument()
+    expect(screen.getByText('Gardu Tumbuh Cepat & Beban')).toBeInTheDocument()
+    expect(screen.getByText('Perlu kapasitas')).toBeInTheDocument()
+    expect(screen.getByText('Dinamika Perubahan Daya (PD) Menurut Golongan Tarif')).toBeInTheDocument()
+
+    unmount()
+
+    // 2. Verifikasi Butir 52: Tab Tunggakan & Pelunasan pada Piutang Prabayar
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/piutang-prabayar'])
+
+    const prepaidTabBtn = await screen.findByRole('button', { name: 'Tunggakan & Pelunasan' })
+    expect(prepaidTabBtn).toBeInTheDocument()
+    await userEvent.click(prepaidTabBtn)
+
+    expect(await screen.findByText('Tunggakan & Pelunasan Piutang Prabayar')).toBeInTheDocument()
+    expect(screen.getByText('Peringatan Data Anomali Piutang Baru:')).toBeInTheDocument()
+    expect(screen.getByText('2026-05')).toBeInTheDocument()
+    expect(screen.getByText(/menyimpang jauh tinggi dari median 12 bulan sebelumnya/i)).toBeInTheDocument()
+    expect(screen.getByText('Tunggakan Beku (Tidak Bergerak)')).toBeInTheDocument()
+    expect(screen.getByText('5 Bulan Statis')).toBeInTheDocument()
+    expect(screen.getByText('Prakiraan Saldo Tunggakan (2026-11)')).toBeInTheDocument()
+    expect(screen.getByText('Riwayat Komposisi Piutang Prabayar & Pelunasan')).toBeInTheDocument()
+    expect(screen.getByText('Posisi Per ULP (2026-10)')).toBeInTheDocument()
+    expect(screen.getByText('Tunggakan Per Golongan Tarif (2026-10)')).toBeInTheDocument()
+    expect(screen.getByText('R1/450VA')).toBeInTheDocument()
+  })
+
+  it('28. mendukung Butir 55: Tingkat Pemulihan PRR dan Butir 56: Ambang Status Target 100/90', async () => {
+    const prrDetail = {
+      data: {
+        code: 'pelunasan-prr',
+        name: 'Pelunasan PRR',
+        unit: 'Rp',
+        polarity: 'up',
+        months: ['2026-02', '2026-03'],
+        series: [{ key: 'rp', name: 'Pelunasan PRR', unit: 'Rp', values: [1000000, 1500000], latest: 1500000, ytd: 2500000 }],
+        targets: [
+          {
+            definition_code: 'pencapaian-pelunasan-prr-ex-prr-dan-piutang-prabayar',
+            name: 'Pencapaian Pelunasan PRR',
+            month: '2026-03',
+            target: 2000000,
+            realisasi: 1900000,
+            pencapaian_pct: 95.0,
+            status: 'waspada', // Butir 56: 95% kini berstatus waspada (90 - <100%)
+            realisasi_source: 'SISTEM',
+            validated: true,
+            unit_label: 'Rp',
+            polarity: 'up',
+          },
+        ],
+        detail: {
+          kind: 'repayment_age',
+          available: true,
+          period: { from: '2026-01', to: '2026-03' },
+          files: 6,
+          rp_total: 2500000,
+          rows: [
+            { key: '0 sampai 3 bulan', rp: 1500000, share_pct: 60.0 },
+            { key: '4 sampai 6 bulan', rp: 1000000, share_pct: 40.0 },
+          ],
+          monthly: [
+            { month: '2026-02', '0 sampai 3 bulan': 600000, '4 sampai 6 bulan': 400000 },
+            { month: '2026-03', '0 sampai 3 bulan': 900000, '4 sampai 6 bulan': 600000 },
+          ],
+          recovery: {
+            available: true,
+            latest_month: '2026-03',
+            saldo_rp: 1300000000,
+            customers: 450,
+            monthly: [
+              {
+                month: '2026-02',
+                saldo_rp: 1500000000,
+                customers: 460,
+                opening_rp: 1700000000,
+                repaid_rp: 100000000,
+                recovery_pct: 5.88,
+                partial: false,
+              },
+              {
+                month: '2026-03',
+                saldo_rp: 1300000000,
+                customers: 450,
+                opening_rp: 1500000000,
+                repaid_rp: 150000000,
+                recovery_pct: 10.0,
+                partial: false,
+              },
+            ],
+            ytd: {
+              opening_rp: 1700000000,
+              repaid_rp: 250000000,
+              recovery_pct: 14.71,
+            },
+            by_billing_year: [
+              { year: 2024, saldo_rp: 500000000, rows: 120, share_pct: 38.46, repaid_ytd_rp: 50000000 },
+              { year: 2025, saldo_rp: 800000000, rows: 330, share_pct: 61.54, repaid_ytd_rp: 200000000 },
+            ],
+            notes: [
+              'Saldo = jumlah kolom RP PRR laporan Daftar PRR AP2T.',
+            ],
+          },
+          notes: ['Umur = selisih bulan bayar dan bulan tagihan.'],
+        },
+      },
+    }
+
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'pelunasan-prr') {
+        return Promise.resolve(prrDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelunasan-prr'])
+
+    // Verifikasi Butir 56: Ambang status waspada pada kartu target KPI
+    expect(await screen.findByText(/95,0% capaian/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/waspada/i).length).toBeGreaterThan(0)
+
+    // Verifikasi tab Umur BLTH Pelunasan
+    const tabBtn = await screen.findByRole('button', { name: 'Umur BLTH Pelunasan' })
+    expect(tabBtn).toBeInTheDocument()
+    await userEvent.click(tabBtn)
+
+    // Verifikasi Butir 55: Komponen recovery PRR tampil
+    expect(await screen.findByTestId('prr-recovery-section')).toBeInTheDocument()
+    expect(screen.getByText('Saldo PRR Terakhir')).toBeInTheDocument()
+    expect(screen.getByText('Pemulihan Bulan Terakhir')).toBeInTheDocument()
+    expect(screen.getAllByText('10,00%').length).toBeGreaterThan(0)
+    expect(screen.getByText('Pemulihan Kumulatif YTD')).toBeInTheDocument()
+    expect(screen.getByText('14,71%')).toBeInTheDocument()
+
+    // Verifikasi tabel saldo bulanan & tingkat pemulihan
+    expect(screen.getByText('Saldo PRR dan Tingkat Pemulihan Bulanan')).toBeInTheDocument()
+    expect(screen.getByText('Tingkat Pemulihan (%)')).toBeInTheDocument()
+
+    // Verifikasi tabel distribusi saldo menurut tahun tagihan
+    expect(screen.getByText('Distribusi Saldo PRR Menurut Tahun Tagihan (BLTH)')).toBeInTheDocument()
+    expect(screen.getByText('2024')).toBeInTheDocument()
+    expect(screen.getByText('2025')).toBeInTheDocument()
+    expect(screen.getByText('38,46%')).toBeInTheDocument()
+    expect(screen.getByText('61,54%')).toBeInTheDocument()
+  })
 })

@@ -63,7 +63,7 @@ export default function EisRunResults({ run, units }) {
   const isApkt = run?.kind === 'apkt'
   const isAp2t = run?.kind === 'ap2t'
   const ap2tReports = Array.isArray(run?.options?.reports) ? run.options.reports : []
-  const isAp2tPrrOnly = isAp2t && ap2tReports.length > 0 && ap2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr')
+  const isAp2tPrrOnly = isAp2t && ap2tReports.length > 0 && ap2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr' || r === 'saldo_prr')
   const isRptRctGangguan = isApkt && run?.options?.dataset === 'rpt-rct-gangguan'
   const isRptRctKeluhan = isApkt && run?.options?.dataset === 'rpt-rct-keluhan'
   const isAnomaliGangguan = isApkt && run?.options?.dataset === 'anomali-gangguan'
@@ -118,9 +118,9 @@ export default function EisRunResults({ run, units }) {
               : isApkt
               ? 'Ringkasan penarikan laporan SAIDI/SAIFI SE004 (DIFI) langsung dari GraphQL APKT per unit ULP.'
               : isAp2tPrrOnly
-              ? `Ringkasan penarikan laporan pelunasan PRR dan Ex PRR langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x).join(', ')})` : ''}.`
+              ? `Ringkasan penarikan laporan pelunasan PRR dan Ex PRR langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x === 'saldo_prr' ? 'Saldo PRR' : x).join(', ')})` : ''}.`
               : isAp2t
-              ? `Ringkasan penarikan laporan tagihan susulan P2TL langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x).join(', ')})` : ''}.`
+              ? `Ringkasan penarikan laporan tagihan susulan P2TL langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x === 'saldo_prr' ? 'Saldo PRR' : x).join(', ')})` : ''}.`
               : isOnlyKontrol309
               ? 'Ringkasan penarikan laporan Kontrol Penjualan 309 (309EIS) langsung dari server EIS per unit ULP.'
               : isPiutang

@@ -17,6 +17,12 @@ import ReliabilityFeederTab from './ReliabilityFeederTab.jsx'
 import ReceivableAgingTab from './ReceivableAgingTab.jsx'
 import SalesDecompositionTab from './SalesDecompositionTab.jsx'
 import LossAnalysisTab from './LossAnalysisTab.jsx'
+import ResponseComparisonTab from './ResponseComparisonTab.jsx'
+import AnomalyAnalysisTab from './AnomalyAnalysisTab.jsx'
+import P2tlFunnelTab from './P2tlFunnelTab.jsx'
+import ConnectionFeeQueueTab from './ConnectionFeeQueueTab.jsx'
+import CustomerGrowthTab from './CustomerGrowthTab.jsx'
+import PrepaidReceivableTab from './PrepaidReceivableTab.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
@@ -1705,6 +1711,96 @@ export default function BusinessAnalyticsPage() {
           </button>
         )}
 
+        {/* Tab Perbandingan ULP untuk RPT-RCT (Butir 42 docs/92 §6.7) */}
+        {(d?.detail?.kind === 'response' || activeCode === 'rpt-rct-gangguan' || activeCode === 'rpt-rct-keluhan') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('response_comparison')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'response_comparison'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Perbandingan ULP
+          </button>
+        )}
+
+        {/* Tab Per ULP untuk Anomali Gangguan & Keluhan (Butir 43 docs/92 §6.8) */}
+        {(d?.detail?.kind === 'anomaly' || activeCode === 'anomali-gangguan' || activeCode === 'anomali-keluhan') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('anomaly_ulp')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'anomaly_ulp'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Per ULP
+          </button>
+        )}
+
+        {/* Tab Penetapan & Realisasi untuk kWh P2TL (Butir 44 docs/92 §6.9) */}
+        {(d?.detail?.kind === 'p2tl' || activeCode === 'kwh-p2tl') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('p2tl_funnel')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'p2tl_funnel'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Penetapan &amp; Realisasi
+          </button>
+        )}
+
+        {/* Tab Kasus Besar & Antrean untuk HPL Biaya BP (Butir 45 docs/92 §6.11) */}
+        {(d?.detail?.kind === 'connection_fee' || activeCode === 'hpl-bp') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('bp_queue')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'bp_queue'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Kasus Besar &amp; Antrean
+          </button>
+        )}
+
+        {/* Tab Pertumbuhan untuk Pelanggan & Daya (Butir 51 docs/92 §6.1) */}
+        {(d?.detail?.kind === 'customer_growth' || activeCode === 'pelanggan' || activeCode === 'daya') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('customer_growth')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'customer_growth'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Pertumbuhan
+          </button>
+        )}
+
+        {/* Tab Tunggakan & Pelunasan untuk Piutang Prabayar (Butir 52 docs/92 §6.4) */}
+        {(d?.detail?.kind === 'prepaid_receivable' || activeCode === 'piutang-prabayar') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('prepaid_receivable')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'prepaid_receivable'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Tunggakan &amp; Pelunasan
+          </button>
+        )}
+
         {/* Tab Prakiraan Terpadu */}
         <button
           type="button"
@@ -2610,6 +2706,11 @@ export default function BusinessAnalyticsPage() {
                       {card2.pencapaian !== null && card2.pencapaian !== undefined ? (
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold tabular-nums border ${card2.statusColor}`}>
                           {fmtFloat(card2.pencapaian, 1)}% capaian
+                          {card2.status && (
+                            <span className="ml-1 text-[10px] uppercase font-semibold">
+                              ({card2.status})
+                            </span>
+                          )}
                         </span>
                       ) : card2.card2Pct !== undefined && card2.card2Pct !== null ? (
                         <PolarityPctBadge pct={card2.card2Pct} polarity={polarity} label="YoY YTD" />
@@ -3382,6 +3483,36 @@ export default function BusinessAnalyticsPage() {
           {mainTab === 'susut_analysis' && (
             <LossAnalysisTab detail={d.detail} metricCode={activeCode} />
           )}
+
+          {/* Tab Perbandingan ULP (Butir 42 docs/92 §6.7) */}
+          {mainTab === 'response_comparison' && (
+            <ResponseComparisonTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Per ULP Anomali (Butir 43 docs/92 §6.8) */}
+          {mainTab === 'anomaly_ulp' && (
+            <AnomalyAnalysisTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Penetapan & Realisasi P2TL (Butir 44 docs/92 §6.9) */}
+          {mainTab === 'p2tl_funnel' && (
+            <P2tlFunnelTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Kasus Besar & Antrean BP (Butir 45 docs/92 §6.11) */}
+          {mainTab === 'bp_queue' && (
+            <ConnectionFeeQueueTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Pertumbuhan Pelanggan/Daya (Butir 51 docs/92 §6.1) */}
+          {mainTab === 'customer_growth' && (
+            <CustomerGrowthTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Tunggakan & Pelunasan Piutang Prabayar (Butir 52 docs/92 §6.4) */}
+          {mainTab === 'prepaid_receivable' && (
+            <PrepaidReceivableTab detail={d.detail} metricCode={activeCode} />
+          )}
         </div>
         )}
       </div>
@@ -3421,7 +3552,7 @@ export default function BusinessAnalyticsPage() {
           isKontrol309Metric
             ? ['KONTROL309']
             : isPelunasanPrrMetric
-            ? ['pelunasan_prr', 'pelunasan_ex_prr']
+            ? (activeCode === 'pelunasan-prr' ? ['pelunasan_prr', 'saldo_prr'] : ['pelunasan_ex_prr'])
             : null
         }
         initialDataset={

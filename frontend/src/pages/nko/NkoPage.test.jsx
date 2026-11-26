@@ -250,6 +250,25 @@ const MOCK_INPUTS_WITH_AUXILIARY = {
         system: null,
         note: 'Data beli Mei',
       },
+      {
+        code: 'penjualan-tenaga-listrik',
+        name: 'Penjualan Tenaga Listrik',
+        group: 'PENJUALAN',
+        unit_label: 'GWh',
+        polarity: 1,
+        weight: 15,
+        target: 200.0,
+        editable: true,
+        auxiliary: false,
+        system_source: true,
+        system_validated: false,
+        value: -2.5,
+        source: 'SISTEM',
+        manual: null,
+        system: -2.5,
+        note: null,
+        flag: 'NEGATIF',
+      },
     ],
   },
 }
@@ -347,9 +366,13 @@ describe('NkoPage', () => {
     await user.click(inputsTab)
 
     expect(await screen.findByText('Susut Distribusi tanpa E-Min')).toBeInTheDocument()
-    expect(screen.getByText('Perlu Validasi Workbook')).toBeInTheDocument()
+    expect(screen.getAllByText('Perlu Validasi Workbook').length).toBeGreaterThan(0)
     expect(screen.getByText('kWh Beli (Kumulatif)')).toBeInTheDocument()
     expect(screen.getByText('Masukan Pembantu')).toBeInTheDocument()
     expect(screen.getByText(/Komponen perhitungan susut distribusi kumulatif/i)).toBeInTheDocument()
+
+    // Verifikasi Butir 54: Lencana Minus pada Penjualan Tenaga Listrik yang berflag NEGATIF
+    expect(screen.getByText('Penjualan Tenaga Listrik')).toBeInTheDocument()
+    expect(screen.getByText('Minus')).toBeInTheDocument()
   })
 })

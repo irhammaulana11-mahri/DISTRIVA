@@ -544,6 +544,7 @@ function RepaymentAgeSection({ detail, metricCode }) {
     rp_total = 0,
     rows = [],
     monthly = [],
+    recovery = null,
     notes = [],
   } = detail
 
@@ -556,6 +557,7 @@ function RepaymentAgeSection({ detail, metricCode }) {
   }
 
   const ageColors = ['#10b981', '#06b6d4', '#3b82f6', '#f59e0b', '#f43f5e']
+  const isPrr = metricCode === 'pelunasan-prr'
 
   return (
     <div className="space-y-6" data-testid="repayment-age-section">
@@ -572,6 +574,219 @@ function RepaymentAgeSection({ detail, metricCode }) {
           </span>
         </div>
       </div>
+
+      {/* Bagian Tingkat Pemulihan PRR (Butir 55: docs/91 recovery, docs/92 §6.5) - khusus pelunasan-prr */}
+      {isPrr && (
+        <div className="space-y-4" data-testid="prr-recovery-section">
+          {recovery && !recovery.available ? (
+            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/40 p-4 text-xs space-y-1 text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2 font-semibold">
+                <IconInfo className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Tingkat Pemulihan PRR Belum Tersedia:</span>
+              </div>
+              <p className="text-amber-800 dark:text-amber-300">
+                {recovery.reason || 'Laporan Daftar PRR (saldo) belum ditarik untuk cakupan ini. Tarik lewat tombol Tarik AP2T, opsi "Saldo PRR (Daftar PRR)".'}
+              </p>
+            </div>
+          ) : recovery?.available ? (
+            <div className="space-y-4">
+              {/* Kartu Ringkasan Saldo & Pemulihan */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span>Saldo PRR Terakhir</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {fmtMonth(recovery.latest_month)}
+                    </span>
+                  </div>
+                  <div className="text-xl font-extrabold text-slate-900 dark:text-white">
+                    {fmtRp(recovery.saldo_rp)}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    {fmtInt(recovery.customers)} pelanggan tercatat di Daftar PRR
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span>Pemulihan Bulan Terakhir</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {fmtMonth(recovery.latest_month)}
+                    </span>
+                  </div>
+                  {(() => {
+                    const latestRow = recovery.monthly?.find((m) => m.month === recovery.latest_month) || null
+                    const pct = latestRow?.recovery_pct
+                    return (
+                      <div>
+                        <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                          {pct !== null && pct !== undefined ? `${fmtFloat(pct, 2)}%` : '-'}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          {latestRow?.repaid_rp !== null ? fmtRp(latestRow?.repaid_rp) : '-'} dari saldo bulan lalu ({latestRow?.opening_rp !== null ? fmtRp(latestRow?.opening_rp) : '-'})
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span>Pemulihan Kumulatif YTD</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Tahun {recovery.latest_month?.slice(0, 4)}</span>
+                  </div>
+                  {recovery.ytd ? (
+                    <div>
+                      <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">
+                        {fmtFloat(recovery.ytd.recovery_pct, 2)}%
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        Pelunasan YTD: {fmtRp(recovery.ytd.repaid_rp)} (basis saldo Des: {fmtRp(recovery.ytd.opening_rp)})
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-400 pt-1">
+                      Saldo Desember tahun lalu belum ditarik untuk evaluasi YTD.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tabel Riwayat Saldo per Bulan & Tingkat Pemulihan (monthly[]) */}
+              {recovery.monthly && recovery.monthly.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                        Saldo PRR dan Tingkat Pemulihan Bulanan
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Pemulihan bulanan = Pelunasan bulan berjalan ÷ Saldo akhir bulan sebelumnya.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                          <th className="py-2 pr-3 font-semibold">Bulan</th>
+                          <th className="py-2 px-3 font-semibold text-right">Saldo PRR</th>
+                          <th className="py-2 px-3 font-semibold text-right">Pelanggan</th>
+                          <th className="py-2 px-3 font-semibold text-right">Saldo Bulan Lalu</th>
+                          <th className="py-2 px-3 font-semibold text-right">Pelunasan Bulan Ini</th>
+                          <th className="py-2 pl-3 font-semibold text-right">Tingkat Pemulihan (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                        {recovery.monthly.map((m) => (
+                          <tr key={m.month} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-2.5 pr-3 font-sans font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                              {fmtMonth(m.month)}
+                              {m.partial && (
+                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-medium">
+                                  Bulan berjalan
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">
+                              {fmtRp(m.saldo_rp)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              {fmtInt(m.customers)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right text-slate-500">
+                              {m.opening_rp !== null ? fmtRp(m.opening_rp) : '-'}
+                            </td>
+                            <td className="py-2.5 px-3 text-right text-slate-800 dark:text-slate-200">
+                              {m.repaid_rp !== null ? fmtRp(m.repaid_rp) : '-'}
+                            </td>
+                            <td className="py-2.5 pl-3 text-right font-bold">
+                              {m.recovery_pct !== null && m.recovery_pct !== undefined ? (
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                  {fmtFloat(m.recovery_pct, 2)}%
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-normal">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabel Saldo menurut Tahun Tagihan (by_billing_year[]) */}
+              {recovery.by_billing_year && recovery.by_billing_year.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                        Distribusi Saldo PRR Menurut Tahun Tagihan (BLTH)
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Potret saldo pada bulan {fmtMonth(recovery.latest_month)} berdasarkan tahun rekening listrik.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                          <th className="py-2 pr-3 font-semibold">Tahun Tagihan</th>
+                          <th className="py-2 px-3 font-semibold text-right">Saldo PRR</th>
+                          <th className="py-2 px-3 font-semibold text-right">Jumlah Rekening (Baris)</th>
+                          <th className="py-2 px-3 font-semibold text-right">Porsi Saldo (%)</th>
+                          <th className="py-2 pl-3 font-semibold text-right">Pelunasan YTD</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                        {recovery.by_billing_year.map((row) => (
+                          <tr key={row.year} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-2.5 pr-3 font-sans font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                              {row.year}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">
+                              {fmtRp(row.saldo_rp)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              {fmtInt(row.rows)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              {row.share_pct !== null && row.share_pct !== undefined ? `${fmtFloat(row.share_pct, 2)}%` : '-'}
+                            </td>
+                            <td className="py-2.5 pl-3 text-right text-emerald-600 dark:text-emerald-400 font-semibold">
+                              {fmtRp(row.repaid_ytd_rp)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Catatan Teknis Recovery */}
+              {recovery.notes && recovery.notes.length > 0 && (
+                <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 p-4 text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                    <IconInfo className="w-4 h-4 text-slate-500" />
+                    <span>Catatan Perhitungan Tingkat Pemulihan:</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-0.5 pt-1 text-[11px] leading-relaxed">
+                    {recovery.notes.map((n, i) => (
+                      <li key={i}>{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Porsi Pelunasan Menurut Umur BLTH */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-5 shadow-sm space-y-4">
