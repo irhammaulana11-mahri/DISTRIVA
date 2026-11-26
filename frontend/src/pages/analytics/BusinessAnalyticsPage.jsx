@@ -996,6 +996,8 @@ export default function BusinessAnalyticsPage() {
   // State pagination untuk tabel Perbandingan ULP
   const [comparisonPage, setComparisonPage] = useState(1)
   const [comparisonPerPage, setComparisonPerPage] = useState(10)
+  // State dasar kontribusi sumbangan ULP ('yoy' | 'mom' | 'ytd')
+  const [contributionBase, setContributionBase] = useState('yoy')
 
   // Metrik klasifikasi untuk aksi sinkronisasi spesifik
   const isOutageMetric = activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'rpt-rct-gangguan'
@@ -2144,15 +2146,15 @@ export default function BusinessAnalyticsPage() {
             </div>
           )}
 
-          {/* Empat Kartu KPI Standar DISTRIVA (docs/91 §4):
+          {/* Empat Kartu KPI Standar DISTRIVA (docs/91 §4, docs/92 §3):
               1. Nilai resmi terakhir (summary[0]) dengan MoM & YoY
-              2. Pertumbuhan tahun berjalan (posisi: official_net lawan previous_year, atau kumulatif YTD lawan ytd_previous_year)
-              3. Pendamping utama (companions.series[0], atau seri ke-2)
-              4. Rekonsiliasi selisih (reconciliation.ytd.difference, atau seri ke-3/berikutnya)
-              Khusus rpt-rct-gangguan (butir 25): dua varian berdampingan (Semua Laporan vs Laporan Tanpa Clear Temper)
+              2. Kumulatif lawan target NKO (targets[0], capaian %, status aman/waspada/tertinggal)
+              3. Lawan tahun lalu dari summary[0] (YTD vs ytd_previous_year / YoY YTD)
+              4. Laju yang dibutuhkan: remaining_per_month vs current_per_month (disembunyikan bila null, fallback ke pendamping/rekonsiliasi)
+              Khusus rpt-rct-gangguan (butir 25): dua varian berdampingan bila belum ada targets
           */}
           {(() => {
-            if (activeCode === 'rpt-rct-gangguan') {
+            if (activeCode === 'rpt-rct-gangguan' && (!d.targets || d.targets.length === 0)) {
               const sMap = (d.summary || []).reduce((acc, s) => {
                 acc[s.key] = s
                 return acc
@@ -2291,6 +2293,7 @@ export default function BusinessAnalyticsPage() {
               )
             }
 
+            const t0 = d.targets?.[0]
             const s0 = d.summary?.[0]
             const meta0 = d.series?.[0]
             const polarity = d.metric?.polarity || 'up'
@@ -2307,102 +2310,141 @@ export default function BusinessAnalyticsPage() {
               footerLabel: isPositionMetric ? 'Posisi Saldo Akhir' : 'Arus Bulan Berjalan',
             }
 
-            // Kartu 2: Pertumbuhan Tahun Berjalan (YTD)
-            const rec0 = d.reconciliations?.[0] || d.reconciliation
-            let card2Value = null
-            let card2Unit = meta0?.unit
-            let card2Pct = null
-            let card2Label = 'Pertumbuhan YTD'
-            let card2Prev = null
+            // Kartu 2: Kumulatif Lawan Target NKO
+            // docs/92: target kumulatif bulan to, realisasi, pencapaian_pct, status, keterangan realisasi_source, validated, combined
+            let card2 = null
+            if (t0) {
+              const statusColor = t0.status === 'aman'
+                ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                : t0.status === 'waspada'
+                ? 'text-amber-700 bg-amber-50 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                : t0.status === 'tertinggal'
+                ? 'text-rose-700 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                : 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
 
-            if (isPositionMetric && rec0?.ytd) {
-              card2Label = 'Tambahan Bersih YTD'
-              card2Value = fmtMetricValue(rec0.ytd.official_net, rec0.unit)
-              card2Unit = rec0.unit
-              card2Pct = rec0.ytd.official_change_pct
-              card2Prev = rec0.ytd.previous_year?.official_net !== null && rec0.ytd.previous_year?.official_net !== undefined
-                ? fmtMetricValue(rec0.ytd.previous_year.official_net, rec0.unit)
-                : null
-            } else if (s0) {
-              card2Label = `Kumulatif ${d.metric?.ytd_mode === 'sum' ? 'YTD' : 'Tertimbang'}`
-              card2Value = fmtMetricValue(s0.ytd, meta0?.unit)
-              card2Pct = s0.ytd_pct
-              card2Prev = s0.ytd_previous_year !== null && s0.ytd_previous_year !== undefined
-                ? fmtMetricValue(s0.ytd_previous_year, meta0?.unit)
-                : null
+              card2 = {
+                title: t0.name ? `Target NKO: ${t0.name}` : 'Target NKO',
+                badge: `Target ${fmtMonth(t0.month || d.to)}`,
+                value: t0.realisasi !== null && t0.realisasi !== undefined ? fmtMetricValue(t0.realisasi, t0.unit_label) : '-',
+                targetVal: t0.target !== null && t0.target !== undefined ? fmtMetricValue(t0.target, t0.unit_label) : (t0.target_text || '-'),
+                unit: t0.unit_label || meta0?.unit,
+                pencapaian: t0.pencapaian_pct,
+                status: t0.status,
+                statusColor,
+                source: t0.realisasi_source,
+                validated: t0.validated,
+                combined: t0.combined,
+              }
+            } else {
+              // Fallback jika tidak ada targets: gunakan akumulasi YTD standar
+              const rec0 = d.reconciliations?.[0] || d.reconciliation
+              let card2Value = null
+              let card2Unit = meta0?.unit
+              let card2Pct = null
+              let card2Label = 'Pertumbuhan YTD'
+              let card2Prev = null
+
+              if (isPositionMetric && rec0?.ytd) {
+                card2Label = 'Tambahan Bersih YTD'
+                card2Value = fmtMetricValue(rec0.ytd.official_net, rec0.unit)
+                card2Unit = rec0.unit
+                card2Pct = rec0.ytd.official_change_pct
+                card2Prev = rec0.ytd.previous_year?.official_net !== null && rec0.ytd.previous_year?.official_net !== undefined
+                  ? fmtMetricValue(rec0.ytd.previous_year.official_net, rec0.unit)
+                  : null
+              } else if (s0) {
+                card2Label = `Kumulatif ${d.metric?.ytd_mode === 'sum' ? 'YTD' : 'Tertimbang'}`
+                card2Value = fmtMetricValue(s0.ytd, meta0?.unit)
+                card2Pct = s0.ytd_pct
+                card2Prev = s0.ytd_previous_year !== null && s0.ytd_previous_year !== undefined
+                  ? fmtMetricValue(s0.ytd_previous_year, meta0?.unit)
+                  : null
+              }
+              card2 = {
+                title: card2Label,
+                badge: `YTD ${d.to?.slice(0, 4)}`,
+                value: card2Value,
+                unit: card2Unit,
+                pencapaian: null,
+                card2Pct,
+                card2Prev,
+                footerLabel: isPositionMetric ? 'Selisih vs Des Th Lalu' : 'Akumulasi Jan s/d Saat Ini',
+              }
             }
 
-            // Kartu 3: Pendamping Utama (atau seri ke-2 bila tidak ada pendamping)
-            const comp0 = d.companions?.series?.[0]
-            const s1 = d.summary?.[1]
-            const meta1 = d.series?.[1]
-
-            let card3 = null
-            if (comp0) {
-              const comp0Source = isKwhP2tlMetric
-                ? 'AP2T (Potret)'
-                : (d.companions.source || 'Operasional')
-              card3 = {
-                title: comp0.name,
-                source: comp0Source,
-                value: comp0.latest !== null && comp0.latest !== undefined ? fmtMetricValue(comp0.latest, comp0.unit) : 'Belum ditarik',
-                unit: comp0.latest !== null && comp0.latest !== undefined ? comp0.unit : '',
-                footerLabel: 'Kumulatif YTD',
-                footerValue: comp0.ytd !== null && comp0.ytd !== undefined ? `${fmtMetricValue(comp0.ytd, comp0.unit)} ${comp0.unit}` : '-',
-              }
-            } else if (s1 && meta1) {
-              card3 = {
-                title: meta1.name,
-                source: 'Seri Resmi 2',
-                value: fmtMetricValue(s1.latest, meta1.unit),
-                unit: meta1.unit,
-                mom: s1.mom_pct,
-                yoy: s1.yoy_pct,
-                footerLabel: 'Kumulatif YTD',
-                footerValue: `${fmtMetricValue(s1.ytd, meta1.unit)} ${meta1.unit}`,
-              }
+            // Kartu 3: Lawan Tahun Lalu (dari summary[0])
+            const card3 = {
+              title: isPositionMetric ? 'Perubahan vs Th Lalu' : `Kumulatif Th Lalu (${d.to?.slice(0, 4) - 1 || 'Prev'})`,
+              badge: `YoY ${fmtMonth(d.to)}`,
+              value: s0?.ytd !== null && s0?.ytd !== undefined ? fmtMetricValue(s0.ytd, meta0?.unit) : '-',
+              prevValue: s0?.ytd_previous_year !== null && s0?.ytd_previous_year !== undefined ? fmtMetricValue(s0.ytd_previous_year, meta0?.unit) : '-',
+              unit: meta0?.unit,
+              pct: s0?.ytd_pct,
+              footerLabel: 'Perbandingan Kumulatif',
+              footerValue: s0?.ytd_previous_year !== null && s0?.ytd_previous_year !== undefined ? `Th lalu: ${fmtMetricValue(s0.ytd_previous_year, meta0?.unit)}` : 'Hanya ULP setara',
             }
 
-            // Kartu 4: Rekonsiliasi Selisih (atau seri ke-3/pendamping ke-2)
-            const comp1 = d.companions?.series?.[1]
-            const s2 = d.summary?.[2]
-            const meta2 = d.series?.[2]
-
+            // Kartu 4: Laju yang dibutuhkan (remaining_per_month vs current_per_month)
+            // Sembunyikan bila remaining_per_month null, fallback ke pendamping/rekonsiliasi bila ada
             let card4 = null
-            if (rec0?.ytd) {
-              const diff = rec0.ytd.difference
-              const diffSign = diff > 0 ? '+' : ''
+            if (t0 && t0.remaining_per_month !== null && t0.remaining_per_month !== undefined) {
+              const req = t0.remaining_per_month
+              const cur = t0.current_per_month
+              const unit = t0.unit_label || meta0?.unit
+              const isUpGood = (t0.polarity || polarity) === 'up'
+              const paceOk = isUpGood ? (cur !== null && cur >= req) : (cur !== null && cur <= req)
+              const paceBadgeColor = paceOk
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+
               card4 = {
-                title: 'Selisih Rekonsiliasi YTD',
-                badge: rec0.mode === 'yoy' ? 'Perkiraan' : rec0.mode === 'net' ? 'Net' : 'Flow',
-                value: diff !== null && diff !== undefined ? `${diffSign}${fmtMetricValue(diff, rec0.unit)}` : '-',
-                unit: rec0.unit,
-                status: diff === 0 ? 'Sesuai' : diff > 0 ? 'Pendamping > Resmi' : 'Resmi > Pendamping',
-                footerLabel: `Cakupan ${rec0.ytd.units_compared} ULP`,
-                footerValue: rec0.note || 'Perbandingan data resmi vs lapangan',
+                title: isUpGood ? 'Kebutuhan Sisa Bulan' : 'Sisa Anggaran per Bulan',
+                badge: paceOk ? 'Laju Sesuai' : 'Perlu Dikejar',
+                badgeColor: paceBadgeColor,
+                value: fmtMetricValue(req, unit),
+                unit,
+                curValue: cur !== null ? fmtMetricValue(cur, unit) : '-',
+                targetYearEnd: t0.target_year_end !== null ? fmtMetricValue(t0.target_year_end, unit) : null,
+                footerLabel: 'Laju Saat Ini',
+                footerValue: `Rata-rata: ${fmtMetricValue(cur, unit)}/bln`,
               }
-            } else if (comp1) {
-              const comp1Source = isKwhP2tlMetric
-                ? 'AP2T (Potret)'
-                : (d.companions.source || 'Operasional')
-              card4 = {
-                title: comp1.name,
-                source: comp1Source,
-                value: comp1.latest !== null && comp1.latest !== undefined ? fmtMetricValue(comp1.latest, comp1.unit) : 'Belum ditarik',
-                unit: comp1.latest !== null && comp1.latest !== undefined ? comp1.unit : '',
-                footerLabel: 'Kumulatif YTD',
-                footerValue: comp1.ytd !== null && comp1.ytd !== undefined ? `${fmtMetricValue(comp1.ytd, comp1.unit)} ${comp1.unit}` : '-',
-              }
-            } else if (s2 && meta2) {
-              card4 = {
-                title: meta2.name,
-                source: 'Seri Resmi 3',
-                value: fmtMetricValue(s2.latest, meta2.unit),
-                unit: meta2.unit,
-                mom: s2.mom_pct,
-                yoy: s2.yoy_pct,
-                footerLabel: 'Kumulatif YTD',
-                footerValue: `${fmtMetricValue(s2.ytd, meta2.unit)} ${meta2.unit}`,
+            } else {
+              // Fallback ke Pendamping Utama atau Rekonsiliasi
+              const rec0 = d.reconciliations?.[0] || d.reconciliation
+              const comp0 = d.companions?.series?.[0]
+              const s1 = d.summary?.[1]
+              const meta1 = d.series?.[1]
+
+              if (comp0) {
+                const comp0Source = isKwhP2tlMetric ? 'AP2T (Potret)' : (d.companions.source || 'Operasional')
+                card4 = {
+                  title: comp0.name,
+                  badge: comp0Source,
+                  value: comp0.latest !== null && comp0.latest !== undefined ? fmtMetricValue(comp0.latest, comp0.unit) : 'Belum ditarik',
+                  unit: comp0.latest !== null && comp0.latest !== undefined ? comp0.unit : '',
+                  footerLabel: 'Kumulatif YTD',
+                  footerValue: comp0.ytd !== null && comp0.ytd !== undefined ? `${fmtMetricValue(comp0.ytd, comp0.unit)} ${comp0.unit}` : '-',
+                }
+              } else if (rec0?.ytd) {
+                const diff = rec0.ytd.difference
+                const diffSign = diff > 0 ? '+' : ''
+                card4 = {
+                  title: 'Selisih Rekonsiliasi YTD',
+                  badge: rec0.mode === 'yoy' ? 'Perkiraan' : rec0.mode === 'net' ? 'Net' : 'Flow',
+                  value: diff !== null && diff !== undefined ? `${diffSign}${fmtMetricValue(diff, rec0.unit)}` : '-',
+                  unit: rec0.unit,
+                  footerLabel: `Cakupan ${rec0.ytd.units_compared} ULP`,
+                  footerValue: rec0.note || 'Data resmi vs lapangan',
+                }
+              } else if (s1 && meta1) {
+                card4 = {
+                  title: meta1.name,
+                  badge: 'Seri Resmi 2',
+                  value: fmtMetricValue(s1.latest, meta1.unit),
+                  unit: meta1.unit,
+                  footerLabel: 'Kumulatif YTD',
+                  footerValue: `${fmtMetricValue(s1.ytd, meta1.unit)} ${meta1.unit}`,
+                }
               }
             }
 
@@ -2412,7 +2454,7 @@ export default function BusinessAnalyticsPage() {
                 <div className={`${CARD} p-4 flex flex-col justify-between`}>
                   <div>
                     <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                      <span className="truncate pr-2">{card1.title}</span>
+                      <span className="truncate pr-2 font-semibold text-slate-700 dark:text-slate-300">{card1.title}</span>
                       <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 shrink-0">
                         {card1.badge}
                       </span>
@@ -2439,98 +2481,122 @@ export default function BusinessAnalyticsPage() {
                   </div>
                 </div>
 
-                {/* Kartu 2: Pertumbuhan Tahun Berjalan */}
+                {/* Kartu 2: Kumulatif Lawan Target NKO */}
                 <div className={`${CARD} p-4 flex flex-col justify-between`}>
                   <div>
                     <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                      <span className="truncate pr-2">{card2Label}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shrink-0">
-                        YTD {d.to?.slice(0, 4)}
-                      </span>
+                      <span className="truncate pr-2 font-semibold text-slate-700 dark:text-slate-300" title={card2.title}>{card2.title}</span>
+                      {card2.status ? (
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold shrink-0 uppercase border ${card2.statusColor}`}>
+                          {card2.status}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 shrink-0">
+                          {card2.badge}
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
-                      {card2Value}{' '}
+                      {card2.value}{' '}
                       <span className="text-sm font-normal text-slate-500">
-                        {card2Unit}
+                        {card2.unit}
                       </span>
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {card2Pct !== null && (
-                        <PolarityPctBadge pct={card2Pct} polarity={polarity} label="YoY YTD" />
+                      {card2.pencapaian !== null && card2.pencapaian !== undefined ? (
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold tabular-nums border ${card2.statusColor}`}>
+                          {fmtFloat(card2.pencapaian, 1)}% capaian
+                        </span>
+                      ) : card2.card2Pct !== undefined && card2.card2Pct !== null ? (
+                        <PolarityPctBadge pct={card2.card2Pct} polarity={polarity} label="YoY YTD" />
+                      ) : (
+                        <span className="text-xs text-slate-400">Realisasi belum tersedia</span>
                       )}
-                      {card2Prev && (
+
+                      {card2.targetVal && (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Target: {card2.targetVal}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between flex-wrap gap-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {card2.source && (
+                        <span className="text-[10px] px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+                          {card2.source}
+                        </span>
+                      )}
+                      {card2.validated === false && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium" title="Realisasi sistem belum tervalidasi terhadap workbook">
+                          &bull; Belum tervalidasi
+                        </span>
+                      )}
+                      {card2.combined && (
+                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium" title="Realisasi gabungan beberapa menu">
+                          &bull; Gabungan beberapa menu
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-400">
+                      {card2.footerLabel || `Target s.d. ${fmtMonth(d.to)}`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Kartu 3: Lawan Tahun Lalu */}
+                <div className={`${CARD} p-4 flex flex-col justify-between`}>
+                  <div>
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                      <span className="truncate pr-2 font-semibold text-slate-700 dark:text-slate-300">{card3.title}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shrink-0">
+                        {card3.badge}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                      {card3.value}{' '}
+                      <span className="text-sm font-normal text-slate-500">
+                        {card3.unit}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {card3.pct !== null && card3.pct !== undefined ? (
+                        <PolarityPctBadge pct={card3.pct} polarity={polarity} label="YoY YTD" />
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
+                      {card3.prevValue && card3.prevValue !== '-' && (
                         <span className="text-[11px] text-slate-400">
-                          Th lalu: {card2Prev}
+                          Th lalu: {card3.prevValue}
                         </span>
                       )}
                     </div>
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">Dasar Evaluasi</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                      {isPositionMetric ? 'Selisih vs Des Th Lalu' : 'Akumulasi Jan s/d Saat Ini'}
+                    <span className="text-[11px] text-slate-400">{card3.footerLabel}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200 text-[11px]">
+                      {card3.footerValue}
                     </span>
                   </div>
                 </div>
 
-                {/* Kartu 3: Pendamping Utama */}
-                {card3 ? (
-                  <div className={`${CARD} p-4 flex flex-col justify-between`}>
-                    <div>
-                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                        <span className="truncate pr-2" title={card3.title}>{card3.title}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 shrink-0 border border-sky-200 dark:border-sky-800">
-                          Penjelas
-                        </span>
-                      </div>
-
-                      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
-                        {card3.value}{' '}
-                        <span className="text-sm font-normal text-slate-500">
-                          {card3.unit}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {card3.mom !== undefined && (
-                          <PolarityPctBadge pct={card3.mom} polarity={polarity} label="MoM" />
-                        )}
-                        {card3.yoy !== undefined && (
-                          <PolarityPctBadge pct={card3.yoy} polarity={polarity} label="YoY" />
-                        )}
-                        <span className="text-[11px] text-slate-400">
-                          {card3.source}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">{card3.footerLabel}</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">
-                        {card3.footerValue}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`${CARD} p-4 flex flex-col justify-between opacity-60`}>
-                    <span className="text-xs text-slate-400">Pendamping Operasional</span>
-                    <p className="text-xs text-slate-400 mt-2">Belum ada seri pendamping untuk metrik ini.</p>
-                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400">-</div>
-                  </div>
-                )}
-
-                {/* Kartu 4: Rekonsiliasi Selisih */}
+                {/* Kartu 4: Laju yang Dibutuhkan / Pendamping */}
                 {card4 ? (
                   <div className={`${CARD} p-4 flex flex-col justify-between`}>
                     <div>
                       <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                        <span className="truncate pr-2" title={card4.title}>{card4.title}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shrink-0 border border-indigo-200 dark:border-indigo-800">
-                          {card4.badge || 'Rekonsiliasi'}
-                        </span>
+                        <span className="truncate pr-2 font-semibold text-slate-700 dark:text-slate-300" title={card4.title}>{card4.title}</span>
+                        {card4.badge && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold shrink-0 border ${card4.badgeColor || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
+                            {card4.badge}
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
@@ -2541,29 +2607,75 @@ export default function BusinessAnalyticsPage() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                          {card4.status || card4.source}
-                        </span>
+                        {card4.curValue && (
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                            Laju saat ini: {card4.curValue}/bln
+                          </span>
+                        )}
+                        {card4.targetYearEnd && (
+                          <span className="text-[11px] text-slate-400">
+                            (Target akhir th: {card4.targetYearEnd})
+                          </span>
+                        )}
                       </div>
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">{card4.footerLabel}</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[140px]" title={card4.footerValue}>
-                        {card4.footerValue}
+                      <span className="text-[11px] text-slate-400">{card4.footerLabel || 'Target NKO'}</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200 text-[11px] truncate max-w-[150px]" title={card4.footerValue}>
+                        {card4.footerValue || '-'}
                       </span>
                     </div>
                   </div>
                 ) : (
                   <div className={`${CARD} p-4 flex flex-col justify-between opacity-60`}>
-                    <span className="text-xs text-slate-400">Rekonsiliasi</span>
-                    <p className="text-xs text-slate-400 mt-2">Tidak ada perbandingan rekonsiliasi.</p>
+                    <span className="text-xs text-slate-400 font-semibold">Laju Kebutuhan</span>
+                    <p className="text-xs text-slate-400 mt-2">Target NKO tahunan tidak memerlukan laju bulanan khusus.</p>
                     <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400">-</div>
                   </div>
                 )}
               </div>
             )
           })()}
+
+          {/* Bagian Diagnosis Otomatis (docs/92 §3 butir 3, Butir 36) */}
+          {d.diagnosis && d.diagnosis.length > 0 && (
+            <div className={`${CARD} p-4 space-y-2.5`}>
+              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                <IconActivity size={16} className="text-indigo-600 dark:text-indigo-400" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Diagnosis &amp; Akar Penyebab Otomatis
+                </h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                {d.diagnosis.map((diag, idx) => {
+                  const isKritis = diag.level === 'kritis'
+                  const isPerhatian = diag.level === 'perhatian'
+                  const boxCls = isKritis
+                    ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20 text-rose-900 dark:text-rose-200'
+                    : isPerhatian
+                    ? 'border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-slate-800 dark:text-slate-200'
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 leading-relaxed ${boxCls}`}
+                    >
+                      {isKritis ? (
+                        <IconAlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                      ) : isPerhatian ? (
+                        <IconAlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <IconInfo size={16} className="text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
+                      )}
+                      <span>{diag.text}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Tab Konten: Sesuai mainTab ('trend' | 'details' | 'reconciliation') */}
           {mainTab === 'trend' && (
@@ -2804,135 +2916,216 @@ export default function BusinessAnalyticsPage() {
                 )}
 
                 {/* Perbandingan Antar ULP (Hanya untuk unit UP3) */}
-                {isUp3 && d.comparison && d.comparison.length > 0 && (
-                  <div className={`${CARD} p-5 space-y-4`}>
-                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          {activeCode === 'rpt-rct-gangguan'
-                            ? 'Perbandingan Antar ULP (Semua Laporan vs Tanpa Clear Temper)'
-                            : 'Perbandingan Antar ULP'}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          Capaian bulan {fmtMonth(d.to)}
-                          {(d.warnings || []).some((w) => w.month === d.to && (w.code === 'apkt_current_month_partial' || w.code === 'ap2t_current_month_partial')) && (
-                            <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                              Bulan berjalan, belum final
+                {isUp3 && d.comparison && d.comparison.length > 0 && (() => {
+                  const contribBases = d.contribution?.bases || {}
+                  const activeContrib = contribBases[contributionBase] || contribBases['yoy']
+                  const contribMap = (activeContrib?.units || []).reduce((acc, u) => {
+                    acc[u.unit_id] = u
+                    return acc
+                  }, {})
+
+                  return (
+                    <div className={`${CARD} p-5 space-y-4`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 gap-2">
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            {activeCode === 'rpt-rct-gangguan'
+                              ? 'Perbandingan Antar ULP (Semua Laporan vs Tanpa Clear Temper)'
+                              : 'Perbandingan Antar ULP'}
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            Capaian bulan {fmtMonth(d.to)}
+                            {(d.warnings || []).some((w) => w.month === d.to && (w.code === 'apkt_current_month_partial' || w.code === 'ap2t_current_month_partial')) && (
+                              <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                Bulan berjalan, belum final
+                              </span>
+                            )}
+                            {' '}&bull; diurutkan dari capaian ULP
+                          </p>
+                        </div>
+
+                        {/* Switcher Pilihan Dasar Kontribusi (Butir 36 docs/92 §4) */}
+                        {d.contribution && (
+                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs self-start sm:self-auto">
+                            <span className="text-[10px] text-slate-400 font-medium px-1.5">Sumbangan:</span>
+                            {['yoy', 'mom', 'ytd'].map((bKey) => {
+                              const bData = contribBases[bKey]
+                              if (!bData) return null
+                              const isSelected = (contributionBase || 'yoy') === bKey
+                              return (
+                                <button
+                                  key={bKey}
+                                  type="button"
+                                  onClick={() => setContributionBase(bKey)}
+                                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors uppercase ${
+                                    isSelected
+                                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                  }`}
+                                  title={bData.label}
+                                >
+                                  {bKey}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {d.contribution && activeContrib && (
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-800/30 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800/60 flex items-center justify-between flex-wrap gap-2">
+                          <span>
+                            Dasar sumbangan: <strong className="text-slate-700 dark:text-slate-300">{activeContrib.label}</strong> ({activeContrib.units_compared} ULP setara)
+                          </span>
+                          {activeContrib.total !== null && activeContrib.total !== undefined && (
+                            <span className="font-mono">
+                              Total perubahan: <strong>{activeContrib.total > 0 ? '+' : ''}{fmtMetricValue(activeContrib.total, d.contribution.unit)} {d.contribution.unit}</strong>
                             </span>
                           )}
-                          {' '}&bull; diurutkan dari capaian ULP
-                        </p>
-                      </div>
-                    </div>
+                        </div>
+                      )}
 
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                          {activeCode === 'rpt-rct-gangguan' ? (
-                            <>
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                            {activeCode === 'rpt-rct-gangguan' ? (
+                              <>
+                                <tr>
+                                  <th rowSpan={2} className="py-2.5 px-3 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
+                                  <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">Unit Layanan (ULP)</th>
+                                  <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-950/20 text-purple-800 dark:text-purple-300 font-semibold">
+                                    Semua Laporan (Utama)
+                                  </th>
+                                  <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-800/50 font-semibold">
+                                    Tanpa Clear Temper (Pembanding)
+                                  </th>
+                                  <th rowSpan={2} className="py-2.5 px-3 text-right bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-semibold">
+                                    Porsi CT
+                                  </th>
+                                </tr>
+                                <tr className="border-t border-slate-200 dark:border-slate-700">
+                                  <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
+                                  <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
+                                  <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
+                                  <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
+                                  <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
+                                  <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
+                                </tr>
+                              </>
+                            ) : (
                               <tr>
-                                <th rowSpan={2} className="py-2.5 px-3 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
-                                <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">Unit Layanan (ULP)</th>
-                                <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-950/20 text-purple-800 dark:text-purple-300 font-semibold">
-                                  Semua Laporan (Utama)
-                                </th>
-                                <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-800/50 font-semibold">
-                                  Tanpa Clear Temper (Pembanding)
-                                </th>
-                                <th rowSpan={2} className="py-2.5 px-3 text-right bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-semibold">
-                                  Porsi CT
-                                </th>
+                                <th className="py-2.5 px-3 w-10 text-center">#</th>
+                                <th className="py-2.5 px-3">Unit Layanan (ULP)</th>
+                                <th className="py-2.5 px-3 text-right">Bulan Ini</th>
+                                <th className="py-2.5 px-3 text-right">YoY</th>
+                                <th className="py-2.5 px-3 text-right">Kumulatif YTD</th>
+                                {d.contribution && (
+                                  <>
+                                    <th className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
+                                      Perubahan ({contributionBase.toUpperCase()})
+                                    </th>
+                                    <th className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
+                                      Sumbangan
+                                    </th>
+                                  </>
+                                )}
                               </tr>
-                              <tr className="border-t border-slate-200 dark:border-slate-700">
-                                <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
-                                <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
-                                <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
-                                <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
-                                <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
-                                <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
-                              </tr>
-                            </>
-                          ) : (
-                            <tr>
-                              <th className="py-2.5 px-3 w-10 text-center">#</th>
-                              <th className="py-2.5 px-3">Unit Layanan (ULP)</th>
-                              <th className="py-2.5 px-3 text-right">Bulan Ini</th>
-                              <th className="py-2.5 px-3 text-right">YoY</th>
-                              <th className="py-2.5 px-3 text-right">Kumulatif YTD</th>
-                            </tr>
-                          )}
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {(d.comparison || [])
-                            .slice((comparisonPage - 1) * comparisonPerPage, comparisonPage * comparisonPerPage)
-                            .map((c, idx) => (
-                            <tr key={c.unit_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                              <td className="py-2.5 px-3 text-center font-mono text-slate-400 text-[11px]">
-                                {(comparisonPage - 1) * comparisonPerPage + idx + 1}
-                              </td>
-                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                                {c.unit_name}
-                              </td>
-                              {activeCode === 'rpt-rct-gangguan' ? (
-                                <>
-                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
-                                    {c.jumlah !== undefined && c.jumlah !== null ? fmtFloat(c.jumlah, 0) : '-'}
-                                  </td>
-                                  <td className="py-2.5 px-2.5 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                                    {c.latest !== null ? fmtFloat(c.latest, 1) : '-'}
-                                  </td>
-                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800">
-                                    {c.rct !== undefined && c.rct !== null ? fmtFloat(c.rct, 1) : '-'}
-                                  </td>
-                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
-                                    {c.jumlah_tanpa_ct !== undefined && c.jumlah_tanpa_ct !== null ? fmtFloat(c.jumlah_tanpa_ct, 0) : '-'}
-                                  </td>
-                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
-                                    {c.rpt_tanpa_ct !== undefined && c.rpt_tanpa_ct !== null ? fmtFloat(c.rpt_tanpa_ct, 1) : '-'}
-                                  </td>
-                                  <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
-                                    {c.rct_tanpa_ct !== undefined && c.rct_tanpa_ct !== null ? fmtFloat(c.rct_tanpa_ct, 1) : '-'}
-                                  </td>
-                                  <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold text-amber-700 dark:text-amber-400">
-                                    {c.porsi_clear_temper !== undefined && c.porsi_clear_temper !== null ? `${fmtFloat(c.porsi_clear_temper, 1)}%` : '-'}
-                                  </td>
-                                </>
-                              ) : (
-                                <>
-                                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                                    {c.latest !== null ? fmtFloat(c.latest) : '-'}
-                                  </td>
-                                  <td className="py-2.5 px-3 text-right">
-                                    <PolarityPctBadge pct={c.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                                  </td>
-                                  <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
-                                    {c.ytd !== null ? fmtFloat(c.ytd) : '-'}
-                                  </td>
-                                </>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                            )}
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {(d.comparison || [])
+                              .slice((comparisonPage - 1) * comparisonPerPage, comparisonPage * comparisonPerPage)
+                              .map((c, idx) => {
+                                const cu = contribMap[c.unit_id]
 
-                    {(d.comparison || []).length > 5 && (
-                      <div className="pt-2">
-                        <Pagination
-                          page={comparisonPage}
-                          total={(d.comparison || []).length}
-                          perPage={comparisonPerPage}
-                          onPage={setComparisonPage}
-                          onPerPage={(pp) => {
-                            setComparisonPerPage(pp)
-                            setComparisonPage(1)
-                          }}
-                          perPageOptions={[5, 10, 20]}
-                        />
+                                return (
+                                  <tr key={c.unit_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                                    <td className="py-2.5 px-3 text-center font-mono text-slate-400 text-[11px]">
+                                      {(comparisonPage - 1) * comparisonPerPage + idx + 1}
+                                    </td>
+                                    <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                                      {c.unit_name}
+                                    </td>
+                                    {activeCode === 'rpt-rct-gangguan' ? (
+                                      <>
+                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                                          {c.jumlah !== undefined && c.jumlah !== null ? fmtFloat(c.jumlah, 0) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-2.5 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                                          {c.latest !== null ? fmtFloat(c.latest, 1) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800">
+                                          {c.rct !== undefined && c.rct !== null ? fmtFloat(c.rct, 1) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
+                                          {c.jumlah_tanpa_ct !== undefined && c.jumlah_tanpa_ct !== null ? fmtFloat(c.jumlah_tanpa_ct, 0) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                                          {c.rpt_tanpa_ct !== undefined && c.rpt_tanpa_ct !== null ? fmtFloat(c.rpt_tanpa_ct, 1) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
+                                          {c.rct_tanpa_ct !== undefined && c.rct_tanpa_ct !== null ? fmtFloat(c.rct_tanpa_ct, 1) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold text-amber-700 dark:text-amber-400">
+                                          {c.porsi_clear_temper !== undefined && c.porsi_clear_temper !== null ? `${fmtFloat(c.porsi_clear_temper, 1)}%` : '-'}
+                                        </td>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                                          {c.latest !== null ? fmtFloat(c.latest) : '-'}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right">
+                                          <PolarityPctBadge pct={c.yoy_pct} polarity={d.metric?.polarity || 'up'} />
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
+                                          {c.ytd !== null ? fmtFloat(c.ytd) : '-'}
+                                        </td>
+                                        {d.contribution && (
+                                          <>
+                                            <td className="py-2.5 px-3 text-right font-mono tabular-nums">
+                                              {cu?.change !== undefined && cu?.change !== null ? (
+                                                <span className={cu.change > 0 ? 'text-emerald-600 dark:text-emerald-400' : cu.change < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}>
+                                                  {cu.change > 0 ? '+' : ''}{fmtMetricValue(cu.change, d.contribution.unit)}
+                                                </span>
+                                              ) : '-'}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold">
+                                              {cu?.share_pct !== undefined && cu?.share_pct !== null ? (
+                                                <span className="inline-flex items-center gap-1">
+                                                  <span>{fmtFloat(cu.share_pct, 1)}%</span>
+                                                </span>
+                                              ) : '-'}
+                                            </td>
+                                          </>
+                                        )}
+                                      </>
+                                    )}
+                                  </tr>
+                                )
+                              })}
+                          </tbody>
+                        </table>
                       </div>
-                    )}
-                  </div>
-                )}
+
+                      {(d.comparison || []).length > 5 && (
+                        <div className="pt-2">
+                          <Pagination
+                            page={comparisonPage}
+                            total={(d.comparison || []).length}
+                            perPage={comparisonPerPage}
+                            onPage={setComparisonPage}
+                            onPerPage={(pp) => {
+                              setComparisonPerPage(pp)
+                              setComparisonPage(1)
+                            }}
+                            perPageOptions={[5, 10, 20]}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Matriks Silang (Matrix Heatmap, misal: Kogol x Umur Tunggakan) */}

@@ -1623,4 +1623,162 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('Rincian: Bulan tagihan (BLTH)')).toBeInTheDocument()
     expect(screen.getByText('2026-08')).toBeInTheDocument()
   })
+
+  it('20. mendukung Butir 36: Standar halaman tahap 1 (target NKO, laju kebutuhan, diagnosis, dan sumbangan ULP)', async () => {
+    const kwhCatalog = {
+      data: {
+        units: [{ id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3', parent_id: null }],
+        metrics: [
+          {
+            code: 'kwh-jual',
+            name: 'kWh Jual',
+            source: '309',
+            polarity: 'up',
+            available: true,
+            series: [{ key: 'kwh', name: 'kWh Jual', unit: 'kWh' }],
+          },
+        ],
+      },
+    }
+
+    const nkoDetail = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: {
+          code: 'kwh-jual',
+          name: 'Penjualan Tenaga Listrik',
+          unit: 'kWh',
+          polarity: 'up',
+          source: 'Laporan 309',
+        },
+        from: '2025-12',
+        to: '2026-01',
+        months: ['2025-12', '2026-01'],
+        summary: [
+          { key: 'kwh', name: 'kWh Jual', unit: 'kWh', latest: 200, ytd: 200, ytd_previous_year: 150, ytd_pct: 33.3, mom_pct: 5.0, yoy_pct: 33.3 },
+        ],
+        series: [
+          { key: 'kwh', name: 'kWh Jual', unit: 'kWh', values: [190, 200], previous_year: [140, 150] },
+        ],
+        targets: [
+          {
+            definition_code: 'penjualan-tenaga-listrik',
+            name: 'Penjualan Tenaga Listrik',
+            unit_label: 'kWh',
+            polarity: 'up',
+            series_key: 'kwh',
+            combined: false,
+            month: '2026-01',
+            target: 250,
+            realisasi: 200,
+            realisasi_source: 'METRIK',
+            validated: null,
+            pencapaian_pct: 80.0,
+            status: 'tertinggal',
+            target_year_end: 3000,
+            remaining_per_month: 254.5,
+            current_per_month: 200.0,
+          },
+        ],
+        diagnosis: [
+          {
+            level: 'kritis',
+            kind: 'target',
+            text: 'Realisasi kumulatif 200 kWh (80,00% capaian target NKO). Kebutuhan bulanan sisa tahun rata-rata 254,5 kWh.',
+          },
+          {
+            level: 'info',
+            kind: 'contribution',
+            text: 'Penyumbang terbesar ULP Mojokerto Kota (+40 kWh, 80% dari perubahan).',
+          },
+        ],
+        contribution: {
+          series_key: 'kwh',
+          unit: 'kWh',
+          to: '2026-01',
+          bases: {
+            yoy: {
+              label: 'dibanding bulan yang sama tahun lalu',
+              from: '2025-01',
+              total: 50,
+              units_compared: 2,
+              units: [
+                { unit_id: 'u-1', unit_name: 'ULP Mojokerto Kota', value: 120, previous: 80, change: 40, share_pct: 80.0 },
+                { unit_id: 'u-2', unit_name: 'ULP Pacet', value: 80, previous: 70, change: 10, share_pct: 20.0 },
+              ],
+            },
+            mom: {
+              label: 'dibanding bulan sebelumnya',
+              from: '2025-12',
+              total: 10,
+              units_compared: 2,
+              units: [
+                { unit_id: 'u-1', unit_name: 'ULP Mojokerto Kota', value: 120, previous: 115, change: 5, share_pct: 50.0 },
+                { unit_id: 'u-2', unit_name: 'ULP Pacet', value: 80, previous: 75, change: 5, share_pct: 50.0 },
+              ],
+            },
+            ytd: {
+              label: 'kumulatif tahun berjalan dibanding kumulatif tahun lalu',
+              from: '2025-01',
+              total: 50,
+              units_compared: 2,
+              units: [
+                { unit_id: 'u-1', unit_name: 'ULP Mojokerto Kota', value: 120, previous: 80, change: 40, share_pct: 80.0 },
+                { unit_id: 'u-2', unit_name: 'ULP Pacet', value: 80, previous: 70, change: 10, share_pct: 20.0 },
+              ],
+            },
+          },
+        },
+        comparison: [
+          { unit_id: 'u-1', unit_name: 'ULP Mojokerto Kota', latest: 120, yoy_pct: 50, ytd: 120 },
+          { unit_id: 'u-2', unit_name: 'ULP Pacet', latest: 80, yoy_pct: 14.3, ytd: 80 },
+        ],
+        warnings: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(kwhCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'kwh-jual') {
+        return Promise.resolve(nkoDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/kwh-jual'])
+
+    // Tunggu data metrik termuat
+    expect(await screen.findByText(/Tren Bulanan:/i)).toBeInTheDocument()
+
+    // Verifikasi Kartu 2 Target NKO
+    expect(screen.getByText(/Target NKO:/i)).toBeInTheDocument()
+    expect(screen.getByText('tertinggal')).toBeInTheDocument()
+    expect(screen.getByText('80,0% capaian')).toBeInTheDocument()
+    expect(screen.getByText('METRIK')).toBeInTheDocument()
+
+    // Verifikasi Kartu 4 Laju Kebutuhan
+    expect(screen.getByText('Kebutuhan Sisa Bulan')).toBeInTheDocument()
+    expect(screen.getByText(/Laju saat ini: 200/i)).toBeInTheDocument()
+
+    // Verifikasi Diagnosis Otomatis
+    expect(screen.getByText('Diagnosis & Akar Penyebab Otomatis')).toBeInTheDocument()
+    expect(screen.getByText(/Realisasi kumulatif 200 kWh/i)).toBeInTheDocument()
+    expect(screen.getByText(/Penyumbang terbesar ULP Mojokerto Kota/i)).toBeInTheDocument()
+
+    // Buka tab Rincian untuk memeriksa tabel Perbandingan Antar ULP
+    const rincianTab = await screen.findByRole('button', { name: 'Rincian' })
+    await userEvent.click(rincianTab)
+
+    // Verifikasi tabel Perbandingan ULP memuat kolom sumbangan dan perubahannya
+    expect(await screen.findByText(/Perubahan \(YOY\)/i)).toBeInTheDocument()
+    expect(screen.getByText('Sumbangan')).toBeInTheDocument()
+    expect(screen.getByText('+40,00')).toBeInTheDocument()
+    expect(screen.getByText('80,0%')).toBeInTheDocument()
+
+    // Switch ke MoM
+    const momBtn = screen.getByRole('button', { name: 'mom' })
+    await userEvent.click(momBtn)
+    expect(await screen.findByText(/Perubahan \(MOM\)/i)).toBeInTheDocument()
+    expect(screen.getAllByText('50,0%').length).toBeGreaterThan(0)
+  })
 })
