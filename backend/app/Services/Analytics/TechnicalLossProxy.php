@@ -136,8 +136,13 @@ class TechnicalLossProxy
             'avg_unbalance' => $this->spearman(array_map(fn ($u) => $u['avg_unbalance_pct'] ?? 0.0, $pairs), $susut), 'note' => 'Korelasi peringkat antar ULP, bukan sebab-akibat; dengan jumlah ULP sekecil ini hanya petunjuk.'];
     }
 
-    /** @param  list<float>  $x */
-    private function spearman(array $x, array $y): ?float
+    /**
+     * Korelasi peringkat Spearman (peringkat rata-rata untuk nilai sama); null bila salah satu seri tanpa variasi.
+     *
+     * @param  list<float>  $x
+     * @param  list<float>  $y
+     */
+    public function spearman(array $x, array $y): ?float
     {
         $rank = function (array $v): array {
             $idx = array_keys($v);

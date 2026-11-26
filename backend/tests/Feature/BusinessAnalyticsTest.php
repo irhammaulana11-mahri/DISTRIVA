@@ -6,6 +6,7 @@ use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Analytics\CustomerInsights;
+use App\Services\Analytics\NontechnicalLoss;
 use App\Services\Analytics\TechnicalLossProxy;
 use App\Services\Nko\NkoDefinitionImportService;
 use App\Services\Nko\NkoRealizationResolver;
@@ -1474,6 +1475,44 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertGreaterThanOrEqual(6, $fc['backtest']['months']);
 
         $this->assertSame(false, $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-prabayar?unit_id={$this->up3->id}&from=2020-01&to=2020-03")->assertOk()->json('data.detail.available'));   // tanpa laporan: tidak tersedia
+    }
+
+    #[Test]
+    public function sisa_susut_membandingkan_susut_dengan_beban_gardu_menandai_pencilan_dan_menyandingkan_p2tl(): void
+    {
+        $analyzer = app(NontechnicalLoss::class);
+        $row = fn (string $name, float $loading, float $susut, float $p2tlKwh) => ['name' => $name, 'susut' => $susut, 'loading' => $loading, 'jual_kwh' => 1_000_000.0, 'p2tl_kwh' => $p2tlKwh, 'p2tl_cases' => 10.0, 'customers' => 2000.0];
+
+        // susut persis garis lurus terhadap beban (0,5 poin per 1% beban): sisa nol, tanpa tanda; P2TL naik bersama susut
+        $linear = [];
+        foreach ([40, 45, 50, 55, 60, 65] as $i => $load) {
+            $linear["u{$i}"] = $row("ULP {$i}", $load, 0.5 * $load - 15, 1000 * ($i + 1));
+        }
+        $r = $analyzer->analyze($linear);
+        $this->assertTrue($r['available']);
+        $this->assertEqualsWithDelta(0.5, $r['fit']['slope_pct_points_per_loading_pct'], 0.001);
+        foreach ($r['ulps'] as $u) {
+            $this->assertEqualsWithDelta(0.0, $u['residual_pct_points'], 0.01);
+        }
+        $this->assertEquals(1.0, $r['correlation']['susut_vs_p2tl_pct']);                                       // P2TL dan susut naik bersama antar ULP
+        $first = collect($r['ulps'])->firstWhere('unit_name', 'ULP 0');
+        $this->assertEquals([0.1, 5.0, 100, 5.0, 40.0], [$first['p2tl_pct_of_sales'], $first['p2tl_cases_per_1000_customers'], $first['p2tl_kwh_per_case'], $first['ytd_susut_pct'], $first['avg_loading_pct']]);
+
+        // satu ULP susutnya empat poin di atas garis: sisa terbesar dan ditandai; yang lain sedikit di bawah garis
+        $outlier = $linear;
+        $outlier['u5'] = $row('ULP 5', 65, 0.5 * 65 - 15 + 4.0, 6000);
+        $r = $analyzer->analyze($outlier);
+        $this->assertSame('ULP 5', $r['ulps'][0]['unit_name']);                                                  // sisa terbesar dahulu
+        $this->assertSame('di_atas_harapan', $r['ulps'][0]['residual_flag']);
+        $this->assertGreaterThan(1.5, $r['ulps'][0]['residual_pct_points']);                                        // empat poin di atas garis, sebagian diserap garis regresi
+        $this->assertSame(1, count(array_filter($r['ulps'], fn ($u) => $u['residual_flag'] === 'di_atas_harapan')));
+        $this->assertEqualsWithDelta(0.0, array_sum(array_column($r['ulps'], 'residual_pct_points')), 0.05);     // sisa regresi berjumlah nol
+
+        // kurang dari enam ULP, atau ULP tanpa kWh jual: tidak tersedia
+        $this->assertFalse($analyzer->analyze(array_slice($linear, 0, 5, true))['available']);
+        $noSales = $linear;
+        $noSales['u0']['jual_kwh'] = 0.0;
+        $this->assertFalse($analyzer->analyze($noSales)['available']);
     }
 
     #[Test]

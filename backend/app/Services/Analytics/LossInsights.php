@@ -16,7 +16,7 @@ class LossInsights
     /** Bulan ditandai bila kWh beli turunannya menyimpang lebih dari ini dari median ULP itu pada tahun yang sama. */
     public const ANOMALY_RATIO = 0.25;
 
-    public function __construct(private readonly BusinessMetricService $metrics, private readonly LossEstimator $estimator, private readonly TechnicalLossProxy $technical) {}
+    public function __construct(private readonly BusinessMetricService $metrics, private readonly LossEstimator $estimator, private readonly TechnicalLossProxy $technical, private readonly NontechnicalLoss $nontechnical) {}
 
     /**
      * @param  list<string>  $units  ULP yang digabung
@@ -68,13 +68,51 @@ class LossInsights
         }
 
         $ulpRows = $this->ulps($units, $names, $cells, $yearStart, $to);
+        $technical = $this->technical->detail($units, $to, array_column($ulpRows, 'ytd_susut_pct', 'unit_id'));
 
-        return ['kind' => 'loss_estimate', 'month' => $to, 'partial' => $to === now($tz)->format('Y-m'), 'history' => $history, 'ulps' => $ulpRows, 'technical' => $this->technical->detail($units, $to, array_column($ulpRows, 'ytd_susut_pct', 'unit_id')), 'anomalies' => $this->anomalies($units, $names, $cells, $yearStart, $to),
+        return ['kind' => 'loss_estimate', 'month' => $to, 'partial' => $to === now($tz)->format('Y-m'), 'history' => $history, 'ulps' => $ulpRows, 'technical' => $technical, 'nontechnical' => $this->nontechnicalBlock($units, $to, $names, $ulpRows, $technical, $sales), 'anomalies' => $this->anomalies($units, $names, $cells, $yearStart, $to),
             'backtest' => $this->estimator->backtest($units, $sales, $year, $to), 'has_manual_input' => $this->hasManualInput($units, $yearStart.'-01', $to.'-01'),
             'notes' => [
                 'kWh beli belum bersumber otomatis. Basis `input` = masukan bulanan; `turunan` = dihitung dari susut kumulatif realisasi NKO (angka acuan workbook) dan kWh jual 309 (beli kumulatif = jual kumulatif / (1 - susut kumulatif)); `prakiraan` = bulan sesudah realisasi susut terakhir, memakai susut kumulatif terakhir sebagai susut bulan itu.',
                 'Estimasi bukan data meter: ketelitiannya bergantung pada kesamaan kWh jual 309 dengan kWh jual yang dipakai perhitungan susut resmi. Uji mundur hanya mengukur kestabilan susut, bukan kecocokan dengan kWh beli sebenarnya; isi masukan kWh beli bulanan untuk menggantikannya.',
-                'Proksi susut teknis per gardu ada pada `technical`; kaitan susut nonteknis dengan P2TL belum disediakan.']];
+                'Proksi susut teknis per gardu ada pada `technical`; sisa susut yang tidak dijelaskan beban gardu dan sandingannya dengan P2TL ada pada `nontechnical` (korelasi, bukan sebab-akibat).']];
+    }
+
+    /**
+     * Masukan untuk sisa susut per ULP: susut kumulatif, beban rata-rata gardu, kWh jual tahun berjalan, dan P2TL (kWh dan kasus) tahun berjalan sampai bulan `$to`.
+     *
+     * @param  array<string, mixed>  $technical
+     * @return array<string, mixed>
+     */
+    private function nontechnicalBlock(array $units, string $to, $names, array $ulpRows, array $technical, array $sales): array
+    {
+        if (! ($technical['available'] ?? false)) {
+            return ['available' => false, 'reason' => 'Pengukuran gardu belum tersedia.'];
+        }
+        $year = substr($to, 0, 4);
+        $p2tl = $this->metrics->raw('kwh-p2tl', $units, $year.'-01', $to);
+        $customers = $this->metrics->raw('pelanggan', $units, $to, $to);
+        $loading = array_column($technical['ulps'], 'avg_loading_pct', 'unit_id');
+        $rows = [];
+        foreach ($ulpRows as $u) {
+            $id = $u['unit_id'];
+            if (! isset($loading[$id])) {
+                continue;
+            }
+            $jual = 0.0;
+            foreach ($sales[$id] ?? [] as $m => $cell) {
+                substr($m, 0, 4) === $year && $m <= $to && $jual += $cell['raw']['kwh'] ?? 0;
+            }
+            $kwh = 0.0;
+            $cases = 0.0;
+            foreach ($p2tl[$id] ?? [] as $cell) {
+                $kwh += $cell['raw']['kwh'] ?? 0;
+                $cases += $cell['raw']['n'] ?? 0;
+            }
+            $rows[$id] = ['name' => $names[$id] ?? $id, 'susut' => $u['ytd_susut_pct'], 'loading' => $loading[$id], 'jual_kwh' => $jual, 'p2tl_kwh' => $kwh, 'p2tl_cases' => $cases, 'customers' => (float) ($customers[$id][$to]['raw']['pelanggan'] ?? 0)];
+        }
+
+        return $this->nontechnical->analyze($rows);
     }
 
     /** @return array<string, mixed> */
