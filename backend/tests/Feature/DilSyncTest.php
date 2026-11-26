@@ -61,7 +61,7 @@ class DilSyncTest extends PostgresTestCase
     private function csv(string $name, array $rows): void
     {
         File::ensureDirectoryExists($this->inbox);
-        $head = ['IDPEL', 'UNITUP', 'NAMA', 'TARIF', 'DAYA', 'JENISLAYANAN', 'NOMOR_GARDU', 'NAMA_GARDU', 'STATUS_DIL', 'NIK', 'NO_HP'];
+        $head = ['IDPEL', 'UNITUP', 'NAMA', 'TARIF', 'DAYA', 'JENISLAYANAN', 'NOMOR_GARDU', 'NAMA_GARDU', 'STATUS_DIL', 'NIK', 'NO_HP', 'TGLNYALA_PB'];
         $fh = fopen($this->inbox.'/'.$name, 'w');
         fputcsv($fh, $head, ',', '"', '');
         foreach ($rows as $r) {
@@ -99,6 +99,25 @@ class DilSyncTest extends PostgresTestCase
         $this->assertCount(1, glob($this->inbox.'/diproses/*.csv'));
 
         $this->as($this->planning)->postJson('/api/master-data/customer-connections/sync/runs')->assertStatus(409);                // nothing left to load
+    }
+
+    #[Test]
+    public function the_energized_date_is_read_from_iso_dd_mm_yyyy_and_the_mdb_export_default_mm_dd_yy_formats(): void
+    {
+        $row = fn (string $idpel, string $date) => ['IDPEL' => $idpel, 'UNITUP' => $this->ulp->code, 'NAMA' => 'SIT*****', 'TARIF' => 'R1', 'DAYA' => '450', 'STATUS_DIL' => 'AKTIF', 'TGLNYALA_PB' => $date];
+        $this->csv('DIL_SALDO_MASK_UP_202603_51453.csv', [
+            $row('514530000011', '2019-02-18 00:00:00'),                                                                    // mdb-export -T
+            $row('514530000012', '18/02/2019'),                                                                             // CSV export, day first
+            $row('514530000013', '02/18/19 00:00:00'),                                                                      // mdb-export default: month first, two-digit year
+            $row('514530000014', '12/31/98 00:00:00'),                                                                      // 30 to 99 are the 1900s
+            $row('514530000015', '13/45/19 00:00:00'),                                                                      // impossible date: empty, not a wrong date
+            $row('514530000016', ''),
+        ]);
+        $run = $this->as($this->planning)->postJson('/api/master-data/customer-connections/sync/runs')->assertStatus(202)->json('data');
+        app(DilSyncService::class)->execute($run['id']);
+
+        $on = DB::table('customer_connections')->pluck('energized_on', 'idpel')->map(fn ($d) => $d === null ? null : substr((string) $d, 0, 10))->all();
+        $this->assertSame(['514530000011' => '2019-02-18', '514530000012' => '2019-02-18', '514530000013' => '2019-02-18', '514530000014' => '1998-12-31', '514530000015' => null, '514530000016' => null], $on);
     }
 
     #[Test]

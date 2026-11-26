@@ -6,6 +6,7 @@ POST /api/master-data/customer-connections/batches/{id}/items (idempotent by IDP
 import csv
 import io
 import os
+import datetime
 import re
 import subprocess
 import sys
@@ -30,13 +31,27 @@ def mask_name(value):
 
 
 def _date(value):
-    """mdb-export -D '%Y-%m-%d' gives 2020-05-01 00:00:00; CSV exports may give dd/mm/yyyy."""
+    """ISO (mdb-export -T gives 2020-05-01 00:00:00), dd/mm/yyyy (CSV exports) and mm/dd/yy (mdb-export default without -T, e.g. 02/18/19).
+    Two-digit years 00-29 mean 2000s and 30-99 the 1900s, like Access. Impossible dates give None."""
     v = (value or "").strip()
     m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", v)
     if m:
-        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", v)
-    return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else None
+        return _valid(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})(?!\d)", v)
+    if m:
+        return _valid(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2})(?!\d)", v)
+    if m:
+        yy = int(m.group(3))
+        return _valid(2000 + yy if yy < 30 else 1900 + yy, int(m.group(1)), int(m.group(2)))
+    return None
+
+
+def _valid(year, month, day):
+    try:
+        return datetime.date(year, month, day).isoformat()
+    except ValueError:
+        return None
 
 
 def to_item(row):
@@ -57,7 +72,7 @@ def read_rows(source, mdb_table=None, mdb_export="mdb-export"):
     if str(source).lower().endswith(".mdb"):
         if not mdb_table:
             raise SystemExit("Berkas .mdb perlu --table (nama tabel); lihat `python main.py inspect`.")
-        proc = subprocess.Popen([mdb_export, "-D", "%Y-%m-%d", str(source), mdb_table], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.Popen([mdb_export, "-D", "%Y-%m-%d", "-T", "%Y-%m-%d %H:%M:%S", str(source), mdb_table], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace")
         stream = proc.stdout
     else:
         proc = None

@@ -58,6 +58,16 @@ class DilTest(unittest.TestCase):
             self.assertNotIn(secret, flat)
         self.assertEqual((it["meter_number"], it["energized_on"], it["power_va"]), ("555", "2020-05-01", 900.0))
 
+    def test_dates_accept_iso_dd_mm_yyyy_and_the_mdb_export_default_mm_dd_yy(self):
+        self.assertEqual(dil._date("2019-02-18 00:00:00"), "2019-02-18")      # mdb-export -T
+        self.assertEqual(dil._date("18/02/2019"), "2019-02-18")                # CSV export, day first
+        self.assertEqual(dil._date("02/18/19 00:00:00"), "2019-02-18")         # mdb-export default, month first, two-digit year
+        self.assertEqual(dil._date("12/31/98 00:00:00"), "1998-12-31")         # 30 to 99 are the 1900s
+        self.assertEqual(dil._date("01/01/26"), "2026-01-01")
+        self.assertIsNone(dil._date("13/45/19 00:00:00"))                       # impossible date
+        self.assertIsNone(dil._date(""))
+        self.assertIsNone(dil._date(None))
+
     def test_reader_never_returns_personal_columns(self):
         path = write([row(1)])
         r = next(dil.read_rows(path))

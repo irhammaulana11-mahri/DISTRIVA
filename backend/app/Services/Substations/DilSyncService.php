@@ -257,7 +257,7 @@ class DilSyncService
         $pipes = [];
         if ($file['kind'] === 'mdb') {
             $table = $this->firstTable($path);
-            $proc = proc_open([(string) config('distriva.dil.mdb_export'), '-D', '%Y-%m-%d', $path, $table], [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+            $proc = proc_open([(string) config('distriva.dil.mdb_export'), '-D', '%Y-%m-%d', '-T', '%Y-%m-%d %H:%M:%S', $path, $table], [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
             if (! is_resource($proc)) {
                 throw new AssignmentRuleViolation('Pembaca .mdb tidak dapat dijalankan.');
             }
@@ -345,13 +345,25 @@ class DilSyncService
         return mb_substr($v, 0, 3).str_repeat('*', max(3, mb_strlen($v) - 3));
     }
 
+    /**
+     * Tanggal DIL menjadi YYYY-MM-DD. Format yang dikenali: ISO (`2020-05-01 00:00:00`, keluaran `mdb-export -T`), dd/mm/yyyy (ekspor CSV), dan mm/dd/yy (format bawaan `mdb-export` tanpa `-T`,
+     * mis. `02/18/19`; tahun dua digit 00 sampai 29 = 2000an, 30 sampai 99 = 1900an seperti Access). Format lain atau tanggal mustahil menjadi null.
+     */
     private function date(string $v): ?string
     {
         if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $v, $m)) {
-            return "{$m[1]}-{$m[2]}-{$m[3]}";
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? "{$m[1]}-{$m[2]}-{$m[3]}" : null;
+        }
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?!\d)/', $v, $m)) {
+            return checkdate((int) $m[2], (int) $m[1], (int) $m[3]) ? sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]) : null;
+        }
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{2})(?!\d)/', $v, $m)) {
+            $year = (int) $m[3] < 30 ? 2000 + (int) $m[3] : 1900 + (int) $m[3];
+
+            return checkdate((int) $m[1], (int) $m[2], $year) ? sprintf('%04d-%02d-%02d', $year, $m[1], $m[2]) : null;
         }
 
-        return preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $v, $m) ? sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]) : null;
+        return null;
     }
 
     private function archive(string $name): void
