@@ -8,7 +8,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Throwable;
 
 /**
  * Unggah dan persetujuan workbook definisi NKO (docs/93 tahap 5): unggahan hanya disimpan beserta pratinjau perubahannya; definisi berganti setelah disetujui orang lain.
@@ -19,24 +18,36 @@ class NkoDefinitionUploadService
     /** membaca workbook realisasi memerlukan kira-kira 200 MB */
     private const MEMORY_BYTES = 536_870_912;
 
-    public function __construct(private readonly NkoDefinitionImportService $importer, private readonly NkoDefinitionDiffService $differ, private readonly NkoMappingCheckService $mappings) {}
+    public function __construct(private readonly NkoDefinitionImportService $importer, private readonly NkoDefinitionCheckService $checker, private readonly NkoMappingCheckService $mappings) {}
 
-    public function upload(UploadedFile $file, string $note, User $actor): string
+    /**
+     * Pemeriksaan tanpa menyimpan (docs/93 §10); `report.can_upload` menentukan apakah unggahan diterima.
+     *
+     * @return array<string, mixed>
+     */
+    public function check(UploadedFile $file, int $year): array
     {
-        $book = $this->analyze($file->getRealPath());
-        if (array_intersect(array_column($book['levels'], 'status'), ['BARU', 'DIGANTIKAN']) === []) {
-            throw new NkoRuleException('Isi workbook ini sudah pernah dimuat; tidak ada yang berubah.');
+        return $this->inspect($file->getRealPath(), $year)['report'];
+    }
+
+    /** @throws NkoRuleException 422 beserta hasil pemeriksaan bila workbook tidak lolos */
+    public function upload(UploadedFile $file, int $year, string $note, User $actor): string
+    {
+        ['report' => $report, 'book' => $book] = $this->inspect($file->getRealPath(), $year);
+        if (! $report['can_upload']) {
+            throw new NkoRuleException('Workbook belum dapat diunggah: '.$report['errors'][0].(count($report['errors']) > 1 ? ' (dan '.(count($report['errors']) - 1).' masalah lain)' : ''), 422, $report);
         }
-        if (DB::table('kpi_definition_uploads')->where('year', $book['year'])->where('status', 'MENUNGGU')->exists()) {
-            throw new NkoRuleException("Masih ada unggahan definisi {$book['year']} yang menunggu persetujuan. Putuskan atau batalkan dulu.", 409);
+        if (DB::table('kpi_definition_uploads')->where('year', $year)->where('status', 'MENUNGGU')->exists()) {
+            throw new NkoRuleException("Masih ada unggahan definisi {$year} yang menunggu persetujuan. Putuskan atau batalkan dulu.", 409);
         }
 
         $id = (string) Str::uuid7();
         $key = "nko-workbooks/{$id}.xlsx";
         $this->disk()->put($key, $file->getContent());
         DB::table('kpi_definition_uploads')->insert([
-            'id' => $id, 'year' => $book['year'], 'source_name' => mb_substr($file->getClientOriginalName(), 0, 200), 'file_key' => $key,
-            'base_sets' => json_encode($this->baseSets($book)), 'changes' => json_encode($this->differ->diff($book), JSON_UNESCAPED_UNICODE), 'note' => $note,
+            'id' => $id, 'year' => $year, 'source_name' => mb_substr($file->getClientOriginalName(), 0, 200), 'file_key' => $key,
+            'base_sets' => json_encode($this->baseSets($book)), 'changes' => json_encode($report['changes'], JSON_UNESCAPED_UNICODE),
+            'check_report' => json_encode(array_diff_key($report, ['changes' => true]), JSON_UNESCAPED_UNICODE), 'note' => $note,
             'uploaded_by' => $actor->id, 'uploaded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -67,10 +78,14 @@ class NkoDefinitionUploadService
                     throw new NkoRuleException('Berkas unggahan tidak ditemukan di penyimpanan. Batalkan lalu unggah ulang.', 409);
                 }
                 file_put_contents($path, $content);
-                if ($this->baseSets($this->analyze($path)) != json_decode($upload->base_sets, true)) {
+                ['report' => $report, 'book' => $book] = $this->inspect($path, (int) $upload->year);
+                if (! $report['can_upload']) {
+                    throw new NkoRuleException('Workbook tidak lolos pemeriksaan ulang: '.implode(' ', $report['errors']), 409, $report);
+                }
+                if ($this->baseSets($book) != json_decode($upload->base_sets, true)) {
                     throw new NkoRuleException('Definisi aktif sudah berubah sejak pratinjau dibuat. Batalkan lalu unggah ulang.', 409);
                 }
-                $result = $this->importer->import($path, $upload->source_name, $actor);
+                $result = $this->importer->import($path, $upload->source_name, $actor, $book);
             } finally {
                 @unlink($path);
             }
@@ -114,18 +129,12 @@ class NkoDefinitionUploadService
         }
     }
 
-    /** @return array<string, mixed> */
-    private function analyze(string $path): array
+    /** @return array{report: array<string, mixed>, book: ?array<string, mixed>} */
+    private function inspect(string $path, int $year): array
     {
         $this->raiseMemoryLimit();
-        try {
-            return $this->importer->analyze($path);
-        } catch (NkoImportException $e) {
-            throw new NkoRuleException($e->getMessage());
-        } catch (Throwable $e) {
-            report($e);
-            throw new NkoRuleException('Berkas tidak dapat dibaca sebagai workbook NKO (.xlsx).');
-        }
+
+        return $this->checker->check($path, $year);
     }
 
     /**

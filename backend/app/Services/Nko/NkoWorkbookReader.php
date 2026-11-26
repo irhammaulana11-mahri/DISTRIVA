@@ -17,16 +17,26 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 class NkoWorkbookReader
 {
-    private const HEADER_ROW = 9;
+    public const HEADER_ROW = 9;
 
-    private const FIRST_ROW = 11;
+    public const FIRST_ROW = 11;
 
-    private const TARGET_COLUMNS = ['M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'];
+    public const TARGET_COLUMNS = ['M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'];
 
-    private const MONTHS = ['JANUARI' => 1, 'FEBRUARI' => 2, 'MARET' => 3, 'APRIL' => 4, 'MEI' => 5, 'JUNI' => 6, 'JULI' => 7, 'AGUSTUS' => 8, 'SEPTEMBER' => 9, 'OKTOBER' => 10, 'NOVEMBER' => 11, 'DESEMBER' => 12];
+    /** kolom opsional berisi nama lembar sumber realisasi, dipakai template yang tidak membawa rumus ke workbook lain */
+    public const SOURCE_COLUMN = 'I';
+
+    public const SOURCE_HEADER = 'SUMBER REALISASI';
+
+    private const POLARITY_TEXT = ['negatif' => 1, 'rentang' => 2, 'range' => 2, 'positif' => 3];
+
+    public const MONTHS = ['JANUARI' => 1, 'FEBRUARI' => 2, 'MARET' => 3, 'APRIL' => 4, 'MEI' => 5, 'JUNI' => 6, 'JULI' => 7, 'AGUSTUS' => 8, 'SEPTEMBER' => 9, 'OKTOBER' => 10, 'NOVEMBER' => 11, 'DESEMBER' => 12];
 
     /**
-     * @return array{year: int, sheets: list<array{sheet: string, level: string, unit_name: string, nodes: list<array<string, mixed>>, targets: array<int, array<int, array{value: ?float, text: ?string}>>, month_rules: array<int, array<string, mixed>>, total_weight: ?float, warnings: list<string>}>}
+     * Tab yang tidak dikenali atau gagal dibaca tidak menghentikan pembacaan; alasannya ada di `tabs`. Pemanggil yang memuat definisi wajib menolak
+     * workbook bila `NkoDefinitionImportService::readingErrors()` tidak kosong.
+     *
+     * @return array{year: ?int, sheets: list<array<string, mixed>>, tabs: list<array{sheet: string, status: string, level: ?string, unit_name: ?string, reason: ?string}>}
      */
     public function read(string $path): array
     {
@@ -35,30 +45,44 @@ class NkoWorkbookReader
         $book = $reader->load($path);
 
         $sheets = [];
+        $tabs = [];
         $year = null;
         foreach ($book->getSheetNames() as $name) {
-            if (! preg_match('/^(UP3|ULP)\s+(.+)$/i', trim($name), $m)) {
-                continue;
-            }
             $ws = $book->getSheetByName($name);
-            if (! $ws instanceof Worksheet || strtoupper(trim((string) $ws->getCell('A'.self::HEADER_ROW)->getValue())) !== 'NO') {
+            $layout = $ws instanceof Worksheet && strtoupper(trim((string) $ws->getCell('A'.self::HEADER_ROW)->getValue())) === 'NO';
+            $tab = ['sheet' => $name, 'status' => 'DILEWATI', 'level' => null, 'unit_name' => null, 'reason' => null];
+            if (! preg_match('/^(UP3|ULP)\s+(.+)$/i', trim($name), $m)) {
+                $tabs[] = ['reason' => $layout ? 'Tata letaknya NKO, tetapi nama tab harus "UP3 <nama unit>" atau "ULP <nama unit>", mis. "ULP JOMBANG".' : 'Bukan tab unit.'] + $tab;
+
                 continue;
             }
-            $parsed = $this->readSheet($ws);
+            $tab = ['level' => strtoupper($m[1]), 'unit_name' => trim($m[2])] + $tab;
+            if (! $layout) {
+                $tabs[] = ['reason' => 'Sel A9 harus berisi "NO" (baris judul kolom ke-9: NO, KPI, POLARITAS, FORMULA, SATUAN, BOBOT).'] + $tab;
+
+                continue;
+            }
+            try {
+                $parsed = $this->readSheet($ws);
+            } catch (NkoImportException $e) {
+                $tabs[] = ['status' => 'GALAT', 'reason' => $e->getMessage()] + $tab;
+
+                continue;
+            }
             $year ??= $parsed['year'];
-            $sheets[] = ['sheet' => $name, 'level' => strtoupper($m[1]), 'unit_name' => trim($m[2])] + $parsed;
+            $sheets[] = ['sheet' => $name, 'level' => $tab['level'], 'unit_name' => $tab['unit_name']] + $parsed;
+            $tabs[] = ['status' => 'DIKENALI'] + $tab;
         }
         $this->release($book);
 
-        if ($sheets === []) {
-            throw new NkoImportException('Workbook tidak memuat tab UP3/ULP dengan tata letak NKO (judul NO/KPI pada baris 9).');
-        }
-
-        return ['year' => $year ?? (int) date('Y'), 'sheets' => $sheets];
+        return ['year' => $year, 'sheets' => $sheets, 'tabs' => $tabs];
     }
 
     /**
-     * @return array{year: ?int, nodes: list<array<string, mixed>>, targets: array<int, array<int, array{value: ?float, text: ?string}>>, month_rules: array<int, array<string, mixed>>, total_weight: ?float, warnings: list<string>}
+     * `uncached_targets`: sel target berisi rumus tanpa nilai tersimpan (rumus ke workbook lain yang belum dihitung); `uncached_scores`: sel pencapaian yang belum
+     * pernah dihitung (berkas belum dibuka di Excel); `polarity_text`: polaritas tertulis yang dikonversi.
+     *
+     * @return array{year: int, nodes: list<array<string, mixed>>, targets: array<int, array<int, array{value: ?float, text: ?string}>>, month_rules: array<int, array<string, mixed>>, total_weight: ?float, warnings: list<string>, uncached_targets: int, uncached_scores: int, polarity_text: int}
      */
     private function readSheet(Worksheet $ws): array
     {
@@ -69,10 +93,13 @@ class NkoWorkbookReader
             throw new NkoImportException("Tab {$ws->getTitle()}: blok bulan Januari tidak ditemukan.");
         }
 
-        $year = null;
-        if (preg_match('/(20\d{2})/', (string) $ws->getCell('H'.self::HEADER_ROW)->getValue(), $ym)) {
-            $year = (int) $ym[1];
+        if (! preg_match('/(20\d{2})/', (string) $ws->getCell('H'.self::HEADER_ROW)->getValue(), $ym)) {
+            throw new NkoImportException("Tab {$ws->getTitle()}: sel H9 harus memuat tahun, mis. \"TARGET 2026\".");
         }
+        $year = (int) $ym[1];
+        $sourceColumn = strtoupper(trim((string) $ws->getCell(self::SOURCE_COLUMN.self::HEADER_ROW)->getValue())) === self::SOURCE_HEADER;
+        $uncached = 0;
+        $polarityText = 0;
 
         $lastRow = $ws->getHighestRow();
         $totalRow = null;
@@ -129,7 +156,7 @@ class NkoWorkbookReader
             }
             $codes[$code] = true;
 
-            $rules = $this->rules($ws, $r, $blocks, $warnings);
+            $rules = $this->rules($ws, $r, $blocks, $warnings, $sourceColumn);
             $nodes[] = [
                 'row_no' => $r,
                 'sort_order' => ++$order,
@@ -138,7 +165,7 @@ class NkoWorkbookReader
                 'code' => $code,
                 'number' => $number,
                 'name' => $name,
-                'polarity' => is_numeric($cValue) ? (int) $cValue : null,
+                'polarity' => $this->polarity($cValue, "Tab {$ws->getTitle()} baris {$r}", $warnings, $polarityText),
                 'unit_label' => $this->text($ws->getCell('E'.$r)->getValue(), 80),
                 'weight' => $weight,
                 'weight_note' => $weightNote,
@@ -147,6 +174,12 @@ class NkoWorkbookReader
             $stack[] = ['row' => $r, 'level' => $level];
 
             foreach (self::TARGET_COLUMNS as $i => $col) {
+                $raw = $ws->getCell($col.$r)->getValue();
+                if (is_string($raw) && str_starts_with($raw, '=') && $ws->getCell($col.$r)->getOldCalculatedValue() === null) {
+                    $uncached++;
+
+                    continue;
+                }
                 $v = $this->value($ws, $col.$r);
                 if ($v === null || $v === '') {
                     continue;
@@ -169,8 +202,13 @@ class NkoWorkbookReader
         }
 
         $reference = [];
+        $uncachedScores = 0;
         foreach ($nodes as $n) {
             foreach ($blocks as $month => $cols) {
+                $score = $ws->getCell($cols['capai'].$n['row_no']);
+                if (is_string($score->getValue()) && str_starts_with($score->getValue(), '=') && $score->getOldCalculatedValue() === null) {
+                    $uncachedScores++;
+                }
                 $real = $this->cached($ws, $cols['real'].$n['row_no']);
                 $capai = $this->cached($ws, $cols['capai'].$n['row_no']);
                 $nilaiV = $this->cached($ws, $cols['nilai'].$n['row_no']);
@@ -186,7 +224,8 @@ class NkoWorkbookReader
             $warnings[] = "Tab {$ws->getTitle()}: jumlah bobot kelompok {$totalWeight}, bukan 100.";
         }
 
-        return ['year' => $year, 'nodes' => $nodes, 'targets' => $targets, 'reference' => $reference, 'month_rules' => $monthRules, 'total_weight' => $totalWeight, 'warnings' => $warnings];
+        return ['year' => $year, 'nodes' => $nodes, 'targets' => $targets, 'reference' => $reference, 'month_rules' => $monthRules, 'total_weight' => $totalWeight, 'warnings' => $warnings,
+            'uncached_targets' => $uncached, 'uncached_scores' => $uncachedScores, 'polarity_text' => $polarityText];
     }
 
     /**
@@ -215,11 +254,13 @@ class NkoWorkbookReader
     /**
      * Aturan pencapaian dan nilai dari rumus bulan pertama pada baris itu.
      *
+     * Lembar sumber realisasi dibaca dari rujukan rumus realisasi Januari, atau dari kolom "SUMBER REALISASI" (kolom I, dipakai template) bila rumusnya tidak ada.
+     *
      * @param  array<int, array{target: string, real: string, capai: string, nilai: string}>  $blocks
      * @param  list<string>  $warnings
      * @return array{source_sheet: ?string, scoring_rule: ?string, nilai_rule: ?string, rules: array<string, mixed>}
      */
-    private function rules(Worksheet $ws, int $row, array $blocks, array &$warnings): array
+    private function rules(Worksheet $ws, int $row, array $blocks, array &$warnings, bool $sourceColumn): array
     {
         $jan = $blocks[1];
         $real = $this->formula($ws, $jan['real'].$row);
@@ -229,6 +270,9 @@ class NkoWorkbookReader
         $sourceSheet = null;
         if ($real !== null && preg_match("/\\[\\d+\\]\\s?'?([^'!]+?)'?!/", $real, $m)) {
             $sourceSheet = trim($m[1]);
+        }
+        if ($sourceSheet === null && $sourceColumn) {
+            $sourceSheet = $this->text($ws->getCell(self::SOURCE_COLUMN.$row)->getValue(), 80);
         }
 
         $scoring = null;
@@ -284,6 +328,30 @@ class NkoWorkbookReader
             'nilai_rule' => $nilaiRule,
             'rules' => array_filter(['realisasi' => $real, 'pencapaian' => $capaiJan, 'nilai' => $nilai, 'months' => $overrides === [] ? null : $overrides], fn ($v) => $v !== null && $v !== ''),
         ];
+    }
+
+    /**
+     * Polaritas: angka 1 (makin kecil makin baik), 2 (rentang), 3 (makin besar makin baik), atau tulisan Negatif, Rentang, Positif.
+     *
+     * @param  list<string>  $warnings
+     */
+    private function polarity(mixed $value, string $where, array &$warnings, int &$converted): ?int
+    {
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+        $text = Str::lower(trim((string) $value));
+        if ($text === '') {
+            return null;
+        }
+        $mapped = self::POLARITY_TEXT[$text] ?? null;
+        if ($mapped === null) {
+            $warnings[] = "{$where}: polaritas \"{$value}\" tidak dikenal; pakai 1, 2, 3, Negatif, Rentang, atau Positif.";
+        } else {
+            $converted++;
+        }
+
+        return $mapped;
     }
 
     /** Nilai sel: angka/teks apa adanya, atau hasil tersimpan bila sel berisi rumus (rumus ke workbook luar tidak dapat dihitung ulang). */

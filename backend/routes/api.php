@@ -353,6 +353,8 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::delete('/rule-proposals/{proposal}', [NkoRuleController::class, 'cancel'])->whereUuid('proposal');
         Route::get('/definition-sets', [NkoDefinitionUploadController::class, 'sets']);
         Route::get('/definition-uploads', [NkoDefinitionUploadController::class, 'index']);
+        Route::get('/definition-template', [NkoDefinitionUploadController::class, 'template']);
+        Route::post('/definition-uploads/check', [NkoDefinitionUploadController::class, 'check']);
         Route::post('/definition-uploads', [NkoDefinitionUploadController::class, 'store']);
         Route::get('/definition-uploads/{upload}', [NkoDefinitionUploadController::class, 'show'])->whereUuid('upload');
         Route::post('/definition-uploads/{upload}/decision', [NkoDefinitionUploadController::class, 'decide'])->whereUuid('upload');

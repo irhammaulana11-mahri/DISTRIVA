@@ -25,7 +25,7 @@ class NkoDefinitionDiffService
      *     removed: list<array{code: string, name: string, weight: ?float, has_rule: bool}>,
      *     possible_renames: list<array{from_code: string, from_name: string, to_code: string, to_name: string, score: float}>,
      *     changed: list<array{code: string, name: string, fields: array<string, array{from: mixed, to: mixed}>}>,
-     *     total_rule_changed: bool, targets_changed: array<string, int>, units: list<string>, warnings: list<string>}>
+     *     total_rule_changed: bool, targets_changed: array<string, int>, units: list<string>, warnings: list<string>, alerts: list<string>}>
      */
     public function diff(array $book): array
     {
@@ -34,7 +34,7 @@ class NkoDefinitionDiffService
         foreach ($book['levels'] as $level => $plan) {
             $base = $plan['active'] ?? DB::table('kpi_definition_sets')->where('unit_level', $level)->where('year', '<', $book['year'])->where('status', 'AKTIF')->orderByDesc('year')->first();
             $result = ['level' => $level, 'status' => $plan['status'], 'compared_with' => $base === null ? null : "{$base->year} v{$base->version}", 'items' => count($plan['canon']['nodes']),
-                'added' => [], 'removed' => [], 'possible_renames' => [], 'changed' => [], 'total_rule_changed' => false, 'targets_changed' => [],
+                'added' => [], 'removed' => [], 'possible_renames' => [], 'changed' => [], 'total_rule_changed' => false, 'targets_changed' => [], 'alerts' => [],
                 'units' => array_values(array_map(fn (array $s) => $s['unit_name'], array_filter($plan['sheets'], fn (array $s) => isset($plan['unit_ids'][$s['sheet']])))), 'warnings' => $plan['warnings']];
             if ($base !== null && in_array($plan['status'], ['BARU', 'DIGANTIKAN'], true)) {
                 $result = $this->compare($result, $base, $plan, $book['year'], $rules);
@@ -79,8 +79,43 @@ class NkoDefinitionDiffService
         if ((int) $base->year === $year) {
             $result['targets_changed'] = $this->changedTargets($base->id, $plan, array_intersect_key($new, $old));
         }
+        $result['alerts'] = $this->alerts($result, $base, $old, $new);
 
         return $result;
+    }
+
+    /**
+     * Hal yang perlu diperhatikan penyetuju: unit yang hilang, jumlah indikator turun tajam, item beraturan yang hilang, dan dugaan ganti nama.
+     *
+     * @param  array<string, mixed>  $result
+     * @param  array<string, object>  $old
+     * @param  array<string, array<string, mixed>>  $new
+     * @return list<string>
+     */
+    private function alerts(array $result, object $base, array $old, array $new): array
+    {
+        $alerts = [];
+        $units = DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->join('organizational_units as u', 'u.id', '=', 't.organizational_unit_id')
+            ->where('d.set_id', $base->id)->distinct()->orderBy('u.name')->pluck('u.name')->all();
+        $kept = array_map(fn (string $name) => Str::lower($result['level'].' '.$name), $result['units']);
+        $missing = array_values(array_filter($units, fn (string $name) => ! in_array(Str::lower($name), $kept, true) && ! in_array(Str::lower($result['level'].' '.$name), $kept, true)));
+        if ($missing !== []) {
+            $alerts[] = 'Unit '.implode(', ', $missing)." punya target di versi {$result['compared_with']} tetapi tidak ada di workbook; versi baru tidak akan memuat targetnya.";
+        }
+        $indicators = fn (array $rows) => count(array_filter($rows, fn (mixed $d) => (is_array($d) ? $d['polarity'] : $d->polarity) !== null));
+        [$before, $after] = [$indicators($old), $indicators($new)];
+        if ($before > 0 && $after < $before * 0.8) {
+            $alerts[] = "Jumlah indikator turun dari {$before} menjadi {$after}.";
+        }
+        $ruled = array_column(array_filter($result['removed'], fn (array $r) => $r['has_rule']), 'name');
+        if ($ruled !== []) {
+            $alerts[] = 'Item hilang yang punya aturan realisasi: '.implode(', ', $ruled).'.';
+        }
+        if ($result['possible_renames'] !== []) {
+            $alerts[] = count($result['possible_renames']).' item kemungkinan berganti nama. Setelah disetujui, usulkan aturan untuk nama baru dengan menunjuk kode lama.';
+        }
+
+        return $alerts;
     }
 
     /** @return array<string, array{from: mixed, to: mixed}> */
@@ -109,7 +144,7 @@ class NkoDefinitionDiffService
     }
 
     /**
-     * Bentuk rumus untuk dibandingkan: spasi di luar tanda kutip dibuang, dan nomor baris dijadikan jarak dari baris item agar menyisipkan baris di workbook tidak terbaca sebagai rumus berubah.
+     * Bentuk rumus untuk dibandingkan: di luar tanda kutip spasi dibuang, huruf dijadikan kapital, dan FALSE()/TRUE() (tulisan LibreOffice) disamakan dengan FALSE/TRUE; nomor baris dijadikan jarak dari baris item agar menyisipkan baris di workbook tidak terbaca sebagai rumus berubah.
      */
     private function comparable(mixed $rules, int $row): mixed
     {
@@ -119,7 +154,7 @@ class NkoDefinitionDiffService
         if (! is_string($rules)) {
             return $rules;
         }
-        $compact = preg_replace('/"[^"]*"(*SKIP)(*FAIL)|\s+/', '', $rules);
+        $compact = preg_replace_callback('/"[^"]*"|[^"]+/', fn (array $m) => str_starts_with($m[0], '"') ? $m[0] : str_replace(['FALSE()', 'TRUE()'], ['FALSE', 'TRUE'], strtoupper((string) preg_replace('/\s+/', '', $m[0]))), $rules);
 
         return preg_replace_callback('/(?<![A-Za-z])(\$?[A-Z]{1,3}\$?)(\d+)(?![\d(A-Za-z])/', fn (array $m) => $m[1].'{'.((int) $m[2] - $row).'}', $compact);
     }

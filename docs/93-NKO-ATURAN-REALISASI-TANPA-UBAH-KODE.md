@@ -151,9 +151,9 @@ Usulkan aturan untuk kode baru dengan `replaces_code` kode lama (rumus lama dan 
 
 Item kinerja bertambah, berkurang, atau berganti nama, serta bobot dan target, tetap berasal dari workbook realisasi (docs/89). Sekarang workbook bisa diunggah dari aplikasi:
 
-1. PERENCANAAN mengunggah berkas. Berkas disimpan di disk dokumen (`nko-workbooks/`, ikut cadangan); **definisi belum berubah**.
-2. Pratinjau perubahan dibaca siapa pun yang punya `nko.view`.
-3. ASMAN_PERENCANAAN menyetujui (definisi versi baru aktif, versi lama `ARSIP`) atau menolak.
+1. PERENCANAAN mengunduh template (definisi aktif), mengubahnya, lalu memeriksa dan mengunggahnya dengan memilih tahun. Unggahan yang tidak lolos pemeriksaan ditolak. Berkas yang diterima disimpan di disk dokumen (`nko-workbooks/`, ikut cadangan); **definisi belum berubah**.
+2. Hasil pemeriksaan dan pratinjau perubahan dibaca siapa pun yang punya `nko.view`.
+3. ASMAN_PERENCANAAN menyetujui (workbook diperiksa ulang; definisi versi baru aktif, versi lama `ARSIP`) atau menolak.
 
 Izin sama dengan aturan (§9): `nko.rules.propose` untuk mengunggah dan membatalkan, `nko.rules.approve` untuk memutus, keduanya hanya tingkat UP3. Tidak ada izin atau seeder baru. Pengunggah tidak boleh memutus unggahannya sendiri. Perintah `distriva:nko-import-definitions` tetap ada.
 
@@ -163,10 +163,36 @@ Izin sama dengan aturan (§9): `nko.rules.propose` untuk mengunggah dan membatal
 |---|---|
 | `GET /definition-sets?year=` | versi definisi, terbaru dulu: `id, year, unit_level, version, status` (`AKTIF, ARSIP`), `source_name, total_weight, warnings[], imported_at, imported_by {id,name}` (null bila dari server) |
 | `GET /definition-uploads?status=` | maksimal 100: `id, year, source_name, note, status` (`MENUNGGU, DISETUJUI, DITOLAK, DIBATALKAN`), `uploaded_by {id,name}, uploaded_at, decided_by, decided_at, decision_note` |
-| `GET /definition-uploads/{id}` | sama, ditambah `changes[]` |
-| `POST /definition-uploads` | multipart `file` (.xlsx, maksimal 8 MB) dan `note` (wajib); 201 `data.id`. 422 bila bukan workbook NKO atau isinya sudah pernah dimuat; 409 bila masih ada unggahan menunggu untuk tahun itu |
-| `POST /definition-uploads/{id}/decision` | `{decision: "approve"\|"reject", note?}`; `note` wajib saat menolak. Respons `data {status, sets[], mapping}`; `mapping` sama dengan `GET /rules/mapping` (null bila ditolak). 409 bila sudah diputus atau definisi aktif berubah sejak diunggah |
+| `GET /definition-uploads/{id}` | sama, ditambah `changes[]` dan `check` (hasil pemeriksaan saat diunggah, tanpa `changes`; null untuk unggahan lama) |
+| `GET /definition-template?year=` | berkas `TEMPLATE-DEFINISI-NKO-<tahun>.xlsx` (izin `nko.rules.propose`). Dari versi aktif tahun itu; bila belum ada, dari versi aktif tahun terakhir **tanpa target dan realisasi**. 404 bila belum ada definisi sama sekali |
+| `POST /definition-uploads/check` | multipart `file` (.xlsx, maksimal 8 MB) dan `year`; tidak menyimpan. 200 `data` = hasil pemeriksaan (di bawah), juga bila tidak lolos |
+| `POST /definition-uploads` | multipart `file`, `year`, `note` (wajib); 201 `data.id`. **422 dengan `data` = hasil pemeriksaan** bila tidak lolos (`message` menyebut galat pertama); 409 bila masih ada unggahan menunggu untuk tahun itu |
+| `POST /definition-uploads/{id}/decision` | `{decision: "approve"\|"reject", note?}`; `note` wajib saat menolak. Respons `data {status, sets[], mapping}`; `mapping` sama dengan `GET /rules/mapping` (null bila ditolak). 409 bila sudah diputus, definisi aktif berubah sejak diunggah, atau workbook tidak lolos pemeriksaan ulang (mis. unit dihapus dari master; `data` = hasil pemeriksaan) |
 | `DELETE /definition-uploads/{id}` | pengunggah membatalkan unggahan yang menunggu |
+
+### Hasil pemeriksaan
+
+`{year, year_found, can_upload, errors[], warnings[], tabs[], changes[]}`. `year_found` dari sel H9 (null bila tidak terbaca). `errors[]` memuat semua galat, termasuk galat per tab dengan awalan "Tab X:". Unggahan diterima hanya bila `can_upload` (`errors` kosong).
+
+`tabs[]` (urutan tab di berkas): `sheet, status` (`DIKENALI`, `DILEWATI`, `GALAT`), `level, unit_name` (null bila nama tab tidak berpola unit), `reason` (alasan dilewati atau galat baca; "Bukan tab unit." untuk tab lain seperti PETUNJUK atau RANGKING, cukup ditampilkan redup), `unit_found, items` (jumlah indikator berpolaritas), `total_weight, errors[], warnings[]`.
+
+Galat (menghentikan unggahan):
+
+- berkas bukan .xlsx yang dapat dibaca; tidak ada tab unit yang terbaca (alasan tiap tab ikut, mis. tab bernama "ULP" saja);
+- tab unit tanpa blok Januari, tanpa baris TOTAL, atau tanpa tahun di H9; tahun antartab berbeda; tahun berkas tidak sama dengan `year`;
+- unit tab tidak ada di master unit;
+- jumlah bobot kelompok bukan 100;
+- sel target berisi rumus ke workbook lain tanpa nilai tersimpan;
+- item berbobot (bukan kelompok) tanpa target bulanan sama sekali, atau tanpa polaritas;
+- isi workbook sudah pernah dimuat.
+
+Peringatan (unggahan tetap diterima): target sebagian bulan kosong; polaritas tertulis dikonversi (Negatif 1, Rentang 2, Positif 3; tulisan lain dilaporkan dan dianggap kosong); rumus pencapaian belum pernah dihitung (berkas belum dibuka di Excel, sehingga angka acuan pencapaian dan nilai tidak tersimpan); perbedaan definisi antartab sejenis.
+
+### Template
+
+Satu tab `PETUNJUK` (aturan pengisian) dan satu tab per unit yang punya target, tab acuan lebih dulu. Baris, nomor, rumus pencapaian dan nilai per bulan (termasuk aturan khusus unit), baris TOTAL, dan rumus NKO akhir sama dengan workbook asal. Bedanya: realisasi ditulis sebagai angka, bukan rumus ke workbook lain, dan lembar sumbernya di kolom I `SUMBER REALISASI` (pembaca memakai kolom ini bila rumus realisasi tidak menyebut lembar sumber). Rumus disimpan tanpa hasil hitung; Excel menghitungnya saat berkas dibuka.
+
+Diuji pada data dev 2026 (27 Nov 2026): template dibuat dalam kurang dari 1 detik. Diunggah tanpa diubah: nol perubahan item, kolom, rumus, dan target. Setelah dibuka dan disimpan ulang di LibreOffice: 3.717 angka acuan dan 99 total identik dengan versi aktif.
 
 ### Isi `changes[]`
 
@@ -176,10 +202,11 @@ Satu entri per tingkat unit (`UP3`, `ULP`):
 - `added[]`: `code, name, weight, needs_realization, has_rule`
 - `removed[]`: `code, name, weight, has_rule`
 - `possible_renames[]`: `from_code, from_name, to_code, to_name, score` (hanya saran; tindak lanjutnya usulan aturan dengan `replaces_code`, §9)
-- `changed[]`: `code, name, fields`; `fields` berisi `{from, to}` per kolom: `name, level, polarity, unit_label, weight, weight_note, formula_text, source_sheet, scoring_rule, nilai_rule, scoring_formula, value_formula, monthly_formulas`. Beda spasi dan pergeseran baris workbook tidak dihitung
+- `changed[]`: `code, name, fields`; `fields` berisi `{from, to}` per kolom: `name, level, polarity, unit_label, weight, weight_note, formula_text, source_sheet, scoring_rule, nilai_rule, scoring_formula, value_formula, monthly_formulas`. Beda spasi, huruf besar-kecil di luar tanda kutip, `FALSE()`/`TRUE()`, dan pergeseran baris workbook tidak dihitung
 - `total_rule_changed`: rumus total atau nilai akhir NKO berubah
 - `targets_changed`: `{nama unit: jumlah target bulanan yang berbeda}` untuk item yang ada di kedua versi (`[]` bila tidak ada, dan antartahun tidak dibandingkan)
 - `units[]` yang targetnya akan dimuat, `warnings[]`
+- `alerts[]`: hal yang perlu diperhatikan penyetuju: unit yang punya target di versi pembanding tetapi tidak ada di workbook, jumlah indikator turun lebih dari 20%, item hilang yang punya aturan realisasi, dan jumlah dugaan ganti nama
 
 Angka acuan realisasi di dalam workbook (dipakai pratinjau rumus §9) ikut diganti saat disetujui, tetapi perbedaannya **tidak** ditampilkan di `changes[]`.
 

@@ -17,6 +17,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 | # | Tanggal | Perubahan | Dokumen | Kebutuhan frontend | Status |
 |---|---|---|---|---|---|
+| 63 | 2026-11-27 | **Unggah workbook definisi NKO: template, pemeriksaan, dan tahun wajib**: API baru `GET /nko/definition-template?year=` (unduh .xlsx) dan `POST /nko/definition-uploads/check` (multipart `file`, `year`; hasil pemeriksaan tanpa menyimpan). **`POST /nko/definition-uploads` kini wajib `year`** dan menjawab 422 dengan `data` = hasil pemeriksaan bila tidak lolos. `GET /nko/definition-uploads/{id}` memuat `check`; `changes[]` per tingkat memuat `alerts[]`. Keputusan setuju dapat 409 dengan `data` bila pemeriksaan ulang gagal | docs/93 §10 (Hasil pemeriksaan, Template) | Di bagian Versi workbook `/nko/aturan`: (a) tombol **Unduh template** dengan pilihan tahun; (b) form unggah dengan **pilihan tahun** (bawaan tahun berjalan), terpisah dari Catatan; (c) tombol **Periksa** yang menampilkan hasil per tab (tab dikenali, dilewati redup, galat; unit ditemukan, jumlah indikator, total bobot, galat dan peringatan per tab), galat menghentikan unggah dan menonaktifkan tombol Unggah; tampilkan juga hasil yang sama dari respons 422; (d) di rincian unggahan tampilkan `check` dan `alerts[]` per tingkat secara mencolok untuk penyetuju | BARU |
 
 ## Selesai
 

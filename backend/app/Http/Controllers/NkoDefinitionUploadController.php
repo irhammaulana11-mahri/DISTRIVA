@@ -6,12 +6,15 @@ use App\Exceptions\AdministrationDenied;
 use App\Http\Controllers\Concerns\AuthorizesNkoChanges;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\MfaService;
+use App\Services\Nko\NkoDefinitionTemplateService;
 use App\Services\Nko\NkoDefinitionUploadService;
 use App\Services\Nko\NkoRuleException;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Versi definisi NKO dan unggahan workbooknya (docs/93 tahap 5). Membaca butuh nko.view; mengunggah butuh nko.rules.propose dan memutus butuh nko.rules.approve, keduanya tingkat UP3.
@@ -22,7 +25,8 @@ class NkoDefinitionUploadController extends Controller
 
     private const MAX_KB = 8192;
 
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly MfaService $mfa, private readonly NkoDefinitionUploadService $uploads) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly MfaService $mfa, private readonly NkoDefinitionUploadService $uploads,
+        private readonly NkoDefinitionTemplateService $templates) {}
 
     /** GET /nko/definition-sets?year=: versi definisi yang pernah dimuat. */
     public function sets(Request $request): JsonResponse
@@ -59,16 +63,46 @@ class NkoDefinitionUploadController extends Controller
             throw new AdministrationDenied('Unggahan tidak ditemukan.', 404);
         }
 
-        return response()->json(['data' => $this->present($row) + ['changes' => json_decode($row->changes, true)]]);
+        return response()->json(['data' => $this->present($row) + ['changes' => json_decode($row->changes, true), 'check' => json_decode($row->check_report ?? 'null', true)]]);
     }
 
-    /** POST /nko/definition-uploads (multipart: file, note) */
+    /** GET /nko/definition-template?year=: workbook dari definisi aktif, untuk diubah lalu diunggah. */
+    public function template(Request $request): BinaryFileResponse
+    {
+        $this->authorizeChange($request, 'nko.rules.propose');
+        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100']]);
+        $path = storage_path('app/nko-template-'.Str::uuid().'.xlsx');
+        try {
+            $this->templates->write((int) $d['year'], $path);
+        } catch (NkoRuleException $e) {
+            @unlink($path);
+            throw new AdministrationDenied($e->getMessage(), $e->status);
+        }
+
+        return response()->download($path, "TEMPLATE-DEFINISI-NKO-{$d['year']}.xlsx", ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
+    }
+
+    /** POST /nko/definition-uploads/check (multipart: file, year): hasil pemeriksaan tanpa menyimpan. */
+    public function check(Request $request): JsonResponse
+    {
+        $this->authorizeChange($request, 'nko.rules.propose');
+        $d = $request->validate($this->fileRules());
+        @set_time_limit(300);
+
+        return response()->json(['data' => $this->uploads->check($request->file('file'), (int) $d['year'])]);
+    }
+
+    /** POST /nko/definition-uploads (multipart: file, year, note); 422 dengan `data` = hasil pemeriksaan bila workbook tidak lolos. */
     public function store(Request $request): JsonResponse
     {
         $this->authorizeChange($request, 'nko.rules.propose');
-        $d = $request->validate(['file' => ['required', 'file', 'extensions:xlsx', 'max:'.self::MAX_KB], 'note' => ['required', 'string', 'max:500']]);
+        $d = $request->validate($this->fileRules() + ['note' => ['required', 'string', 'max:500']]);
         @set_time_limit(300);
-        $id = $this->guard(fn () => $this->uploads->upload($request->file('file'), $d['note'], $request->user()));
+        try {
+            $id = $this->uploads->upload($request->file('file'), (int) $d['year'], $d['note'], $request->user());
+        } catch (NkoRuleException $e) {
+            return $this->failure($e);
+        }
 
         return response()->json(['message' => 'Workbook diterima. Periksa perubahannya; definisi baru berlaku setelah disetujui.', 'data' => ['id' => $id]], 201);
     }
@@ -79,7 +113,11 @@ class NkoDefinitionUploadController extends Controller
         $this->authorizeChange($request, 'nko.rules.approve');
         $d = $request->validate(['decision' => ['required', 'in:approve,reject'], 'note' => ['nullable', 'string', 'max:500']]);
         @set_time_limit(300);
-        $result = $this->guard(fn () => $this->uploads->decide($upload, $d['decision'] === 'approve', $d['note'] ?? null, $request->user()));
+        try {
+            $result = $this->uploads->decide($upload, $d['decision'] === 'approve', $d['note'] ?? null, $request->user());
+        } catch (NkoRuleException $e) {
+            return $this->failure($e);
+        }
 
         return response()->json(['message' => $result['status'] === 'DISETUJUI' ? 'Definisi baru aktif. Periksa item tanpa aturan, lalu hitung ulang NKO.' : 'Unggahan ditolak.', 'data' => $result]);
     }
@@ -103,6 +141,21 @@ class NkoDefinitionUploadController extends Controller
         return ['id' => $p->id, 'year' => (int) $p->year, 'source_name' => $p->source_name, 'note' => $p->note, 'status' => $p->status,
             'uploaded_by' => $p->uploaded_by === null ? null : ['id' => $p->uploaded_by, 'name' => $p->uploader_name], 'uploaded_at' => $p->uploaded_at,
             'decided_by' => $p->decided_by === null ? null : ['id' => $p->decided_by, 'name' => $p->decider_name], 'decided_at' => $p->decided_at, 'decision_note' => $p->decision_note];
+    }
+
+    /** @return array<string, list<string>> */
+    private function fileRules(): array
+    {
+        return ['file' => ['required', 'file', 'extensions:xlsx', 'max:'.self::MAX_KB], 'year' => ['required', 'integer', 'between:2000,2100']];
+    }
+
+    private function failure(NkoRuleException $e): JsonResponse
+    {
+        if ($e->data === null) {
+            throw new AdministrationDenied($e->getMessage(), $e->status);
+        }
+
+        return response()->json(['message' => $e->getMessage(), 'data' => $e->data], $e->status);
     }
 
     private function guard(callable $action): mixed

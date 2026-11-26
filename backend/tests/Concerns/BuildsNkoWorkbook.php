@@ -10,10 +10,11 @@ trait BuildsNkoWorkbook
 {
     /**
      * Workbook kecil bertata letak NKO: dua kelompok, satu indikator berpolaritas 1 (SAIDI) dan satu 3 (penjualan), target kumulatif Jan-Feb.
+     * Bobot kelompok bawaan berjumlah 28; `reliabilityWeight: 86` membuatnya 100 seperti yang disyaratkan unggahan.
      *
      * @param  list<string>  $tabs
      */
-    private function workbook(array $tabs = ['UP3 MOJOKERTO', 'ULP JOMBANG'], float $saidiWeight = 6, ?string $unitMissingTab = null, string $saidiName = 'SAIDI'): string
+    private function workbook(array $tabs = ['UP3 MOJOKERTO', 'ULP JOMBANG'], float $saidiWeight = 6, ?string $unitMissingTab = null, string $saidiName = 'SAIDI', float $reliabilityWeight = 14): string
     {
         $book = new Spreadsheet;
         $book->removeSheetByIndex(0);
@@ -39,7 +40,7 @@ trait BuildsNkoWorkbook
             // kelompok 3 dengan indikator a. SAIDI
             $ws->setCellValueExplicit('A12', '3', 's');
             $ws->setCellValueExplicit('B12', 'Keandalan Penyaluran Tenaga Listrik', 's');
-            $ws->setCellValue('F12', 14);
+            $ws->setCellValue('F12', $reliabilityWeight);
             $ws->setCellValueExplicit('B13', "a. {$saidiName} (sesuai kewenangan)", 's');
             $ws->setCellValue('C13', 1);
             $ws->setCellValueExplicit('E13', 'menit/plg', 's');

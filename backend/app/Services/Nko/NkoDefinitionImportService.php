@@ -20,9 +20,9 @@ class NkoDefinitionImportService
     /**
      * @return array{year: int, sets: list<array{level: string, status: string, version: int, set_id: string, definitions: int, targets: int, units: list<string>, warnings: list<string>}>}
      */
-    public function import(string $path, string $originalName, ?User $user = null): array
+    public function import(string $path, string $originalName, ?User $user = null, ?array $analyzed = null): array
     {
-        $book = $this->analyze($path);
+        $book = $analyzed ?? $this->analyze($path);
         $sets = [];
         foreach ($book['levels'] as $level => $plan) {
             $sets[] = $this->importLevel($level, $plan, $book['year'], $book['sha'], $originalName, $user);
@@ -35,12 +35,19 @@ class NkoDefinitionImportService
      * Membaca workbook dan menentukan apa yang akan terjadi bila diimpor, tanpa menulis apa pun (dipakai impor dan pratinjau unggahan).
      * `status`: BARU, DIGANTIKAN, DUPLIKAT (sama dengan versi aktif), atau SUDAH_DIGANTIKAN (pernah dimuat lalu diganti).
      *
+     * Workbook yang tidak dapat dimuat utuh (lihat `readingErrors()`) ditolak dengan NkoImportException.
+     *
+     * @param  array<string, mixed>|null  $read  hasil `NkoWorkbookReader::read()` bila sudah dibaca
      * @return array{year: int, sha: string, levels: array<string, array{status: string, active: ?object, previous: ?object, canon: array<string, mixed>, sheets: list<array<string, mixed>>, unit_ids: array<string, string>, warnings: list<string>}>}
      */
-    public function analyze(string $path): array
+    public function analyze(string $path, ?array $read = null): array
     {
         $sha = hash('sha256', hash_file('sha256', $path).'|'.self::READER_VERSION);
-        $book = $this->reader->read($path);
+        $book = $read ?? $this->reader->read($path);
+        $errors = self::readingErrors($book);
+        if ($errors !== []) {
+            throw new NkoImportException(implode(' ', $errors));
+        }
         $units = $this->unitIndex();
 
         $levels = [];
@@ -53,6 +60,36 @@ class NkoDefinitionImportService
         }
 
         return ['year' => $book['year'], 'sha' => $sha, 'levels' => $levels];
+    }
+
+    /**
+     * Masalah yang membuat workbook tidak dapat dimuat: tidak ada tab unit yang terbaca, tab unit gagal dibaca, atau tahun antartab berbeda.
+     *
+     * @param  array{year: ?int, sheets: list<array<string, mixed>>, tabs: list<array<string, mixed>>}  $read
+     * @return list<string>
+     */
+    public static function readingErrors(array $read): array
+    {
+        $errors = [];
+        if ($read['sheets'] === []) {
+            $errors[] = 'Workbook tidak memuat tab unit bertata letak NKO (tab bernama "UP3 <unit>" atau "ULP <unit>" dengan judul NO/KPI pada baris 9).';
+            foreach ($read['tabs'] as $tab) {
+                if ($tab['status'] === 'DILEWATI' && $tab['reason'] !== 'Bukan tab unit.') {
+                    $errors[] = "Tab \"{$tab['sheet']}\": {$tab['reason']}";
+                }
+            }
+        }
+        foreach ($read['tabs'] as $tab) {
+            if ($tab['status'] === 'GALAT') {
+                $errors[] = $tab['reason'];
+            }
+        }
+        $years = array_values(array_unique(array_column($read['sheets'], 'year')));
+        if (count($years) > 1) {
+            $errors[] = 'Tab berisi tahun berbeda ('.implode(', ', $years).'); satu workbook untuk satu tahun.';
+        }
+
+        return $errors;
     }
 
     /**
