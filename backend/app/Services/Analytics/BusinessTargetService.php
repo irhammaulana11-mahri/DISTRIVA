@@ -5,6 +5,7 @@ namespace App\Services\Analytics;
 use App\Services\Nko\NkoCalculationService;
 use App\Services\Nko\NkoCalculator;
 use App\Services\Nko\NkoRealizationResolver;
+use App\Services\Nko\NkoRealizationRules;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -40,7 +41,7 @@ class BusinessTargetService
         'pelunasan-ex-prr' => [['code' => NkoRealizationResolver::PELUNASAN_CODE, 'series' => null, 'additive' => true, 'combined' => true]],
     ];
 
-    public function __construct(private readonly NkoCalculationService $nodes, private readonly NkoRealizationResolver $resolver, private readonly NkoCalculator $calculator) {}
+    public function __construct(private readonly NkoCalculationService $nodes, private readonly NkoRealizationResolver $resolver, private readonly NkoCalculator $calculator, private readonly NkoRealizationRules $rules) {}
 
     /**
      * Target NKO bulan `$to` untuk unit itu; kosong bila metrik tidak punya indikator NKO atau definisi NKO tahun itu belum diimpor.
@@ -63,6 +64,7 @@ class BusinessTargetService
         $nodes = collect($this->nodes->nodes($set->id, $unit->id))->keyBy('code');
         $definitions = DB::table('kpi_definitions')->where('set_id', $set->id)->whereIn('code', array_column($links, 'code'))->get(['id', 'code', 'name'])->keyBy('code');
         $resolved = $this->resolver->resolve($unit->id, $year, $month);
+        $rules = $this->rules->forPeriod($year, $month);
         $out = [];
         foreach ($links as $link) {
             $node = $nodes->get($link['code']);
@@ -96,7 +98,7 @@ class BusinessTargetService
                 'series_key' => $link['series'], 'combined' => $link['combined'] ?? false, 'month' => $to,
                 'target' => $target?->target_value !== null ? (float) $target->target_value : null, 'target_text' => $target?->target_text,
                 'realisasi' => $real['value'] ?? null, 'realisasi_source' => $real['source'] ?? null,
-                'validated' => $real === null || $real['source'] === 'METRIK' ? null : ! in_array($link['code'], NkoRealizationResolver::UNVALIDATED_CODES, true),
+                'validated' => $real === null || $real['source'] === 'METRIK' ? null : (bool) ($rules[$link['code']]->is_validated ?? true),
                 'pencapaian_pct' => $pencapaian, 'status' => $this->status($pencapaian),
                 'target_year_end' => $yearEnd?->target_value !== null ? (float) $yearEnd->target_value : null, 'remaining_per_month' => $remaining, 'current_per_month' => $current,
             ];

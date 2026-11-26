@@ -35,6 +35,11 @@ class NkoDefinitionsImportCommand extends Command
             }
         }
 
+        if (array_intersect(array_column($r['sets'], 'status'), ['BARU', 'DIGANTIKAN']) !== []) {
+            $this->newLine();
+            $this->call(NkoMappingCommand::class, ['year' => $r['year']]);
+        }
+
         return self::SUCCESS;
     }
 }

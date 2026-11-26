@@ -6,7 +6,9 @@ use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Nko\NkoDefinitionImportService;
+use App\Services\Nko\NkoMappingCheckService;
 use App\Services\Nko\NkoRealizationResolver;
+use App\Services\Nko\NkoRealizationRules;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\NkoPermissionSeeder;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -273,6 +275,86 @@ class NkoCalculationTest extends PostgresTestCase
     }
 
     #[Test]
+    public function aturan_realisasi_dari_tabel_menentukan_pemetaan_dan_berlaku_mulai_periodenya(): void
+    {
+        $event = fn (string $at) => DB::table('outage_events')->insert(['id' => (string) Str::uuid(), 'source_key' => (string) Str::uuid(), 'row_hash' => 'h', 'sheet_gid' => 1, 'gi_name' => 'GI', 'device_group' => 'PMT', 'feeder_name' => 'PENYULANG', 'occurred_at' => $at, 'organizational_unit_id' => $this->ulpA->id, 'outage_type' => 'PERMANEN', 'created_at' => now(), 'updated_at' => now()]);
+        $event('2026-01-10 03:00:00+00');
+        // indikator berganti nama (kode baru) mulai Februari: cukup menambah aturan, tanpa mengubah kode
+        DB::table('kpi_realization_rules')->insert(['id' => (string) Str::uuid7(), 'definition_code' => 'jumlah-gangguan-penyulang', 'formula' => 'gangguan_penyulang', 'is_validated' => true, 'flag_when_negative' => false, 'effective_from' => '2026-02-01', 'created_at' => now(), 'updated_at' => now()]);
+        // aturan yang sama kodenya: yang terbaru dan sudah berlaku menggantikan yang lama
+        DB::table('kpi_realization_rules')->insert(['id' => (string) Str::uuid7(), 'definition_code' => 'gangguan-tm', 'formula' => 'gangguan_penyulang', 'is_validated' => true, 'flag_when_negative' => false, 'effective_from' => '2026-02-01', 'created_at' => now(), 'updated_at' => now()]);
+
+        $resolver = app(NkoRealizationResolver::class);
+        $rules = app(NkoRealizationRules::class);
+        $this->assertArrayNotHasKey('jumlah-gangguan-penyulang', $resolver->systemValues($this->ulpA->id, 2026, 1));
+        $this->assertEqualsWithDelta(1.0, $resolver->systemValues($this->ulpA->id, 2026, 2)['jumlah-gangguan-penyulang'], 1e-9);
+        $this->assertFalse((bool) $rules->forPeriod(2026, 1)['gangguan-tm']->is_validated);
+        $this->assertTrue((bool) $rules->forPeriod(2026, 2)['gangguan-tm']->is_validated);
+    }
+
+    #[Test]
+    public function rumus_baru_atas_besaran_katalog_dan_masukan_baru_dihitung_di_ulp_dan_up3(): void
+    {
+        $jual = function (OrganizationalUnit $unit, string $period, float $kwh) {
+            $this->report309($unit, $period, 1, 1);
+            DB::table('eis_report_lines')->join('eis_report_files', 'eis_report_files.id', '=', 'eis_report_lines.file_id')->where('eis_report_files.organizational_unit_id', $unit->id)
+                ->where('eis_report_files.period', $period)->where('eis_report_lines.label', 'JUMLAH')->update(['values' => json_encode(['pelanggan' => 1, 'daya_va' => 1, 'kwh_jumlah' => $kwh])]);
+        };
+        $rule = fn (string $code, string $formula, ?array $inputs = null) => DB::table('kpi_realization_rules')->updateOrInsert(['definition_code' => $code, 'effective_from' => '2026-01-01'],
+            ['id' => (string) Str::uuid7(), 'formula' => $formula, 'inputs' => $inputs === null ? null : json_encode($inputs), 'is_validated' => false, 'flag_when_negative' => false, 'created_at' => now(), 'updated_at' => now()]);
+        // cara hitung penjualan diganti menjadi selisih terhadap tahun lalu; satu item baru memakai masukan manual baru
+        $rule('penjualan-tenaga-listrik', '(kwh_jual - kwh_jual_tahun_lalu) / 1000000');
+        $rule('saidi', 'temuan / kwh_jual * 1000000', [['code' => 'temuan', 'name' => 'Temuan (kumulatif)', 'unit_label' => 'kali']]);
+        $jual($this->ulpA, '2025-01-01', 1000000);
+        $jual($this->ulpA, '2026-01-01', 3000000);
+        $jual($this->ulpB, '2026-01-01', 1000000);
+
+        $resolver = app(NkoRealizationResolver::class);
+        $this->assertEqualsWithDelta(2.0, $resolver->systemValues($this->ulpA->id, 2026, 1)['penjualan-tenaga-listrik'], 1e-9);
+        $this->assertArrayNotHasKey('penjualan-tenaga-listrik', $resolver->systemValues($this->up3->id, 2026, 1));   // ULP B belum punya tahun lalu
+        $jual($this->ulpB, '2025-01-01', 4000000);
+        $this->assertEqualsWithDelta(-1.0, $resolver->systemValues($this->up3->id, 2026, 1)['penjualan-tenaga-listrik'], 1e-9);
+
+        $this->assertArrayNotHasKey('saidi', $resolver->systemValues($this->ulpA->id, 2026, 1));   // masukan belum diisi
+        $items = array_column($this->as($this->planner)->getJson("/api/nko/inputs?unit_id={$this->ulpA->id}&year=2026&month=1")->json('data.items'), null, 'code');
+        $this->assertSame('Temuan (kumulatif)', $items['temuan']['name']);
+        $this->assertSame('kali', $items['temuan']['unit_label']);
+        $this->input($this->ulpA, ['temuan' => 6]);
+        $this->assertEqualsWithDelta(2.0, $resolver->systemValues($this->ulpA->id, 2026, 1)['saidi'], 1e-9);          // 6 / 3.000.000 x 1.000.000
+        $this->assertArrayNotHasKey('saidi', $resolver->systemValues($this->up3->id, 2026, 1));                        // ULP B belum mengisi
+        $this->input($this->ulpB, ['temuan' => 2]);
+        $this->assertEqualsWithDelta(2.0, $resolver->systemValues($this->up3->id, 2026, 1)['saidi'], 1e-9);           // rasio dari jumlah: 8 / 4.000.000
+    }
+
+    #[Test]
+    public function pencocokan_definisi_melaporkan_item_berganti_nama_dan_menyarankan_penggantinya(): void
+    {
+        $check = app(NkoMappingCheckService::class);
+        $awal = $check->check(2026);
+        $this->assertNotContains('saidi', array_column($awal['unmapped'], 'code'));
+        $this->assertNotContains('saidi', array_column($awal['orphaned'], 'code'));
+
+        $this->input($this->ulpA, ['saidi' => 2.0]);
+        app(NkoDefinitionImportService::class)->import($this->workbook(['UP3 MOJOKERTO', 'ULP JOMBANG', 'ULP NGORO'], saidiName: 'SAIDI Distribusi'), 'nko-rev.xlsx');
+        $r = $check->check(2026);
+
+        $this->assertSame('2026 v1', $r['changes']['ULP']['compared_with']);
+        $this->assertSame(['saidi-distribusi'], array_column($r['changes']['ULP']['added'], 'code'));
+        $this->assertSame(['saidi'], array_column($r['changes']['ULP']['removed'], 'code'));
+        $this->assertContains('saidi-distribusi', array_column($r['unmapped'], 'code'));
+        $saidi = array_column($r['orphaned'], null, 'code')['saidi'];
+        $this->assertSame('SAIDI', $saidi['name']);
+        $this->assertSame('saidi_menit', $saidi['formula']);
+        $this->assertSame(1, $saidi['manual_inputs']);
+        $this->assertSame(['saidi-saifi'], $saidi['linked_menus']);
+        $this->assertSame('saidi-distribusi', $saidi['suggestions'][0]['code']);
+        $this->assertSame(0, DB::table('kpi_realization_rules')->where('definition_code', 'saidi-distribusi')->count());   // hanya melapor, tidak mengubah aturan
+
+        $this->artisan('distriva:nko-mapping', ['year' => 2026])->expectsOutputToContain('mungkin menjadi: SAIDI Distribusi')->assertSuccessful();
+        $this->artisan('distriva:nko-mapping', ['year' => 2030])->expectsOutputToContain('Belum ada definisi NKO aktif')->assertSuccessful();
+    }
+
+    #[Test]
     public function gangguan_penyulang_dari_data_gangguan_dimuat_otomatis_dan_ditandai_belum_tervalidasi(): void
     {
         $event = fn (string $at, string $type) => DB::table('outage_events')->insert(['id' => (string) Str::uuid(), 'source_key' => (string) Str::uuid(), 'row_hash' => 'h', 'sheet_gid' => 1, 'gi_name' => 'GI', 'device_group' => 'PMT', 'feeder_name' => 'PENYULANG', 'occurred_at' => $at, 'organizational_unit_id' => $this->ulpA->id, 'outage_type' => $type, 'created_at' => now(), 'updated_at' => now()]);
@@ -283,7 +365,7 @@ class NkoCalculationTest extends PostgresTestCase
         $resolver = app(NkoRealizationResolver::class);
         $this->assertEqualsWithDelta(1.0, $resolver->resolve($this->ulpA->id, 2026, 1)['gangguan-tm']['value'], 1e-9);
         $this->assertEqualsWithDelta(2.0, $resolver->resolve($this->ulpA->id, 2026, 2)['gangguan-tm']['value'], 1e-9);
-        $this->assertContains('gangguan-tm', NkoRealizationResolver::UNVALIDATED_CODES);
+        $this->assertFalse((bool) app(NkoRealizationRules::class)->forPeriod(2026, 1)['gangguan-tm']->is_validated);
     }
 
     #[Test]
@@ -370,7 +452,7 @@ class NkoCalculationTest extends PostgresTestCase
         $r = $resolver->resolve($this->ulpA->id, 2026, 1)['susut-distribusi-tanpa-e-min'];
         $this->assertEqualsWithDelta((920000 - 870000) / 920000 * 100, $r['value'], 1e-9);   // (beli - emin - pssd - jual) / (beli - emin - pssd)
         $this->assertSame('SISTEM', $r['source']);
-        $this->assertContains('susut-distribusi-tanpa-e-min', NkoRealizationResolver::UNVALIDATED_CODES);
+        $this->assertFalse((bool) app(NkoRealizationRules::class)->forPeriod(2026, 1)['susut-distribusi-tanpa-e-min']->is_validated);
     }
 
     /** Baseline adjustment (BA) Penjualan TL satu ULP satu bulan (kWh). */
@@ -402,7 +484,7 @@ class NkoCalculationTest extends PostgresTestCase
         $this->baseline($this->ulpA, 2026, 2, 41000000);
         $this->assertEqualsWithDelta(1.0, $resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['value'], 1e-9);   // (48-50) + (44-41), kumulatif
         $this->assertNull($resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['flag']);
-        $this->assertNotContains('penjualan-tenaga-listrik', NkoRealizationResolver::UNVALIDATED_CODES);   // rumus cocok workbook (10 ULP Januari sampai September 2026)
+        $this->assertTrue((bool) app(NkoRealizationRules::class)->forPeriod(2026, 1)['penjualan-tenaga-listrik']->is_validated);   // rumus cocok workbook (10 ULP Januari sampai September 2026)
 
         foreach ([1 => [47000000, 46000000], 2 => [45000000, 43000000]] as $month => [$kwh, $ba]) {
             $period = sprintf('2026-%02d-01', $month);

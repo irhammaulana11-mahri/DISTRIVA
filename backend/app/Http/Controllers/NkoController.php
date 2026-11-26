@@ -8,6 +8,7 @@ use App\Services\MfaService;
 use App\Services\Nko\NkoCalculationException;
 use App\Services\Nko\NkoCalculationService;
 use App\Services\Nko\NkoRealizationResolver;
+use App\Services\Nko\NkoRealizationRules;
 use App\Services\Nko\NkoSnapshotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ use Illuminate\Support\Str;
  */
 class NkoController extends Controller
 {
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly NkoSnapshotService $snapshots, private readonly NkoRealizationResolver $resolver, private readonly MfaService $mfa) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly NkoSnapshotService $snapshots, private readonly NkoRealizationResolver $resolver, private readonly NkoRealizationRules $rules, private readonly MfaService $mfa) {}
 
     /** @return list<string>|null unit yang boleh dibaca; null = semua */
     private function visibleUnits(Request $request): ?array
@@ -185,6 +186,7 @@ class NkoController extends Controller
     {
         [$unit, $set, $nodes] = $this->context($unitId, $year);
         $resolved = $this->resolver->resolve($unitId, $year, $month);
+        $rules = $this->rules->forPeriod($year, $month);
         $meta = DB::table('kpi_definitions as d')->leftJoin('kpi_definitions as p', 'p.id', '=', 'd.parent_id')->where('d.set_id', $set->id)->get(['d.id', 'd.name', 'd.source_sheet', 'p.name as parent_name'])->keyBy('id');
         $targets = DB::table('kpi_targets')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))->get(['definition_id', 'target_value', 'target_text'])->keyBy('definition_id');
         $items = [];
@@ -196,21 +198,21 @@ class NkoController extends Controller
             $r = $resolved[$n['code']] ?? null;
             $t = $targets[$n['id']] ?? null;
             $items[] = ['code' => $n['code'], 'name' => $meta[$n['id']]->name, 'group' => $meta[$n['id']]->parent_name, 'unit_label' => $n['unit_label'], 'polarity' => $n['polarity'], 'weight' => $n['weight'],
-                'target' => $t === null ? null : ($t->target_value !== null ? (float) $t->target_value : $t->target_text), 'editable' => $needs, 'system_source' => isset(NkoRealizationResolver::SYSTEM_CODES[$n['code']]), 'system_validated' => ! in_array($n['code'], NkoRealizationResolver::UNVALIDATED_CODES, true),
+                'target' => $t === null ? null : ($t->target_value !== null ? (float) $t->target_value : $t->target_text), 'editable' => $needs, 'system_source' => isset($rules[$n['code']]), 'system_validated' => (bool) ($rules[$n['code']]->is_validated ?? true),
                 'value' => $r['value'] ?? null, 'source' => $r['source'] ?? null, 'manual' => $r['manual'] ?? null, 'system' => $r['system'] ?? null, 'note' => $r['note'] ?? null, 'flag' => $r['flag'] ?? null];
         }
 
         $nodeCodes = array_column($nodes, 'code');
         $nodeIds = array_column($nodes, 'id', 'code');
-        foreach (NkoRealizationResolver::auxiliaryInputs() as $owner => $inputs) {
-            if (! in_array($owner, $nodeCodes, true)) {
+        $seen = [];
+        foreach ($this->rules->auxiliaryInputs($year, $month) as $aux) {
+            if (! in_array($aux['owner'], $nodeCodes, true) || isset($seen[$aux['code']])) {
                 continue;
             }
-            foreach ($inputs as $code => $name) {
-                $r = $resolved[$code] ?? null;
-                $items[] = ['code' => $code, 'name' => $name, 'group' => 'Masukan pembantu: '.$meta[$nodeIds[$owner]]->name, 'unit_label' => $owner === NkoRealizationResolver::SUSUT_CODE ? 'kWh' : 'Rp juta', 'polarity' => null, 'weight' => null, 'target' => null, 'editable' => true, 'auxiliary' => true,
-                    'system_source' => false, 'system_validated' => true, 'value' => $r['value'] ?? null, 'source' => $r ? 'MANUAL' : null, 'manual' => $r['manual'] ?? null, 'system' => null, 'note' => $r['note'] ?? null];
-            }
+            $seen[$aux['code']] = true;
+            $r = $resolved[$aux['code']] ?? null;
+            $items[] = ['code' => $aux['code'], 'name' => $aux['name'], 'group' => 'Masukan pembantu: '.$meta[$nodeIds[$aux['owner']]]->name, 'unit_label' => $aux['unit_label'], 'polarity' => null, 'weight' => null, 'target' => null, 'editable' => true, 'auxiliary' => true,
+                'system_source' => false, 'system_validated' => true, 'value' => $r['value'] ?? null, 'source' => $r ? 'MANUAL' : null, 'manual' => $r['manual'] ?? null, 'system' => null, 'note' => $r['note'] ?? null];
         }
 
         return [$unit, $items];
@@ -230,11 +232,9 @@ class NkoController extends Controller
                 $editable[$n['code']] = true;
             }
         }
-        foreach (NkoRealizationResolver::auxiliaryInputs() as $owner => $inputs) {
-            if (in_array($owner, array_column($nodes, 'code'), true)) {
-                foreach (array_keys($inputs) as $aux) {
-                    $editable[$aux] = true;
-                }
+        foreach ($this->rules->auxiliaryInputs((int) $d['year'], (int) $d['month']) as $aux) {
+            if (in_array($aux['owner'], array_column($nodes, 'code'), true)) {
+                $editable[$aux['code']] = true;
             }
         }
         $bad = array_values(array_filter(array_column($d['items'], 'code'), fn ($c) => ! isset($editable[$c])));

@@ -13,7 +13,7 @@ trait BuildsNkoWorkbook
      *
      * @param  list<string>  $tabs
      */
-    private function workbook(array $tabs = ['UP3 MOJOKERTO', 'ULP JOMBANG'], float $saidiWeight = 6, ?string $unitMissingTab = null): string
+    private function workbook(array $tabs = ['UP3 MOJOKERTO', 'ULP JOMBANG'], float $saidiWeight = 6, ?string $unitMissingTab = null, string $saidiName = 'SAIDI'): string
     {
         $book = new Spreadsheet;
         $book->removeSheetByIndex(0);
@@ -40,7 +40,7 @@ trait BuildsNkoWorkbook
             $ws->setCellValueExplicit('A12', '3', 's');
             $ws->setCellValueExplicit('B12', 'Keandalan Penyaluran Tenaga Listrik', 's');
             $ws->setCellValue('F12', 14);
-            $ws->setCellValueExplicit('B13', 'a. SAIDI (sesuai kewenangan)', 's');
+            $ws->setCellValueExplicit('B13', "a. {$saidiName} (sesuai kewenangan)", 's');
             $ws->setCellValue('C13', 1);
             $ws->setCellValueExplicit('E13', 'menit/plg', 's');
             $ws->setCellValue('F13', $saidiWeight);

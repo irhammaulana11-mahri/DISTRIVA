@@ -3,76 +3,127 @@
 namespace App\Services\Nko;
 
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 /**
  * Menentukan realisasi kumulatif (Januari sampai bulan berjalan) tiap indikator untuk satu unit: masukan manual bila ada, selain itu dari sumber sistem.
  * Sumber sistem saat ini: penambahan pelanggan dan daya tersambung dari laporan 309 (selisih terhadap Desember tahun lalu); SAIDI, SAIFI, dan ENS dari laporan DIFI yang diunggah (jumlah bulanan Januari sampai bulan berjalan; ENS dari baris "TOTAL KELOMPOK Distribusi", kWh menjadi MWh).
+ * Rumus tiap indikator ada di tabel `kpi_realization_rules` (docs/93); kelas ini menghitung besaran katalog dan mengevaluasi rumus itu.
  * Sumber sistem hanya dipakai bila laporan DIFI semua bulan Januari sampai bulan berjalan tersedia; bila tidak, indikator dibiarkan kosong sampai laporan atau masukan manual ada (docs/90).
  */
 class NkoRealizationResolver
 {
-    /** kode indikator => jenis sumber sistem */
-    public const SYSTEM_CODES = ['saidi' => 'saidi_menit', 'saifi' => 'saifi_kali', 'ens' => 'ens_mwh', 'penambahan-pelanggan' => 'pelanggan_309', 'daya-tersambung' => 'daya_309',
-        'gangguan-tm' => 'gangguan_penyulang', 'response-time-atas-gangguan-diluar-clear-tamper' => 'response_ggnall', 'feedback-rating-negatif-pada-pln-mobile-gangguan' => 'rating_negatif_ggn',
-        'susut-distribusi-tanpa-e-min' => 'susut_hitung', 'penjualan-tenaga-listrik' => 'penjualan_selisih', 'pendapatan-biaya-penyambungan' => 'hpl_bp',
-        self::PELUNASAN_CODE => 'pelunasan_prabayar'];
-
+    /** kode indikator pelunasan: dipakai menu pengusahaan untuk menautkan target (BusinessTargetService) */
     public const PELUNASAN_CODE = 'pencapaian-pelunasan-prr-ex-prr-dan-piutang-prabayar';
 
-    /** @var array<string, string> masukan pembantu pelunasan (Rp juta, kumulatif, manual): PRR dan Ex-PRR belum punya data */
-    public const PELUNASAN_INPUTS = ['prr-lunas' => 'Pelunasan PRR (Rp juta, kumulatif)', 'ex-prr-lunas' => 'Pelunasan Ex-PRR (Rp juta, kumulatif)'];
+    /** kode indikator pada baseline adjustment hasil impor (`kpi_baselines`, NkoBaselineImportService) */
+    private const BASELINE_CODE = 'penjualan-tenaga-listrik';
 
-    /** @return array<string, array<string, string>> kode indikator => masukan pembantunya */
-    public static function auxiliaryInputs(): array
-    {
-        return [self::SUSUT_CODE => self::SUSUT_INPUTS, self::PELUNASAN_CODE => self::PELUNASAN_INPUTS];
-    }
-
-    /** kode susut dan masukan pembantunya (kWh kumulatif, diisi manual; kWh jual dari total laporan 309) */
-    public const SUSUT_CODE = 'susut-distribusi-tanpa-e-min';
-
-    /** @var array<string, string> kode masukan pembantu => nama */
-    public const SUSUT_INPUTS = ['kwh-beli' => 'kWh Beli (kumulatif)', 'e-min' => 'E-Min (kWh, kumulatif)', 'pssd' => 'PSSD (kWh, kumulatif)'];
-
-    /** sumber sistem yang dimuat otomatis tetapi belum cocok dengan angka workbook (dapat dikoreksi dengan masukan manual disertai alasan) */
-    public const UNVALIDATED_CODES = [self::PELUNASAN_CODE, 'pendapatan-biaya-penyambungan', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
+    public function __construct(private readonly NkoRealizationRules $rules) {}
 
     /**
      * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string, flag: ?string}> menurut kode indikator
      */
     public function resolve(string $unitId, int $year, int $month): array
     {
+        $rules = $this->rules->forPeriod($year, $month);
         $out = [];
         $system = $this->systemValues($unitId, $year, $month);
         foreach ($system as $code => $v) {
-            $out[$code] = ['value' => $v, 'source' => 'SISTEM', 'manual' => null, 'system' => $v, 'note' => null, 'flag' => $this->flagFor($code, $v)];
+            $out[$code] = ['value' => $v, 'source' => 'SISTEM', 'manual' => null, 'system' => $v, 'note' => null, 'flag' => $this->flagFor($rules[$code] ?? null, $v)];
         }
         $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))->get(['definition_code', 'value', 'note']);
         foreach ($manual as $m) {
-            $out[$m->definition_code] = ['value' => (float) $m->value, 'source' => 'MANUAL', 'manual' => (float) $m->value, 'system' => $out[$m->definition_code]['system'] ?? null, 'note' => $m->note, 'flag' => $this->flagFor($m->definition_code, (float) $m->value)];
+            $out[$m->definition_code] = ['value' => (float) $m->value, 'source' => 'MANUAL', 'manual' => (float) $m->value, 'system' => $out[$m->definition_code]['system'] ?? null, 'note' => $m->note, 'flag' => $this->flagFor($rules[$m->definition_code] ?? null, (float) $m->value)];
         }
 
         return $out;
     }
 
-    /** penjualan TL negatif (kWh jual di bawah baseline adjustment) hanya ditandai, nilainya tidak diubah */
-    private function flagFor(string $code, float $value): ?string
+    /** nilai minus pada indikator bertanda (mis. penjualan TL di bawah baseline adjustment) hanya ditandai, nilainya tidak diubah */
+    private function flagFor(?object $rule, float $value): ?string
     {
-        return $code === 'penjualan-tenaga-listrik' && $value < 0 ? 'NEGATIF' : null;
+        return $rule?->flag_when_negative && $value < 0 ? 'NEGATIF' : null;
     }
 
     /**
+     * Nilai sistem menurut kode indikator: rumus aturan yang berlaku pada periode itu dihitung atas besaran katalog. Indikator yang datanya belum lengkap tidak muncul.
+     *
      * @return array<string, float>
      */
     public function systemValues(string $unitId, int $year, int $month): array
     {
         $children = $this->childUlps($unitId);
-        if ($children !== []) {
-            return $this->aggregateValues($unitId, $children, $year, $month);
+        $memo = [];
+        $out = [];
+        foreach ($this->rules->forPeriod($year, $month) as $code => $rule) {
+            $value = NkoFormula::parse($rule->formula)->evaluate(function (string $name) use ($rule, $unitId, $children, $year, $month, &$memo): ?float {
+                if (isset($rule->inputs[$name])) {
+                    return $this->declaredInput($name, $children ?: [$unitId], $year, $month);
+                }
+
+                return $this->quantity($name, $unitId, $children, $year, $month, $memo);
+            });
+            $value !== null && $out[$code] = $value;
         }
 
-        return $this->difiValues([$unitId], $year, $month) + $this->report309Values($unitId, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues([$unitId], $year, $month) + $this->susutValues($unitId, $year, $month)
-            + $this->penjualanValues($unitId, $year, $month) + $this->pelunasanValues($unitId, $year, $month) + $this->connectionFeeValues([$unitId], $year, $month);
+        return $out;
+    }
+
+    /**
+     * Satu besaran katalog; hasil tiap kelompok perhitungan disimpan di `$memo` agar hanya dihitung sekali dan hanya bila dipakai rumus.
+     *
+     * @param  list<string>  $children
+     * @param  array<string, array<string, float>>  $memo
+     */
+    private function quantity(string $name, string $unitId, array $children, int $year, int $month, array &$memo): ?float
+    {
+        [$group, $aggregate] = NkoSourceCatalog::QUANTITIES[$name] ?? throw new InvalidArgumentException("Besaran NKO tidak dikenal pada rumus: {$name}");
+        if ($children !== [] && $aggregate === 'JUMLAH') {       // satu ULP kosong membuat UP3 kosong, bukan jumlah sebagian (angka UP3 yang tampak lengkap padahal kurang satu ULP lebih menyesatkan)
+            $values = array_map(function (string $child) use ($name, $year, $month, &$memo) {
+                return $this->quantity($name, $child, [], $year, $month, $memo);
+            }, $children);
+
+            return in_array(null, $values, true) ? null : (float) array_sum($values);
+        }
+        $memo["{$group}|{$unitId}"] ??= $this->group($group, $unitId, $children, $year, $month);
+
+        return $memo["{$group}|{$unitId}"][$name] ?? null;
+    }
+
+    /**
+     * @param  list<string>  $children
+     * @return array<string, float> menurut nama besaran
+     */
+    private function group(string $group, string $unitId, array $children, int $year, int $month): array
+    {
+        $units = $children ?: [$unitId];
+
+        return match ($group) {
+            'difi' => $this->difiValues($units, $year, $month),
+            'outage' => $this->outageValues($unitId, $year, $month),
+            'ggn' => $this->ggnValues($units, $year, $month),
+            'bp' => $this->connectionFeeValues($units, $year, $month),
+            '309' => $this->report309Values($unitId, $year, $month),
+            'jual' => array_filter(['kwh_jual' => $this->kwhJual($unitId, $year, $month), 'kwh_jual_tahun_lalu' => $this->kwhJual($unitId, $year - 1, $month)], fn ($v) => $v !== null),
+            'ba' => $this->baselineValues($unitId, $year, $month),
+            'masukan_susut' => $this->lossInputValues($unitId, $year, $month),
+            'susut' => $this->susutValues($units, $year, $month),
+            'penjualan' => $this->penjualanValues($unitId, $year, $month),
+            'pelunasan' => $this->pelunasanValues($unitId, $year, $month),
+        };
+    }
+
+    /**
+     * Masukan yang dideklarasikan aturan (kumulatif, manual); tingkat UP3 = jumlah semua ULP.
+     *
+     * @param  list<string>  $unitIds
+     */
+    private function declaredInput(string $code, array $unitIds, int $year, int $month): ?float
+    {
+        $values = DB::table('kpi_manual_inputs')->where('definition_code', $code)->whereIn('organizational_unit_id', $unitIds)->where('period', sprintf('%04d-%02d-01', $year, $month))->pluck('value');
+
+        return $values->count() === count($unitIds) ? (float) $values->sum() : null;
     }
 
     /**
@@ -83,35 +134,6 @@ class NkoRealizationResolver
     private function childUlps(string $unitId): array
     {
         return DB::table('organizational_units')->where('parent_id', $unitId)->where('unit_type', 'ULP')->orderBy('id')->pluck('id')->all();
-    }
-
-    /**
-     * Realisasi sistem tingkat UP3 dari ULP di bawahnya: jumlah (penambahan pelanggan, daya, ENS, penjualan, pelunasan, rating negatif, HPL BP), rata-rata tertimbang pelanggan per bulan (SAIDI, SAIFI),
-     * tertimbang jumlah WO (response time), dan rasio jumlah (susut). Hanya dihitung bila SEMUA ULP punya datanya; satu ULP kosong membuat indikator itu kosong, bukan jumlah sebagian
-     * (angka UP3 yang tampak lengkap padahal kurang satu ULP lebih menyesatkan daripada kosong). Gangguan TM dihitung langsung dari data gangguan (sudah menjumlahkan ULP).
-     *
-     * @param  list<string>  $children
-     * @return array<string, float>
-     */
-    private function aggregateValues(string $unitId, array $children, int $year, int $month): array
-    {
-        $per = [];
-        foreach ($children as $child) {
-            $per[$child] = $this->systemValues($child, $year, $month);
-        }
-        $out = $this->difiValues($children, $year, $month) + $this->outageValues($unitId, $year, $month) + $this->ggnValues($children, $year, $month) + $this->connectionFeeValues($children, $year, $month);
-        $sums = ['penambahan-pelanggan', 'daya-tersambung', 'penjualan-tenaga-listrik', self::PELUNASAN_CODE];
-        foreach ($sums as $code) {
-            $values = array_column($per, $code);
-            count($values) === count($children) && $out[$code] = array_sum($values);
-        }
-        $losses = array_map(fn ($c) => $this->lossParts($c, $year, $month), $children);
-        if (! in_array(null, $losses, true)) {
-            $base = array_sum(array_column($losses, 'base'));
-            $base > 0 && $out[self::SUSUT_CODE] = ($base - array_sum(array_column($losses, 'jual'))) / $base * 100;
-        }
-
-        return $out;
     }
 
     /**
@@ -132,13 +154,18 @@ class NkoRealizationResolver
         };
         $now = $fetch(sprintf('%04d-%02d-01', $year, $month));
         $base = $fetch(($year - 1).'-12-01');
+        $out = [];
+        foreach (['akhir' => $now, 'awal' => $base] as $suffix => $position) {
+            isset($position['pelanggan']) && $out["pelanggan_309_{$suffix}"] = (float) $position['pelanggan'];
+            isset($position['daya_va']) && $out["daya_va_309_{$suffix}"] = (float) $position['daya_va'];
+        }
         if ($now === null || $base === null || ! isset($now['pelanggan'], $now['daya_va'], $base['pelanggan'], $base['daya_va'])) {
-            return [];
+            return $out;
         }
 
-        return [
-            'penambahan-pelanggan' => (float) $now['pelanggan'] - (float) $base['pelanggan'],
-            'daya-tersambung' => ((float) $now['daya_va'] - (float) $base['daya_va']) / 1000000,
+        return $out + [
+            'pelanggan_309' => (float) $now['pelanggan'] - (float) $base['pelanggan'],
+            'daya_309' => ((float) $now['daya_va'] - (float) $base['daya_va']) / 1000000,
         ];
     }
 
@@ -163,27 +190,28 @@ class NkoRealizationResolver
 
             return $out;
         };
+        $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))
+            ->whereIn('definition_code', ['prr-lunas', 'ex-prr-lunas'])->pluck('value', 'definition_code');
+        $out = [];
+        foreach (['lunas_prr' => ['prr-lunas', 'PRR'], 'lunas_ex_prr' => ['ex-prr-lunas', 'EXPRR']] as $name => [$code, $family]) {   // masukan manual (kumulatif) diutamakan; selain itu pelunasan AP2T Januari sampai bulan berjalan
+            $value = isset($manual[$code]) ? (float) $manual[$code] : $this->raguRepayment($unitId, $family, $year, $month);
+            $value !== null && $out[$name] = $value;
+        }
         $prev = $balances(($year - 1).'-12-01');
         if ($prev === null) {
-            return [];
+            return $out;
         }
         $total = 0.0;
         for ($m = 1; $m <= $month; $m++) {
             $cur = $balances(sprintf('%04d-%02d-01', $year, $m));
             if ($cur === null) {
-                return [];
+                return $out;
             }
             $total += max(0.0, array_sum($prev) - ($cur['BERJALAN'] + $cur['TUNGGAKAN']));
             $prev = $cur;
         }
-        $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))
-            ->whereIn('definition_code', array_keys(self::PELUNASAN_INPUTS))->pluck('value', 'definition_code');
-        $extra = 0.0;
-        foreach (['prr-lunas' => 'PRR', 'ex-prr-lunas' => 'EXPRR'] as $code => $family) {                    // masukan manual (kumulatif) diutamakan; selain itu pelunasan AP2T Januari sampai bulan berjalan
-            $extra += isset($manual[$code]) ? (float) $manual[$code] : ($this->raguRepayment($unitId, $family, $year, $month) ?? 0.0);
-        }
 
-        return [self::PELUNASAN_CODE => $total / 1000000 + $extra];
+        return $out + ['lunas_prabayar' => $total / 1000000, 'pelunasan_prabayar' => $total / 1000000 + (($out['lunas_prr'] ?? 0.0) + ($out['lunas_ex_prr'] ?? 0.0))];
     }
 
     /**
@@ -214,7 +242,7 @@ class NkoRealizationResolver
      */
     private function penjualanValues(string $unitId, int $year, int $month): array
     {
-        $baselines = DB::table('kpi_baselines')->where('definition_code', 'penjualan-tenaga-listrik')->where('organizational_unit_id', $unitId)->where('year', $year)->where('month', '<=', $month)->pluck('value', 'month');
+        $baselines = DB::table('kpi_baselines')->where('definition_code', self::BASELINE_CODE)->where('organizational_unit_id', $unitId)->where('year', $year)->where('month', '<=', $month)->pluck('value', 'month');
         $files = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
             ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->get(['id', 'period']);
         if ($baselines->count() !== $month || $files->count() !== $month) {
@@ -229,39 +257,65 @@ class NkoRealizationResolver
             $sum += (float) (json_decode($line, true)['kwh_jumlah'] ?? 0) - (float) $baselines[(int) substr((string) $f->period, 5, 2)];
         }
 
-        return ['penjualan-tenaga-listrik' => $sum / 1000000];
+        return ['penjualan_selisih' => $sum / 1000000];
     }
 
     /**
-     * Susut distribusi tanpa E-Min (%, kumulatif) = (kWh beli - E-Min - PSSD - kWh jual) / (kWh beli - E-Min - PSSD) x 100.
+     * Susut distribusi tanpa E-Min (%, kumulatif) = (kWh beli - E-Min - PSSD - kWh jual) / (kWh beli - E-Min - PSSD) x 100; banyak unit (UP3) = rasio dari jumlah, semua unit harus lengkap.
      * kWh beli, E-Min, dan PSSD (kumulatif Januari sampai bulan berjalan) diisi manual; kWh jual = jumlah baris "JUMLAH" laporan 309 Januari sampai bulan berjalan (semua bulan harus ada).
      * Bila masukan kumulatif NKO tidak diisi, dipakai jumlah masukan bulanan pengusahaan (kWh beli semua bulan harus ada).
      * Rumus berdasarkan penjelasan pemilik; belum divalidasi terhadap angka workbook karena belum ada data kWh beli.
      *
+     * @param  list<string>  $unitIds
      * @return array<string, float>
      */
-    private function susutValues(string $unitId, int $year, int $month): array
+    private function susutValues(array $unitIds, int $year, int $month): array
     {
-        $parts = $this->lossParts($unitId, $year, $month);
+        $parts = array_map(fn (string $unitId) => $this->lossParts($unitId, $year, $month), $unitIds);
+        if (in_array(null, $parts, true)) {
+            return [];
+        }
+        $base = array_sum(array_column($parts, 'base'));
 
-        return $parts === null ? [] : [self::SUSUT_CODE => ($parts['base'] - $parts['jual']) / $parts['base'] * 100];
+        return $base > 0 ? ['susut_hitung' => ($base - array_sum(array_column($parts, 'jual'))) / $base * 100] : [];
     }
 
     /**
-     * kWh beli bersih (setelah E-Min dan PSSD) dan kWh jual kumulatif satu ULP, atau null bila datanya belum lengkap; dipakai tingkat ULP dan penjumlahan tingkat UP3.
+     * kWh beli bersih (setelah E-Min dan PSSD) dan kWh jual kumulatif satu unit, atau null bila datanya belum lengkap.
      *
      * @return array{base: float, jual: float}|null
      */
     private function lossParts(string $unitId, int $year, int $month): ?array
     {
+        $input = $this->lossInputValues($unitId, $year, $month);
+        if (($input['kwh_beli'] ?? 0.0) <= 0) {
+            return null;
+        }
+        $jual = $this->kwhJual($unitId, $year, $month);
+        $base = $input['kwh_beli'] - $input['e_min'] - $input['pssd'];
+
+        return $jual === null || $base <= 0 ? null : ['base' => $base, 'jual' => $jual];
+    }
+
+    /**
+     * Masukan susut kumulatif; kosong bila kWh beli belum ada (E-Min dan PSSD yang tidak diisi dianggap 0).
+     *
+     * @return array<string, float>
+     */
+    private function lossInputValues(string $unitId, int $year, int $month): array
+    {
         $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))
-            ->whereIn('definition_code', array_keys(self::SUSUT_INPUTS))->pluck('value', 'definition_code');
+            ->whereIn('definition_code', ['kwh-beli', 'e-min', 'pssd'])->pluck('value', 'definition_code');
         if (! isset($manual['kwh-beli'])) {
             $manual = $this->monthlyLossInputs($unitId, $year, $month);
         }
-        if (! isset($manual['kwh-beli']) || (float) $manual['kwh-beli'] <= 0) {
-            return null;
-        }
+
+        return isset($manual['kwh-beli']) ? ['kwh_beli' => (float) $manual['kwh-beli'], 'e_min' => (float) ($manual['e-min'] ?? 0), 'pssd' => (float) ($manual['pssd'] ?? 0)] : [];
+    }
+
+    /** kWh jual (baris "JUMLAH" laporan 309) Januari sampai bulan berjalan; null bila ada bulan yang belum masuk */
+    private function kwhJual(string $unitId, int $year, int $month): ?float
+    {
         $files = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
             ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->pluck('id');
         if ($files->count() !== $month) {
@@ -275,9 +329,20 @@ class NkoRealizationResolver
             }
             $jual += (float) (json_decode($line, true)['kwh_jumlah'] ?? 0);
         }
-        $base = (float) $manual['kwh-beli'] - (float) ($manual['e-min'] ?? 0) - (float) ($manual['pssd'] ?? 0);
 
-        return $base <= 0 ? null : ['base' => $base, 'jual' => $jual];
+        return $jual;
+    }
+
+    /**
+     * Baseline adjustment penjualan TL kumulatif; kosong bila ada bulan yang belum diimpor.
+     *
+     * @return array<string, float>
+     */
+    private function baselineValues(string $unitId, int $year, int $month): array
+    {
+        $baselines = DB::table('kpi_baselines')->where('definition_code', self::BASELINE_CODE)->where('organizational_unit_id', $unitId)->where('year', $year)->where('month', '<=', $month)->pluck('value');
+
+        return $baselines->count() === $month ? ['ba_penjualan' => (float) $baselines->sum(fn ($v) => (float) $v)] : [];
     }
 
     /**
@@ -289,7 +354,7 @@ class NkoRealizationResolver
     private function monthlyLossInputs(string $unitId, int $year, int $month): array
     {
         $rows = DB::table('business_monthly_inputs')->where('organizational_unit_id', $unitId)->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])
-            ->whereIn('code', array_keys(self::SUSUT_INPUTS))->get(['code', 'value']);
+            ->whereIn('code', ['kwh-beli', 'e-min', 'pssd'])->get(['code', 'value']);
         if ($rows->where('code', 'kwh-beli')->count() !== $month) {
             return [];
         }
@@ -312,7 +377,7 @@ class NkoRealizationResolver
         }
         $end = date('Y-m-d', strtotime(sprintf('%04d-%02d-01 +1 month', $year, $month)));
 
-        return ['gangguan-tm' => (float) $query->whereRaw("(occurred_at at time zone 'Asia/Jakarta') >= ?", ["{$year}-01-01"])->whereRaw("(occurred_at at time zone 'Asia/Jakarta') < ?", [$end])->count()];
+        return ['gangguan_penyulang' => (float) $query->whereRaw("(occurred_at at time zone 'Asia/Jakarta') >= ?", ["{$year}-01-01"])->whereRaw("(occurred_at at time zone 'Asia/Jakarta') < ?", [$end])->count()];
     }
 
     /**
@@ -328,12 +393,16 @@ class NkoRealizationResolver
         $expected = $month * count($unitIds);
         $out = [];
         $response = DB::table('apkt_rpt_rct_records')->whereIn('organizational_unit_id', $unitIds)->where('clear_temper', false)->whereBetween('period', $between)->get(['rpt_total', 'rpt_count']);
+        if ($response->count() === $expected) {
+            $out['response_total_durasi'] = (float) $response->sum('rpt_total');
+            $out['response_jumlah_wo'] = (float) $response->sum('rpt_count');
+        }
         if ($response->count() === $expected && $response->sum('rpt_count') > 0) {
-            $out['response-time-atas-gangguan-diluar-clear-tamper'] = (float) $response->sum('rpt_total') / (float) $response->sum('rpt_count');
+            $out['response_ggnall'] = (float) $response->sum('rpt_total') / (float) $response->sum('rpt_count');
         }
         $negative = DB::table('apkt_anomali_gangguan_records')->whereIn('organizational_unit_id', $unitIds)->where('jenis', 'NEGATIF')->whereBetween('period', $between)->get(['total_anomali_non_marking']);
         if ($negative->count() === $expected) {
-            $out['feedback-rating-negatif-pada-pln-mobile-gangguan'] = (float) $negative->sum('total_anomali_non_marking');
+            $out['rating_negatif_ggn'] = (float) $negative->sum('total_anomali_non_marking');
         }
 
         return $out;
@@ -383,7 +452,7 @@ class NkoRealizationResolver
             $ensKwh += (float) ($total['kwh_tak_tersalurkan'] ?? 0);
         }
 
-        return ['saidi' => array_sum(array_map(fn ($x) => $x['saidi'] / $x['plg'], $byMonth)), 'saifi' => array_sum(array_map(fn ($x) => $x['saifi'] / $x['plg'], $byMonth)), 'ens' => $ensKwh / 1000];
+        return ['saidi_menit' => array_sum(array_map(fn ($x) => $x['saidi'] / $x['plg'], $byMonth)), 'saifi_kali' => array_sum(array_map(fn ($x) => $x['saifi'] / $x['plg'], $byMonth)), 'ens_mwh' => $ensKwh / 1000];
     }
 
     /**
@@ -399,16 +468,18 @@ class NkoRealizationResolver
     {
         $files = DB::table('eis_report_files')->where('family', 'BP_REKAP')->where('status', 'AKTIF')->whereIn('organizational_unit_id', $unitIds)
             ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->get(['organizational_unit_id', 'period', 'summary']);
+        $out = [];
         if ($files->count() === count($unitIds) * $month && $files->unique(fn ($f) => $f->organizational_unit_id.'|'.$f->period)->count() === $files->count()) {
-            return ['pendapatan-biaya-penyambungan' => $files->sum(fn ($f) => (float) (json_decode((string) $f->summary, true)['kas_rp'] ?? 0)) / 1_000_000_000];
+            $out['bp_kas_rp'] = (float) $files->sum(fn ($f) => (float) (json_decode((string) $f->summary, true)['kas_rp'] ?? 0));
         }
         $end = date('Y-m-d', strtotime(sprintf('%04d-%02d-01 +1 month', $year, $month)));
         $rows = DB::table('applications')->whereIn('organizational_unit_id', $unitIds)->whereNotNull('paid_at')->whereNotIn('current_status', ['CANCELLED', 'REFUNDED'])
             ->whereRaw("(paid_at at time zone 'Asia/Jakarta') >= ?", ["{$year}-01-01"])->whereRaw("(paid_at at time zone 'Asia/Jakarta') < ?", [$end]);
-        if (! (clone $rows)->exists()) {
-            return [];
+        if ((clone $rows)->exists()) {
+            $out['bp_total_biaya_rp'] = (float) $rows->sum('total_cost');
         }
+        $rupiah = $out['bp_kas_rp'] ?? $out['bp_total_biaya_rp'] ?? null;
 
-        return ['pendapatan-biaya-penyambungan' => (float) $rows->sum('total_cost') / 1_000_000_000];
+        return $rupiah === null ? $out : $out + ['hpl_bp' => $rupiah / 1_000_000_000];
     }
 }
