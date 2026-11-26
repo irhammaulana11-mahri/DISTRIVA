@@ -262,6 +262,9 @@ export default function ReliabilityFeederTab({ detail, metricCode }) {
                         )}
                       </div>
                       <div className="text-[10px] text-slate-400">
+                        {r.unit_name ? (
+                          <span className="font-medium text-slate-600 dark:text-slate-300">{r.unit_name} &bull; </span>
+                        ) : null}
                         {r.gi_name || '-'} &bull; {fmtInt(r.customers)} plg
                       </div>
                     </td>
@@ -373,6 +376,9 @@ export default function ReliabilityFeederTab({ detail, metricCode }) {
                         )}
                       </div>
                       <div className="text-[10px] text-slate-400">
+                        {rp.unit_name ? (
+                          <span className="font-medium text-slate-600 dark:text-slate-300">{rp.unit_name} &bull; </span>
+                        ) : null}
                         {rp.gi_name || '-'} &bull; Terakhir: {rp.last_at || '-'}
                       </div>
                     </div>
@@ -439,7 +445,10 @@ export default function ReliabilityFeederTab({ detail, metricCode }) {
                           )}
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          {rk.gi_name || rk.owner || '-'} &bull; 12 bln: {rk.last_12m_events} | 3 bln: {rk.last_3m_events}
+                          {rk.owner ? (
+                            <span className="font-medium text-slate-600 dark:text-slate-300">{rk.owner} &bull; </span>
+                          ) : null}
+                          {rk.gi_name || '-'} &bull; 12 bln: {rk.last_12m_events} | 3 bln: {rk.last_3m_events}
                         </div>
                       </div>
                       <div className="text-right">

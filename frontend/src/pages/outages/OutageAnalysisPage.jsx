@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { outageApi, triggerFileDownload } from '../../services/api.js'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
@@ -444,8 +445,8 @@ function FeederDrawer({ feederId, params, onClose }) {
   )
 }
 
-function FeedersTab({ data, params }) {
-  const [open, setOpen] = useState(null)
+function FeedersTab({ data, params, initialOpenFeederId }) {
+  const [open, setOpen] = useState(initialOpenFeederId || null)
   const rows = data.by_feeder
   return (
     <div className="space-y-5">
@@ -561,8 +562,13 @@ export function OutageAnalysisContent({
   hideHeader = false,
   hideTabs = false,
   forcedMetric = null, // null | 'events' | 'saidi-saifi' | 'ens'
+  initialFeederId = null,
 }) {
-  const [tab, setTab] = useState(defaultTab)
+  const { feederId: routeFeederId } = useParams()
+  const [searchParams] = useSearchParams()
+  const activeFeederId = initialFeederId || routeFeederId || searchParams.get('feeder_id')
+
+  const [tab, setTab] = useState(activeFeederId ? 'feeders' : defaultTab)
   const [up3Id, setUp3Id] = useState('')
   const [unitId, setUnitId] = useState('')
   const [fromM, setFromM] = useState('')
@@ -572,10 +578,12 @@ export function OutageAnalysisContent({
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false)
 
   useEffect(() => {
-    if (defaultTab) {
+    if (activeFeederId) {
+      setTab('feeders')
+    } else if (defaultTab) {
       setTab(defaultTab)
     }
-  }, [defaultTab])
+  }, [activeFeederId, defaultTab])
 
   const params = useMemo(() => ({
     from: fromM ? `${fromM}-01` : undefined,
@@ -705,7 +713,7 @@ export function OutageAnalysisContent({
       {state.loading && !d && <div className="flex justify-center py-16"><Spinner /></div>}
       {d && cov.events === 0 && <Alert type="info">Belum ada data gangguan pada cakupan ini. Jalankan sinkronisasi di Master Data &rsaquo; Data Gangguan (Sinkron).</Alert>}
       {d && cov.events > 0 && tab === 'trend' && <TrendTab data={d} forcedMetric={forcedMetric} />}
-      {d && cov.events > 0 && tab === 'feeders' && <FeedersTab data={d} params={params} />}
+      {d && cov.events > 0 && tab === 'feeders' && <FeedersTab data={d} params={params} initialOpenFeederId={activeFeederId} />}
       {tab === 'forecast' && <ForecastTab params={params} />}
 
       {d && tab === 'trend' && d.notes?.length > 0 && (

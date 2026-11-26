@@ -68,7 +68,7 @@ class ReliabilityInsights
             $share = $totalSaidi > 0 ? (float) ($r['saidi_contribution'] ?? 0) / $totalSaidi * 100 : null;
             $cumulative += $share ?? 0;
 
-            return ['feeder_id' => $r['feeder_id'], 'code' => $r['code'], 'name' => $r['name'], 'gi_name' => $r['gi_name'], 'events' => $r['events'], 'permanent' => $r['permanent'], 'temporary' => $r['temporary'], 'minutes' => $r['minutes'],
+            return ['feeder_id' => $r['feeder_id'], 'code' => $r['code'], 'name' => $r['name'], 'gi_name' => $r['gi_name'], 'unit_name' => $r['unit_name'] ?? null, 'events' => $r['events'], 'permanent' => $r['permanent'], 'temporary' => $r['temporary'], 'minutes' => $r['minutes'],
                 'ens_kwh' => $r['ens_kwh'], 'customers' => $r['customers'], 'saidi_contribution' => $r['saidi_contribution'], 'saifi_contribution' => $r['saifi_contribution'],
                 'saidi_share_pct' => $share === null ? null : round($share, 2), 'saidi_cumulative_pct' => $share === null ? null : round($cumulative, 2),
                 'saifi_share_pct' => $totalSaifi > 0 ? round((float) ($r['saifi_contribution'] ?? 0) / $totalSaifi * 100, 2) : null, 'ens_share_pct' => $totalEns > 0 ? round($r['ens_kwh'] / $totalEns * 100, 2) : null, 'trend_pct' => $r['trend_pct']];
@@ -83,11 +83,14 @@ class ReliabilityInsights
     {
         $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
         $since = date('Y-m-d', (int) strtotime($until.' -'.(self::REPEAT_WINDOW_DAYS - 1).' day'));
-        $rows = DB::table('outage_events as e')->leftJoin('distribution_feeders as f', 'f.id', '=', 'e.feeder_id')->whereNull('e.source_removed_at')->whereNotNull('e.feeder_id')->whereIn('e.organizational_unit_id', $units)
-            ->whereRaw('(e.occurred_at at time zone ?)::date between ? and ?', [$tz, $since, $until])->groupBy('e.feeder_id', 'f.code', 'f.name', 'f.gi_name')->havingRaw('count(*) >= ?', [self::REPEAT_MIN_EVENTS])->orderByRaw('count(*) desc, sum(e.duration_minutes) desc')->limit(20)
-            ->selectRaw("e.feeder_id, f.code, f.name, f.gi_name, count(*) as n, count(*) filter (where e.outage_type = 'PERMANEN') as perm, coalesce(sum(e.duration_minutes), 0) as minutes, max(e.occurred_at at time zone ?) as last_at", [$tz])->get();
+        $rows = DB::table('outage_events as e')
+            ->leftJoin('distribution_feeders as f', 'f.id', '=', 'e.feeder_id')
+            ->leftJoin('organizational_units as u', 'u.id', '=', 'f.owner_unit_id')
+            ->whereNull('e.source_removed_at')->whereNotNull('e.feeder_id')->whereIn('e.organizational_unit_id', $units)
+            ->whereRaw('(e.occurred_at at time zone ?)::date between ? and ?', [$tz, $since, $until])->groupBy('e.feeder_id', 'f.code', 'f.name', 'f.gi_name', 'u.name')->havingRaw('count(*) >= ?', [self::REPEAT_MIN_EVENTS])->orderByRaw('count(*) desc, sum(e.duration_minutes) desc')->limit(20)
+            ->selectRaw("e.feeder_id, f.code, f.name, f.gi_name, u.name as unit_name, count(*) as n, count(*) filter (where e.outage_type = 'PERMANEN') as perm, coalesce(sum(e.duration_minutes), 0) as minutes, max(e.occurred_at at time zone ?) as last_at", [$tz])->get();
 
-        return ['threshold_events' => self::REPEAT_MIN_EVENTS, 'window_days' => self::REPEAT_WINDOW_DAYS, 'window_from' => $since, 'window_to' => $until, 'rows' => $rows->map(fn ($r) => ['feeder_id' => $r->feeder_id, 'code' => $r->code, 'name' => $r->name, 'gi_name' => $r->gi_name,
+        return ['threshold_events' => self::REPEAT_MIN_EVENTS, 'window_days' => self::REPEAT_WINDOW_DAYS, 'window_from' => $since, 'window_to' => $until, 'rows' => $rows->map(fn ($r) => ['feeder_id' => $r->feeder_id, 'code' => $r->code, 'name' => $r->name, 'gi_name' => $r->gi_name, 'unit_name' => $r->unit_name,
             'events' => (int) $r->n, 'permanent' => (int) $r->perm, 'minutes' => round((float) $r->minutes, 1), 'last_at' => substr((string) $r->last_at, 0, 16)])->all()];
     }
 

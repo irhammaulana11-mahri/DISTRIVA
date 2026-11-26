@@ -339,12 +339,16 @@ class OutageAnalysisService
                 count(*) filter (where e.duration_minutes >= ? and (? = false or e.outage_type = 'PERMANEN')) as counted, coalesce(sum(e.duration_minutes) filter (where e.duration_minutes >= ? and (? = false or e.outage_type = 'PERMANEN')), 0) as counted_minutes", [$tz, $l12From, $tz, $p12From, $p12To, $min, $onlyPerm, $min, $onlyPerm])
             ->groupBy('e.feeder_id', DB::raw('case when e.feeder_id is null then e.gi_name || e.feeder_name end'))->get();
         $ids = $rows->pluck('feeder_id')->filter()->all();
-        $meta = DB::table('distribution_feeders')->whereIn('id', $ids)->get(['id', 'code', 'name', 'gi_name'])->keyBy('id');
+        $meta = DB::table('distribution_feeders as f')
+            ->leftJoin('organizational_units as u', 'u.id', '=', 'f.owner_unit_id')
+            ->whereIn('f.id', $ids)
+            ->get(['f.id', 'f.code', 'f.name', 'f.gi_name', 'u.name as unit_name'])
+            ->keyBy('id');
         $gardu = DB::table('substations')->whereIn('feeder_id', $ids)->selectRaw('feeder_id, count(*) as n, coalesce(sum(capacity_kva), 0) as kva')->groupBy('feeder_id')->get()->keyBy('feeder_id');
         $out = [];
         foreach ($rows as $r) {
             $cust = $r->feeder_id === null ? 0 : $this->customersOf($matrix, $r->feeder_id, $units);
-            $out[] = ['feeder_id' => $r->feeder_id, 'code' => $meta[$r->feeder_id]->code ?? null, 'name' => $meta[$r->feeder_id]->name ?? $r->fname, 'gi_name' => $meta[$r->feeder_id]->gi_name ?? $r->gi, 'matched' => $r->feeder_id !== null,
+            $out[] = ['feeder_id' => $r->feeder_id, 'code' => $meta[$r->feeder_id]->code ?? null, 'name' => $meta[$r->feeder_id]->name ?? $r->fname, 'gi_name' => $meta[$r->feeder_id]->gi_name ?? $r->gi, 'unit_name' => $meta[$r->feeder_id]->unit_name ?? null, 'matched' => $r->feeder_id !== null,
                 'events' => (int) $r->n, 'permanent' => (int) $r->perm, 'temporary' => (int) $r->temp, 'minutes' => round((float) $r->minutes, 1), 'ens_kwh' => round((float) $r->ens, 1), 'l12m_events' => (int) $r->l12, 'prev12m_events' => (int) $r->p12,
                 'trend_pct' => $r->p12 > 0 ? round(($r->l12 - $r->p12) / $r->p12 * 100, 1) : null, 'customers' => $cust, 'gardu' => (int) ($gardu[$r->feeder_id]->n ?? 0), 'gardu_kva' => round((float) ($gardu[$r->feeder_id]->kva ?? 0), 0),
                 'saifi_contribution' => $base > 0 ? round($cust * (int) $r->counted / $base, 4) : null, 'saidi_contribution' => $base > 0 ? round($cust * (float) $r->counted_minutes / $base, 3) : null];
