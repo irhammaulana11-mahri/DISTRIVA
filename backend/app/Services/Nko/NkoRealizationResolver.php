@@ -35,7 +35,7 @@ class NkoRealizationResolver
     public const SUSUT_INPUTS = ['kwh-beli' => 'kWh Beli (kumulatif)', 'e-min' => 'E-Min (kWh, kumulatif)', 'pssd' => 'PSSD (kWh, kumulatif)'];
 
     /** sumber sistem yang dimuat otomatis tetapi belum cocok dengan angka workbook (dapat dikoreksi dengan masukan manual disertai alasan) */
-    public const UNVALIDATED_CODES = [self::PELUNASAN_CODE, 'penjualan-tenaga-listrik', 'pendapatan-biaya-penyambungan', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
+    public const UNVALIDATED_CODES = [self::PELUNASAN_CODE, 'pendapatan-biaya-penyambungan', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
 
     /**
      * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string, flag: ?string}> menurut kode indikator
@@ -55,7 +55,7 @@ class NkoRealizationResolver
         return $out;
     }
 
-    /** penjualan TL negatif (kWh jual kumulatif lebih kecil dari periode sama tahun lalu) hanya ditandai, nilainya tidak diubah */
+    /** penjualan TL negatif (kWh jual di bawah baseline adjustment) hanya ditandai, nilainya tidak diubah */
     private function flagFor(string $code, float $value): ?string
     {
         return $code === 'penjualan-tenaga-listrik' && $value < 0 ? 'NEGATIF' : null;
@@ -206,34 +206,30 @@ class NkoRealizationResolver
     }
 
     /**
-     * Penambahan penjualan TL (GWh) = kWh jual kumulatif tahun berjalan dikurangi periode yang sama tahun lalu, dari baris "JUMLAH" laporan 309 (semua bulan kedua tahun harus ada).
-     * Definisi dari pemilik; angka workbook berbeda karena faktor lain (pembanding tahun lalu workbook bukan dari 309), sehingga dapat dikoreksi dengan masukan manual beralasan.
+     * Penambahan penjualan TL (GWh) = jumlah (kWh jual bulan itu dikurangi baseline adjustment bulan itu) Januari sampai bulan berjalan, rumus workbook TRP: kWh jual dari baris "JUMLAH" laporan 309 dan
+     * BA bulanan = target kWh jual bulanan dikurangi target delta bulanan (`kpi_baselines`, diimpor dari workbook TRP). Semua bulan 309 dan semua BA Januari sampai bulan berjalan harus ada, selain itu kosong.
+     * Dicocokkan dengan workbook REALISASI Januari sampai September 2026 untuk 10 ULP (selisih paling banyak 1 kWh karena pembulatan).
      *
      * @return array<string, float>
      */
     private function penjualanValues(string $unitId, int $year, int $month): array
     {
-        $ytd = function (int $y) use ($unitId, $month): ?float {
-            $files = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
-                ->whereBetween('period', ["{$y}-01-01", sprintf('%04d-%02d-01', $y, $month)])->pluck('id');
-            if ($files->count() !== $month) {
-                return null;
+        $baselines = DB::table('kpi_baselines')->where('definition_code', 'penjualan-tenaga-listrik')->where('organizational_unit_id', $unitId)->where('year', $year)->where('month', '<=', $month)->pluck('value', 'month');
+        $files = DB::table('eis_report_files')->where('family', '309')->where('status', 'AKTIF')->where('organizational_unit_id', $unitId)
+            ->whereBetween('period', ["{$year}-01-01", sprintf('%04d-%02d-01', $year, $month)])->get(['id', 'period']);
+        if ($baselines->count() !== $month || $files->count() !== $month) {
+            return [];
+        }
+        $sum = 0.0;
+        foreach ($files as $f) {
+            $line = DB::table('eis_report_lines')->where('file_id', $f->id)->where('label', 'JUMLAH')->orderByDesc('line_no')->value('values');
+            if ($line === null) {
+                return [];
             }
-            $sum = 0.0;
-            foreach ($files as $id) {
-                $line = DB::table('eis_report_lines')->where('file_id', $id)->where('label', 'JUMLAH')->orderByDesc('line_no')->value('values');
-                if ($line === null) {
-                    return null;
-                }
-                $sum += (float) (json_decode($line, true)['kwh_jumlah'] ?? 0);
-            }
+            $sum += (float) (json_decode($line, true)['kwh_jumlah'] ?? 0) - (float) $baselines[(int) substr((string) $f->period, 5, 2)];
+        }
 
-            return $sum;
-        };
-        $now = $ytd($year);
-        $before = $ytd($year - 1);
-
-        return $now === null || $before === null ? [] : ['penjualan-tenaga-listrik' => ($now - $before) / 1000000];
+        return ['penjualan-tenaga-listrik' => $sum / 1000000];
     }
 
     /**

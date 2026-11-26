@@ -287,9 +287,10 @@ class NkoCalculationTest extends PostgresTestCase
     }
 
     #[Test]
-    public function ringkasan_kekurangan_melaporkan_indikator_kosong_dan_belum_tervalidasi_sesuai_cakupan_peran(): void
+    public function ringkasan_kekurangan_melaporkan_indikator_kosong_sesuai_cakupan_peran_dan_tidak_menandai_penjualan_yang_cocok_baseline(): void
     {
-        foreach (['2026-01-01' => 48000000, '2025-01-01' => 50000000] as $period => $kwh) {
+        $this->baseline($this->ulpA, 2026, 1, 40000000);
+        foreach (['2026-01-01' => 48000000] as $period => $kwh) {
             $this->report309($this->ulpA, $period, 1, 1);
             DB::table('eis_report_lines')->join('eis_report_files', 'eis_report_files.id', '=', 'eis_report_lines.file_id')
                 ->where('eis_report_files.period', $period)->where('eis_report_lines.label', 'JUMLAH')->update(['values' => json_encode(['pelanggan' => 1, 'daya_va' => 1, 'kwh_jumlah' => $kwh])]);
@@ -299,9 +300,9 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertCount(3, $all['units']);
         $jombang = collect($all['units'])->firstWhere('unit_id', $this->ulpA->id);
         $status = collect($jombang['items'])->pluck('status', 'code');
-        $this->assertSame('BELUM_TERVALIDASI', $status['penjualan-tenaga-listrik']);
+        $this->assertArrayNotHasKey('penjualan-tenaga-listrik', $status->all());   // 309 + baseline lengkap dan rumus sudah cocok workbook: bukan kekurangan
         $this->assertSame('KOSONG', $status['saidi']);
-        $this->assertSame(1, $jombang['unvalidated_count']);
+        $this->assertSame(0, $jombang['unvalidated_count']);
         $this->assertSame($jombang['empty_count'] + $jombang['unvalidated_count'], count($jombang['items']));
         $this->assertGreaterThan($jombang['empty_count'], collect($all['units'])->firstWhere('unit_id', $this->ulpB->id)['empty_count']);
 
@@ -372,29 +373,43 @@ class NkoCalculationTest extends PostgresTestCase
         $this->assertContains('susut-distribusi-tanpa-e-min', NkoRealizationResolver::UNVALIDATED_CODES);
     }
 
+    /** Baseline adjustment (BA) Penjualan TL satu ULP satu bulan (kWh). */
+    private function baseline(OrganizationalUnit $unit, int $year, int $month, float $kwh): void
+    {
+        DB::table('kpi_baselines')->insert(['definition_code' => 'penjualan-tenaga-listrik', 'organizational_unit_id' => $unit->id, 'year' => $year, 'month' => $month, 'value' => $kwh, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
     #[Test]
-    public function penambahan_penjualan_adalah_selisih_kwh_jual_kumulatif_tahun_berjalan_dan_tahun_lalu(): void
+    public function penambahan_penjualan_adalah_jumlah_kwh_jual_dikurangi_baseline_adjustment_bulanan_seperti_workbook(): void
     {
         $resolver = app(NkoRealizationResolver::class);
-        $jual = function (string $period, float $kwh) {
-            $this->report309($this->ulpA, $period, 1, 1);
-            DB::table('eis_report_lines')->join('eis_report_files', 'eis_report_files.id', '=', 'eis_report_lines.file_id')
+        $jual = function (OrganizationalUnit $unit, string $period, float $kwh) {
+            $this->report309($unit, $period, 1, 1);
+            DB::table('eis_report_lines')->join('eis_report_files', 'eis_report_files.id', '=', 'eis_report_lines.file_id')->where('eis_report_files.organizational_unit_id', $unit->id)
                 ->where('eis_report_files.period', $period)->where('eis_report_lines.label', 'JUMLAH')->update(['values' => json_encode(['pelanggan' => 1, 'daya_va' => 1, 'kwh_jumlah' => $kwh])]);
         };
-        $jual('2026-01-01', 48000000);
-        $this->assertArrayNotHasKey('penjualan-tenaga-listrik', $resolver->resolve($this->ulpA->id, 2026, 1));   // Januari tahun lalu belum ada
+        $jual($this->ulpA, '2026-01-01', 48000000);
+        $this->assertArrayNotHasKey('penjualan-tenaga-listrik', $resolver->resolve($this->ulpA->id, 2026, 1));   // baseline Januari belum ada
 
-        $jual('2025-01-01', 50000000);
+        $this->baseline($this->ulpA, 2026, 1, 50000000);
         $jan = $resolver->resolve($this->ulpA->id, 2026, 1)['penjualan-tenaga-listrik'];
-        $this->assertEqualsWithDelta(-2.0, $jan['value'], 1e-9);   // GWh: turun dibanding tahun lalu
+        $this->assertEqualsWithDelta(-2.0, $jan['value'], 1e-9);   // GWh: kWh jual di bawah baseline
         $this->assertSame('SISTEM', $jan['source']);
         $this->assertSame('NEGATIF', $jan['flag']);   // hanya ditandai, nilai tidak diubah
 
-        $jual('2026-02-01', 44000000);
-        $jual('2025-02-01', 41000000);
-        $this->assertEqualsWithDelta(1.0, $resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['value'], 1e-9);   // (48+44) - (50+41), kumulatif
+        $jual($this->ulpA, '2026-02-01', 44000000);
+        $this->assertArrayNotHasKey('penjualan-tenaga-listrik', $resolver->resolve($this->ulpA->id, 2026, 2));   // baseline Februari belum ada: kosong, bukan jumlah sebagian
+        $this->baseline($this->ulpA, 2026, 2, 41000000);
+        $this->assertEqualsWithDelta(1.0, $resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['value'], 1e-9);   // (48-50) + (44-41), kumulatif
         $this->assertNull($resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['flag']);
-        $this->assertContains('penjualan-tenaga-listrik', NkoRealizationResolver::UNVALIDATED_CODES);
+        $this->assertNotContains('penjualan-tenaga-listrik', NkoRealizationResolver::UNVALIDATED_CODES);   // rumus cocok workbook (10 ULP Januari sampai September 2026)
+
+        foreach ([1 => [47000000, 46000000], 2 => [45000000, 43000000]] as $month => [$kwh, $ba]) {
+            $period = sprintf('2026-%02d-01', $month);
+            $jual($this->ulpB, $period, $kwh);
+            $this->baseline($this->ulpB, 2026, $month, $ba);
+        }
+        $this->assertEqualsWithDelta(1.0 + 3.0, $resolver->resolve($this->up3->id, 2026, 2)['penjualan-tenaga-listrik']['value'], 1e-9);   // UP3 = jumlah ULP: 1,0 + (1+2) = 4,0
     }
 
     #[Test]

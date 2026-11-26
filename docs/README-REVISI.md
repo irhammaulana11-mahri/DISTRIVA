@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Tidak ada butir terbuka saat ini)*
+| # | Tanggal | Perubahan | Dokumen rujukan | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|
+| 59 | 2026-11-26 | **Penjualan TL NKO memakai rumus workbook (BA)**: `GET /nko/inputs` dan `/nko/gaps` untuk `penjualan-tenaga-listrik` kini bernilai sistem yang cocok workbook (jumlah kWh jual 309 dikurangi baseline adjustment bulanan) dengan `system_validated: true`, sehingga `status` `BELUM_TERVALIDASI` tidak lagi muncul untuk indikator ini dan `unvalidated_count` berkurang satu. Nilai kosong (bukan sebagian) bila BA bulan berjalan belum diimpor. Tidak ada endpoint atau kolom baru. | docs/90 (Penjualan TL, impor `distriva:nko-import-baselines`), docs/92 §10 | Pastikan lencana atau teks "belum tervalidasi" dan keterangan definisi Penjualan TL di halaman NKO dan Masukan Realisasi mengikuti `system_validated` dari API, bukan daftar kode tetap, dan buang teks yang menyebut pembanding tahun lalu bila ada. | BARU |
 
 ## Selesai
 
