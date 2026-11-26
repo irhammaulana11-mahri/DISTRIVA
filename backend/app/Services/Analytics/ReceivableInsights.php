@@ -103,6 +103,8 @@ class ReceivableInsights
         $labels = ['0 sampai 3 bulan', '4 sampai 6 bulan', '7 sampai 12 bulan', '13 sampai 24 bulan', 'lebih dari 24 bulan'];
         $rp = array_fill_keys($labels, 0.0);
         $byMonth = [];
+        $paidByMonth = [];
+        $paidByYear = [];
         foreach ($rows as $r) {
             if (preg_match('/^(\d{4})(\d{2})$/', (string) $r->label, $m) !== 1) {
                 continue;
@@ -119,6 +121,8 @@ class ReceivableInsights
             }];
             $rp[$bucket] += $value;
             $byMonth[$paid][$bucket] = ($byMonth[$paid][$bucket] ?? 0.0) + $value;
+            $paidByMonth[$paid] = ($paidByMonth[$paid] ?? 0.0) + $value;
+            $paidByYear[$m[1]] = ($paidByYear[$m[1]] ?? 0.0) + $value;
         }
         $total = array_sum($rp);
         ksort($byMonth);
@@ -126,8 +130,69 @@ class ReceivableInsights
         return ['kind' => 'repayment_age', 'available' => $files->isNotEmpty(), 'period' => ['from' => "{$year}-01", 'to' => $to], 'files' => $files->count(), 'rp_total' => $total,
             'rows' => array_map(fn ($k, $v) => ['key' => $k, 'rp' => $v, 'share_pct' => $total > 0 ? round($v / $total * 100, 2) : null], array_keys($rp), $rp),
             'monthly' => array_map(fn ($m, $v) => ['month' => $m] + array_map(fn ($b) => $v[$b] ?? 0.0, array_combine($labels, $labels)), array_keys($byMonth), $byMonth),
+            'recovery' => $family === 'PRR' ? $this->recovery($units, $to, $paidByMonth, $paidByYear, $files->groupBy('period')->map->count()->all()) : null,
             'notes' => ['Umur = selisih bulan bayar dan bulan tagihan (BLTH) yang dilunasi, dari laporan pelunasan AP2T menurut tanggal bayar; bulan berjalan hanya sampai tanggal penarikan.',
-                'Peluang pelunasan menurut umur (vintage) dan tingkat pemulihan butuh saldo PRR per umur, yang belum ada di DISTRIVA (keputusan terbuka docs/92 §10).']];
+                $family === 'PRR' ? 'Tingkat pemulihan memakai saldo PRR dari laporan Daftar PRR AP2T (`recovery`).' : 'Saldo Ex PRR belum tersedia di DISTRIVA, sehingga tingkat pemulihan Ex PRR belum dihitung.']];
+    }
+
+    /**
+     * Tingkat pemulihan PRR dari saldo laporan Daftar PRR (potret saldo per bulan) dan pelunasan bulan itu: pemulihan bulan = pelunasan bulan itu / saldo akhir bulan sebelumnya. Bulan hanya dihitung bila
+     * semua ULP pada cakupan punya laporan saldo dan laporan pelunasan; bulan berjalan ditandai `partial` (pelunasan baru sampai tanggal penarikan).
+     *
+     * @param  list<string>  $units
+     * @param  array<string, float>  $paidByMonth  bulan bayar (YYYY-MM) => Rp pelunasan
+     * @param  array<string, float>  $paidByYear  tahun tagihan => Rp pelunasan tahun berjalan
+     * @param  array<string, int>  $paymentFiles  periode (YYYY-MM-DD) => jumlah berkas pelunasan
+     * @return array<string, mixed>
+     */
+    private function recovery(array $units, string $to, array $paidByMonth, array $paidByYear, array $paymentFiles): array
+    {
+        $year = (int) substr($to, 0, 4);
+        $rows = DB::table('eis_report_files')->where('family', 'DAFTAR_PRR')->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->whereBetween('period', [($year - 1).'-12-01', $to.'-01'])
+            ->get(['id', 'period', 'organizational_unit_id', 'summary']);
+        $saldo = [];
+        foreach ($rows->groupBy(fn ($f) => substr((string) $f->period, 0, 7)) as $month => $group) {
+            if ($group->pluck('organizational_unit_id')->unique()->count() === count($units)) {
+                $saldo[$month] = ['rp' => (float) $group->sum(fn ($f) => (json_decode((string) $f->summary, true)['rp_prr'] ?? 0)), 'customers' => (int) $group->sum(fn ($f) => (json_decode((string) $f->summary, true)['pelanggan'] ?? 0)),
+                    'ids' => $group->pluck('id')->all()];
+            }
+        }
+        ksort($saldo);
+        if ($saldo === []) {
+            return ['available' => false, 'reason' => 'Laporan Daftar PRR (saldo) belum ditarik untuk cakupan ini. Tarik lewat sinkron AP2T, jenis "saldo_prr".'];
+        }
+        $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
+        $current = now($tz)->format('Y-m');
+        $monthly = [];
+        foreach ($saldo as $month => $s) {
+            $prev = date('Y-m', (int) strtotime($month.'-01 -1 month'));
+            $paidComplete = ($paymentFiles[$month.'-01'] ?? 0) === count($units);
+            $row = ['month' => $month, 'saldo_rp' => $s['rp'], 'customers' => $s['customers'], 'opening_rp' => $saldo[$prev]['rp'] ?? null, 'repaid_rp' => $paidComplete ? ($paidByMonth[$month] ?? 0.0) : null, 'partial' => $month === $current];
+            $row['recovery_pct'] = $row['opening_rp'] !== null && $row['opening_rp'] > 0 && $row['repaid_rp'] !== null ? round($row['repaid_rp'] / $row['opening_rp'] * 100, 2) : null;
+            $monthly[] = $row;
+        }
+        $latest = array_key_last($saldo);
+        $byYear = [];
+        foreach (DB::table('eis_report_lines')->whereIn('file_id', $saldo[$latest]['ids'])->get(['label', 'values']) as $l) {
+            $v = json_decode((string) $l->values, true);
+            $byYear[$l->label]['rp'] = ($byYear[$l->label]['rp'] ?? 0.0) + (float) ($v['rp_prr'] ?? 0);
+            $byYear[$l->label]['baris'] = ($byYear[$l->label]['baris'] ?? 0) + (int) ($v['baris'] ?? 0);
+        }
+        ksort($byYear);
+        $ytd = null;
+        $open = $saldo[($year - 1).'-12']['rp'] ?? null;
+        if ($open !== null && $open > 0 && (int) substr($latest, 0, 4) === $year) {
+            $paid = 0.0;
+            for ($m = 1; $m <= (int) substr($latest, 5, 2); $m++) {
+                $paid += $paidByMonth[sprintf('%04d-%02d', $year, $m)] ?? 0.0;
+            }
+            $ytd = ['opening_rp' => $open, 'repaid_rp' => $paid, 'recovery_pct' => round($paid / $open * 100, 2)];
+        }
+
+        return ['available' => true, 'latest_month' => $latest, 'saldo_rp' => $saldo[$latest]['rp'], 'customers' => $saldo[$latest]['customers'], 'monthly' => $monthly, 'ytd' => $ytd,
+            'by_billing_year' => array_map(fn ($y, $v) => ['year' => (int) $y, 'saldo_rp' => $v['rp'], 'rows' => $v['baris'], 'share_pct' => $saldo[$latest]['rp'] > 0 ? round($v['rp'] / $saldo[$latest]['rp'] * 100, 2) : null, 'repaid_ytd_rp' => $paidByYear[$y] ?? 0.0], array_keys($byYear), $byYear),
+            'notes' => ['Saldo = jumlah kolom RP PRR laporan Daftar PRR AP2T (potret per bulan; bulan berjalan berubah tiap hari). Pemulihan bulan = pelunasan bulan itu dibagi saldo akhir bulan sebelumnya; saldo yang bertambah karena PRR baru tidak dikeluarkan.',
+                'Bulan tanpa saldo bulan sebelumnya atau tanpa laporan pelunasan lengkap tidak dihitung (nilai null). `ytd` (pelunasan Januari sampai bulan saldo terakhir dibagi saldo Desember tahun lalu) hanya ada bila saldo Desember itu sudah ditarik.']];
     }
 
     /**

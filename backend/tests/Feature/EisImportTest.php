@@ -1295,6 +1295,58 @@ class EisImportTest extends PostgresTestCase
         return $body;
     }
 
+    /** @param  list<array{0: string, 1: string, 2: int, 3: int, 4: int}>  $rows  IDPEL, BLTH tagihan awal, lembar, jumlah, RP PRR */
+    private function ap2tDaftarPrrBody(array $rows): string
+    {
+        $sheet = new Spreadsheet;
+        $ws = $sheet->getActiveSheet();
+        $ws->setCellValue('E1', 'PT PLN (PERSERO)');
+        $ws->setCellValue('E4', 'ULP JOMBANG');
+        $ws->setCellValue('K3', 'DAFTAR SALDO PIUTANG RAGU-RAGU');
+        $ws->setCellValue('I7', 'TAHUN BULAN : NOVEMBER 2026');
+        foreach ($rows as $i => [$idpel, $blth, $lembar, $jumlah, $prr]) {
+            $r = 18 + $i * 2;
+            $ws->setCellValue("B{$r}", $i + 1);
+            $ws->setCellValueExplicit("E{$r}", $idpel, 's');
+            $ws->setCellValueExplicit("K{$r}", $blth, 's');
+            foreach (['L' => $lembar, 'N' => $jumlah, 'S' => $jumlah, 'Z' => 0, 'AD' => $jumlah - $prr, 'AF' => $prr] as $col => $v) {
+                $ws->setCellValue("{$col}{$r}", $v);
+            }
+        }
+        $total = 18 + count($rows) * 2;
+        $ws->setCellValue("L{$total}", array_sum(array_column($rows, 2)));              // baris total di dasar berkas: kolomnya bergeser dan tidak boleh ikut terhitung
+        $ws->setCellValue("AF{$total}", array_sum(array_column($rows, 4)));
+        $path = tempnam(sys_get_temp_dir(), 'ap2tdprr');
+        (new Xlsx($sheet))->save($path);
+        $body = (string) file_get_contents($path);
+        @unlink($path);
+
+        return $body;
+    }
+
+    #[Test]
+    public function an_ap2t_run_pulls_the_prr_balance_list_by_blth_and_stores_only_totals_per_billing_year(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url_pelunasan' => 'https://ap2t.test/PelunasanServlet']);
+        Storage::fake('documents');
+        $rows = [['514531109142', '201410', 3, 7223330, 2537459], ['514531611047', '201903', 3, 20655564, 16455594], ['514531988310', '201905', 2, 1000000, 400000], ['514531988311', '202607', 3, 277908, 82472]];
+        Http::fake(['ap2t.test/*' => Http::response($this->ap2tDaftarPrrBody($rows), 200, ['Content-Type' => 'application/vnd.ms-excel'])]);
+
+        $run = $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'from_month' => '2026-11', 'to_month' => '2026-11', 'units' => ['51453'], 'reports' => ['saldo_prr']])->assertStatus(202)->json('data');
+
+        Http::assertSent(fn ($r) => $r->method() === 'GET' && $r['idjenislaporan'] === 'getLaporanDaftarPRR' && $r['blth'] === '202611' && $r['unitup'] === '51453' && $r['unitap'] === '51MJK' && $r['unitupi'] === '51'
+            && $r['report'] === 'C:/Report/Laporan_Daftar_PRR.xls' && ! isset($r->data()['userid']) && ! isset($r->data()['tglAwal']));
+        $this->assertSame('OK', DB::table('eis_sync_runs')->where('id', $run['id'])->value('status'));
+        $file = DB::table('eis_report_files')->where('family', 'DAFTAR_PRR')->where('unit_code', '51453')->first();
+        $this->assertSame(['2026-11-01', 'DAFTAR_PRR-51453-112026.xls', 3], [$file->period, $file->original_name, (int) $file->line_count]);
+        $this->assertEquals(['pelanggan' => 4, 'baris' => 4, 'lembar' => 11, 'rp_prr' => 19475525], json_decode($file->summary, true));       // 11 lembar dan 19.475.525 dari baris data, bukan dari baris total
+        $lines = DB::table('eis_report_lines')->where('file_id', $file->id)->orderBy('label')->get()->mapWithKeys(fn ($l) => [$l->label => json_decode($l->values, true)]);
+        $this->assertSame(['2014', '2019', '2026'], array_map('strval', $lines->keys()->all()));
+        $this->assertEquals([2, 5, 16855594], [$lines['2019']['baris'], $lines['2019']['lembar'], $lines['2019']['rp_prr']]);
+        $this->assertStringNotContainsString('51453110', json_encode(DB::table('eis_report_lines')->where('file_id', $file->id)->get()));          // IDPEL tidak disimpan
+    }
+
     #[Test]
     public function an_ap2t_run_pulls_the_prr_and_ex_prr_payment_reports_by_payment_date_without_userid_and_stores_only_totals_per_billing_month(): void
     {

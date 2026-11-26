@@ -20,6 +20,7 @@ class Ap2tTagsusSync
         'realisasi' => ['report' => 'report/NONREK/rpt_ts_daftar_realisasi_pendapatan_penetapan_ts.xls', 'title' => 'DAFTAR REALISASI PENDAPATAN PENETAPAN TAGIHAN SUSULAN (TUNAI DAN ANGSURAN)', 'family' => 'TAGSUS', 'label' => 'realisasi'],
         'belum_realisasi' => ['report' => 'report/NONREK/rpt_ts_daftar_penetapan_ts_belum_realisasi.xls', 'title' => 'DAFTAR PENETAPAN TAGIHAN SUSULAN YANG BELUM REALISASI', 'family' => 'TAGSUS_BELUM', 'label' => 'belum realisasi'],
         'pelunasan_prr' => ['report' => 'C:/Report/Laporan_LunasPRR.xls', 'range' => 'getLaporanLunasPRR', 'family' => 'PRR', 'label' => 'pelunasan PRR'],
+        'saldo_prr' => ['report' => 'C:/Report/Laporan_Daftar_PRR.xls', 'blth' => 'getLaporanDaftarPRR', 'family' => 'DAFTAR_PRR', 'label' => 'saldo PRR'],
         'pelunasan_ex_prr' => ['report' => 'C:/Report/Laporan_LunasExPRR.xls', 'range' => 'getLaporanLunasExPRR', 'family' => 'EXPRR', 'label' => 'pelunasan Ex PRR'],
     ];
 
@@ -117,6 +118,9 @@ class Ap2tTagsusSync
             $end = min(date('Ymt', (int) strtotime($ym.'-01')), now($tz)->format('Ymd'));
             $url = (string) $cfg['report_url_pelunasan'];
             $query = ['idjenislaporan' => $def['range'], 'tglAwal' => substr($ym, 0, 4).substr($ym, 5, 2).'01', 'tglAkhir' => $end, 'unitupi' => $cfg['unitupi'], 'unitap' => $cfg['unitap'], 'unitup' => $ulpCode, 'report' => $def['report']];
+        } elseif (isset($def['blth'])) {                                                              // saldo PRR (Daftar PRR): satu BLTH, servlet yang sama dengan pelunasan; userid tidak dikirim
+            $url = (string) $cfg['report_url_pelunasan'];
+            $query = ['idjenislaporan' => $def['blth'], 'unitupi' => $cfg['unitupi'], 'unitap' => $cfg['unitap'], 'unitup' => $ulpCode, 'blth' => substr($ym, 0, 4).substr($ym, 5, 2), 'report' => $def['report']];
         } else {
             $url = (string) $cfg['report_url'];
             $query = ['jenislaporan' => 'getlaporantsgab', 'report' => $def['report'], 'unitup' => $ulpCode, 'unitap' => $cfg['unitap'], 'unitupi' => $cfg['unitupi'], 'jenislap' => $def['title'], 'thbl' => substr($ym, 0, 4).substr($ym, 5, 2)];

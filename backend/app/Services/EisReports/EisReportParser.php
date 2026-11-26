@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
  */
 final class EisReportParser
 {
-    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'PRR', 'EXPRR', 'TAGSUS', 'TAGSUS_BELUM', 'UMURPIUTANG'];
+    public const FAMILIES = ['309', '309EIS', 'AKHIEPERIODE_EIS', 'AKHIRBULAN_EIS', 'DIFI', 'GGNALL', 'GGNBERULANG', 'GGNNEGATIF', 'GGNPERJENIS', 'KLHALL', 'KLHBERULANG', 'KLHNEGATIF', 'PIUTANGLPB_EIS', 'PRR', 'EXPRR', 'DAFTAR_PRR', 'TAGSUS', 'TAGSUS_BELUM', 'UMURPIUTANG'];
 
     private const MONTHS = ['januari' => 1, 'pebruari' => 2, 'februari' => 2, 'maret' => 3, 'april' => 4, 'mei' => 5, 'juni' => 6, 'juli' => 7, 'agustus' => 8, 'september' => 9, 'oktober' => 10, 'nopember' => 11, 'november' => 11, 'desember' => 12];
 
@@ -94,6 +94,7 @@ final class EisReportParser
             'KLHBERULANG', 'KLHNEGATIF' => [$this->fixedByLetter('KLH'), null],
             'TAGSUS', 'TAGSUS_BELUM' => [$this->tagsus(), null],
             'PRR', 'EXPRR' => $this->pelunasanRagu(),
+            'DAFTAR_PRR' => $this->daftarPrr(),
             'UMURPIUTANG' => [$this->umurPiutang(), null],
         };
         if ($family === '309EIS' && $unitSource === 'nama' && $lines !== []) {                       // kode unit di kolom UNIT harus sama dengan kode pada nama berkas (pilihan unit di EIS tidak boleh meleset)
@@ -105,7 +106,7 @@ final class EisReportParser
         if ($lines === [] && $family === '309EIS') {
             throw new EisReportException('Kontrol 309 hanya berisi judul kolom tanpa baris data: bulan itu kemungkinan belum ditutup di EIS (laporan 309 baru ada setelah akhir bulan).');
         }
-        if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM', 'PRR', 'EXPRR'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
+        if ($lines === [] && ! in_array($family, ['TAGSUS', 'TAGSUS_BELUM', 'PRR', 'EXPRR', 'DAFTAR_PRR'], true)) {         // bulan tanpa penetapan adalah laporan sah dengan nol baris
             throw new EisReportException('Tidak ada baris data yang dikenali; tata letak berkas mungkin berbeda dari laporan EIS yang didukung.');
         }
 
@@ -149,6 +150,7 @@ final class EisReportParser
         return match (true) {
             str_contains($text, 'LAPORAN PENJUALAN TENAGA LISTRIK') => '309',
             str_contains($text, 'LAPORAN SAIDI SAIFI') => 'DIFI',
+            str_contains($text, 'DAFTAR SALDO PIUTANG RAGU-RAGU') => 'DAFTAR_PRR',
             str_contains($text, 'PELUNASAN EX PIUTANG RAGU-RAGU') => 'EXPRR',
             str_contains($text, 'PELUNASAN PIUTANG RAGU-RAGU') => 'PRR',
             str_contains($text, 'TAGIHAN SUSULAN') && str_contains($text, 'BELUM REALISASI') => 'TAGSUS_BELUM',
@@ -669,6 +671,55 @@ final class EisReportParser
         }
 
         return $lines;
+    }
+
+    /**
+     * Daftar saldo piutang ragu-ragu (PRR) per ULP (AP2T, "Daftar Saldo Piutang Ragu-Ragu"): satu baris per pelanggan dan bulan tagihan yang diusulkan dipindahbukukan ke PRR, dengan kolom Jumlah (S), Piutang bukan beban kerugian (Z),
+     * UJL (AD), dan RP PRR (AF). Hanya jumlah per tahun bulan tagihan (umur saldo); IDPEL tidak disimpan. Baris total di dasar berkas tidak dipakai (kolomnya bergeser) karena jumlahnya dihitung ulang dari baris data.
+     * `summary`: pelanggan (IDPEL berbeda), baris, lembar, rp_prr (saldo).
+     *
+     * @return array{0: list<array<string, mixed>>, 1: array<string, float|null>}
+     */
+    private function daftarPrr(): array
+    {
+        $titled = false;
+        foreach (array_slice($this->rows, 0, 15) as $row) {
+            foreach ($row as $v) {
+                is_string($v) && str_contains(strtoupper((string) preg_replace('/\s+/', ' ', $v)), 'DAFTAR SALDO PIUTANG RAGU-RAGU') && $titled = true;
+            }
+        }
+        if (! $titled) {
+            throw new EisReportException('Tata letak daftar saldo piutang ragu-ragu tidak dikenali: judul "DAFTAR SALDO PIUTANG RAGU-RAGU" tidak ditemukan.');
+        }
+        $cols = ['L' => 'lembar', 'N' => 'rp_tagihan', 'S' => 'rp_jumlah', 'Z' => 'rp_bukan_beban', 'AD' => 'rp_ujl', 'AF' => 'rp_prr'];
+        $byYear = [];
+        $first = [];
+        $customers = [];
+        $total = ['baris' => 0, 'lembar' => 0.0, 'rp_prr' => 0.0];
+        for ($r = 1; $r <= $this->rowCount(); $r++) {
+            $idpel = (string) $this->text($r, 'E');
+            $blth = (string) $this->text($r, 'K');
+            if (! is_numeric($this->cell($r, 'B')) || preg_match('/^\d{12}$/', $idpel) !== 1 || preg_match('/^(19|20)\d{2}(0[1-9]|1[0-2])$/', $blth) !== 1) {
+                continue;
+            }
+            $year = substr($blth, 0, 4);
+            $first[$year] ??= $r;
+            $byYear[$year]['baris'] = ($byYear[$year]['baris'] ?? 0) + 1;
+            foreach ($cols as $c => $name) {
+                $byYear[$year][$name] = ($byYear[$year][$name] ?? 0) + ($this->num($this->cell($r, $c)) ?? 0);
+            }
+            $customers[$idpel] = true;
+            $total['baris']++;
+            $total['lembar'] += $this->num($this->cell($r, 'L')) ?? 0;
+            $total['rp_prr'] += $this->num($this->cell($r, 'AF')) ?? 0;
+        }
+        ksort($byYear);
+        $lines = [];
+        foreach ($byYear as $year => $v) {
+            $lines[] = ['line_no' => $first[$year], 'group_label' => null, 'label' => (string) $year, 'code' => null, 'values' => $v];
+        }
+
+        return [$lines, ['pelanggan' => (float) count($customers), 'baris' => (float) $total['baris'], 'lembar' => $total['lembar'], 'rp_prr' => $total['rp_prr']]];
     }
 
     /** Tagihan susulan: hanya ringkasan per golongan (jumlah dan rupiah); nama, alamat, dan nomor pelanggan tidak dibaca. */

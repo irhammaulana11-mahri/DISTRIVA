@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\DB;
  */
 class BusinessTargetService
 {
-    /** Pencapaian minimal untuk status: sama atau di atas `aman` = aman, sama atau di atas `waspada` = waspada, di bawahnya tertinggal (keputusan terbuka docs/92 §10). */
-    public const STATUS = ['aman' => 100.0, 'waspada' => 95.0];
+    /** Pencapaian minimal untuk status: sama atau di atas `aman` = aman, sama atau di atas `waspada` = waspada, di bawahnya tertinggal (ditetapkan pemilik 26 Nov 2026: hijau 100% atau lebih, kuning 90 sampai 99%, merah di bawah 90%; docs/92 §10). */
+    public const STATUS = ['aman' => 100.0, 'waspada' => 90.0];
 
     /**
      * Metrik pengusahaan => indikator NKO yang terkait. `series`: seri metrik yang setara (null bila ukuran NKO berbeda dari seri mana pun); `additive`: realisasi kumulatif berupa jumlah bulanan,

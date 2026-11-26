@@ -1751,6 +1751,45 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertEquals(2100, $viewer['rp_total']);                                                                           // peran ULP hanya melihat ULP-nya
     }
 
+    #[Test]
+    public function wawasan_pelunasan_prr_menghitung_tingkat_pemulihan_dari_saldo_daftar_prr_hanya_bila_semua_unit_lengkap(): void
+    {
+        $saldo = fn (OrganizationalUnit $u, string $period, array $perYear) => $this->report($u, 'DAFTAR_PRR', $period,
+            array_map(fn ($y, $rp) => [(string) $y, ['rp_prr' => $rp, 'baris' => 2]], array_keys($perYear), $perYear), ['pelanggan' => 3, 'baris' => 4, 'lembar' => 9, 'rp_prr' => array_sum($perYear)]);
+        $saldo($this->ulpA, '2025-12-01', [2024 => 700, 2025 => 400]);          // 1.100
+        $saldo($this->ulpB, '2025-12-01', [2025 => 600]);
+        $saldo($this->ulpA, '2026-02-01', [2024 => 600, 2025 => 400]);          // 1.000
+        $saldo($this->ulpB, '2026-02-01', [2025 => 500]);
+        $saldo($this->ulpA, '2026-03-01', [2024 => 500, 2025 => 400]);          // 900
+        $saldo($this->ulpB, '2026-03-01', [2025 => 400]);
+        $saldo($this->ulpA, '2026-04-01', [2024 => 450]);                       // April: ULP B belum ditarik, bulan tidak dihitung untuk UP3
+        $line = fn (string $blth, float $rp) => [$blth, ['rp_prr' => $rp, 'rpptl' => $rp, 'pelanggan' => 1, 'transaksi' => 1]];
+        $this->report($this->ulpA, 'PRR', '2026-03-01', [$line('202601', 100)], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => 20260331]);
+        $this->report($this->ulpB, 'PRR', '2026-03-01', [$line('202602', 50)], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => 20260331]);
+
+        $r = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->up3->id}&from=2026-01&to=2026-04")->assertOk()->json('data.detail.recovery');
+
+        $this->assertTrue($r['available']);
+        $this->assertSame(['2026-03', 1300.0], [$r['latest_month'], (float) $r['saldo_rp']]);                                      // April tidak lengkap: saldo terakhir yang lengkap adalah Maret
+        $months = collect($r['monthly'])->keyBy('month');
+        $this->assertSame(['2025-12', '2026-02', '2026-03'], $months->keys()->all());
+        $this->assertNull($months['2026-02']['recovery_pct']);                                                                    // Januari tanpa saldo dan Februari tanpa laporan pelunasan
+        $this->assertEquals([1500, 150, 10.0], [$months['2026-03']['opening_rp'], $months['2026-03']['repaid_rp'], $months['2026-03']['recovery_pct']]);   // 150 / saldo Februari 1.500
+        $this->assertEquals([1700, 150, 8.82], [$r['ytd']['opening_rp'], $r['ytd']['repaid_rp'], $r['ytd']['recovery_pct']]);
+        $byYear = collect($r['by_billing_year'])->keyBy('year');
+        $this->assertEquals([500, 38.46, 0], [$byYear[2024]['saldo_rp'], $byYear[2024]['share_pct'], $byYear[2024]['repaid_ytd_rp']]);   // saldo 2024 = 500 dari 1.300; belum ada pelunasan BLTH 2024
+        $this->assertEquals([800, 0], [$byYear[2025]['saldo_rp'], $byYear[2025]['repaid_ytd_rp']]);
+
+        $own = $this->as($this->viewer)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->ulpA->id}&from=2026-01&to=2026-04")->assertOk()->json('data.detail.recovery');
+        $this->assertSame('2026-04', $own['latest_month']);                                                                       // satu ULP: April lengkap
+        $this->assertEquals(10.0, collect($own['monthly'])->firstWhere('month', '2026-03')['recovery_pct']);                      // 100 / 1.000
+
+        $empty = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->up3->id}&from=2025-11&to=2025-11")->assertOk()->json('data.detail.recovery');   // belum ada saldo sampai November 2025
+        $this->assertFalse($empty['available']);
+        $ex = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-ex-prr?unit_id={$this->up3->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+        $this->assertNull($ex['recovery']);                                                                                       // saldo Ex PRR belum tersedia
+    }
+
     /** Laporan 309 satu ULP dengan angka per golongan: [pelanggan, kWh, rupiah]. */
     private function groupSales(OrganizationalUnit $unit, string $period, array $groups): void
     {

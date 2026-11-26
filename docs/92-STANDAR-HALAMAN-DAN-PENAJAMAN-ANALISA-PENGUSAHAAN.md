@@ -116,8 +116,8 @@ Kolom "Data DISTRIVA" menyebut data yang sudah ada; "Data luar" adalah calon yan
 
 ### 6.5 Pelunasan PRR dan Ex PRR (`pelunasan-prr`, `pelunasan-ex-prr`)
 
-- **Data DISTRIVA:** pelunasan per BLTH dan komponen (AP2T, docs/88). Saldo PRR belum ada di DISTRIVA; perlu sumber saldo (dicari bersama pemilik).
-- **Analisa:** **vintage**: peluang pelunasan menurut umur BLTH (makin tua makin kecil); tingkat pemulihan = pelunasan dibanding saldo PRR (setelah saldo tersedia); pencapaian target NKO PRR dan Ex PRR.
+- **Data DISTRIVA:** pelunasan per BLTH dan komponen (AP2T, docs/88). Saldo PRR dari laporan AP2T Daftar PRR (`saldo_prr`, docs/88), ditarik per ULP per bulan; Ex PRR belum punya sumber saldo.
+- **Analisa:** **vintage**: peluang pelunasan menurut umur BLTH (makin tua makin kecil); tingkat pemulihan = pelunasan bulan itu dibanding saldo akhir bulan sebelumnya (`detail.recovery`, sudah dibuat 26 Nov 2026; kumulatif tahun berjalan bila saldo Desember lalu ada) dan saldo per tahun BLTH tagihan; pencapaian target NKO PRR dan Ex PRR.
 - **Prakiraan:** saldo PRR per umur × kurva peluang pelunasan per umur; sampai saldo tersedia, prakiraan pola bulanan.
 
 ### 6.6 SAIDI dan SAIFI, ENS, Gangguan Penyulang (`saidi-saifi`, `ens`, `gangguan`)
@@ -254,6 +254,20 @@ Temuan:
 - **Uji ulang dengan tanggal nyala DIL (26 Nov 2026, setelah sinkron ulang DIL):** pelanggan dasar = pelanggan aktif bertanggal nyala sampai 31 Des 2023 (sejajar dengan potret bangunan 2023; 1.327.293) dan penambahan = bertanggal nyala 2024 sampai September 2026 (94.622), cakupan seluruh pelanggan. Hasilnya sama: per gardu (5.208 gardu) pelanggan dasar Spearman 0,87 dan 10% teratas menangkap 28,6% penambahan; bangunan 0,58 dan 19,8% sampai 20,2%; **bangunan belum terlayani -0,05 sampai -0,26 dan 10,7% (radius 1 km) atau 7,4% (0,5 km, bangunan 30 m2 atau lebih), tidak lebih baik daripada acak (10,0%)**; bangunan per pelanggan -0,63. ULP (10) 0,88 dan kecamatan (12) 0,97 untuk belum terlayani, tetapi pelanggan dasar saja 0,92 dan 0,99. Keputusan §8.3 tetap: data bangunan statis tidak dipakai.
 - **Tanggal nyala dan tanggal peremajaan permohonan PB (26 Nov 2026):** setelah sinkron ulang `energized_on` terisi untuk 1.448.093 dari 1.448.097 pelanggan (438 bertanggal 1901-01-01, anggap tidak diketahui). Dibandingkan lewat IDPEL pada 166.808 permohonan PB, tanggal peremajaan (status `PEREMAJAAN` pada riwayat status eksternal) sama dengan tanggal nyala DIL pada 77% (selisih paling lama 3 hari pada 98,8%, 30 hari pada 99,96%, median 0). Jumlah per tahun hampir sama (2024: 37.193 lawan 37.642; 2025: 35.456 lawan 36.087) dan bulanan 2026 juga (Januari 2.905 lawan 2.921; September 3.666 lawan 3.673). PD tidak sebanding (tanggal nyala DIL adalah penyalaan awal pelanggan, bukan tanggal naik daya). Tanggal peremajaan PB lebih segar (sampai November) dan punya riwayat sejak 2022; tanggal nyala DIL mencakup riwayat lebih lama dan pelanggan tanpa permohonan. **Keputusan pemilik (26 Nov 2026): tanggal sambung PB dan tanggal naik daya PD disimpan pada `applications.completed_at`** dari tanggal pertama `PEREMAJAAN`: diisi otomatis saat impor EIS (hanya bila kosong; penutupan WO internal tidak ditimpa) dan dibackfill untuk data lama (PB 174.316 dan PD 141.659 terisi; seluruh permohonan berstatus tersambung di luar usulan kini bertanggal). **Pengecualian:** permohonan yang masuk usulan penambahan jaringan tidak diisi dari EIS, `completed_at`-nya mengikuti rancangan awal (saat BASTP ditutup); saat ini ada 4 permohonan dalam 3 usulan terbuka, dan satu PB tersambung di antaranya yang terlanjur terisi dikosongkan kembali. Dari PB yang terhubung ke DIL, hanya 68 dari sekitar 167 ribu berselisih lebih dari 30 hari dari tanggal nyala.
 
+### Cara menyiapkan akses Earth Engine (untuk uji Open Buildings Temporal)
+
+Dibuat 26 Nov 2026 atas permintaan pemilik. Langkah ini dikerjakan pemilik; backend tidak dapat mendaftar atau masuk atas nama akun. Tampilan Google dapat berubah, jadi ikuti petunjuk di layar bila berbeda.
+
+1. **Putuskan jenis penggunaan.** Earth Engine gratis hanya untuk penggunaan nonkomersial (riset, pendidikan); penggunaan oleh perusahaan untuk operasi biasanya dianggap komersial dan berbayar. Periksa ketentuan di earthengine.google.com sebelum mendaftar; bila ragu, tanyakan ke bagian hukum atau TI. Uji ini hanya untuk analisis internal.
+2. **Masuk dengan akun Google** yang akan memiliki proyek (akun Gmail unit atau akun kerja).
+3. **Buat proyek Google Cloud** di console.cloud.google.com (menu pilih proyek, "New Project"), misalnya `distriva-earthengine`. Catat **ID proyek**.
+4. **Aktifkan Earth Engine API** pada proyek itu (APIs & Services, Library, cari "Earth Engine API", Enable).
+5. **Daftarkan proyek ke Earth Engine** di code.earthengine.google.com/register: pilih jenis penggunaan sesuai langkah 1, pilih proyek tadi, selesaikan pendaftaran.
+6. **Cek data lewat Code Editor** (code.earthengine.google.com): jalankan `print(ee.ImageCollection('GOOGLE/Research/open-buildings-temporal/v1').size());` lalu arahkan peta ke Jombang untuk memastikan wilayah tercakup (Google menyebut cakupan termasuk sebagian Asia Tenggara; belum diperiksa untuk Jombang dan Mojokerto).
+7. **Buat akun layanan untuk backend** (IAM & Admin, Service Accounts, Create): beri peran Earth Engine (mis. "Earth Engine Resource Viewer") dan "Service Usage Consumer", lalu buat **kunci JSON** (Keys, Add key, JSON).
+8. **Simpan kunci di luar repository** (mis. di server di folder yang tidak masuk git) dan jangan dikirim lewat chat atau commit. Yang dibagikan ke pengembang hanya ID proyek dan alamat email akun layanan; jalur berkas kunci dipasang pengembang lewat variabel lingkungan server.
+9. **Setelah itu** uji dijalankan: perubahan jumlah bangunan 2019 ke 2023 per gardu dibandingkan penambahan pelanggan 2025 sampai 2026, dengan ukuran yang sama seperti §8.3 (Spearman dan 10% teratas). Hasilnya dicatat di sini; bila tidak lebih baik dari pelanggan dasar, data ini tidak dipakai.
+
 ## 9. Tahapan
 
 1. **Standar halaman (semua menu):** kartu status dengan target NKO dan laju yang dibutuhkan, diagnosis, peringkat ULP, sumbangan ULP, susunan tab standar. Backend menambah `target`, `diagnosis`, `contribution`; frontend menyusun ulang halaman.
@@ -266,17 +280,18 @@ Temuan:
 ## 10. Keputusan dan masukan pemilik
 
 **Sudah dijawab (26 Nov 2026):**
-- **Sumber saldo PRR dan Ex PRR:** laporan AP2T "Daftar PRR" (`getLaporanDaftarPRR`, per ULP per BLTH). Belum diimpor: butuh satu contoh berkas hasil unduh untuk menyusun pembaca dan tes (§6.5). Alamat berisi ID pengguna, jadi tidak disimpan di repository.
+- **Sumber saldo PRR:** laporan AP2T "Daftar PRR" (`getLaporanDaftarPRR`, per ULP per BLTH). Sudah diimpor lewat sinkron AP2T (`saldo_prr`, docs/88) tanpa userid, diuji pada AP2T sungguhan, dan dipakai untuk tingkat pemulihan (§6.5). Saldo Ex PRR belum ada sumbernya.
 - **"Gangguan berulang":** untuk menu Anomali Gangguan adalah laporan pelanggan berulang menurut data anomali APKT (kolom `berulang`), sudah dipakai di §6.8. Aturan 3 kejadian dalam 30 hari tetap hanya untuk gangguan penyulang di menu keandalan (§6.6, aturan kerja).
 - **Penjualan TL (NKO):** selisih kumulatif tahun berjalan dengan periode yang sama tahun lalu (sudah demikian); bila minus hanya ditandai (`flag: NEGATIF`, docs/90).
 - **Selisih penetapan dan realisasi P2TL (sekitar 190.000 kWh per bulan):** penetapan yang belum terbayar bisa terbayar bulan berikutnya atau beberapa bulan sesudahnya, atau memang tidak terbayar. Artinya realisasi sebuah bulan bukan hanya dari penetapan bulan itu; rasio kumulatif tetap dipakai, dan prakiraan bulan depan belum meramal pembayaran terlambat.
 - **ULP Ploso Mei 2026 (kWh beli turunan -32%):** kemungkinan pelanggan berpemakaian tinggi menurunkan pemakaian sehingga kWh jual dan kWh beli turun bersama. Bukan galat data; tetap ditandai sebagai bulan tak biasa.
 - **Piutang baru prabayar nol Maret sampai Agustus 2026:** kemungkinan data belum disinkronkan atau memang belum ada piutang baru. Belum dapat dibedakan dari data yang ada.
 
+- **Ambang warna kartu status:** hijau (`aman`) 100% atau lebih, kuning (`waspada`) 90 sampai 99%, merah (`tertinggal`) di bawah 90% (backend: `BusinessTargetService::STATUS`; berlaku sama untuk indikator berpolaritas turun karena pencapaian sudah dinormalkan oleh rumus NKO).
+
 **Masih terbuka:**
 - Sumber otomatis kWh beli, E-Min, PSSD (sementara kWh beli diturunkan dari susut kumulatif realisasi NKO dan 309, §6.10).
-- Ambang warna kartu status: jarak ke target berapa persen yang dianggap waspada dan tertinggal (belum dijawab).
-- Open Buildings Temporal: akun Earth Engine tidak dapat dibuat atau dimasuki dari sini; pemilik perlu mendaftarkan proyek Earth Engine dan memberi akses.
+- Open Buildings Temporal: akun Earth Engine tidak dapat dibuat atau dimasuki dari sini; pemilik perlu mendaftarkan proyek Earth Engine dan memberi akses (langkah di §8.3, "Cara menyiapkan akses Earth Engine"; periksa dulu apakah penggunaan perusahaan tergolong komersial).
 - Peringatan dini BMKG diuji terhadap gangguan setelah riwayat prakiraan terkumpul; API prakiraan BMKG yang dipakai hanya memberi tiga hari ke depan (bukan riwayat); pemilik meminta dicoba, sehingga prakiraan disimpan tiap hari per ULP (§8.2, pengumpul sudah berjalan sejak 26 Nov 2026) dan diuji terhadap gangguan setelah riwayatnya cukup.
 - Urutan uji coba bila berbeda dari §9.
 
