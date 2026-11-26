@@ -1428,6 +1428,55 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function detail_piutang_prabayar_memuat_pelunasan_tunggakan_beku_bulan_tidak_wajar_dan_prakiraan_tunggakan(): void
+    {
+        $line = fn (string $status, float $rp, int $n, string $tariff) => [$status, ['rptag' => $rp, 'jumlah' => $n, 'tarif_lap' => $tariff]];
+        $jt = 1_000_000;
+        foreach (range(0, 13) as $i) {                                                                          // Maret 2025 sampai April 2026
+            $period = date('Y-m-01', strtotime("2025-03-01 +{$i} month"));
+            $baruA = match ($i) {
+                12 => 5,                                                                                          // Maret 2026: piutang baru mendadak hampir nol
+                13 => 600,                                                                                        // April 2026: melonjak, didorong ULP A
+                default => 100,
+            };
+            $baruB = match ($i) {
+                12 => 3,
+                13 => 50,
+                default => 50,
+            };
+            $this->report($this->ulpA, 'PIUTANGLPB_EIS', $period, [$line('BARU', $baruA * $jt, 10, 'R1'), $line('BERJALAN', 20 * $jt, 5, 'R1'), $line('TUNGGAKAN', 500 * $jt, 40, 'R1'), ['NO REGISTER Total', ['rptag' => 9_999_999_999, 'jumlah' => 99]]]);
+            $this->report($this->ulpB, 'PIUTANGLPB_EIS', $period, [$line('BARU', $baruB * $jt, 4, 'R1M'), $line('BERJALAN', 10 * $jt, 2, 'R1M'), $line('TUNGGAKAN', 300 * $jt, 20, 'R1M')]);
+        }
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-prabayar?unit_id={$this->up3->id}&from=2025-03&to=2026-04")->assertOk()->json('data.detail');
+
+        $this->assertSame(['prepaid_receivable', true, '2026-04'], [$d['kind'], $d['available'], $d['month']]);
+        $m = collect($d['monthly'])->keyBy('month');
+        $this->assertEquals([650 * $jt, 30 * $jt, 800 * $jt, 1480 * $jt], [$m['2026-04']['baru'], $m['2026-04']['berjalan'], $m['2026-04']['tunggakan'], $m['2026-04']['total']]);
+        $this->assertEquals([150 * $jt, 8 * $jt], [$m['2026-03']['pelunasan'], $m['2026-04']['pelunasan']]);       // (baru + berjalan + tunggakan bulan lalu) - (berjalan + tunggakan bulan ini)
+        $this->assertEqualsWithDelta(150 / 980 * 100, $m['2026-03']['effectiveness_pct'], 0.05);
+        $this->assertNull($m['2025-03']['pelunasan']);                                                           // bulan pertama: tanpa bulan sebelumnya
+
+        $f = $d['frozen'];
+        $this->assertEquals([800 * $jt, 14, true], [$f['arrears'], $f['stable_months'], $f['frozen']]);           // tunggakan 800 juta tak bergerak 14 bulan
+        $this->assertEqualsWithDelta(800 / 1480 * 100, $f['share_of_total_pct'], 0.05);
+
+        $this->assertSame(['2026-04', '2026-03'], array_column($d['anomalies'], 'month'));
+        $this->assertEquals(['tinggi', 'rendah'], array_column($d['anomalies'], 'direction'));
+        $this->assertEquals([150 * $jt, $this->ulpA->id, 600 * $jt], [$d['anomalies'][0]['median_prev_12m'], $d['anomalies'][0]['top_ulp']['unit_id'], $d['anomalies'][0]['top_ulp']['baru']]);
+
+        $this->assertSame($this->ulpA->id, $d['ulps'][0]['unit_id']);                                            // tunggakan terbesar dahulu
+        $this->assertEqualsWithDelta(62.5, $d['ulps'][0]['arrears_share_pct'], 0.05);
+        $this->assertEquals(['R1', 500 * $jt, 600 * $jt], [$d['tariffs'][0]['tariff'], $d['tariffs'][0]['tunggakan'], $d['tariffs'][0]['baru']]);
+
+        $fc = $d['forecast'];
+        $this->assertEquals(['2026-05', 800 * $jt, 0.0, 0.0, true], [$fc['month'], $fc['arrears'], $fc['backtest']['naive_mape_pct'], $fc['backtest']['mean3_mape_pct'], $fc['reliable']]);
+        $this->assertGreaterThanOrEqual(6, $fc['backtest']['months']);
+
+        $this->assertSame(false, $this->as($this->planner)->getJson("/api/pengusahaan/metrics/piutang-prabayar?unit_id={$this->up3->id}&from=2020-01&to=2020-03")->assertOk()->json('data.detail.available'));   // tanpa laporan: tidak tersedia
+    }
+
+    #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
         Cache::flush();

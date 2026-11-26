@@ -15,6 +15,7 @@ use App\Services\Analytics\ConnectionFeeInsights;
 use App\Services\Analytics\CustomerInsights;
 use App\Services\Analytics\LossInsights;
 use App\Services\Analytics\P2tlInsights;
+use App\Services\Analytics\PrepaidReceivableInsights;
 use App\Services\Analytics\ReceivableInsights;
 use App\Services\Analytics\ReliabilityInsights;
 use App\Services\Analytics\ResponseInsights;
@@ -37,7 +38,7 @@ class BusinessAnalyticsController extends Controller
     private const INPUT_PERMISSION = 'pengusahaan.input';
 
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly BusinessTrendBuilder $builder, private readonly BusinessInputWorkbook $inputWorkbook, private readonly BusinessMetricWorkbook $workbook,
-        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable, private readonly SalesInsights $sales, private readonly ResponseInsights $response, private readonly AnomalyInsights $anomaly, private readonly P2tlInsights $p2tl, private readonly ConnectionFeeInsights $fees, private readonly LossInsights $loss, private readonly CustomerInsights $customers) {}
+        private readonly BusinessForecastService $forecaster, private readonly BusinessSourceHistory $history, private readonly BusinessTargetService $targets, private readonly ReliabilityInsights $reliability, private readonly ReceivableInsights $receivable, private readonly SalesInsights $sales, private readonly ResponseInsights $response, private readonly AnomalyInsights $anomaly, private readonly P2tlInsights $p2tl, private readonly ConnectionFeeInsights $fees, private readonly LossInsights $loss, private readonly CustomerInsights $customers, private readonly PrepaidReceivableInsights $prepaid) {}
 
     /** GET /pengusahaan/metrics: katalog metrik dan unit yang boleh dilihat. */
     public function index(Request $request): JsonResponse
@@ -140,6 +141,7 @@ class BusinessAnalyticsController extends Controller
             'hpl-bp' => $this->fees->detail($ids, $to),
             'susut' => $this->loss->detail($ids, $to),
             'pelanggan', 'daya' => $this->customers->detail($code, $ids, $to),
+            'piutang-prabayar' => $this->prepaid->detail($ids, $to),
             default => null,
         }]
             + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to, fn (array $ytd) => $this->targets->targets($code, $unit, $to, $ytd));
