@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Analytics\CustomerInsights;
 use App\Services\Analytics\TechnicalLossProxy;
 use App\Services\Nko\NkoDefinitionImportService;
 use App\Services\Nko\NkoRealizationResolver;
@@ -13,6 +14,7 @@ use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\NkoPermissionSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -1317,6 +1319,114 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertGreaterThan(0.7, $c['loss_index']);                                                         // ULP A beban rata-rata tertinggi dan susut 9
     }
 
+    /**
+     * Permohonan PB atau PD langsung ke tabel, memakai templat dari `connected()`. Tiap baris: paid (tanggal bayar), done (tanggal sambung atau null), status, kva, type, tariff.
+     *
+     * @param  list<array<string, mixed>>  $specs
+     */
+    private function pbApplications(OrganizationalUnit $ulp, array $specs): void
+    {
+        $this->connected($ulp, 'PB', 1, '2020-01-01');                                                          // memastikan templat ada; baris ini tanpa tanggal bayar dan sambung sehingga tidak terhitung
+        $rows = [];
+        foreach ($specs as $x) {
+            $rows[] = array_merge($this->applicationTemplate, ['id' => (string) Str::uuid(), 'application_number' => 'T-'.Str::random(12), 'application_type' => $x['type'] ?? 'PB', 'organizational_unit_id' => $ulp->id,
+                'current_status' => $x['status'] ?? 'CONNECTION_DONE', 'delta_power_kva' => $x['kva'] ?? 0.9, 'new_tariff_code' => $x['tariff'] ?? 'R1', 'source_created_at' => ($x['paid'] ?? $x['done']).' 08:00:00',
+                'paid_at' => $x['paid'] ?? null, 'completed_at' => isset($x['done']) ? $x['done'].' 09:00:00' : null, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        foreach (array_chunk($rows, 150) as $chunk) {
+            DB::table('applications')->insert($chunk);
+        }
+    }
+
+    #[Test]
+    public function detail_pelanggan_memuat_rekonsiliasi_lama_sambung_antrean_kecamatan_gardu_dan_perubahan_daya(): void
+    {
+        $this->customers309($this->ulpA, [['2026-01-01', 1000], ['2026-02-01', 1030], ['2026-03-01', 1055]]);
+        $tz = 'Asia/Jakarta';
+        $specs = [];
+        foreach (range(1, 35) as $i) {
+            $specs[] = ['paid' => '2026-02-10', 'done' => '2026-02-11'];                                      // Februari: 35 PB tersambung sehari sesudah bayar
+        }
+        foreach (range(1, 25) as $i) {
+            $specs[] = ['paid' => '2026-03-01', 'done' => '2026-03-09'];                                      // Maret: 25 PB tersambung delapan hari sesudah bayar
+        }
+        array_push($specs, ['type' => 'PD', 'done' => '2026-03-05', 'kva' => 1.0, 'tariff' => 'R1'], ['type' => 'PD', 'done' => '2026-03-06', 'kva' => 2.0, 'tariff' => 'R1T'], ['type' => 'PD', 'done' => '2026-03-07', 'kva' => -0.5, 'tariff' => 'B1']);
+        $today = now($tz);
+        array_push($specs, ['paid' => $today->copy()->subDays(3)->toDateString(), 'status' => 'PAID'], ['paid' => $today->copy()->subDays(20)->toDateString(), 'status' => 'PK_PRINTED'],
+            ['paid' => $today->copy()->subDays(100)->toDateString(), 'status' => 'PAID'], ['paid' => $today->copy()->subDays(100)->toDateString(), 'status' => 'PK_PRINTED'],
+            ['paid' => $today->copy()->subDays(2)->toDateString(), 'done' => $today->copy()->subDay()->toDateString()]);                  // sudah tersambung: bukan antrean
+        $this->pbApplications($this->ulpA, $specs);
+        $inProposal = DB::table('applications')->where('current_status', 'PK_PRINTED')->orderByDesc('paid_at')->get()->last();                  // yang paling lama: masuk usulan penambahan jaringan
+        $proposal = (string) Str::uuid();
+        DB::table('proposals')->insert(['id' => $proposal, 'proposal_number' => 'USL-'.Str::random(8), 'ulp_unit_id' => $this->ulpA->id, 'representative_application_id' => $inProposal->id, 'title' => 'Uji', 'status' => 'OPEN', 'created_by' => $this->planner->id, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('proposal_applications')->insert(['id' => (string) Str::uuid(), 'proposal_id' => $proposal, 'application_id' => $inProposal->id, 'added_by' => $this->planner->id, 'added_at' => now()]);
+
+        $this->gardu($this->ulpA, 'GC1', 100, 90, [90, 90, 90], '2026-02-10');
+        $this->gardu($this->ulpA, 'GC2', 100, 40, [40, 40, 40], '2026-02-10');
+        $sub = fn (string $code) => DB::table('substations')->where('code', $code)->value('id');
+        $conn = function (string $idpel, string $kecamatan, string $on, ?string $gardu = null, string $status = 'AKTIF') use ($sub) {
+            DB::table('customer_connections')->insert(['id' => (string) Str::uuid(), 'idpel' => $idpel, 'organizational_unit_id' => $this->ulpA->id, 'source' => 'DIL', 'kecamatan' => $kecamatan, 'energized_on' => $on, 'status' => $status,
+                'substation_id' => $gardu === null ? null : $sub($gardu), 'snapshot_month' => '202603', 'created_at' => now(), 'updated_at' => now()]);
+        };
+        foreach (['514000000001', '514000000002', '514000000003'] as $idpel) {
+            $conn($idpel, 'JOMBANG', '2026-02-10', 'GC1');
+        }
+        $conn('514000000004', 'JOMBANG', '2025-02-10');                                                          // tahun lalu pada rentang yang sama
+        $conn('514000000005', 'DIWEK', '2026-03-02', 'GC2');
+        $conn('514000000006', 'DIWEK', '2026-03-03', null, 'BONGKAR');                                           // tidak aktif: tidak terhitung
+
+        $d = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
+
+        $this->assertSame(['customer_growth', 'pelanggan', false], [$d['kind'], $d['focus'], $d['partial']]);
+        $rec = collect($d['reconciliation'])->keyBy('month');
+        $this->assertEquals([null, 30, 35, 5], [$rec['2026-01']['official'], $rec['2026-02']['official'], $rec['2026-02']['connected'], $rec['2026-02']['residual']]);   // 35 PB lawan tambah 30: 5 berhenti atau koreksi
+        $this->assertEquals([25, 25, 0], [$rec['2026-03']['official'], $rec['2026-03']['connected'], $rec['2026-03']['residual']]);
+        $daya = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/daya?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail.reconciliation');
+        $this->assertEqualsWithDelta(25 * 0.9 + 2.5, collect($daya)->firstWhere('month', '2026-03')['connected'], 0.05);     // daya PB 22,5 kVA ditambah PD neto 2,5 kVA
+
+        $lead = $d['lead_time'];
+        $this->assertEquals([60, 1.0, 8.0, 100.0], [$lead['n'], $lead['median_days'], $lead['p90_days'], $lead['within_30_days_pct']]);
+        $this->assertSame($this->ulpA->id, $lead['ulps'][0]['unit_id']);
+
+        $q = $d['queue'];
+        $this->assertEquals([1, 1, 1, 1], [$q['live_0_7'], $q['live_8_30'], $q['stale'], $q['in_network_proposal']]);   // yang sudah tersambung bukan antrean
+        $this->assertEquals(['PAID' => 1, 'PK_PRINTED' => 1], $q['live_by_status']);
+        $this->assertNull($d['month_projection']);                                                                // bulan terpilih bukan bulan berjalan
+
+        $this->assertSame(['2026-01-01', '2026-03-31', 4], [$d['areas']['period']['from'], $d['areas']['period']['to'], $d['areas']['added_total']]);
+        $this->assertEquals(['JOMBANG', 3, 1, 200.0, 75.0], [$d['areas']['rows'][0]['kecamatan'], $d['areas']['rows'][0]['added'], $d['areas']['rows'][0]['added_prev_year'], $d['areas']['rows'][0]['change_pct'], $d['areas']['rows'][0]['share_pct']]);
+        $g = collect($d['gardu']['rows']);
+        $this->assertEquals(['GC1', 3, true, 90.0], [$g[0]['code'], $g[0]['added'], $g[0]['capacity_watch'], $g[0]['loading_pct']]);       // tumbuh cepat dan bebannya 90%
+        $this->assertSame(['GC2', 1, false], [$g[1]['code'], $g[1]['added'], $g[1]['capacity_watch']]);
+
+        $pd = $d['power_changes'];
+        $this->assertEquals([3, 2.5, 3.0], [$pd['total'], $pd['net_kva'], $pd['increase_kva']]);
+        $this->assertEquals([['R', 2, 2, 0, 3.0], ['B', 1, 0, 1, -0.5]], array_map(fn ($x) => [$x['group'], $x['count'], $x['up'], $x['down'], $x['net_kva']], $pd['groups']));
+    }
+
+    #[Test]
+    public function detail_pelanggan_memproyeksikan_akhir_bulan_berjalan_dari_laju_sambung_dengan_uji_mundur(): void
+    {
+        $now = Carbon::parse('2026-11-26 10:00:00', 'Asia/Jakarta');
+        Carbon::setTestNow($now);
+        try {
+            $specs = [];
+            for ($t = strtotime('2026-06-01'); $t <= strtotime('2026-11-26'); $t += 86400) {
+                array_push($specs, ['paid' => date('Y-m-d', $t), 'done' => date('Y-m-d', $t)], ['paid' => date('Y-m-d', $t), 'done' => date('Y-m-d', $t)]);        // dua PB tersambung setiap hari
+            }
+            $this->pbApplications($this->ulpA, $specs);
+
+            $p = app(CustomerInsights::class)->detail('pelanggan', [$this->ulpA->id], '2026-11')['month_projection'];
+
+            $this->assertEquals([26, 30, 52, 60, 62], [$p['day'], $p['days_in_month'], $p['connected_so_far'], $p['projected'], $p['last_month']]);   // 52 dalam 26 hari: 52 / 26 x 30
+            $this->assertSame(4, $p['backtest']['months']);                                                         // Juli sampai Oktober (Juni belum punya bulan sebelumnya)
+            $this->assertEquals(0.0, $p['backtest']['runrate_mape_pct']);                                           // laju tetap: proyeksi tepat
+            $this->assertGreaterThan(0, $p['backtest']['last_month_mape_pct']);                                     // angka bulan lalu meleset karena jumlah hari berbeda
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     #[Test]
     public function detail_keandalan_memuat_konteks_cuaca_bulanan_dan_tetap_tampil_bila_sumber_cuaca_gagal(): void
     {
@@ -1412,7 +1522,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
 
         // menu keandalan lain memuat blok yang sama; menu non-keandalan tidak
         $this->assertSame('reliability', $this->as($this->planner)->getJson("/api/pengusahaan/metrics/ens?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail.kind'));
-        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail'));
+        $this->assertSame('customer_growth', $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->ulpA->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail.kind'));   // menu lain punya jenis blok sendiri
     }
 
     #[Test]
@@ -1572,7 +1682,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
 
         $rp = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pendapatan?unit_id={$this->up3->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail');
         $this->assertSame('pendapatan', $rp['focus']);
-        $this->assertNull($this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->up3->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail'));
+        $this->assertSame('customer_growth', $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelanggan?unit_id={$this->up3->id}&from=2026-09&to=2026-10")->assertOk()->json('data.detail.kind'));   // bukan blok pemecahan penjualan
         $none = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/kwh-jual?unit_id={$this->ulpB->id}&from=2024-01&to=2024-02")->assertOk()->json('data.detail');
         $this->assertFalse($none['available']);
     }
