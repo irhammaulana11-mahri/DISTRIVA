@@ -15,10 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Semua butir terbuka sejauh ini telah selesai diimplementasikan dan diuji)*
-
 | # | Tanggal | Perubahan | Dokumen rujukan | Kebutuhan frontend | Status |
 |---|---|---|---|---|---|
+| 57 | 2026-11-26 | **Sinkron Penghapusan PRR dan perkiraan saldo Ex PRR**: `POST /eis-sync/runs` `kind: "ap2t"` menerima `reports: ["hapus_prr"]` (laporan Daftar Penghapusan PRR per ULP per bulan, tanpa login); dataset katalog `AP2T.HAPUS_PRR`. `GET /pengusahaan/metrics/pelunasan-ex-prr` kini memuat `detail.recovery` (sebelumnya `null`): perkiraan saldo Ex PRR = penghapusan kumulatif dikurangi pelunasan Ex PRR kumulatif sejak bulan pertama yang lengkap, `recovery_pct`, `monthly[]`, `by_billing_year[]`, `estimated: true`; `available: false` dengan `reason` bila belum ditarik. Run AP2T yang memuat `hapus_prr` juga muncul pada `syncs[]` menu Pelunasan Ex PRR. | docs/88 (penghapusan PRR), docs/91 (`recovery` Ex PRR), docs/92 §6.5 | (a) Form sync AP2T: opsi centang laporan "Penghapusan PRR" (`hapus_prr`); tombol tarik AP2T pada menu Pelunasan Ex PRR memuat `['pelunasan_ex_prr', 'hapus_prr']`; dataset `AP2T.HAPUS_PRR` / `HAPUS_PRR` di halaman laporan. (b) Bagian Tingkat Pemulihan di tab pelunasan juga untuk `pelunasan-ex-prr`, diberi label "perkiraan" dan `notes[]` (kolom: `estimated_balance_rp`, `cumulative_written_off_rp`, `cumulative_repaid_rp`, `since_month`; kartu Saldo Ex PRR (perkiraan), Pemulihan Kumulatif; riwayat `monthly[]`). Bentuk `recovery` Ex PRR berbeda dari PRR (tanpa `saldo_rp`/`ytd`). | BARU |
 
 ## Selesai
 

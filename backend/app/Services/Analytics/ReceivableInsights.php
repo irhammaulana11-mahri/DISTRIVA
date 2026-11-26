@@ -130,9 +130,9 @@ class ReceivableInsights
         return ['kind' => 'repayment_age', 'available' => $files->isNotEmpty(), 'period' => ['from' => "{$year}-01", 'to' => $to], 'files' => $files->count(), 'rp_total' => $total,
             'rows' => array_map(fn ($k, $v) => ['key' => $k, 'rp' => $v, 'share_pct' => $total > 0 ? round($v / $total * 100, 2) : null], array_keys($rp), $rp),
             'monthly' => array_map(fn ($m, $v) => ['month' => $m] + array_map(fn ($b) => $v[$b] ?? 0.0, array_combine($labels, $labels)), array_keys($byMonth), $byMonth),
-            'recovery' => $family === 'PRR' ? $this->recovery($units, $to, $paidByMonth, $paidByYear, $files->groupBy('period')->map->count()->all()) : null,
+            'recovery' => $family === 'PRR' ? $this->recovery($units, $to, $paidByMonth, $paidByYear, $files->groupBy('period')->map->count()->all()) : $this->exRecovery($units, $to),
             'notes' => ['Umur = selisih bulan bayar dan bulan tagihan (BLTH) yang dilunasi, dari laporan pelunasan AP2T menurut tanggal bayar; bulan berjalan hanya sampai tanggal penarikan.',
-                $family === 'PRR' ? 'Tingkat pemulihan memakai saldo PRR dari laporan Daftar PRR AP2T (`recovery`).' : 'Saldo Ex PRR belum tersedia di DISTRIVA, sehingga tingkat pemulihan Ex PRR belum dihitung.']];
+                $family === 'PRR' ? 'Tingkat pemulihan memakai saldo PRR dari laporan Daftar PRR AP2T (`recovery`).' : 'Saldo Ex PRR diperkirakan dari akumulasi laporan Penghapusan PRR AP2T dikurangi pelunasan Ex PRR (`recovery`).']];
     }
 
     /**
@@ -193,6 +193,64 @@ class ReceivableInsights
             'by_billing_year' => array_map(fn ($y, $v) => ['year' => (int) $y, 'saldo_rp' => $v['rp'], 'rows' => $v['baris'], 'share_pct' => $saldo[$latest]['rp'] > 0 ? round($v['rp'] / $saldo[$latest]['rp'] * 100, 2) : null, 'repaid_ytd_rp' => $paidByYear[$y] ?? 0.0], array_keys($byYear), $byYear),
             'notes' => ['Saldo = jumlah kolom RP PRR laporan Daftar PRR AP2T (potret per bulan; bulan berjalan berubah tiap hari). Pemulihan bulan = pelunasan bulan itu dibagi saldo akhir bulan sebelumnya; saldo yang bertambah karena PRR baru tidak dikeluarkan.',
                 'Bulan tanpa saldo bulan sebelumnya atau tanpa laporan pelunasan lengkap tidak dihitung (nilai null). `ytd` (pelunasan Januari sampai bulan saldo terakhir dibagi saldo Desember tahun lalu) hanya ada bila saldo Desember itu sudah ditarik.']];
+    }
+
+    /**
+     * Perkiraan saldo dan pemulihan Ex PRR. AP2T tidak punya laporan saldo Ex PRR; yang ada adalah penghapusan PRR per bulan (aliran masuk ke Ex PRR) dan pelunasan Ex PRR per tanggal bayar (aliran keluar).
+     * Saldo perkiraan = penghapusan kumulatif dikurangi pelunasan kumulatif sejak bulan pertama yang lengkap; saldo sebelum bulan itu tidak diketahui. Bulan hanya dihitung bila semua ULP pada cakupan punya kedua laporan.
+     *
+     * @param  list<string>  $units
+     * @return array<string, mixed>
+     */
+    private function exRecovery(array $units, string $to): array
+    {
+        $hapus = DB::table('eis_report_files')->where('family', 'HAPUS_PRR')->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->where('period', '<=', $to.'-01')->get(['id', 'period', 'organizational_unit_id', 'summary']);
+        if ($hapus->isEmpty()) {
+            return ['available' => false, 'reason' => 'Laporan Penghapusan PRR belum ditarik untuk cakupan ini. Tarik lewat sinkron AP2T, jenis "hapus_prr".'];
+        }
+        $since = substr((string) $hapus->min('period'), 0, 7);
+        $paidFiles = DB::table('eis_report_files')->where('family', 'EXPRR')->where('status', 'AKTIF')->whereIn('organizational_unit_id', $units)->whereBetween('period', [$since.'-01', $to.'-01'])->get(['id', 'period', 'organizational_unit_id']);
+        $paid = [];
+        foreach (DB::table('eis_report_lines')->whereIn('file_id', $paidFiles->pluck('id'))->get(['file_id', 'values']) as $l) {
+            $m = substr((string) $paidFiles->firstWhere('id', $l->file_id)->period, 0, 7);
+            $paid[$m] = ($paid[$m] ?? 0.0) + (float) (json_decode((string) $l->values, true)['rp_prr'] ?? 0);
+        }
+        $coverage = fn ($files) => $files->groupBy(fn ($f) => substr((string) $f->period, 0, 7))->map(fn ($g) => $g->pluck('organizational_unit_id')->unique()->count())->all();
+        $hapusCover = $coverage($hapus);
+        $paidCover = $coverage($paidFiles);
+        $out = [];
+        $cumHapus = 0.0;
+        $cumPaid = 0.0;
+        $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');
+        $current = now($tz)->format('Y-m');
+        $perMonth = $hapus->groupBy(fn ($f) => substr((string) $f->period, 0, 7));
+        $complete = [];
+        for ($m = $since; $m <= $to; $m = date('Y-m', (int) strtotime($m.'-01 +1 month'))) {
+            if (($hapusCover[$m] ?? 0) !== count($units) || ($paidCover[$m] ?? 0) !== count($units)) {
+                continue;
+            }
+            $g = $perMonth[$m];
+            $in = (float) $g->sum(fn ($f) => json_decode((string) $f->summary, true)['rp_prr'] ?? 0);
+            $cumHapus += $in;
+            $cumPaid += $paid[$m] ?? 0.0;
+            $complete[] = $m;
+            $out[] = ['month' => $m, 'written_off_rp' => $in, 'written_off_customers' => (int) $g->sum(fn ($f) => json_decode((string) $f->summary, true)['pelanggan'] ?? 0), 'repaid_rp' => $paid[$m] ?? 0.0,
+                'cumulative_written_off_rp' => $cumHapus, 'cumulative_repaid_rp' => $cumPaid, 'estimated_balance_rp' => $cumHapus - $cumPaid, 'partial' => $m === $current];
+        }
+        if ($out === []) {
+            return ['available' => false, 'reason' => 'Belum ada bulan yang punya laporan Penghapusan PRR dan pelunasan Ex PRR lengkap untuk semua ULP cakupan.'];
+        }
+        $byYear = [];
+        foreach (DB::table('eis_report_lines')->whereIn('file_id', $hapus->filter(fn ($f) => in_array(substr((string) $f->period, 0, 7), $complete, true))->pluck('id'))->get(['label', 'values']) as $l) {
+            $byYear[$l->label] = ($byYear[$l->label] ?? 0.0) + (float) (json_decode((string) $l->values, true)['rp_prr'] ?? 0);
+        }
+        ksort($byYear);
+
+        return ['available' => true, 'estimated' => true, 'since_month' => $complete[0], 'latest_month' => $complete[count($complete) - 1], 'estimated_balance_rp' => $cumHapus - $cumPaid, 'cumulative_written_off_rp' => $cumHapus, 'cumulative_repaid_rp' => $cumPaid,
+            'recovery_pct' => $cumHapus > 0 ? round($cumPaid / $cumHapus * 100, 2) : null, 'monthly' => $out,
+            'by_billing_year' => array_map(fn ($y, $v) => ['year' => (int) $y, 'written_off_rp' => $v], array_keys($byYear), $byYear),
+            'notes' => ['Perkiraan: AP2T tidak punya laporan saldo Ex PRR. Saldo perkiraan = penghapusan PRR kumulatif dikurangi pelunasan Ex PRR kumulatif, dihitung sejak '.$complete[0].'; saldo Ex PRR sebelum bulan itu tidak termasuk, sehingga saldo perkiraan bisa lebih kecil dari saldo sebenarnya dan tingkat pemulihan lebih besar.',
+                'Bulan hanya dihitung bila semua ULP cakupan punya laporan Penghapusan PRR dan pelunasan Ex PRR; bulan berjalan ditandai `partial`.']];
     }
 
     /**

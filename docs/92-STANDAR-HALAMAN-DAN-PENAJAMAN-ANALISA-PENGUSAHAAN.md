@@ -116,8 +116,8 @@ Kolom "Data DISTRIVA" menyebut data yang sudah ada; "Data luar" adalah calon yan
 
 ### 6.5 Pelunasan PRR dan Ex PRR (`pelunasan-prr`, `pelunasan-ex-prr`)
 
-- **Data DISTRIVA:** pelunasan per BLTH dan komponen (AP2T, docs/88). Saldo PRR dari laporan AP2T Daftar PRR (`saldo_prr`, docs/88), ditarik per ULP per bulan; Ex PRR belum punya sumber saldo.
-- **Analisa:** **vintage**: peluang pelunasan menurut umur BLTH (makin tua makin kecil); tingkat pemulihan = pelunasan bulan itu dibanding saldo akhir bulan sebelumnya (`detail.recovery`, sudah dibuat 26 Nov 2026; kumulatif tahun berjalan bila saldo Desember lalu ada) dan saldo per tahun BLTH tagihan; pencapaian target NKO PRR dan Ex PRR.
+- **Data DISTRIVA:** pelunasan per BLTH dan komponen (AP2T, docs/88). Saldo PRR dari laporan AP2T Daftar PRR (`saldo_prr`, docs/88), ditarik per ULP per bulan; Ex PRR diperkirakan dari laporan Penghapusan PRR (`hapus_prr`, docs/88) dikurangi pelunasan Ex PRR.
+- **Analisa:** **vintage**: peluang pelunasan menurut umur BLTH (makin tua makin kecil); tingkat pemulihan = pelunasan bulan itu dibanding saldo akhir bulan sebelumnya (`detail.recovery`, sudah dibuat 26 Nov 2026; kumulatif tahun berjalan bila saldo Desember lalu ada) dan saldo per tahun BLTH tagihan; untuk Ex PRR saldo dan pemulihan berupa perkiraan kumulatif sejak bulan pertama yang ditarik (`detail.recovery`, 26 Nov 2026); pencapaian target NKO PRR dan Ex PRR.
 - **Prakiraan:** saldo PRR per umur × kurva peluang pelunasan per umur; sampai saldo tersedia, prakiraan pola bulanan.
 
 ### 6.6 SAIDI dan SAIFI, ENS, Gangguan Penyulang (`saidi-saifi`, `ens`, `gangguan`)
@@ -280,7 +280,7 @@ Dibuat 26 Nov 2026 atas permintaan pemilik. Langkah ini dikerjakan pemilik; back
 ## 10. Keputusan dan masukan pemilik
 
 **Sudah dijawab (26 Nov 2026):**
-- **Sumber saldo PRR:** laporan AP2T "Daftar PRR" (`getLaporanDaftarPRR`, per ULP per BLTH). Sudah diimpor lewat sinkron AP2T (`saldo_prr`, docs/88) tanpa userid, diuji pada AP2T sungguhan, dan dipakai untuk tingkat pemulihan (§6.5). Saldo Ex PRR belum ada sumbernya.
+- **Sumber saldo PRR:** laporan AP2T "Daftar PRR" (`getLaporanDaftarPRR`, per ULP per BLTH). Sudah diimpor lewat sinkron AP2T (`saldo_prr`, docs/88) tanpa userid, diuji pada AP2T sungguhan, dan dipakai untuk tingkat pemulihan (§6.5). Saldo Ex PRR: AP2T tidak punya laporan saldonya; sebagai gantinya laporan "Daftar Penghapusan PRR" (`getLaporanDaftarHapusPRR`, aliran bulanan) ditarik lewat `hapus_prr` dan saldo diperkirakan dari akumulasinya (§6.5). Menjadi akurat bila ditarik dari awal pencatatan Ex PRR.
 - **"Gangguan berulang":** untuk menu Anomali Gangguan adalah laporan pelanggan berulang menurut data anomali APKT (kolom `berulang`), sudah dipakai di §6.8. Aturan 3 kejadian dalam 30 hari tetap hanya untuk gangguan penyulang di menu keandalan (§6.6, aturan kerja).
 - **Penjualan TL (NKO):** selisih kumulatif tahun berjalan dengan periode yang sama tahun lalu (sudah demikian); bila minus hanya ditandai (`flag: NEGATIF`, docs/90).
 - **Selisih penetapan dan realisasi P2TL (sekitar 190.000 kWh per bulan):** penetapan yang belum terbayar bisa terbayar bulan berikutnya atau beberapa bulan sesudahnya, atau memang tidak terbayar. Artinya realisasi sebuah bulan bukan hanya dari penetapan bulan itu; rasio kumulatif tetap dipakai, dan prakiraan bulan depan belum meramal pembayaran terlambat.

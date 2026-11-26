@@ -1787,7 +1787,32 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $empty = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-prr?unit_id={$this->up3->id}&from=2025-11&to=2025-11")->assertOk()->json('data.detail.recovery');   // belum ada saldo sampai November 2025
         $this->assertFalse($empty['available']);
         $ex = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-ex-prr?unit_id={$this->up3->id}&from=2026-01&to=2026-03")->assertOk()->json('data.detail');
-        $this->assertNull($ex['recovery']);                                                                                       // saldo Ex PRR belum tersedia
+        $this->assertFalse($ex['recovery']['available']);                                                                         // laporan Penghapusan PRR belum ditarik
+    }
+
+    #[Test]
+    public function wawasan_pelunasan_ex_prr_memperkirakan_saldo_dari_penghapusan_prr_dikurangi_pelunasan_hanya_bulan_yang_lengkap(): void
+    {
+        $hapus = fn (OrganizationalUnit $u, string $period, int $tahun, float $rp) => $this->report($u, 'HAPUS_PRR', $period, [[(string) $tahun, ['rp_prr' => $rp, 'baris' => 1]]], ['pelanggan' => 2, 'baris' => 1, 'lembar' => 3, 'rp_prr' => $rp]);
+        $bayar = fn (OrganizationalUnit $u, string $period, float $rp) => $this->report($u, 'EXPRR', $period, [['202001', ['rp_prr' => $rp, 'rpptl' => $rp, 'pelanggan' => 1, 'transaksi' => 1]]], ['pelanggan' => 1, 'transaksi' => 1, 'sampai_tanggal' => 20260131]);
+        $hapus($this->ulpA, '2026-01-01', 2018, 400);
+        $hapus($this->ulpB, '2026-01-01', 2019, 600);
+        $bayar($this->ulpA, '2026-01-01', 30);
+        $bayar($this->ulpB, '2026-01-01', 20);
+        $hapus($this->ulpA, '2026-02-01', 2018, 100);                                        // Februari: ULP B belum ditarik, bulan tidak dihitung untuk UP3
+        $bayar($this->ulpA, '2026-02-01', 10);
+
+        $r = $this->as($this->planner)->getJson("/api/pengusahaan/metrics/pelunasan-ex-prr?unit_id={$this->up3->id}&from=2026-01&to=2026-02")->assertOk()->json('data.detail.recovery');
+
+        $this->assertTrue($r['available']);
+        $this->assertTrue($r['estimated']);
+        $this->assertEquals(['2026-01', '2026-01', 1000, 50, 950, 5.0], [$r['since_month'], $r['latest_month'], $r['cumulative_written_off_rp'], $r['cumulative_repaid_rp'], $r['estimated_balance_rp'], $r['recovery_pct']]);
+        $this->assertCount(1, $r['monthly']);
+        $this->assertEquals([1000, 50, 950], [$r['monthly'][0]['written_off_rp'], $r['monthly'][0]['repaid_rp'], $r['monthly'][0]['estimated_balance_rp']]);
+        $this->assertEquals([400, 600], collect($r['by_billing_year'])->pluck('written_off_rp')->all());
+
+        $own = $this->as($this->viewer)->getJson("/api/pengusahaan/metrics/pelunasan-ex-prr?unit_id={$this->ulpA->id}&from=2026-01&to=2026-02")->assertOk()->json('data.detail.recovery');
+        $this->assertEquals([500, 40, 460, 8.0], [$own['cumulative_written_off_rp'], $own['cumulative_repaid_rp'], $own['estimated_balance_rp'], $own['recovery_pct']]);   // satu ULP: Februari ikut
     }
 
     /** Laporan 309 satu ULP dengan angka per golongan: [pelanggan, kWh, rupiah]. */

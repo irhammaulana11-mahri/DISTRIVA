@@ -21,6 +21,7 @@ class Ap2tTagsusSync
         'belum_realisasi' => ['report' => 'report/NONREK/rpt_ts_daftar_penetapan_ts_belum_realisasi.xls', 'title' => 'DAFTAR PENETAPAN TAGIHAN SUSULAN YANG BELUM REALISASI', 'family' => 'TAGSUS_BELUM', 'label' => 'belum realisasi'],
         'pelunasan_prr' => ['report' => 'C:/Report/Laporan_LunasPRR.xls', 'range' => 'getLaporanLunasPRR', 'family' => 'PRR', 'label' => 'pelunasan PRR'],
         'saldo_prr' => ['report' => 'C:/Report/Laporan_Daftar_PRR.xls', 'blth' => 'getLaporanDaftarPRR', 'family' => 'DAFTAR_PRR', 'label' => 'saldo PRR'],
+        'hapus_prr' => ['report' => 'C:/Report/Laporan_Daftar_DUPPR.xls', 'blth' => 'getLaporanDaftarHapusPRR', 'family' => 'HAPUS_PRR', 'label' => 'penghapusan PRR'],
         'pelunasan_ex_prr' => ['report' => 'C:/Report/Laporan_LunasExPRR.xls', 'range' => 'getLaporanLunasExPRR', 'family' => 'EXPRR', 'label' => 'pelunasan Ex PRR'],
     ];
 

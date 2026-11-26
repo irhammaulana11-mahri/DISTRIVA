@@ -156,7 +156,7 @@ class BusinessAnalyticsController extends Controller
     {
         $user = $request->user();
         $eis = ['pelanggan' => 'PERMOHONAN', 'daya' => 'PERMOHONAN', 'hpl-bp' => 'PERMOHONAN', 'piutang-prabayar' => 'PIUTANG', 'piutang-pascabayar' => 'PIUTANG', 'piutang-pascabayar-umur' => 'PIUTANG'][$code] ?? null;
-        $ap2t = ['kwh-p2tl' => [['realisasi', 'belum_realisasi'], true], 'pelunasan-prr' => [['pelunasan_prr', 'saldo_prr'], false], 'pelunasan-ex-prr' => [['pelunasan_ex_prr'], false]][$code] ?? null;      // penarikan AP2T yang memuat laporan menu ini (run TAGSUS lama tanpa `reports` dihitung untuk kWh P2TL)
+        $ap2t = ['kwh-p2tl' => [['realisasi', 'belum_realisasi'], true], 'pelunasan-prr' => [['pelunasan_prr', 'saldo_prr'], false], 'pelunasan-ex-prr' => [['pelunasan_ex_prr', 'hapus_prr'], false]][$code] ?? null;      // penarikan AP2T yang memuat laporan menu ini (run TAGSUS lama tanpa `reports` dihitung untuk kWh P2TL)
         if ($ap2t !== null) {
             return $this->authorizer->roleFor($user, 'eis_sync.manage') === null ? null : $this->eisRuns('AP2T', null, $ap2t[0], $ap2t[1]);
         }

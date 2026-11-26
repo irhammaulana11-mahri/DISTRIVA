@@ -1324,6 +1324,54 @@ class EisImportTest extends PostgresTestCase
         return $body;
     }
 
+    private function ap2tHapusPrrBody(array $rows, string $bulan = 'NOVEMBER 2026'): string
+    {
+        $sheet = new Spreadsheet;
+        $ws = $sheet->getActiveSheet();
+        $ws->setCellValue('F4', 'ULP JOMBANG');
+        $ws->setCellValue('Q5', 'DAFTAR PENGHAPUSAN PIUTANG RAGU-RAGU');
+        $ws->setCellValue('Q6', 'TAHUN BULAN : '.$bulan);
+        foreach ($rows as $i => [$idpel, $blth, $lembar, $jumlah, $prr]) {
+            $r = 18 + $i * 2;
+            $ws->setCellValue("B{$r}", $i + 1);
+            $ws->setCellValueExplicit("E{$r}", $idpel, 's');
+            $ws->setCellValueExplicit("N{$r}", $blth, 's');
+            foreach (['Q' => $lembar, 'AB' => $jumlah, 'AQ' => 0, 'AU' => $jumlah - $prr, 'AX' => $prr] as $col => $v) {
+                $ws->setCellValue("{$col}{$r}", $v);
+            }
+        }
+        $total = 18 + max(1, count($rows)) * 2;
+        $ws->setCellValue("Q{$total}", array_sum(array_column($rows, 2)));              // baris total tanpa nomor dan IDPEL tidak boleh ikut terhitung
+        $ws->setCellValue("AX{$total}", array_sum(array_column($rows, 4)));
+        $path = tempnam(sys_get_temp_dir(), 'ap2thprr');
+        (new Xlsx($sheet))->save($path);
+        $body = (string) file_get_contents($path);
+        @unlink($path);
+
+        return $body;
+    }
+
+    #[Test]
+    public function an_ap2t_run_pulls_the_prr_write_off_list_and_accepts_an_empty_month(): void
+    {
+        $this->seed(EisReportPermissionSeeder::class);
+        config(['distriva.eis_sync.run_inline' => true, 'distriva.ap2t.pause_ms' => 0, 'distriva.ap2t.report_url_pelunasan' => 'https://ap2t.test/PelunasanServlet']);
+        Storage::fake('documents');
+        $rows = [['514530369935', '201701', 3, 3371280, 1375863], ['514530861189', '201808', 3, 800242, 310728], ['514530841450', '201808', 3, 999552, 396660]];
+        Http::fake(['ap2t.test/*' => fn ($r) => Http::response($r['blth'] === '202611' ? $this->ap2tHapusPrrBody($rows) : $this->ap2tHapusPrrBody([], 'DESEMBER 2026'), 200, ['Content-Type' => 'application/vnd.ms-excel'])]);
+
+        $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'ap2t', 'from_month' => '2026-11', 'to_month' => '2026-12', 'units' => ['51453'], 'reports' => ['hapus_prr']])->assertStatus(202);
+
+        Http::assertSent(fn ($r) => $r['idjenislaporan'] === 'getLaporanDaftarHapusPRR' && $r['blth'] === '202611' && $r['report'] === 'C:/Report/Laporan_Daftar_DUPPR.xls' && ! isset($r->data()['userid']));
+        $files = DB::table('eis_report_files')->where('family', 'HAPUS_PRR')->orderBy('period')->get();
+        $this->assertSame(['HAPUS_PRR-51453-112026.xls', 'HAPUS_PRR-51453-122026.xls'], $files->pluck('original_name')->all());
+        $this->assertEquals(['pelanggan' => 3, 'baris' => 3, 'lembar' => 9, 'rp_prr' => 2083251], json_decode($files[0]->summary, true));
+        $this->assertSame(0, (int) $files[1]->line_count);
+        $lines = DB::table('eis_report_lines')->where('file_id', $files[0]->id)->orderBy('label')->get()->mapWithKeys(fn ($l) => [$l->label => json_decode($l->values, true)]);
+        $this->assertEquals([2, 707388], [$lines['2018']['baris'], $lines['2018']['rp_prr']]);
+        $this->assertStringNotContainsString('514530369935', json_encode(DB::table('eis_report_lines')->where('file_id', $files[0]->id)->get()));
+    }
+
     #[Test]
     public function an_ap2t_run_pulls_the_prr_balance_list_by_blth_and_stores_only_totals_per_billing_year(): void
     {
