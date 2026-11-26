@@ -194,7 +194,8 @@ Semua sumber luar diuji dulu di satu ULP sebelum dipakai luas. Lisensi dan kewaj
 |---|---|---|
 | BMKG prakiraan cuaca (API terbuka, per kelurahan, 3 hari per 3 jam) | Peringatan dini gangguan (§6.6) | Wajib atribusi; pengambilan otomatis lewat API resmi. Historis curah hujan dan petir perlu diminta ke BMKG |
 | BMKG data suhu | kWh jual (§6.2) | Ketersediaan historis bulanan per stasiun perlu dicek |
-| Google Open Buildings Temporal | Ruang tumbuh pelanggan (§6.1) | Potret tahunan 2016 sampai 2023, Asia Tenggara, CC-BY 4.0 dan ODbL; deteksi antar-tahun tidak selalu stabil |
+| Google Open Buildings v3 (statis, titik bangunan, tanpa akun) | Ruang tumbuh pelanggan (§6.1) | **Diuji, tidak dipakai** (§8.3). CC-BY 4.0 dan ODbL |
+| Google Open Buildings Temporal (Earth Engine) | Ruang tumbuh pelanggan (§6.1) | Belum diuji (butuh akun Earth Engine). Potret tahunan 2016 sampai 2023; deteksi antar-tahun tidak selalu stabil. Hanya ini yang mengukur pertumbuhan bangunan |
 | Tutupan lahan (ESA WorldCover, Dynamic World) | Alih fungsi sawah ke terbangun (§6.1) | Resolusi 10 m |
 | BPS (proyeksi penduduk, luas panen per kecamatan) | Pelanggan (§6.1), piutang ULP agraris (§6.4) | Tahunan |
 | Kawasan industri (Kemenperin, OpenStreetMap, RTRW kabupaten) | Pelanggan dan daya besar (§6.1) | Perlu kurasi manual |
@@ -223,11 +224,28 @@ Keputusan:
 2. (Selesai di backend, kontrak docs/91, butir README-REVISI 41) Dipakai sebagai **penjelasan**: pada bulan SAIDI/gangguan melonjak, tampilkan curah hujan bulanan dan jumlah hari hujan lebat (20 mm atau lebih) di samping, agar lonjakan bisa dibedakan dari penyebab non-cuaca. Tanpa mengubah angka metrik.
 3. Dipakai sebagai **peringatan dini** hanya dari prakiraan BMKG 7 hari (hujan lebat di wilayah ULP), sebagai pengganda risiko penyulang yang sudah ada (§6.6), bukan prakiraan angka. Perlu diuji ulang bila data historis prakiraan terkumpul.
 4. Lisensi: Open-Meteo archive gratis untuk non-komersial dengan atribusi; cukup untuk uji ini, penggunaan produksi perlu ditinjau ulang (langganan atau data BMKG). Data petir historis dan hujan stasiun perlu diminta ke BMKG dan bisa lebih tajam daripada ERA5.
-5. Data bangunan/tutupan lahan (Open Buildings, WorldCover) belum diuji: butuh Earth Engine dan hanya bermanfaat untuk perencanaan tahunan.
+5. Data bangunan (Open Buildings v3 statis) sudah diuji dan **tidak dipakai** (§8.3); versi temporal (Earth Engine) dan tutupan lahan (WorldCover, Dynamic World) belum diuji.
 
 ### 8.2 Peringatan dini BMKG (26 Nov 2026)
 
 API publik BMKG (`api.bmkg.go.id/publik/prakiraan-cuaca?adm4=`) memberi prakiraan **tiga hari per tiga jam** per kelurahan/desa (bukan tujuh hari): suhu, curah hujan (`tp`, mm per tiga jam), kode cuaca, arah dan kecepatan angin. Dipetakan satu desa per ULP, dipilih yang terdekat dari titik pusat gardu ULP (jarak 0,4 sampai 3,3 km): Mojoagung 35.17.06.2007 (Gambiran), Mojokerto 35.76.03.1002 (Miji, Kota Mojokerto), Jombang 35.17.09.2007 (Kepatihan), Ngoro 35.17.03.2003 (Rejoagung, Ngoro, Jombang), Ploso 35.17.14.2008 (Jatibanjar), Mojosari 35.16.08.1006 (Sawahan), Pacet 35.16.03.2002 (Wiyu), Kertosono 35.18.08.2008 (Tembarak), Warujayeng 35.18.11.2002 (Sumberkepuh, Tanjunganom), Nganjuk 35.18.13.1001 (Jatirejo); disimpan di `config/distriva.php` (`weather.bmkg.locations`, kunci kode ULP). Data wilayah gardu tidak dipakai karena hanya ULP Jombang yang punya kelurahan (843 dari 6.293 gardu). Aturan tingkat: `waspada` bila hujan harian 20 mm atau lebih, hujan petir (kode 95 atau 97), atau hujan lebat (kode 63); `tinggi` bila 50 mm atau lebih atau hujan petir disertai 20 mm atau lebih. Hasil ditampilkan sebagai peringatan dan rasio historis gangguan (1,0; 1,15; 1,5; 1,66 menurut kelas hujan, dari uji ERA5 §8.1), **bukan prakiraan jumlah gangguan**. Dibuktikan pada API sungguhan 26 Nov 2026 (seluruh ULP normal, hujan harian 0 sampai 6,7 mm); tingkat peringatan belum diuji terhadap gangguan sesudah prakiraan karena riwayat prakiraan BMKG belum terkumpul. Penyulang prioritas diurut dari jumlah gangguan pada hari hujan lebat (ERA5) tiga tahun terakhir: riwayat, bukan jaminan. Atribusi BMKG wajib ditampilkan; cache satu jam per desa; kegagalan BMKG tidak merusak halaman.
+
+### 8.3 Hasil uji coba data bangunan Open Buildings v3 (26 Nov 2026)
+
+Pertanyaan: apakah "bangunan belum terlayani" (bangunan dekat gardu dikurangi pelanggan dasar gardu itu) memprediksi penambahan pelanggan per gardu? Data: titik bangunan Open Buildings v3 sel S2 `2e79` (11,4 juta baris, publik tanpa akun; 3,5 sampai 4,0 juta bangunan berkonfiden 0,70 atau lebih di wilayah gardu), 5.855 gardu PLN berkoordinat, pelanggan aktif per gardu (DIL September 2026, 1,42 juta), dan penambahan 2025 sampai 2026 = permohonan PB tersambung yang dihubungkan ke gardu lewat IDPEL (55.847 dari 68.485, 82%). Pelanggan dasar = pelanggan aktif dikurangi penambahan. Tiap bangunan ditetapkan ke gardu terdekat dalam radius tertentu.
+
+| Prediktor penambahan per gardu (n 5.252) | Spearman | 10% gardu teratas menangkap (acak 9,9%) |
+|---|---|---|
+| Pelanggan dasar (ukuran gardu) | 0,84 | 27,8% |
+| Bangunan dekat gardu | 0,57 | 19,6% sampai 20,2% |
+| **Bangunan belum terlayani** | **-0,06 sampai -0,26** | **10,7% (radius 1 km), 7,4% (0,5 km, bangunan 30 m2 atau lebih)** |
+| Bangunan per pelanggan | -0,60 | 0,5% |
+
+Temuan:
+- **Pada tingkat gardu data bangunan statis tidak menambah daya prediksi**: bangunan belum terlayani sama atau lebih buruk daripada acak, dan hasilnya sama pada radius 1 km dan 0,5 km serta setelah membuang bangunan kecil; bangunan per pelanggan justru berlawanan arah (gardu yang paling "tidak terlayani" paling sedikit bertambah). Penjelasan yang masuk akal: banyak bangunan bukan hunian (kandang, gudang, bangunan sawah; rata-rata 1,5 bangunan per pelanggan di seluruh wilayah, 1,2 setelah membuang yang kecil), dan pembagian ke gardu terdekat kasar.
+- **Pada tingkat ULP dan kecamatan hubungannya tinggi (ULP 0,87; kecamatan 0,97) tetapi hanya mencerminkan ukuran wilayah**: pelanggan dasar saja memberi 0,88 dan 0,99, jadi tidak ada informasi tambahan.
+- **Keputusan:** data bangunan statis tidak dipakai untuk prakiraan atau daftar "ruang tumbuh"; prediktor penambahan tetap ukuran pelanggan dasar dan antrean permohonan (§6.1). Yang belum teruji dan satu-satunya yang mengukur pertumbuhan: Open Buildings Temporal (perubahan jumlah bangunan 2019 ke 2023 per gardu dibandingkan penambahan 2025 sampai 2026), yang butuh akun Earth Engine; layak dicoba bila pemilik membuat akun. Tutupan lahan (WorldCover, Dynamic World) juga statis atau tahunan dan butuh pemrosesan raster; tidak diuji.
+- **Catatan data:** `customer_connections.energized_on` kosong untuk semua pelanggan, dan koordinat survei permohonan hampir kosong (5 dari ribuan), sehingga uji pertumbuhan per gardu bertumpu pada hubungan permohonan PB ke IDPEL; mengisi `energized_on` dari sumber DIL akan memberi riwayat pertumbuhan yang lebih langsung.
 
 ## 9. Tahapan
 
