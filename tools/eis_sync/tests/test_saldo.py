@@ -1,4 +1,5 @@
 """Tes tanpa jaringan untuk laporan saldo piutang (app/saldo_http.py): `python -m unittest discover -s tests` dari tools/eis_sync."""
+import contextlib
 import io
 import sys
 import types
@@ -15,6 +16,8 @@ sys.modules["dotenv"].load_dotenv = lambda *a, **k: None
 sys.modules["playwright.sync_api"].sync_playwright = lambda: None
 
 from app import saldo_http as sh  # noqa: E402
+
+REAL_EIS = sh.eis      # modul asli; sebagian tes lain mengganti sh.eis dengan tiruan dan tidak mengembalikannya
 
 XLS = b"\xd0\xcf\x11\xe0" + b"x" * 3000
 XLS_FULL = b"\xd0\xcf\x11\xe0" + b"x" * 20000          # ukuran seperti berkas kontrol 309 yang berisi data
@@ -235,7 +238,7 @@ class ImportAnswerTest(unittest.TestCase):
         saved = (sh.eis, sh.fetch_mycube)
         sh.fetch_mycube = lambda *a: (XLS, "xls")
         sh.eis = types.SimpleNamespace(http_session=lambda fresh=False: FakeSession(), EISSessionExpired=saved[0].EISSessionExpired, EISTransientError=saved[0].EISTransientError, RETRYABLE_EXCEPTIONS=saved[0].RETRYABLE_EXCEPTIONS,
-                                       ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, form_payload=saved[0].form_payload, _check_response=lambda *a: None)
+                                       ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, main_url=lambda: "http://eis.test/eis/default.aspx", form_payload=saved[0].form_payload, _check_response=lambda *a: None)
         out = io.StringIO()
         try:
             with contextlib.redirect_stdout(out):
@@ -271,7 +274,7 @@ class RetryTest(unittest.TestCase):
         saved = (sh.eis, sh.TRANSIENT_DELAY)
         sh.TRANSIENT_DELAY = 0
         sh.eis = types.SimpleNamespace(http_session=lambda fresh=False: FakeSession(), EISSessionExpired=saved[0].EISSessionExpired, EISTransientError=saved[0].EISTransientError, RETRYABLE_EXCEPTIONS=saved[0].RETRYABLE_EXCEPTIONS,
-                                       ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, form_payload=saved[0].form_payload, _check_response=lambda *a: None)
+                                       ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, main_url=lambda: "http://eis.test/eis/default.aspx", form_payload=saved[0].form_payload, _check_response=lambda *a: None)
         try:
             code = sh.run(Client(), [("51453", "JOMBANG")], ["2026-10"], ["GOLONGAN"], pause=0)
         finally:
@@ -279,6 +282,72 @@ class RetryTest(unittest.TestCase):
             sh.eis, sh.TRANSIENT_DELAY = saved
         self.assertEqual(code, 0)                       # berhasil pada percobaan ketiga
         self.assertEqual(calls["n"], 3)
+
+
+class WarmupTest(unittest.TestCase):
+    def test_the_menu_parent_page_is_opened_once_per_session_with_the_main_page_as_referer(self):
+        visited = []
+
+        class Session:
+            def get(self, url, **kwargs):
+                visited.append((url, kwargs.get("headers")))
+                return types.SimpleNamespace(status_code=200, text="")
+
+        saved = sh.eis
+        sh.eis = types.SimpleNamespace(main_url=lambda: "http://eis.test/eis/default.aspx", _check_response=lambda *a: None)
+        try:
+            sh.warm_session(Session())
+        finally:
+            sh.eis = saved
+        self.assertEqual(1, len(visited))
+        self.assertTrue(visited[0][0].endswith("/" + sh.WARMUP_PAGE))
+        self.assertEqual({"Referer": "http://eis.test/eis/default.aspx"}, visited[0][1])
+
+    def test_a_failing_warmup_is_only_reported_and_does_not_stop_the_run(self):
+        class Session:
+            def get(self, url, **kwargs):
+                raise RuntimeError("putus")
+
+        saved = sh.eis
+        sh.eis = types.SimpleNamespace(main_url=lambda: "http://eis.test/eis/default.aspx", _check_response=lambda *a: None)
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                sh.warm_session(Session())          # tidak melempar
+        finally:
+            sh.eis = saved
+        self.assertIn("Pemanasan sesi EIS gagal (putus)", out.getvalue())
+
+    def test_run_warms_the_first_session_and_a_new_session_after_the_login_expires(self):
+        warmed = []
+        saved_warm, saved_eis, saved_fetch = sh.warm_session, sh.eis, sh.fetch_mycube
+        real = REAL_EIS
+        expired = {"once": True}
+
+        def fetch(sess, report, ulp, month):
+            if expired["once"]:
+                expired["once"] = False
+                raise real.EISSessionExpired("sesi berakhir")
+            return XLS, "xls"
+
+        class Client:
+            def login(self):
+                pass
+
+            def import_eis_reports(self, name, content):
+                return {"results": [{"name": name, "ok": True, "status": "BARU", "family": "AKHIRBULAN_EIS", "unit": "u", "period": "p", "lines": 1}]}
+
+        sh.warm_session = lambda session: warmed.append(session)
+        sh.fetch_mycube = fetch
+        sh.eis = types.SimpleNamespace(http_session=lambda fresh=False: FakeSession(), EISSessionExpired=real.EISSessionExpired, EISTransientError=real.EISTransientError, RETRYABLE_EXCEPTIONS=real.RETRYABLE_EXCEPTIONS,
+                                       ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, main_url=lambda: "http://eis.test/eis/default.aspx", form_payload=real.form_payload, _check_response=lambda *a: None)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                code = sh.run(Client(), [("51453", "JOMBANG")], ["2026-10"], ["GOLONGAN"], pause=0)
+        finally:
+            sh.warm_session, sh.eis, sh.fetch_mycube = saved_warm, saved_eis, saved_fetch
+        self.assertEqual(0, code)
+        self.assertEqual(2, len(warmed))                 # sesi pertama dan sesi baru sesudah login ulang
 
 
 class ZipTest(unittest.TestCase):
@@ -311,7 +380,7 @@ class RunTest(unittest.TestCase):
             return original(sess, report, ulp, month)
 
         sh.fetch_mycube = flaky
-        sh.eis = types.SimpleNamespace(http_session=lambda fresh=False: session, EISSessionExpired=RuntimeError, ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, form_payload=sh.eis.form_payload, _check_response=lambda *a: None)
+        sh.eis = types.SimpleNamespace(http_session=lambda fresh=False: session, EISSessionExpired=RuntimeError, ALL_UNITS="-SEMUA UP-", select_unit=lambda *a: None, main_url=lambda: "http://eis.test/eis/default.aspx", form_payload=sh.eis.form_payload, _check_response=lambda *a: None)
         try:
             code = sh.run(Client(), [("51453", "JOMBANG"), ("51454", "NGORO")], ["2026-10"], ["GOLONGAN", "LEMBAR"], pause=0)
         finally:

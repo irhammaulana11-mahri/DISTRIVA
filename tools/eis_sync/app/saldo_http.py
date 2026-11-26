@@ -41,6 +41,7 @@ MYCUBE = {
     "LEMBAR": ("saldo_lalu_eis_lbr", lambda ulp, ym: f"'{ulp}';'{ym}';'PERLEMBAR'", None),
     "PRABAYAR": ("saldo_lalu_ap3t_tarif_up", lambda ulp, ym: f"'{ulp}';'{UP3_CODE}';'{UPI_CODE}';'{ym}'", "saldolaluap3t.aspx"),     # Saldo Prabayar Bulan Lalu, per tarif (PIUTANGLPB_EIS)
 }
+WARMUP_PAGE = "saldolaluap3t.aspx"     # halaman induk menu saldo; dibuka sekali per sesi sebelum laporan mycube pertama (lihat warm_session)
 NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 KONTROL309_MIN_BYTES = 10000         # kontrol 309 berisi ratusan baris (berkas nyata sekitar 46-49 KB); berkas hanya berjudul kolom sekitar 3,8 KB berarti EIS belum punya data bulan itu atau Load Data tidak berlaku
 DEBUG_DIR = Path(__file__).resolve().parents[1] / "debug"   # berkas yang dicurigai disimpan di sini untuk diagnosis
@@ -143,6 +144,17 @@ def page_form(session: requests.Session, url: str, step: str, referer: str | Non
     return response, payload
 
 
+def warm_session(session: requests.Session) -> None:
+    """Buka halaman induk menu saldo sekali setelah login. Pada sesi baru, laporan GOLONGAN dan LEMBAR yang diminta lebih dulu ditolak EIS (HTTP 500, isian pivotGrid$CallbackState tidak ada pada halaman) dan tetap
+    ditolak pada setiap ulangan, sampai halaman induk menu saldo pernah dibuka dalam sesi itu (peramban selalu membukanya); setelah itu semua laporan berhasil. Terbukti dengan sesi baru: hanya langkah ini
+    yang memulihkannya (halaman utama, pilih bulan, dan pilih unit tidak). Pemanasan yang gagal hanya dicatat; galat yang sesungguhnya muncul pada unduhan dan diulang seperti biasa."""
+    try:
+        response = session.get(f"{base()}/{WARMUP_PAGE}", timeout=(20, 90), headers={"Referer": eis.main_url()})
+        eis._check_response(response, "Buka halaman induk menu saldo")
+    except Exception as e:
+        print(f"⚠ Pemanasan sesi EIS gagal ({e}); dilanjutkan.", flush=True)
+
+
 def fetch_mycube(session: requests.Session, report: str, ulp: str, month: str) -> tuple[bytes, str]:
     jenis, make_parameter, parent = MYCUBE[report]
     parameter = make_parameter(ulp, month.replace("-", ""))
@@ -236,6 +248,7 @@ def build_zip(files: list[tuple[str, bytes]]) -> bytes:
 def run(client, units: list[tuple[str, str]], months: list[str], reports: list[str], keep_dir: str | None = None, pause: float = PAUSE) -> int:
     """Bulan demi bulan: unduh semua unit dan laporan, satukan menjadi satu ZIP, unggah. Satu berkas yang gagal dicatat dan putaran dilanjutkan; kode keluar 1 bila ada yang gagal."""
     session = eis.http_session()
+    warm_session(session)
     failed: list[str] = []
     uploaded = 0
 
@@ -252,6 +265,7 @@ def run(client, units: list[tuple[str, str]], months: list[str], reports: list[s
                 relogged = True
                 print(f"Sesi EIS berakhir ({e}); login ulang ...", flush=True)
                 session = eis.http_session(fresh=True)
+                warm_session(session)
             except (eis.EISTransientError, *eis.RETRYABLE_EXCEPTIONS) as e:
                 if retry > TRANSIENT_RETRIES:
                     raise
