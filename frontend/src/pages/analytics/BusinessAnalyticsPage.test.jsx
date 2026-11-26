@@ -1781,4 +1781,234 @@ describe('BusinessAnalyticsPage', () => {
     expect(await screen.findByText(/Perubahan \(MOM\)/i)).toBeInTheDocument()
     expect(screen.getAllByText('50,0%').length).toBeGreaterThan(0)
   })
+
+  it('21. mendukung Butir 38: Uji coba keandalan tahap 2 (Pareto penyulang, gangguan berulang, komposisi, daftar pantau risiko)', async () => {
+    const reliabilityCatalog = {
+      data: {
+        units: [{ id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3', parent_id: null }],
+        metrics: [
+          {
+            code: 'saidi-saifi',
+            name: 'SAIDI & SAIFI',
+            source: 'DIFI',
+            polarity: 'down',
+            available: true,
+            series: [{ key: 'saidi', name: 'SAIDI', unit: 'menit/plg' }],
+          },
+        ],
+      },
+    }
+
+    const reliabilityDetail = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: {
+          code: 'saidi-saifi',
+          name: 'SAIDI & SAIFI',
+          unit: 'menit/plg',
+          polarity: 'down',
+          source: 'DIFI',
+        },
+        from: '2026-01',
+        to: '2026-10',
+        months: ['2026-01', '2026-10'],
+        summary: [
+          { key: 'saidi', name: 'SAIDI', unit: 'menit/plg', latest: 4.5, ytd: 40.6, ytd_previous_year: 42.0, ytd_pct: -3.3, mom_pct: 1.0, yoy_pct: -2.0 },
+        ],
+        series: [
+          { key: 'saidi', name: 'SAIDI', unit: 'menit/plg', values: [3.8, 4.5], previous_year: [4.0, 4.6] },
+        ],
+        detail: {
+          kind: 'reliability',
+          period: { from: '2026-01-01', to: '2026-10-31', partial: false },
+          pareto: {
+            basis: 'saidi_contribution',
+            feeders_with_events: 45,
+            total_saidi_contribution: 35.5,
+            total_saifi_contribution: 0.85,
+            total_ens_kwh: 125000,
+            top_share_pct: 34.2,
+            rows: [
+              {
+                feeder_id: 'f-101',
+                code: 'FDR-SEDATI',
+                name: 'Sedati',
+                gi_name: 'GI Buduran',
+                events: 12,
+                permanent: 8,
+                temporary: 4,
+                minutes: 320,
+                ens_kwh: 15400,
+                customers: 4500,
+                saidi_contribution: 4.25,
+                saifi_contribution: 0.12,
+                saidi_share_pct: 12.0,
+                saidi_cumulative_pct: 12.0,
+                trend_pct: 5.5,
+              },
+            ],
+          },
+          repeat: {
+            threshold_events: 3,
+            window_days: 30,
+            window_from: '2026-10-01',
+            window_to: '2026-10-31',
+            rows: [
+              {
+                feeder_id: 'f-101',
+                code: 'FDR-SEDATI',
+                name: 'Sedati',
+                gi_name: 'GI Buduran',
+                events: 4,
+                permanent: 3,
+                minutes: 180,
+                last_at: '2026-10-28 14:30',
+              },
+            ],
+          },
+          composition: {
+            cause: {
+              total_events: 50,
+              rows: [
+                {
+                  key: 'Pohon / Tumbuhan',
+                  events: 25,
+                  events_share_pct: 50.0,
+                  minutes: 400,
+                  minutes_share_pct: 45.0,
+                  ens_kwh: 20000,
+                  ens_share_pct: 40.0,
+                },
+              ],
+            },
+            weather: {
+              total_events: 50,
+              rows: [
+                {
+                  key: 'Hujan Lebat',
+                  events: 30,
+                  events_share_pct: 60.0,
+                  minutes: 500,
+                  minutes_share_pct: 55.0,
+                  ens_kwh: 30000,
+                  ens_share_pct: 60.0,
+                },
+              ],
+            },
+          },
+          risk: {
+            available: true,
+            as_of_month: '2026-10',
+            target_month: '2026-11',
+            season_index: 1.15,
+            feeders_scored: 140,
+            method: 'ewma_seasonal',
+            rows: [
+              {
+                feeder_id: 'f-101',
+                code: 'FDR-SEDATI',
+                name: 'Sedati',
+                gi_name: 'GI Buduran',
+                owner: 'ULP Sidoarjo',
+                expected_events: 2.4,
+                expected_permanent: 1.6,
+                last_12m_events: 18,
+                last_3m_events: 6,
+                last_month_events: 3,
+              },
+            ],
+            backtest: {
+              top: 10,
+              months: ['2026-09', '2026-10'],
+              model_capture_pct: 18.5,
+              naive_capture_pct: 18.0,
+              random_capture_pct: 6.2,
+              description: 'Rata-rata persentase gangguan bulan berikutnya yang jatuh pada sepuluh penyulang teratas.',
+            },
+          },
+          weather: {
+            available: true,
+            source: 'ERA5',
+            attribution: 'Sumber data cuaca: ECMWF ERA5 via Open-Meteo',
+            heavy_rain_mm: 20,
+            rows: [
+              {
+                month: '2026-10',
+                rain_mm: 120.5,
+                heavy_days: 4,
+                days_covered: 31,
+                events: 15,
+              },
+            ],
+          },
+          early_warning: {
+            available: true,
+            attribution: 'BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)',
+            issued_at: '2026-10-31 06:00',
+            ulps: [
+              {
+                unit_id: 'u-1',
+                unit_name: 'ULP Mojokerto Kota',
+                max_level: 'waspada',
+                days: [
+                  { date: '2026-11-01', rain_mm: 25.0, thunderstorm: true, level: 'waspada', rate_ratio: 2.1, slots: 8 },
+                ],
+              },
+            ],
+            watchlist: [
+              {
+                unit_id: 'u-1',
+                unit_name: 'ULP Mojokerto Kota',
+                name: 'Sedati',
+                events_3y: 30,
+                events_on_heavy_rain_days_3y: 12,
+                heavy_rain_share_pct: 40.0,
+              },
+            ],
+          },
+          notes: ['Kontribusi SAIDI dan SAIFI per penyulang adalah batas atas.'],
+        },
+        warnings: [],
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(reliabilityCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'saidi-saifi') {
+        return Promise.resolve(reliabilityDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/saidi-saifi'])
+
+    // Verifikasi tombol tab Penyulang & Risiko muncul
+    const feederTabBtn = await screen.findByRole('button', { name: 'Penyulang & Risiko' })
+    expect(feederTabBtn).toBeInTheDocument()
+    await userEvent.click(feederTabBtn)
+
+    // Verifikasi Bagian Pareto Penyulang
+    expect(await screen.findByText('Pareto Penyulang Penyumbang SAIDI Terbesar')).toBeInTheDocument()
+    expect(screen.getAllByText('Sedati').length).toBeGreaterThan(0)
+    expect(screen.getByText('4,250')).toBeInTheDocument() // saidi_contribution
+    expect(screen.getAllByText(/GI Buduran/i).length).toBeGreaterThan(0)
+
+    // Verifikasi Bagian Gangguan Berulang (38b)
+    expect(screen.getByText('Penyulang Gangguan Berulang')).toBeInTheDocument()
+    expect(screen.getByText('4 kali')).toBeInTheDocument()
+
+    // Verifikasi Daftar Pantau Risiko & Uji Mundur (38d)
+    expect(screen.getByText('Daftar Pantau Risiko Bulan Depan')).toBeInTheDocument()
+    expect(screen.getByText('~2,4 kejadian')).toBeInTheDocument()
+    expect(screen.getByText('Evaluasi Akurasi Uji Mundur (24 Bulan):')).toBeInTheDocument()
+    expect(screen.getAllByText('18,5%').length).toBeGreaterThan(0) // model_capture_pct
+
+    // Verifikasi Komposisi Penyebab & Cuaca (38c)
+    expect(screen.getByText('Komposisi Gangguan: Kejadian vs Menit Padam')).toBeInTheDocument()
+    expect(screen.getByText('Pohon / Tumbuhan')).toBeInTheDocument()
+
+    // Verifikasi Weather & Early Warning (41 & 48)
+    expect(screen.getByText('Peringatan Dini Cuaca 3 Hari ke Depan')).toBeInTheDocument()
+    expect(screen.getByText('Konteks Cuaca Historis 12 Bulan Terakhir')).toBeInTheDocument()
+  })
 })

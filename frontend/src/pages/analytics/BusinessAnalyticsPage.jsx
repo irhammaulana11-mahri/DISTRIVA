@@ -13,6 +13,7 @@ import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
 import OutageSyncDrawer from '../outages/OutageSyncDrawer.jsx'
 import BusinessForecastTab from './BusinessForecastTab.jsx'
 import BusinessHistoryTab from './BusinessHistoryTab.jsx'
+import ReliabilityFeederTab from './ReliabilityFeederTab.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
@@ -1554,32 +1555,48 @@ export default function BusinessAnalyticsPage() {
         {/* Tab Rincian APKT / Penyulang khusus metrik Gangguan */}
         {(activeCode === 'gangguan' || activeCode === 'saidi-saifi' || activeCode === 'ens') && (
           <>
-            <button
-              type="button"
-              onClick={() => setMainTab('outage_apkt')}
-              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                mainTab === 'outage_apkt'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              {activeCode === 'saidi-saifi'
-                ? 'Rincian SAIDI & SAIFI (APKT)'
-                : activeCode === 'ens'
-                ? 'Rincian ENS (APKT)'
-                : 'Rincian Gangguan (APKT)'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMainTab('outage_feeders')}
-              className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                mainTab === 'outage_feeders'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              Penyulang &amp; Gardu
-            </button>
+            {d?.detail?.kind === 'reliability' ? (
+              <button
+                type="button"
+                onClick={() => setMainTab('feeder_detail')}
+                className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                  mainTab === 'feeder_detail'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                Penyulang &amp; Risiko
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setMainTab('outage_apkt')}
+                  className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                    mainTab === 'outage_apkt'
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {activeCode === 'saidi-saifi'
+                    ? 'Rincian SAIDI & SAIFI (APKT)'
+                    : activeCode === 'ens'
+                    ? 'Rincian ENS (APKT)'
+                    : 'Rincian Gangguan (APKT)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMainTab('outage_feeders')}
+                  className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                    mainTab === 'outage_feeders'
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Penyulang &amp; Gardu
+                </button>
+              </>
+            )}
           </>
         )}
 
@@ -3258,6 +3275,11 @@ export default function BusinessAnalyticsPage() {
                 />
               )}
             </div>
+          )}
+
+          {/* Tab Penyulang & Risiko Keandalan (Butir 38 docs/92 §6.6) */}
+          {mainTab === 'feeder_detail' && (
+            <ReliabilityFeederTab detail={d.detail} metricCode={activeCode} />
           )}
         </div>
         )}
