@@ -187,7 +187,7 @@ class EisReportApiTest extends PostgresTestCase
         $units = collect($cov->json('data.units'))->keyBy('unit_name');
         $this->assertSame(['ULP Jombang', 'ULP Ngoro'], $units->keys()->sort()->values()->all());
         $datasets = count($cov->json('data.datasets_list'));                                           // hanya dataset aktif yang dihitung kurang; jenis lama tidak
-        $this->assertSame(15, $datasets);
+        $this->assertSame(18, $datasets);
         $this->assertTrue($units['ULP Jombang']['families']['309'][4]);
         $this->assertTrue($units['ULP Jombang']['datasets']['AP2T.PENJUALAN_309'][4]);
         $this->assertSame($datasets * 12 - 1, $units['ULP Jombang']['missing_count']);
