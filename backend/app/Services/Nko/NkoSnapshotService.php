@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  */
 class NkoSnapshotService
 {
-    public function __construct(private readonly NkoCalculator $calculator, private readonly NkoCalculationService $nodes, private readonly NkoRealizationResolver $resolver) {}
+    public function __construct(private readonly NkoCalculator $calculator, private readonly NkoCalculationService $nodes, private readonly NkoRealizationResolver $resolver, private readonly NkoRealizationRules $rules) {}
 
     /**
      * Indikator yang harus punya realisasi pada bulan itu: punya sumber realisasi dan pencapaiannya bukan nilai tetap.
@@ -61,6 +61,8 @@ class NkoSnapshotService
         }
 
         $resolved = $this->resolver->resolve($unitId, $year, $month);
+        $formulas = [];      // rumus yang menghasilkan nilai sistem, disimpan agar snapshot lama tetap dapat dijelaskan setelah aturan berubah
+        $rules = $this->rules->forPeriod($year, $month);
         $real = [];
         $source = [];
         $missing = [];
@@ -69,6 +71,7 @@ class NkoSnapshotService
             if ($r !== null) {
                 $real[$n['row_no']] = $r['value'];
                 $source[$n['row_no']] = $r['source'];
+                $formulas[$n['row_no']] = $r['source'] === 'SISTEM' ? ($rules[$n['code']]->formula ?? null) : null;
             } elseif ($this->needsRealisasi($n, $month)) {
                 $missing[] = ['code' => $n['code'], 'name' => DB::table('kpi_definitions')->where('id', $n['id'])->value('name')];
             }
@@ -76,7 +79,7 @@ class NkoSnapshotService
 
         $res = $this->calculator->calculate($nodes, $targets, $real, $monthRule, $month);
 
-        return DB::transaction(function () use ($set, $unit, $unitId, $period, $nodes, $targets, $real, $source, $missing, $res, $user) {
+        return DB::transaction(function () use ($set, $unit, $unitId, $period, $nodes, $targets, $real, $source, $formulas, $missing, $res, $user) {
             DB::table('kpi_snapshots')->where('organizational_unit_id', $unitId)->where('period', $period)->where('is_current', true)->update(['is_current' => false, 'updated_at' => now()]);
             $id = (string) Str::uuid7();
             DB::table('kpi_snapshots')->insert([
@@ -87,7 +90,7 @@ class NkoSnapshotService
             foreach ($nodes as $n) {
                 $r = $n['row_no'];
                 $rows[] = ['snapshot_id' => $id, 'definition_id' => $n['id'], 'target_value' => $targets[$r]['value'] ?? null, 'target_text' => $targets[$r]['text'] ?? null, 'realisasi' => $real[$r] ?? null,
-                    'source' => $source[$r] ?? null, 'pencapaian' => $res['rows'][$r]['pencapaian'], 'nilai' => $res['rows'][$r]['nilai']];
+                    'source' => $source[$r] ?? null, 'rule_formula' => $formulas[$r] ?? null, 'pencapaian' => $res['rows'][$r]['pencapaian'], 'nilai' => $res['rows'][$r]['nilai']];
             }
             foreach (array_chunk($rows, 200) as $chunk) {
                 DB::table('kpi_snapshot_values')->insert($chunk);

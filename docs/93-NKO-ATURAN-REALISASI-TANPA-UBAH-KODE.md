@@ -1,6 +1,6 @@
 # 93 — Aturan Realisasi NKO Tanpa Ubah Kode
 
-Status: rancangan disetujui pemilik (26 Nov 2026). **Tahap 1 sampai 3 selesai** (pemetaan dan rumus realisasi di data dengan hasil identik, pencocokan definisi). Tahap 4 belum.
+Status: rancangan disetujui pemilik (26 Nov 2026). **Tahap 1 sampai 4 selesai di backend** (rumus realisasi di data, pencocokan definisi, API usulan dan persetujuan). Layar frontend: lihat README-REVISI.
 
 ## 1. Tujuan
 
@@ -73,9 +73,12 @@ Dideklarasikan di `inputs`; kodenya huruf kecil, angka, dan garis bawah, tidak b
 
 ## 7. Batasan saat ini
 
-- Belum ada layar atau API untuk mengubah aturan; sementara hanya lewat data. Pemeriksaan isi aturan saat disimpan (nama dikenal, kode masukan tidak bentrok) dikerjakan di tahap 4, jadi aturan salah yang disisipkan langsung membuat halaman NKO galat.
-- `kpi_baselines` (baseline adjustment) dan tautan target menu pengusahaan (`BusinessTargetService::LINKS`) masih memakai kode indikator tetap.
-- Mengubah rumus tidak mengubah snapshot yang sudah dihitung, tetapi hitung ulang periode lama memakai aturan yang berlaku pada periode itu.
+- Menambah besaran baru (sumber data baru) tetap perlu kode.
+- `kpi_baselines` (baseline adjustment) tetap disimpan dan dibaca dengan kode `penjualan-tenaga-listrik`, apa pun nama itemnya; besaran `ba_penjualan` tetap bisa dipakai rumus mana pun.
+- Aturan berlaku menurut kode indikator untuk semua unit; belum ada rumus khusus per unit.
+- Tidak ada penghapusan aturan. Untuk mematikan sumber otomatis, usulkan mode MANUAL.
+- Bila sudah ada aturan dengan `effective_from` lebih baru, aturan itu tetap menang untuk periodenya.
+- Aturan yang disisipkan langsung ke database tidak diperiksa; selalu lewat usulan.
 
 ## 8. Pencocokan definisi (tahap 3, selesai)
 
@@ -95,6 +98,51 @@ Saran tidak diterapkan otomatis; perubahan aturan menunggu persetujuan berjenjan
 
 Hasil pada data 2026 (26 Nov 2026): 12 aturan semuanya masih cocok dengan item; 18 item tanpa aturan.
 
-## 9. Tahap berikutnya
+## 9. Pengaturan aturan (tahap 4)
 
-4. **API dan layar pengaturan aturan**: mode MANUAL / SISTEM / SISTEM_BOLEH_KOREKSI, validasi, menerapkan saran pemetaan (termasuk masukan manual dan tautan kode tetap), pratinjau dan rekonsiliasi dengan angka workbook, persetujuan berjenjang **PERENCANAAN mengusulkan, ASMAN_PERENCANAAN menyetujui** (keputusan pemilik), snapshot menyimpan versi aturan. Dicatat di README-REVISI saat dikerjakan.
+Alur: **PERENCANAAN mengusulkan, ASMAN_PERENCANAAN menyetujui atau menolak**. Aturan berubah hanya setelah disetujui. Pengusul tidak boleh memutus usulannya sendiri (berlaku juga untuk SYS_ADMIN). Persetujuan tidak menghitung ulang NKO.
+
+### Mode
+
+| Mode | Nilai sistem | Masukan manual |
+|---|---|---|
+| `SISTEM_BOLEH_KOREKSI` (bawaan) | ya | boleh mengoreksi, wajib alasan |
+| `SISTEM` | ya | ditolak (422); masukan lama diabaikan |
+| `MANUAL` | tidak | diisi manual; tanpa rumus |
+
+### Izin
+
+| Izin | Peran |
+|---|---|
+| `nko.view` | membaca aturan, katalog, pencocokan, usulan, pratinjau |
+| `nko.rules.propose` | PERENCANAAN, SYS_ADMIN (MFA) |
+| `nko.rules.approve` | ASMAN_PERENCANAAN, SYS_ADMIN (MFA) |
+
+Karena aturan berlaku untuk semua unit, kedua izin tulis hanya berlaku bila perannya bertugas di UP3 (peran tingkat ULP dijawab 403). `GET /planning/access` memuat kedua kunci. Seeder: `NkoPermissionSeeder`.
+
+### API (di bawah `/api/nko`)
+
+Galat: 403 tanpa izin, 404 usulan tidak ada, 409 bentrok keadaan, 422 isi tidak sah (`message` memuat alasannya).
+
+| Metode dan jalur | Fungsi |
+|---|---|
+| `GET /rules?year=&month=` | `items[]` semua indikator yang butuh realisasi: `definition_code, name, unit_label, levels[], has_rule, mode, formula, inputs[]` (`code, name, unit_label`), `is_validated, flag_when_negative, effective_from` (`YYYY-MM`; `2000-01` = aturan bawaan), `replaces_code`. `has_rule=false`: kolom aturan null (diisi manual) |
+| `GET /rules/catalog` | `quantities[]` (`name, label, unit_label, up3_aggregation`), `functions[]` (`name, min_args, max_args`), `operators[]`, `modes[]` |
+| `GET /rules/mapping?year=` | `year`, `changes` (per tingkat: `compared_with, added[], removed[]`; `[]` bila definisi tahun itu belum ada), `orphaned[]` (`code, name, formula, manual_inputs, linked_menus[], suggestions[]` berisi `code, name, level, score`), `unmapped[]` (`code, name, levels[]`) |
+| `POST /rules/preview` | body `{definition_code, formula, inputs?[], year, to_month?}`; tidak menyimpan. `rows[]`: `unit_id, unit_name, unit_type, month, proposed, current, reference` (angka workbook), `matches` (null bila salah satunya kosong); `summary`: `with_value, compared, matched, tolerance_pct` (0,5%). Hanya unit dalam cakupan pembaca. Masukan baru yang belum pernah diisi membuat `proposed` kosong. Pada data nyata 4 sampai 15 detik untuk 9 bulan semua unit (diukur 26 Nov 2026), jadi tampilkan indikator muat dan batasi `to_month` bila perlu |
+| `GET /rule-proposals?status=` | maksimal 200, terbaru dulu: `id, definition_code, definition_name, mode, formula, inputs, is_validated, flag_when_negative, effective_from, replaces_code, reason, status` (`MENUNGGU, DISETUJUI, DITOLAK, DIBATALKAN`), `proposed_by {id,name}, proposed_at, decided_by, decided_at, decision_note` |
+| `POST /rule-proposals` | body `{definition_code, mode, formula?, inputs?[], effective_from: "YYYY-MM", is_validated?, flag_when_negative?, replaces_code?, reason}`; 201 `data.id`. 409 bila masih ada usulan menunggu untuk indikator dan bulan yang sama |
+| `POST /rule-proposals/{id}/decision` | `{decision: "approve"\|"reject", note?}`; `note` wajib saat menolak. Respons `data {status, copied_inputs}` |
+| `DELETE /rule-proposals/{id}` | pengusul membatalkan usulan yang masih menunggu |
+
+Pemeriksaan usulan (diulang saat disetujui): indikator ada di definisi aktif tahun berlaku dan butuh realisasi; rumus sah dan hanya memakai besaran katalog atau masukan yang dideklarasikan; kode masukan huruf kecil/angka/garis bawah, dipakai rumus, tidak sama dengan besaran, fungsi, atau indikator; mode MANUAL tanpa rumus.
+
+### Item berganti nama
+
+Usulkan aturan untuk kode baru dengan `replaces_code` kode lama (rumus lama dan saran pengganti ada di `GET /rules/mapping`). Saat disetujui: masukan manual kode lama sejak bulan berlaku **disalin** ke kode baru (yang sudah ada tidak ditimpa), target menu pengusahaan mengikuti kode baru, dan kode lama tidak lagi dilaporkan sebagai aturan tanpa item.
+
+### Perubahan pada API yang sudah ada
+
+- `GET /nko/inputs`: butir indikator memuat `mode` (null bila tanpa aturan) dan `required` (butuh realisasi bulan itu); masukan pembantu tidak memuat keduanya. `editable=false` juga pada mode `SISTEM`; `system_source=false` pada mode `MANUAL`.
+- `GET /nko/gaps`: indikator mode `SISTEM` yang kosong tetap dilaporkan.
+- `GET /nko/snapshots/{id}`: `values[]` memuat `formula`, rumus yang menghasilkan nilai sistem (null untuk nilai manual dan snapshot lama).

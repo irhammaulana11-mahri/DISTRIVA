@@ -62,6 +62,8 @@ class BusinessTargetService
             return [];
         }
         $nodes = collect($this->nodes->nodes($set->id, $unit->id))->keyBy('code');
+        // indikator yang sudah berganti nama diikuti lewat `replaces_code` aturannya (docs/93)
+        $links = array_map(fn (array $link) => ['code' => $nodes->has($link['code']) ? $link['code'] : ($this->rules->successor($link['code'], $year, $month) ?? $link['code'])] + $link, $links);
         $definitions = DB::table('kpi_definitions')->where('set_id', $set->id)->whereIn('code', array_column($links, 'code'))->get(['id', 'code', 'name'])->keyBy('code');
         $resolved = $this->resolver->resolve($unit->id, $year, $month);
         $rules = $this->rules->forPeriod($year, $month);

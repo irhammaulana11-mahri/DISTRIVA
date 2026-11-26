@@ -34,6 +34,9 @@ class NkoRealizationResolver
         }
         $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))->get(['definition_code', 'value', 'note']);
         foreach ($manual as $m) {
+            if (($rules[$m->definition_code]->mode ?? null) === 'SISTEM') {      // mode SISTEM: masukan manual lama diabaikan
+                continue;
+            }
             $out[$m->definition_code] = ['value' => (float) $m->value, 'source' => 'MANUAL', 'manual' => (float) $m->value, 'system' => $out[$m->definition_code]['system'] ?? null, 'note' => $m->note, 'flag' => $this->flagFor($rules[$m->definition_code] ?? null, (float) $m->value)];
         }
 
@@ -53,21 +56,33 @@ class NkoRealizationResolver
      */
     public function systemValues(string $unitId, int $year, int $month): array
     {
-        $children = $this->childUlps($unitId);
         $memo = [];
         $out = [];
         foreach ($this->rules->forPeriod($year, $month) as $code => $rule) {
-            $value = NkoFormula::parse($rule->formula)->evaluate(function (string $name) use ($rule, $unitId, $children, $year, $month, &$memo): ?float {
-                if (isset($rule->inputs[$name])) {
-                    return $this->declaredInput($name, $children ?: [$unitId], $year, $month);
-                }
-
-                return $this->quantity($name, $unitId, $children, $year, $month, $memo);
-            });
+            $value = $rule->mode === 'MANUAL' ? null : $this->evaluate($rule, $unitId, $year, $month, $memo);
             $value !== null && $out[$code] = $value;
         }
 
         return $out;
+    }
+
+    /**
+     * Nilai satu rumus pada satu unit dan bulan; `$memo` boleh dipakai bersama hanya untuk unit dan bulan yang sama.
+     *
+     * @param  object{formula: string, inputs: array<string, mixed>}  $rule
+     * @param  array<string, array<string, float>>  $memo
+     */
+    public function evaluate(object $rule, string $unitId, int $year, int $month, array &$memo = []): ?float
+    {
+        $children = $this->childUlps($unitId);
+
+        return NkoFormula::parse($rule->formula)->evaluate(function (string $name) use ($rule, $unitId, $children, $year, $month, &$memo): ?float {
+            if (isset($rule->inputs[$name])) {
+                return $this->declaredInput($name, $children ?: [$unitId], $year, $month);
+            }
+
+            return $this->quantity($name, $unitId, $children, $year, $month, $memo);
+        });
     }
 
     /**

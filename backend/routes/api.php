@@ -34,6 +34,7 @@ use App\Http\Controllers\MaximoSyncController;
 use App\Http\Controllers\MfaController;
 use App\Http\Controllers\MtoController;
 use App\Http\Controllers\NkoController;
+use App\Http\Controllers\NkoRuleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\OutageAnalysisController;
@@ -341,6 +342,14 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/gaps', [NkoController::class, 'gaps']);
         Route::put('/inputs', [NkoController::class, 'saveInputs']);
         Route::post('/calculate', [NkoController::class, 'calculate']);
+        Route::get('/rules', [NkoRuleController::class, 'index']);
+        Route::get('/rules/catalog', [NkoRuleController::class, 'catalog']);
+        Route::get('/rules/mapping', [NkoRuleController::class, 'mapping']);
+        Route::post('/rules/preview', [NkoRuleController::class, 'preview']);
+        Route::get('/rule-proposals', [NkoRuleController::class, 'proposals']);
+        Route::post('/rule-proposals', [NkoRuleController::class, 'propose']);
+        Route::post('/rule-proposals/{proposal}/decision', [NkoRuleController::class, 'decide'])->whereUuid('proposal');
+        Route::delete('/rule-proposals/{proposal}', [NkoRuleController::class, 'cancel'])->whereUuid('proposal');
     });
 
     Route::prefix('pengusahaan')->middleware('throttle:admin')->group(function () {

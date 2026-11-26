@@ -28,7 +28,7 @@ class PlanningAccessController extends Controller
         }
         $can['outages.view'] = $this->authorizer->roleFor($user, 'outages.view') !== null;   // gangguan penyulang: lihat menurut unit, ubah (sinkron) menurut peran
         $can['outages.sync'] = $this->catalog->allows($user, 'outages.sync');
-        foreach (['eis_reports.view', 'eis_reports.import', 'nko.view', 'nko.calculate', 'nko.input', 'pengusahaan.view', 'pengusahaan.input'] as $key) {
+        foreach (['eis_reports.view', 'eis_reports.import', 'nko.view', 'nko.calculate', 'nko.input', 'nko.rules.propose', 'nko.rules.approve', 'pengusahaan.view', 'pengusahaan.input'] as $key) {
             $can[$key] = $this->authorizer->roleFor($user, $key) !== null;
         }
         $can['vendor.portal'] = VendorService::companyOf($user) !== null;

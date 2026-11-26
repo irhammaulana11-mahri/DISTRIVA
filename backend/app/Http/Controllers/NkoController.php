@@ -105,13 +105,13 @@ class NkoController extends Controller
         }
         $this->assertUnit($visible, $s->organizational_unit_id);
         $values = DB::table('kpi_snapshot_values as v')->join('kpi_definitions as d', 'd.id', '=', 'v.definition_id')->leftJoin('kpi_definitions as p', 'p.id', '=', 'd.parent_id')->where('v.snapshot_id', $s->id)->orderBy('d.sort_order')
-            ->get(['d.code', 'd.number', 'd.name', 'd.level', 'd.polarity', 'd.unit_label', 'd.weight', 'd.weight_note', 'p.code as parent_code', 'v.target_value', 'v.target_text', 'v.realisasi', 'v.source', 'v.pencapaian', 'v.nilai']);
+            ->get(['d.code', 'd.number', 'd.name', 'd.level', 'd.polarity', 'd.unit_label', 'd.weight', 'd.weight_note', 'p.code as parent_code', 'v.target_value', 'v.target_text', 'v.realisasi', 'v.source', 'v.rule_formula', 'v.pencapaian', 'v.nilai']);
 
         return response()->json(['data' => $this->summary((object) ['id' => $s->id, 'period' => $s->period, 'organizational_unit_id' => $s->organizational_unit_id, 'unit_name' => $s->unit_name, 'unit_type' => $s->unit_type, 'total_nilai' => $s->total_nilai,
             'nko' => $s->nko, 'rank' => $s->rank, 'rank_of' => $s->rank_of, 'missing_count' => $s->missing_count, 'calculated_at' => $s->calculated_at]) + [
                 'is_current' => (bool) $s->is_current, 'missing' => json_decode($s->missing ?? '[]', true),
                 'values' => $values->map(fn ($v) => ['code' => $v->code, 'number' => $v->number, 'name' => $v->name, 'level' => (int) $v->level, 'parent_code' => $v->parent_code, 'polarity' => $v->polarity !== null ? (int) $v->polarity : null, 'unit_label' => $v->unit_label,
-                    'weight' => $v->weight !== null ? (float) $v->weight : null, 'weight_note' => $v->weight_note, 'target' => $v->target_value !== null ? (float) $v->target_value : $v->target_text, 'realisasi' => $v->realisasi !== null ? (float) $v->realisasi : null, 'source' => $v->source,
+                    'weight' => $v->weight !== null ? (float) $v->weight : null, 'weight_note' => $v->weight_note, 'target' => $v->target_value !== null ? (float) $v->target_value : $v->target_text, 'realisasi' => $v->realisasi !== null ? (float) $v->realisasi : null, 'source' => $v->source, 'formula' => $v->rule_formula,
                     'pencapaian' => $v->pencapaian !== null ? (float) $v->pencapaian : null, 'nilai' => $v->nilai !== null ? (float) $v->nilai : null])->all()]]);
     }
 
@@ -166,7 +166,7 @@ class NkoController extends Controller
             $gaps = [];
             $total = 0;
             foreach ($items as $it) {
-                if (! $it['editable'] || ! empty($it['auxiliary'])) {
+                if (! empty($it['auxiliary']) || ! $it['required']) {
                     continue;
                 }
                 $total++;
@@ -198,7 +198,7 @@ class NkoController extends Controller
             $r = $resolved[$n['code']] ?? null;
             $t = $targets[$n['id']] ?? null;
             $items[] = ['code' => $n['code'], 'name' => $meta[$n['id']]->name, 'group' => $meta[$n['id']]->parent_name, 'unit_label' => $n['unit_label'], 'polarity' => $n['polarity'], 'weight' => $n['weight'],
-                'target' => $t === null ? null : ($t->target_value !== null ? (float) $t->target_value : $t->target_text), 'editable' => $needs, 'system_source' => isset($rules[$n['code']]), 'system_validated' => (bool) ($rules[$n['code']]->is_validated ?? true),
+                'target' => $t === null ? null : ($t->target_value !== null ? (float) $t->target_value : $t->target_text), 'required' => $needs, 'editable' => $needs && ($rules[$n['code']]->mode ?? null) !== 'SISTEM', 'mode' => $rules[$n['code']]->mode ?? null, 'system_source' => isset($rules[$n['code']]) && $rules[$n['code']]->mode !== 'MANUAL', 'system_validated' => (bool) ($rules[$n['code']]->is_validated ?? true),
                 'value' => $r['value'] ?? null, 'source' => $r['source'] ?? null, 'manual' => $r['manual'] ?? null, 'system' => $r['system'] ?? null, 'note' => $r['note'] ?? null, 'flag' => $r['flag'] ?? null];
         }
 
@@ -226,9 +226,10 @@ class NkoController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:100'], 'items.*.code' => ['required', 'string', 'max:80'], 'items.*.value' => ['nullable', 'numeric'], 'items.*.note' => ['nullable', 'string', 'max:300']]);
         $this->assertUnit($allowed, $d['unit_id']);
         [, , $nodes] = $this->context($d['unit_id'], (int) $d['year']);
+        $rules = $this->rules->forPeriod((int) $d['year'], (int) $d['month']);
         $editable = [];
         foreach ($nodes as $n) {
-            if ($this->snapshots->needsRealisasi($n, (int) $d['month'])) {
+            if ($this->snapshots->needsRealisasi($n, (int) $d['month']) && ($rules[$n['code']]->mode ?? null) !== 'SISTEM') {
                 $editable[$n['code']] = true;
             }
         }

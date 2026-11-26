@@ -299,6 +299,9 @@ return [
         'nko.view' => ['MANAGER_ULP', 'MANAGER_UP3', 'TEKNIK', 'NIAGA_RETAIL', 'ASMAN_NIAGA', 'ASMAN_PERENCANAAN', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'nko.calculate' => ['PERENCANAAN', 'ASMAN_PERENCANAAN', 'SYS_ADMIN'],
         'nko.input' => ['PERENCANAAN', 'ASMAN_PERENCANAAN', 'SYS_ADMIN'],
+        // aturan realisasi (docs/93): perubahan berlaku untuk semua unit, berjenjang (pengusul tidak boleh menyetujui usulannya sendiri)
+        'nko.rules.propose' => ['PERENCANAAN', 'SYS_ADMIN'],
+        'nko.rules.approve' => ['ASMAN_PERENCANAAN', 'SYS_ADMIN'],
         // analisa dan tren pengusahaan (docs/91): pembaca yang sama dengan NKO
         'pengusahaan.view' => ['MANAGER_ULP', 'MANAGER_UP3', 'TEKNIK', 'NIAGA_RETAIL', 'ASMAN_NIAGA', 'ASMAN_PERENCANAAN', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         // masukan bulanan kWh beli, E-Min, PSSD (sumber susut): pengisi yang sama dengan masukan NKO

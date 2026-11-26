@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Tidak ada butir terbuka saat ini)*
+| # | Tanggal | Perubahan | Dokumen | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|
+| 61 | 2026-11-26 | **Aturan realisasi NKO dapat diatur**: API baru `/nko/rules`, `/nko/rules/catalog`, `/nko/rules/mapping`, `/nko/rules/preview`, `/nko/rule-proposals` (usulan dan persetujuan); izin baru `nko.rules.propose` dan `nko.rules.approve` pada `GET /planning/access`; `GET /nko/inputs` memuat `mode` dan `required` (mode `SISTEM` tidak dapat diisi, 422); `GET /nko/snapshots/{id}` `values[]` memuat `formula` | docs/93 §9 | Halaman pengaturan aturan NKO: daftar aturan dan item tanpa aturan, penyusun rumus dengan katalog besaran dan pratinjau banding workbook (4 sampai 15 detik, perlu indikator muat), ajukan/batalkan, daftar usulan dengan setujui/tolak (alasan wajib saat menolak), peringatan item berganti nama dari `mapping`. Di halaman masukan NKO: tampilkan butir `mode: SISTEM` sebagai tidak dapat diisi. Di rincian snapshot: tampilkan `formula` bila ada | BARU |
 
 ## Selesai
 

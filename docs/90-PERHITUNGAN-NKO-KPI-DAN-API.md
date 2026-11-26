@@ -30,6 +30,8 @@ Perbaikan pada master (docs/89) yang diperlukan agar cocok: rumus per bulan (atu
 | `nko.calculate` (hitung) dan `nko.input` (isi masukan manual) | PERENCANAAN, ASMAN_PERENCANAAN, SYS_ADMIN (MFA) |
 | `nko.view` (hanya lihat) | MANAGER_ULP, MANAGER_UP3, TEKNIK, NIAGA_RETAIL, ASMAN_NIAGA, ASMAN_PERENCANAAN, PERENCANAAN, ASMAN_JARINGAN, SYS_ADMIN |
 
+Aturan realisasi (indikator mengambil nilai apa) dan izin `nko.rules.propose` / `nko.rules.approve`: docs/93.
+
 Cakupan unit: peran UP3 mencakup ULP di bawahnya; unit UP3 sendiri untuk menulis hanya bagi peran yang bertugas di UP3 itu atau SYS_ADMIN; peran ULP hanya unitnya sendiri (dan UP3 induknya untuk dibaca). Unit di luar cakupan dijawab 404. Peta izin frontend: `GET /planning/access` memuat `nko.view`, `nko.calculate`, `nko.input`. Seeder: `NkoPermissionSeeder` (sudah ditambahkan ke daftar rilis dan docs/85). Pembagian peran `nko.view` adalah usulan awal (sama dengan laporan EIS); `nko.calculate/input` sesuai keputusan pemilik.
 
 ## 3. API (semua di bawah `/api/nko`, auth, throttle `admin`)

@@ -59,7 +59,8 @@ class NkoMappingCheckService
 
         $orphaned = [];
         foreach ($rules as $code => $rule) {
-            if (array_filter($current, fn (array $definitions) => isset($definitions[$code])) !== []) {
+            $known = fn (?string $c) => $c !== null && array_filter($current, fn (array $definitions) => isset($definitions[$c])) !== [];
+            if ($known($code) || $rule->mode === 'MANUAL' || $known($this->rules->successor($code, $year, 12))) {
                 continue;
             }
             $old = DB::table('kpi_definitions as d')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')->where('d.code', $code)->where('s.year', '<=', $year)
