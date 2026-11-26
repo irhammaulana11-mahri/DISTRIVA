@@ -1218,6 +1218,36 @@ class BusinessAnalyticsTest extends PostgresTestCase
     }
 
     #[Test]
+    public function pengumpul_prakiraan_bmkg_menyimpan_satu_baris_per_ulp_per_hari_dan_gagal_satu_tidak_menghentikan_lainnya(): void
+    {
+        Cache::flush();
+        $this->ulpA->forceFill(['code' => '51450'])->save();                                                    // terpetakan ke BMKG
+        $this->ulpB->forceFill(['code' => '51452'])->save();
+        $slot = fn (float $tp) => ['local_datetime' => now('Asia/Jakarta')->format('Y-m-d').' 00:00:00', 'analysis_date' => '2026-11-26T00:00:00', 'tp' => $tp, 'weather' => 3, 'ws' => 7.0];
+        $tp = 4.5;
+        Http::fake(function ($request) use (&$tp, $slot) {
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $q);
+
+            return $q['adm4'] === '35.76.03.1002' ? Http::response('galat', 500) : Http::response(['lokasi' => ['desa' => 'Gambiran'], 'data' => [['cuaca' => [[$slot($tp)]]]]]);
+        });
+
+        $this->artisan('distriva:weather-collect-forecast')->assertSuccessful();
+        $row = DB::table('weather_forecast_snapshots')->first();
+        $this->assertSame(1, DB::table('weather_forecast_snapshots')->count());                                  // ULP B gagal, ULP A tersimpan
+        $this->assertSame([$this->ulpA->id, '35.17.06.2007', '2026-11-26T00:00:00'], [$row->organizational_unit_id, $row->adm4, $row->analysis_date]);
+        $this->assertEquals(4.5, json_decode($row->slots, true)[0]['rain']);
+
+        $tp = 9.0;                                                                                               // ambil ulang di hari yang sama: menimpa, tanpa cache lama
+        $this->artisan('distriva:weather-collect-forecast')->assertSuccessful();
+        $this->assertSame(1, DB::table('weather_forecast_snapshots')->count());
+        $this->assertEquals(9.0, json_decode(DB::table('weather_forecast_snapshots')->value('slots'), true)[0]['rain']);
+
+        $this->travel(1)->day();
+        $this->artisan('distriva:weather-collect-forecast')->assertSuccessful();
+        $this->assertSame(2, DB::table('weather_forecast_snapshots')->count());                                  // hari baru: riwayat bertambah
+    }
+
+    #[Test]
     public function detail_keandalan_memuat_peringatan_dini_bmkg_dengan_penyulang_prioritas_dan_tetap_tampil_bila_sumber_gagal(): void
     {
         Cache::flush();

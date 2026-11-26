@@ -41,3 +41,6 @@ Schedule::command('distriva:forecast-scheduled')->everyMinute()->withoutOverlapp
 
 // Heartbeat of the scheduler: `distriva:preflight` reports when the `schedule:run` cron entry stopped (every other scheduled job depends on it).
 Schedule::call(fn () => Cache::forever('distriva.scheduler.heartbeat', now()->toIso8601String()))->everyMinute()->name('scheduler-heartbeat');
+
+// Prakiraan cuaca BMKG per ULP disimpan harian untuk riwayat uji peringatan dini (docs/92 §8.2).
+Schedule::command('distriva:weather-collect-forecast')->dailyAt('06:00')->withoutOverlapping();

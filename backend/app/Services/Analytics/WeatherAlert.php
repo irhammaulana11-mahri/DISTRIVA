@@ -52,7 +52,7 @@ class WeatherAlert
             return $base + ['available' => false, 'reason' => 'Lokasi BMKG untuk ULP pada cakupan ini belum dipetakan.'];
         }
         try {
-            $forecasts = $this->fetch($targets);
+            $forecasts = $this->forecasts($targets);
         } catch (\Throwable $e) {
             report($e);
 
@@ -78,10 +78,12 @@ class WeatherAlert
     }
 
     /**
+     * Prakiraan BMKG per ULP (slot tiga jam). `$fresh` melewati cache, dipakai pengumpul harian.
+     *
      * @param  array<string, string>  $targets  unit_id => adm4
-     * @return array<string, array<string, mixed>>
+     * @return array<string, array{slots: list<array{at: string, rain: float, weather: int, wind: float}>, analysis_date: ?string, location: ?array<string, mixed>}>
      */
-    private function fetch(array $targets): array
+    public function forecasts(array $targets, bool $fresh = false): array
     {
         $ttl = now()->addMinutes((int) config('distriva.weather.bmkg.cache_minutes', 60));
         $url = (string) config('distriva.weather.bmkg.url');
@@ -89,7 +91,7 @@ class WeatherAlert
         $out = [];
         $missing = [];
         foreach ($targets as $u => $adm4) {
-            $cached = Cache::get("weather:bmkg:{$adm4}");
+            $cached = $fresh ? null : Cache::get("weather:bmkg:{$adm4}");
             $cached !== null ? $out[$u] = $cached : $missing[$u] = $adm4;
         }
         if ($missing !== []) {
