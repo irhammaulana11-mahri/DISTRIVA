@@ -375,4 +375,67 @@ describe('NkoPage', () => {
     expect(screen.getByText('Penjualan Tenaga Listrik')).toBeInTheDocument()
     expect(screen.getByText('Minus')).toBeInTheDocument()
   })
+
+  it('7. menampilkan formula pada rincian snapshot bila tersedia (Butir 61)', async () => {
+    nkoApi.snapshots.mockResolvedValue(MOCK_SNAPSHOT_SUMMARY)
+    nkoApi.snapshot.mockResolvedValue({
+      data: {
+        ...MOCK_SNAPSHOT_DETAIL.data,
+        values: [
+          {
+            ...MOCK_SNAPSHOT_DETAIL.data.values[1],
+            formula: 'saidi_menit',
+          },
+        ],
+      },
+    })
+
+    wrap(<NkoPage />, { 'nko.view': true })
+
+    expect(await screen.findByText(/Rumus: saidi_menit/i)).toBeInTheDocument()
+  })
+
+  it('8. menampilkan butir mode SISTEM sebagai tidak dapat diisi pada tab Masukan (Butir 61)', async () => {
+    nkoApi.snapshots.mockResolvedValue({ data: [] })
+    nkoApi.inputs.mockResolvedValue({
+      data: {
+        unit_id: 'u-1',
+        unit_name: 'ULP Jombang',
+        year: 2026,
+        month: 5,
+        items: [
+          {
+            code: 'SAIDI',
+            name: 'SAIDI (Menit/Pelanggan)',
+            group: 'KEANDALAN',
+            unit_label: 'Menit/Plg',
+            polarity: 1,
+            weight: 12.5,
+            target: 120,
+            editable: false,
+            mode: 'SISTEM',
+            required: true,
+            auxiliary: false,
+            system_source: true,
+            system_validated: true,
+            value: 95.5,
+            source: 'SISTEM',
+            manual: null,
+            system: 95.5,
+            note: null,
+          },
+        ],
+      },
+    })
+
+    const user = userEvent.setup()
+    wrap(<NkoPage />, { 'nko.view': true, 'nko.input': true })
+
+    const inputsTab = await screen.findByRole('tab', { name: /Masukan Realisasi Manual/i })
+    await user.click(inputsTab)
+
+    expect(await screen.findByText('Mode SISTEM (Terkunci)')).toBeInTheDocument()
+    expect(screen.getByText(/Otomatis, terkunci/i)).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Isi manual/i)).not.toBeInTheDocument()
+  })
 })

@@ -530,6 +530,12 @@ export default function NkoPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/nko/aturan"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-2xs"
+            >
+              Aturan Realisasi
+            </Link>
             <Button
               variant="secondary"
               size="md"
@@ -772,6 +778,11 @@ export default function NkoPage() {
                                 Satuan: {v.unit_label}
                               </span>
                             )}
+                            {v.formula && (
+                              <code className="block text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                                Rumus: {v.formula}
+                              </code>
+                            )}
                           </td>
                           <td className="py-2.5 px-3">
                             {polarityInfo && (
@@ -988,6 +999,14 @@ export default function NkoPage() {
                                   Masukan Pembantu
                                 </span>
                               )}
+                              {it.mode === 'SISTEM' && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
+                                  title="Mode SISTEM: realisasi diambil otomatis dari rumus sistem dan tidak dapat diisi atau dikoreksi manual"
+                                >
+                                  Mode SISTEM (Terkunci)
+                                </span>
+                              )}
                               {it.system_source && it.system_validated === false && (
                                 <span
                                   className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
@@ -1064,6 +1083,10 @@ export default function NkoPage() {
                                 }
                                 className={`${filterControlCls} w-full font-mono tabular-nums`}
                               />
+                            ) : it.mode === 'SISTEM' ? (
+                              <span className="text-slate-500 dark:text-slate-400 text-xs">
+                                {it.value != null ? `${fmt(it.value)} (Otomatis, terkunci)` : 'Tidak dapat diisi (Mode SISTEM)'}
+                              </span>
                             ) : (
                               <span className="font-mono text-slate-400 text-xs">
                                 {it.value != null ? fmt(it.value) : 'Tetap (100)'}

@@ -979,7 +979,7 @@ export const eisReportsApi = {
   importFiles: (formData) => request('/eis-reports/import', { method: 'POST', body: formData }),
 }
 
-/** Nilai Kinerja Organisasi (NKO/KPI): definisi, snapshot, peringkat, masukan manual, dan hitung (docs/90). */
+/** Nilai Kinerja Organisasi (NKO/KPI): definisi, snapshot, peringkat, masukan manual, hitung, dan aturan realisasi (docs/90, docs/93). */
 export const nkoApi = {
   definitions: (params = {}) => request(`/nko/definitions${qs(params)}`),
   snapshots: (params = {}) => request(`/nko/snapshots${qs(params)}`),
@@ -989,6 +989,20 @@ export const nkoApi = {
   gaps: (params = {}) => request(`/nko/gaps${qs(params)}`),
   saveInputs: (body) => request('/nko/inputs', { method: 'PUT', body }),
   calculate: (body) => request('/nko/calculate', { method: 'POST', body }),
+  rules: (params = {}) => request(`/nko/rules${qs(params)}`),
+  rulesCatalog: () => request('/nko/rules/catalog'),
+  rulesMapping: (params = {}) => request(`/nko/rules/mapping${qs(params)}`),
+  previewRule: (body) => request('/nko/rules/preview', { method: 'POST', body }),
+  ruleProposals: (params = {}) => request(`/nko/rule-proposals${qs(params)}`),
+  proposeRule: (body) => request('/nko/rule-proposals', { method: 'POST', body }),
+  decideRuleProposal: (id, body) => request(`/nko/rule-proposals/${id}/decision`, { method: 'POST', body }),
+  cancelRuleProposal: (id) => request(`/nko/rule-proposals/${id}`, { method: 'DELETE' }),
+  definitionSets: (params = {}) => request(`/nko/definition-sets${qs(params)}`),
+  definitionUploads: (params = {}) => request(`/nko/definition-uploads${qs(params)}`),
+  definitionUpload: (id) => request(`/nko/definition-uploads/${id}`),
+  uploadDefinitions: (formData) => request('/nko/definition-uploads', { method: 'POST', body: formData }),
+  decideDefinitionUpload: (id, body) => request(`/nko/definition-uploads/${id}/decision`, { method: 'POST', body }),
+  cancelDefinitionUpload: (id) => request(`/nko/definition-uploads/${id}`, { method: 'DELETE' }),
 }
 
 /** Analisa dan Tren Pengusahaan (docs/91): katalog metrik dan tren per ULP / UP3. */
