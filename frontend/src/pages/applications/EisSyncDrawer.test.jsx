@@ -648,4 +648,41 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
 
     expect(await screen.findByText('Pelunasan PRR (AP2T)')).toBeInTheDocument()
   })
+
+  it('mendukung opsi penarikan Rekap BP pada mode AP2T (Butir 60)', async () => {
+    eisSyncApi.start.mockResolvedValue({
+      data: {
+        id: 'run-ap2t-bp-1',
+        kind: 'ap2t',
+        status: 'SUCCESS',
+        options: { from_month: '2026-11', to_month: '2026-11', reports: ['bp'] },
+        created_at: '2026-11-26T21:00:00Z',
+      },
+    })
+
+    render(<EisSyncDrawer open mode="ap2t" initialReports={['bp']} onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Tarik Rekap Laporan BP (AP2T)' })).toBeInTheDocument()
+
+    // Verifikasi checkbox Rekap BP tercentang
+    const cbBp = screen.getByLabelText('Laporan Rekap BP')
+    expect(cbBp).toBeChecked()
+
+    const toInput = screen.getByLabelText('Bulan akhir AP2T')
+    fireEvent.change(toInput, { target: { value: '2026-11' } })
+
+    const submitBtn = screen.getByRole('button', { name: 'Tarik Rekap BP' })
+    await userEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(eisSyncApi.start).toHaveBeenCalledWith({
+        kind: 'ap2t',
+        to_month: '2026-11',
+        from_month: '2026-11',
+        reports: ['bp'],
+      })
+    })
+
+    expect(await screen.findByText('Rekap BP (AP2T)')).toBeInTheDocument()
+  })
 })

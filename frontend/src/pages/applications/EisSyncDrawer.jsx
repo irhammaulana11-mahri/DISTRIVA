@@ -388,9 +388,10 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   const isAp2t = mode === 'ap2t' || (!mode && activeTab === 'ap2t')
 
   const isAp2tPrrMode = isAp2t && ap2tReports.length > 0 && ap2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr' || r === 'saldo_prr' || r === 'hapus_prr')
+  const isAp2tBpMode = isAp2t && ap2tReports.length === 1 && ap2tReports[0] === 'bp'
 
   const titleText = isAp2t
-    ? (isAp2tPrrMode ? 'Tarik Laporan Pelunasan PRR (AP2T)' : 'Tarik TAGSUS AP2T (kWh P2TL)')
+    ? (isAp2tBpMode ? 'Tarik Rekap Laporan BP (AP2T)' : isAp2tPrrMode ? 'Tarik Laporan Pelunasan PRR (AP2T)' : 'Tarik TAGSUS AP2T (kWh P2TL)')
     : isApkt
     ? apktDataset === 'rpt-rct-gangguan'
       ? 'Tarik RPT/RCT WO Gangguan APKT'
@@ -405,7 +406,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     ? 'Sinkronisasi Saldo Piutang EIS'
     : 'Sinkronisasi EIS'
   const subtitleText = isAp2t
-    ? (isAp2tPrrMode ? 'Tarik laporan pelunasan piutang ragu-ragu dan ex-PRR per ULP langsung dari AP2T ke DISTRIVA' : 'Tarik laporan realisasi tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T ke DISTRIVA')
+    ? (isAp2tBpMode ? 'Tarik rekap laporan biaya penyambungan (penerimaan, restitusi, peremajaan) per ULP langsung dari AP2T ke DISTRIVA' : isAp2tPrrMode ? 'Tarik laporan pelunasan piutang ragu-ragu dan ex-PRR per ULP langsung dari AP2T ke DISTRIVA' : 'Tarik laporan realisasi tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T ke DISTRIVA')
     : isApkt
     ? apktDataset === 'rpt-rct-gangguan'
       ? 'Tarik durasi respons dan pemulihan WO gangguan langsung dari GraphQL APKT'
@@ -1144,10 +1145,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                      {isAp2tPrrMode ? 'Tarik Laporan Pelunasan PRR (AP2T)' : 'Tarik TAGSUS AP2T (kWh P2TL)'}
+                      {isAp2tBpMode ? 'Tarik Rekap Laporan BP (AP2T)' : isAp2tPrrMode ? 'Tarik Laporan Pelunasan PRR (AP2T)' : 'Tarik TAGSUS AP2T (kWh P2TL)'}
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      {isAp2tPrrMode
+                      {isAp2tBpMode
+                        ? 'Tarik rekap laporan biaya penyambungan (penerimaan, restitusi, peremajaan) per ULP langsung dari AP2T tanpa login.'
+                        : isAp2tPrrMode
                         ? 'Tarik laporan pelunasan piutang ragu-ragu dan ex-PRR per ULP langsung dari AP2T tanpa token.'
                         : 'Tarik laporan realisasi pendapatan penetapan tagihan susulan (TAGSUS) P2TL per ULP langsung dari AP2T tanpa token.'}
                     </p>
@@ -1162,7 +1165,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Laporan AP2T:</div>
                   <p>
-                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan (TAGSUS)</b>, <b>Daftar Tagihan Susulan Belum Realisasi</b>, <b>Pelunasan PRR</b>, <b>Pelunasan Ex PRR</b>, <b>Saldo PRR (Daftar PRR)</b>, dan/atau <b>Penghapusan PRR</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
+                    Laporan yang ditarik adalah <b>Daftar Realisasi Pendapatan Penetapan Tagihan Susulan (TAGSUS)</b>, <b>Daftar Tagihan Susulan Belum Realisasi</b>, <b>Pelunasan PRR</b>, <b>Pelunasan Ex PRR</b>, <b>Saldo PRR (Daftar PRR)</b>, <b>Penghapusan PRR</b>, dan/atau <b>Rekap BP</b> per ULP per bulan. Berkas masuk otomatis ke repositori laporan DISTRIVA secara idempoten (tanpa memerlukan token otorisasi AP2T).
                   </p>
                 </div>
 
@@ -1179,6 +1182,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                       { key: 'pelunasan_ex_prr', label: 'Pelunasan Ex PRR' },
                       { key: 'saldo_prr', label: 'Saldo PRR (Daftar PRR)' },
                       { key: 'hapus_prr', label: 'Penghapusan PRR' },
+                      { key: 'bp', label: 'Rekap BP' },
                     ].map((rep) => (
                       <label
                         key={rep.key}
@@ -1283,8 +1287,8 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                   >
                     <IconRefresh size={14} className={running && current?.kind === 'ap2t' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
                     {running && current?.kind === 'ap2t'
-                      ? (isAp2tPrrMode ? 'Sedang menarik Pelunasan PRR…' : 'Sedang menarik TAGSUS AP2T…')
-                      : (isAp2tPrrMode ? 'Tarik Pelunasan PRR' : 'Tarik TAGSUS AP2T')}
+                      ? (isAp2tBpMode ? 'Sedang menarik Rekap BP…' : isAp2tPrrMode ? 'Sedang menarik Pelunasan PRR…' : 'Sedang menarik TAGSUS AP2T…')
+                      : (isAp2tBpMode ? 'Tarik Rekap BP' : isAp2tPrrMode ? 'Tarik Pelunasan PRR' : 'Tarik TAGSUS AP2T')}
                   </Button>
 
                   {!canApktSync && (

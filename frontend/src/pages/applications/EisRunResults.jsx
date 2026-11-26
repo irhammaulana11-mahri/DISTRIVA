@@ -62,8 +62,9 @@ export default function EisRunResults({ run, units }) {
   const isOnlyKontrol309 = isPiutang && Array.isArray(run?.options?.reports) && run.options.reports.length === 1 && run.options.reports[0] === 'KONTROL309'
   const isApkt = run?.kind === 'apkt'
   const isAp2t = run?.kind === 'ap2t'
-  const ap2tReports = Array.isArray(run?.options?.reports) ? run.options.reports : []
-  const isAp2tPrrOnly = isAp2t && ap2tReports.length > 0 && ap2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr' || r === 'saldo_prr' || r === 'hapus_prr')
+  const isAp2tReports = Array.isArray(run?.options?.reports) ? run.options.reports : []
+  const isAp2tPrrOnly = isAp2t && isAp2tReports.length > 0 && isAp2tReports.every((r) => r === 'pelunasan_prr' || r === 'pelunasan_ex_prr' || r === 'saldo_prr' || r === 'hapus_prr')
+  const isAp2tBpOnly = isAp2t && isAp2tReports.length === 1 && isAp2tReports[0] === 'bp'
   const isRptRctGangguan = isApkt && run?.options?.dataset === 'rpt-rct-gangguan'
   const isRptRctKeluhan = isApkt && run?.options?.dataset === 'rpt-rct-keluhan'
   const isAnomaliGangguan = isApkt && run?.options?.dataset === 'anomali-gangguan'
@@ -98,7 +99,7 @@ export default function EisRunResults({ run, units }) {
                 : isApkt
                 ? 'SAIDI/SAIFI APKT (DIFI)'
                 : isAp2t
-                ? (isAp2tPrrOnly ? 'Pelunasan PRR (AP2T)' : 'TAGSUS P2TL (AP2T)')
+                ? (isAp2tBpOnly ? 'Rekap BP (AP2T)' : isAp2tPrrOnly ? 'Pelunasan PRR (AP2T)' : 'TAGSUS P2TL (AP2T)')
                 : isOnlyKontrol309
                 ? 'Tarik Kontrol 309'
                 : isPiutang
@@ -117,10 +118,12 @@ export default function EisRunResults({ run, units }) {
               ? 'Ringkasan penarikan anomali penanganan pengaduan keluhan (berulang dan rating negatif) langsung dari GraphQL APKT.'
               : isApkt
               ? 'Ringkasan penarikan laporan SAIDI/SAIFI SE004 (DIFI) langsung dari GraphQL APKT per unit ULP.'
+              : isAp2tBpOnly
+              ? `Ringkasan penarikan rekap laporan biaya penyambungan (penerimaan, restitusi, peremajaan) langsung dari server AP2T per unit ULP.`
               : isAp2tPrrOnly
-              ? `Ringkasan penarikan laporan pelunasan PRR dan Ex PRR langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x === 'saldo_prr' ? 'Saldo PRR' : x === 'hapus_prr' ? 'Penghapusan PRR' : x).join(', ')})` : ''}.`
+              ? `Ringkasan penarikan laporan pelunasan PRR dan Ex PRR langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x === 'saldo_prr' ? 'Saldo PRR' : x === 'hapus_prr' ? 'Penghapusan PRR' : x === 'bp' ? 'Rekap BP' : x).join(', ')})` : ''}.`
               : isAp2t
-              ? `Ringkasan penarikan laporan tagihan susulan P2TL langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x === 'saldo_prr' ? 'Saldo PRR' : x === 'hapus_prr' ? 'Penghapusan PRR' : x).join(', ')})` : ''}.`
+              ? `Ringkasan penarikan laporan tagihan susulan P2TL langsung dari server AP2T per unit ULP${run?.options?.reports ? ` (Laporan: ${run.options.reports.map((x) => x === 'belum_realisasi' ? 'Belum realisasi' : x === 'realisasi' ? 'Realisasi' : x === 'pelunasan_prr' ? 'Pelunasan PRR' : x === 'pelunasan_ex_prr' ? 'Pelunasan Ex PRR' : x === 'saldo_prr' ? 'Saldo PRR' : x === 'hapus_prr' ? 'Penghapusan PRR' : x === 'bp' ? 'Rekap BP' : x).join(', ')})` : ''}.`
               : isOnlyKontrol309
               ? 'Ringkasan penarikan laporan Kontrol Penjualan 309 (309EIS) langsung dari server EIS per unit ULP.'
               : isPiutang
