@@ -592,14 +592,17 @@ class EisImportService
     }
 
     /**
-     * Tanggal sambung permohonan PB = tanggal pertama status PEREMAJAAN di EIS, disimpan pada `completed_at` (owner 26 Nov 2026). Hanya mengisi yang masih kosong: penutupan WO internal yang sudah
-     * mengisi `completed_at` tidak ditimpa, dan PD tidak diisi (tanggal PEREMAJAAN-nya adalah tanggal naik daya, bukan penyambungan baru).
+     * Tanggal sambung permohonan PB dan PD = tanggal pertama status PEREMAJAAN di EIS, disimpan pada `completed_at` (owner 26 Nov 2026; untuk PD itu tanggal naik daya). Hanya mengisi yang masih kosong
+     * (penutupan WO internal yang sudah mengisi `completed_at` tidak ditimpa), dan tidak untuk permohonan yang masih terhubung ke usulan penambahan jaringan: `completed_at`-nya mengikuti rancangan awal
+     * (diisi saat penutupan BASTP, docs/78), bukan status EIS.
      */
     private function recordConnectionDate(string $appId, string $extStatus, ?string $observed): void
     {
         if ($observed === null || mb_strtoupper(trim($extStatus)) !== 'PEREMAJAAN') {
             return;
         }
-        DB::table('applications')->where('id', $appId)->where('application_type', 'PB')->whereNull('completed_at')->update(['completed_at' => $observed, 'updated_at' => now()]);
+        DB::table('applications')->where('id', $appId)->whereIn('application_type', ['PB', 'PD'])->whereNull('completed_at')
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('proposal_applications as pa')->whereColumn('pa.application_id', 'applications.id')->whereNull('pa.released_at'))
+            ->update(['completed_at' => $observed, 'updated_at' => now()]);
     }
 }
