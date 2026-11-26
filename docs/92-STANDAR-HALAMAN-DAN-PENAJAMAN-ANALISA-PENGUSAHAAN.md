@@ -200,7 +200,7 @@ Semua sumber luar diuji dulu di satu ULP sebelum dipakai luas. Lisensi dan kewaj
 | BMKG prakiraan cuaca (API terbuka, per kelurahan, 3 hari per 3 jam) | Peringatan dini gangguan (§6.6) | Wajib atribusi; pengambilan otomatis lewat API resmi. Historis curah hujan dan petir perlu diminta ke BMKG |
 | BMKG data suhu | kWh jual (§6.2) | Ketersediaan historis bulanan per stasiun perlu dicek |
 | Google Open Buildings v3 (statis, titik bangunan, tanpa akun) | Ruang tumbuh pelanggan (§6.1) | **Diuji, tidak dipakai** (§8.3). CC-BY 4.0 dan ODbL |
-| Google Open Buildings Temporal (Earth Engine) | Ruang tumbuh pelanggan (§6.1) | Belum diuji (butuh akun Earth Engine). Potret tahunan 2016 sampai 2023; deteksi antar-tahun tidak selalu stabil. Hanya ini yang mengukur pertumbuhan bangunan |
+| Google Open Buildings Temporal (Earth Engine) | Ruang tumbuh pelanggan (§6.1) | **Tidak dapat dipakai** (pemilik 26 Nov 2026: Earth Engine tidak bisa digunakan). Potret tahunan 2016 sampai 2023; deteksi antar-tahun tidak selalu stabil. Hanya ini yang mengukur pertumbuhan bangunan; tidak diuji |
 | Tutupan lahan (ESA WorldCover, Dynamic World) | Alih fungsi sawah ke terbangun (§6.1) | Resolusi 10 m |
 | BPS (proyeksi penduduk, luas panen per kecamatan) | Pelanggan (§6.1), piutang ULP agraris (§6.4) | Tahunan |
 | Kawasan industri (Kemenperin, OpenStreetMap, RTRW kabupaten) | Pelanggan dan daya besar (§6.1) | Perlu kurasi manual |
@@ -229,7 +229,7 @@ Keputusan:
 2. (Selesai di backend, kontrak docs/91, butir README-REVISI 41) Dipakai sebagai **penjelasan**: pada bulan SAIDI/gangguan melonjak, tampilkan curah hujan bulanan dan jumlah hari hujan lebat (20 mm atau lebih) di samping, agar lonjakan bisa dibedakan dari penyebab non-cuaca. Tanpa mengubah angka metrik.
 3. Dipakai sebagai **peringatan dini** hanya dari prakiraan BMKG 7 hari (hujan lebat di wilayah ULP), sebagai pengganda risiko penyulang yang sudah ada (§6.6), bukan prakiraan angka. Perlu diuji ulang bila data historis prakiraan terkumpul.
 4. Lisensi: Open-Meteo archive gratis untuk non-komersial dengan atribusi; cukup untuk uji ini, penggunaan produksi perlu ditinjau ulang (langganan atau data BMKG). Data petir historis dan hujan stasiun perlu diminta ke BMKG dan bisa lebih tajam daripada ERA5.
-5. Data bangunan (Open Buildings v3 statis) sudah diuji dan **tidak dipakai** (§8.3); versi temporal (Earth Engine) dan tutupan lahan (WorldCover, Dynamic World) belum diuji.
+5. Data bangunan (Open Buildings v3 statis) sudah diuji dan **tidak dipakai** (§8.3); versi temporal (Earth Engine) tidak dapat dipakai karena akses Earth Engine tidak tersedia (26 Nov 2026), dan tutupan lahan (WorldCover, Dynamic World) belum diuji.
 
 ### 8.2 Peringatan dini BMKG (26 Nov 2026)
 
@@ -256,7 +256,7 @@ Temuan:
 
 ### Cara menyiapkan akses Earth Engine (untuk uji Open Buildings Temporal)
 
-Dibuat 26 Nov 2026 atas permintaan pemilik. Langkah ini dikerjakan pemilik; backend tidak dapat mendaftar atau masuk atas nama akun. Tampilan Google dapat berubah, jadi ikuti petunjuk di layar bila berbeda.
+Status: tidak dikerjakan; pemilik menyatakan Earth Engine tidak bisa digunakan (26 Nov 2026). Dipertahankan sebagai acuan bila akses kelak tersedia. Dibuat 26 Nov 2026 atas permintaan pemilik. Langkah ini dikerjakan pemilik; backend tidak dapat mendaftar atau masuk atas nama akun. Tampilan Google dapat berubah, jadi ikuti petunjuk di layar bila berbeda.
 
 1. **Putuskan jenis penggunaan.** Earth Engine gratis hanya untuk penggunaan nonkomersial (riset, pendidikan); penggunaan oleh perusahaan untuk operasi biasanya dianggap komersial dan berbayar. Periksa ketentuan di earthengine.google.com sebelum mendaftar; bila ragu, tanyakan ke bagian hukum atau TI. Uji ini hanya untuk analisis internal.
 2. **Masuk dengan akun Google** yang akan memiliki proyek (akun Gmail unit atau akun kerja).
@@ -291,7 +291,7 @@ Dibuat 26 Nov 2026 atas permintaan pemilik. Langkah ini dikerjakan pemilik; back
 
 **Masih terbuka:**
 - Sumber otomatis kWh beli, E-Min, PSSD (sementara kWh beli diturunkan dari susut kumulatif realisasi NKO dan 309, §6.10).
-- Open Buildings Temporal: akun Earth Engine tidak dapat dibuat atau dimasuki dari sini; pemilik perlu mendaftarkan proyek Earth Engine dan memberi akses (langkah di §8.3, "Cara menyiapkan akses Earth Engine"; periksa dulu apakah penggunaan perusahaan tergolong komersial).
+- ~~Open Buildings Temporal~~ **ditutup (26 Nov 2026):** pemilik menyatakan Earth Engine tidak bisa digunakan, sehingga uji ini tidak dikerjakan dan skripnya tidak dibuat. Panduan di §8.3 dipertahankan bila akses kelak tersedia. Alternatif GHSL GHS-BUILT-S (JRC, unduhan tanpa akun, 100 m, potret per 5 tahun, 2025 hasil model) dinilai tidak layak untuk menjelaskan penambahan 2024 sampai 2026 per gardu dan tidak diuji; prediktor penambahan tetap ukuran pelanggan dasar dan antrean permohonan (§6.1).
 - Peringatan dini BMKG diuji terhadap gangguan setelah riwayat prakiraan terkumpul; API prakiraan BMKG yang dipakai hanya memberi tiga hari ke depan (bukan riwayat); pemilik meminta dicoba, sehingga prakiraan disimpan tiap hari per ULP (§8.2, pengumpul sudah berjalan sejak 26 Nov 2026) dan diuji terhadap gangguan setelah riwayatnya cukup.
 - Urutan uji coba bila berbeda dari §9.
 
