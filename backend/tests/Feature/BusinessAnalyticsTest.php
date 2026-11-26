@@ -1461,7 +1461,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
     #[Test]
     public function detail_piutang_prabayar_memuat_pelunasan_tunggakan_beku_bulan_tidak_wajar_dan_prakiraan_tunggakan(): void
     {
-        $line = fn (string $status, float $rp, int $n, string $tariff) => [$status, ['rptag' => $rp, 'jumlah' => $n, 'tarif_lap' => $tariff]];
+        $line = fn (string $status, float $rp, int $n, string $tariff) => [$status, ['rptag' => $rp, 'jumlah' => $n, 'tarif_lap' => $tariff] + ($status === 'BARU' ? ['rpangsuranbp' => $rp - 2_000_000, 'rpangsuranp2tl' => 1_500_000] : [])];     // BARU: angsuran BP, angsuran P2TL 1,5 juta, sisanya 0,5 juta lainnya
         $jt = 1_000_000;
         foreach (range(0, 13) as $i) {                                                                          // Maret 2025 sampai April 2026
             $period = date('Y-m-01', strtotime("2025-03-01 +{$i} month"));
@@ -1487,6 +1487,7 @@ class BusinessAnalyticsTest extends PostgresTestCase
         $this->assertEquals([150 * $jt, 8 * $jt], [$m['2026-03']['pelunasan'], $m['2026-04']['pelunasan']]);       // (baru + berjalan + tunggakan bulan lalu) - (berjalan + tunggakan bulan ini)
         $this->assertEqualsWithDelta(150 / 980 * 100, $m['2026-03']['effectiveness_pct'], 0.05);
         $this->assertNull($m['2025-03']['pelunasan']);                                                           // bulan pertama: tanpa bulan sebelumnya
+        $this->assertEquals([646 * $jt, 3 * $jt, 1 * $jt], [$m['2026-04']['baru_angsuran_bp'], $m['2026-04']['baru_angsuran_p2tl'], $m['2026-04']['baru_lainnya']]);      // dua ULP: BP = baru - 2 juta tiap ULP, P2TL 1,5 juta tiap ULP, lainnya 0,5 juta tiap ULP
 
         $f = $d['frozen'];
         $this->assertEquals([800 * $jt, 14, true], [$f['arrears'], $f['stable_months'], $f['frozen']]);           // tunggakan 800 juta tak bergerak 14 bulan

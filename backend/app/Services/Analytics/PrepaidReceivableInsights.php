@@ -60,6 +60,7 @@ class PrepaidReceivableInsights
             $to = $latest;
         }
 
+        $components = $this->newComponents($units, $from, $to);
         $rows = [];
         $prev = null;
         foreach ($monthly as $m => $x) {
@@ -68,17 +69,39 @@ class PrepaidReceivableInsights
             }
             $total = $x['baru'] + $x['berjalan'] + $x['tunggakan'];
             $paid = $prev !== null && $prev['units'] === $x['units'] ? max(0.0, $prev['total'] - ($x['berjalan'] + $x['tunggakan'])) : null;
-            $rows[] = ['month' => $m, 'baru' => round($x['baru']), 'berjalan' => round($x['berjalan']), 'tunggakan' => round($x['tunggakan']), 'total' => round($total), 'lembar' => (int) $x['lembar'], 'units' => $x['units'],
+            $bp = $components[$m]['bp'] ?? 0.0;
+            $p2tl = $components[$m]['p2tl'] ?? 0.0;
+            $rows[] = ['month' => $m, 'baru' => round($x['baru']), 'baru_angsuran_bp' => round($bp), 'baru_angsuran_p2tl' => round($p2tl), 'baru_lainnya' => round($x['baru'] - $bp - $p2tl), 'berjalan' => round($x['berjalan']), 'tunggakan' => round($x['tunggakan']), 'total' => round($total), 'lembar' => (int) $x['lembar'], 'units' => $x['units'],
                 'pelunasan' => $paid === null ? null : round($paid), 'effectiveness_pct' => $paid !== null && $prev['total'] > 0 ? round($paid / $prev['total'] * 100, 1) : null];
             $prev = ['total' => $total, 'units' => $x['units']];
         }
 
         return ['kind' => 'prepaid_receivable', 'available' => true, 'month' => $to, 'monthly' => $rows, 'frozen' => $this->frozen($monthly, $to), 'ulps' => $this->ulps($raw, $to, $names), 'tariffs' => $this->tariffs($units, $to),
             'anomalies' => $this->anomalies($monthly, $raw, $to, $names), 'forecast' => $this->forecast($monthly, $to),
-            'notes' => ['Laporan piutang prabayar tidak memuat umur tunggakan, jadi roll-rate dan calon piutang ragu-ragu tidak dapat dihitung seperti pascabayar; yang ditampilkan adalah posisi, pelunasan, dan tunggakan yang tidak bergerak.',
+            'notes' => ['Piutang baru (BARU) = piutang yang terbit pada bulan itu. Isinya hampir seluruhnya angsuran biaya penyambungan (`baru_angsuran_bp`, penyambungan baru yang dicicil); `baru_angsuran_p2tl` adalah sisa cicilan P2TL kelompok pelanggan tetap yang berkurang satu per bulan, bukan piutang yang baru terbit, dan `baru_lainnya` sisanya.',
+                'Laporan piutang prabayar tidak memuat umur tunggakan, jadi roll-rate dan calon piutang ragu-ragu tidak dapat dihitung seperti pascabayar; yang ditampilkan adalah posisi, pelunasan, dan tunggakan yang tidak bergerak.',
                 'Pelunasan memakai definisi NKO: (baru + berjalan + tunggakan bulan lalu) dikurangi (berjalan + tunggakan bulan ini), nilai negatif dihitung nol; hanya bila jumlah ULP kedua bulan sama.',
                 'Tunggakan beku: selisih terhadap bulan terakhir tidak lebih dari '.self::FROZEN_TOLERANCE_PCT.'%; kandidat penagihan khusus atau usulan penghapusan, keputusan tetap di pengguna.',
                 'Bulan tidak wajar: piutang baru menyimpang paling sedikit '.(int) (self::ANOMALY_RATIO * 100).'% dari median dua belas bulan sebelumnya (selisih minimal Rp '.number_format(self::ANOMALY_MIN_RP, 0, ',', '.').'); angka yang mendadak nol atau melonjak bisa berasal dari perubahan cakupan laporan, bukan kegiatan ULP.']];
+    }
+
+    /**
+     * Rincian piutang BARU per bulan: angsuran biaya penyambungan (BP) dan angsuran P2TL, dari kolom RPANGSURANBP dan RPANGSURANP2TL laporan prabayar. Angsuran P2TL pada BARU adalah sisa cicilan kelompok pelanggan tetap yang berkurang satu per bulan, bukan
+     * piutang yang baru terbit; piutang yang terbit karena penyambungan baru adalah angsuran BP (keterangan pemilik 26 Nov 2026).
+     *
+     * @param  list<string>  $units
+     * @return array<string, array{bp: float, p2tl: float}>
+     */
+    private function newComponents(array $units, string $from, string $to): array
+    {
+        $rows = DB::table('eis_report_lines as l')->join('eis_report_files as f', 'f.id', '=', 'l.file_id')->where('f.family', 'PIUTANGLPB_EIS')->where('f.status', 'AKTIF')->where('l.label', 'BARU')->whereIn('f.organizational_unit_id', $units)
+            ->whereBetween('f.period', [$from.'-01', $to.'-01'])->selectRaw("to_char(f.period, 'YYYY-MM') as m, sum(coalesce((l.values->>'rpangsuranbp')::numeric, 0)) as bp, sum(coalesce((l.values->>'rpangsuranp2tl')::numeric, 0)) as p2tl")->groupBy('m')->get();
+        $out = [];
+        foreach ($rows as $r) {
+            $out[$r->m] = ['bp' => (float) $r->bp, 'p2tl' => (float) $r->p2tl];
+        }
+
+        return $out;
     }
 
     /**

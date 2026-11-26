@@ -15,7 +15,9 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 ## Terbuka
 
-*(Tidak ada butir terbuka saat ini)*
+| # | Tanggal | Perubahan | Dokumen rujukan | Kebutuhan frontend | Status |
+|---|---|---|---|---|---|
+| 58 | 2026-11-26 | **Rincian piutang baru prabayar**: `GET /pengusahaan/metrics/piutang-prabayar` `detail.monthly[]` memuat `baru_angsuran_bp`, `baru_angsuran_p2tl`, dan `baru_lainnya` (jumlahnya sama dengan `baru`). BARU = piutang yang terbit bulan itu; hampir seluruhnya angsuran BP, sedangkan angsuran P2TL pada BARU adalah sisa cicilan yang berkurang satu per bulan (bukan piutang baru). `detail.notes[]` bertambah satu catatan penjelas. | docs/91 (`prepaid_receivable`), docs/92 §6.4 dan §10 | Tab Piutang Prabayar: tampilkan piutang baru terpecah (angsuran BP, angsuran P2TL, lainnya) pada tabel atau grafik riwayat bulanan, dengan keterangan bahwa angsuran P2TL bukan piutang baru yang terbit. | BARU |
 
 ## Selesai
 
