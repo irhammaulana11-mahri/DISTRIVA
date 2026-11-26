@@ -15,6 +15,7 @@ import BusinessForecastTab from './BusinessForecastTab.jsx'
 import BusinessHistoryTab from './BusinessHistoryTab.jsx'
 import ReliabilityFeederTab from './ReliabilityFeederTab.jsx'
 import ReceivableAgingTab from './ReceivableAgingTab.jsx'
+import SalesDecompositionTab from './SalesDecompositionTab.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
 import { OutageAnalysisContent, ForecastTab as OutageForecastTab } from '../outages/OutageAnalysisPage.jsx'
@@ -140,6 +141,7 @@ function MetricTrendChart({
   polarity = 'up',
   incompleteMonths = [],
   metricCode,
+  events = [],
 }) {
   const [hoverData, setHoverData] = useState(null)
   const containerRef = useRef(null)
@@ -493,6 +495,7 @@ function MetricTrendChart({
             const yPrev = getY(previousYear[idx])
             const isIncomplete = unitsExpected > 1 && (unitsReporting[idx] || 0) < unitsExpected
             const colWidth = chartW / Math.max(1, months.length - 1)
+            const matchedEvent = (events || []).find((ev) => ev.month === m)
 
             return (
               <g
@@ -500,6 +503,41 @@ function MetricTrendChart({
                 onMouseEnter={() => handlePointerMove(idx)}
                 className="cursor-pointer"
               >
+                {/* Garis Vertikal Penanda Event (mis. Idul Fitri Butir 40 docs/92 §7) */}
+                {matchedEvent && (
+                  <g className="pointer-events-none">
+                    <line
+                      x1={x}
+                      y1={padTop}
+                      x2={x}
+                      y2={padTop + chartH}
+                      stroke="#10b981"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 2"
+                      className="opacity-70 dark:opacity-60"
+                    />
+                    <rect
+                      x={x - 28}
+                      y={padTop + 2}
+                      width={56}
+                      height={16}
+                      rx={3}
+                      fill="#ecfdf5"
+                      stroke="#a7f3d0"
+                      strokeWidth="1"
+                      className="dark:fill-emerald-950 dark:stroke-emerald-800"
+                    />
+                    <text
+                      x={x}
+                      y={padTop + 13}
+                      textAnchor="middle"
+                      className="text-[9px] font-bold fill-emerald-800 dark:fill-emerald-200 select-none"
+                    >
+                      {matchedEvent.label || 'Event'}
+                    </text>
+                  </g>
+                )}
+
                 {/* Kolom Tangkapan Mouse Transparan */}
                 <rect
                   x={x - colWidth / 2}
@@ -1638,6 +1676,21 @@ export default function BusinessAnalyticsPage() {
           </button>
         )}
 
+        {/* Tab Pemecahan Penjualan (Butir 40 docs/92 §6.2 & §6.3) */}
+        {(d?.detail?.kind === 'sales_decomposition' || activeCode === 'kwh-jual' || activeCode === 'pendapatan') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('sales_decomposition')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'sales_decomposition'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Pemecahan
+          </button>
+        )}
+
         {/* Tab Prakiraan Terpadu */}
         <button
           type="button"
@@ -2738,6 +2791,7 @@ export default function BusinessAnalyticsPage() {
                   polarity={d.metric?.polarity || 'up'}
                   incompleteMonths={(d.warnings || []).map((w) => w.month).filter(Boolean)}
                   metricCode={activeCode}
+                  events={d.events || []}
                 />
               </div>
 
@@ -3303,6 +3357,11 @@ export default function BusinessAnalyticsPage() {
           {/* Tab Umur & Calon PRR / Pelunasan BLTH (Butir 39 docs/92 §6.4 & §6.5) */}
           {mainTab === 'receivable_aging' && (
             <ReceivableAgingTab detail={d.detail} metricCode={activeCode} />
+          )}
+
+          {/* Tab Pemecahan Penjualan (Butir 40 docs/92 §6.2 & §6.3) */}
+          {mainTab === 'sales_decomposition' && (
+            <SalesDecompositionTab detail={d.detail} metricCode={activeCode} />
           )}
         </div>
         )}

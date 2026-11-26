@@ -2158,4 +2158,205 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('ULP Mojokerto Kota')).toBeInTheDocument()
     expect(screen.getByText('32,00%')).toBeInTheDocument()
   })
+
+  it('23. mendukung Butir 40: Uji coba kWh Jual dan Pendapatan tahap 4 (Pemecahan waterfall, tabel golongan, findings, dan penanda events)', async () => {
+    const salesCatalog = {
+      data: {
+        ...MOCK_METRICS_CATALOG.data,
+        metrics: [
+          ...MOCK_METRICS_CATALOG.data.metrics,
+          {
+            code: 'kwh-jual',
+            name: 'Penjualan Tenaga Listrik',
+            category: 'Penjualan',
+            unit: 'kWh',
+            polarity: 'up',
+            order: 2,
+          },
+        ],
+      },
+    }
+
+    const salesDetail = {
+      data: {
+        code: 'kwh-jual',
+        name: 'Penjualan Tenaga Listrik',
+        unit: 'kWh',
+        polarity: 'up',
+        months: ['2026-03', '2026-04'],
+        from: '2026-03',
+        to: '2026-04',
+        events: [
+          { month: '2026-03', kind: 'idul_fitri', label: 'Idul Fitri' },
+        ],
+        series: [
+          {
+            key: 'kwh',
+            name: 'kWh Jual',
+            unit: 'kWh',
+            values: [450000000, 480000000],
+            previous_year: [430000000, 455000000],
+          },
+        ],
+        detail: {
+          kind: 'sales_decomposition',
+          available: true,
+          focus: 'kwh-jual',
+          month: {
+            month: '2026-04',
+            previous: '2025-04',
+            units_compared: 10,
+            customers: { total: 1450000, previous: 1400000, change: 50000 },
+            kwh: {
+              total: 480000000,
+              previous: 455000000,
+              change: 25000000,
+              change_pct: 5.49,
+              customers: 15000000,
+              mix: -2000000,
+              intensity: 12000000,
+              residual: 0,
+            },
+            rp: {
+              total: 620000000000,
+              previous: 580000000000,
+              change: 40000000000,
+              change_pct: 6.9,
+              volume: 32000000000,
+              mix: -1500000000,
+              price: 9500000000,
+              residual: 0,
+            },
+            groups: [
+              {
+                key: 'I',
+                name: 'Industri',
+                plg: 2500,
+                plg_previous: 2400,
+                kwh: 220000000,
+                kwh_previous: 205000000,
+                kwh_change: 15000000,
+                kwh_share_of_change_pct: 60.0,
+                kwh_per_plg: 88000,
+                kwh_per_plg_previous: 85416.7,
+                rp: 260000000000,
+                rp_previous: 240000000000,
+                rp_per_kwh: 1181.8,
+                rp_per_kwh_previous: 1170.7,
+                rp_change: 20000000000,
+              },
+              {
+                key: 'R',
+                name: 'Rumah tangga',
+                plg: 1250000,
+                plg_previous: 1200000,
+                kwh: 180000000,
+                kwh_previous: 172000000,
+                kwh_change: 8000000,
+                kwh_share_of_change_pct: 32.0,
+                kwh_per_plg: 144,
+                kwh_per_plg_previous: 143.3,
+                rp: 240000000000,
+                rp_previous: 225000000000,
+                rp_per_kwh: 1333.3,
+                rp_per_kwh_previous: 1308.1,
+                rp_change: 15000000000,
+              },
+            ],
+          },
+          ytd: {
+            from: '2026-01',
+            to: '2026-04',
+            months_compared: 4,
+            months: ['2026-01', '2026-02', '2026-03', '2026-04'],
+            kwh: {
+              total: 1850000000,
+              previous: 1760000000,
+              change: 90000000,
+              change_pct: 5.11,
+              customers: 55000000,
+              mix: -8000000,
+              intensity: 43000000,
+              residual: 0,
+            },
+            rp: {
+              total: 2400000000000,
+              previous: 2250000000000,
+              change: 150000000000,
+              change_pct: 6.67,
+              volume: 115000000000,
+              mix: -6000000000,
+              price: 41000000000,
+              residual: 0,
+            },
+          },
+          monthly: [
+            {
+              month: '2026-03',
+              units_compared: 10,
+              kwh: { total: 450000000, previous: 430000000, change: 20000000, customers: 14000000, mix: -2000000, intensity: 8000000 },
+              rp: { total: 580000000000, previous: 550000000000, change: 30000000000, volume: 25000000000, mix: -1000000000, price: 6000000000 },
+            },
+            {
+              month: '2026-04',
+              units_compared: 10,
+              kwh: { total: 480000000, previous: 455000000, change: 25000000, customers: 15000000, mix: -2000000, intensity: 12000000 },
+              rp: { total: 620000000000, previous: 580000000000, change: 40000000000, volume: 32000000000, mix: -1500000000, price: 9500000000 },
+            },
+          ],
+          findings: [
+            {
+              level: 'perhatian',
+              kind: 'base_effect',
+              text: 'Efek tarif tahun berjalan 41,0 miliar, 25,0 miliar berasal dari Januari sampai Februari yang tahun lalu memiliki Rp per kWh rendah.',
+            },
+          ],
+          notes: [
+            'Pemecahan memakai laporan 309 per golongan tarif (S, R, B, I, P, T, C, L)',
+            'kWh: efek pelanggan, efek campuran, efek konsumsi',
+          ],
+        },
+      },
+    }
+
+    pengusahaanApi.metrics.mockResolvedValue(salesCatalog)
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'kwh-jual') {
+        return Promise.resolve(salesDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/kwh-jual'])
+
+    // Verifikasi penanda grafik tren Idul Fitri (events[]) tampil di SVG
+    expect(await screen.findByText('Idul Fitri')).toBeInTheDocument()
+
+    // Verifikasi tombol tab Pemecahan muncul
+    const decompositionTabBtn = await screen.findByRole('button', { name: 'Pemecahan' })
+    expect(decompositionTabBtn).toBeInTheDocument()
+    await userEvent.click(decompositionTabBtn)
+
+    // Verifikasi (c) Catatan otomatis findings[] tampil di atas diagram
+    expect(await screen.findByText(/Efek Dasar Rendah/i)).toBeInTheDocument()
+    expect(screen.getByText(/Efek tarif tahun berjalan 41,0 miliar/i)).toBeInTheDocument()
+
+    // Verifikasi (a) Waterfall diagram dan kartu komponen efek
+    expect(screen.getByText('Dekomposisi Perubahan: Dari Tahun Lalu ke Tahun Ini')).toBeInTheDocument()
+    expect(screen.getAllByText('Efek Pelanggan').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Efek Campuran Golongan').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Efek kWh per Pelanggan').length).toBeGreaterThan(0)
+
+    // Verifikasi tombol toggle Bulan ini vs Tahun berjalan
+    const ytdBtn = screen.getByRole('button', { name: /Tahun berjalan \(YTD\)/i })
+    expect(ytdBtn).toBeInTheDocument()
+    await userEvent.click(ytdBtn)
+    expect(screen.getByText(/Kumulatif Thn Ini/i)).toBeInTheDocument()
+
+    // Verifikasi (b) Tabel rincian menurut golongan tarif
+    expect(screen.getByText('Rincian Menurut Golongan Tarif (Bulan Apr 26)')).toBeInTheDocument()
+    expect(screen.getByText('Industri')).toBeInTheDocument()
+    expect(screen.getByText('Rumah tangga')).toBeInTheDocument()
+    expect(screen.getByText('+60,0%')).toBeInTheDocument()
+  })
 })
