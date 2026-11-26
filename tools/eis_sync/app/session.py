@@ -160,6 +160,26 @@ def run_eis_playwright():
 LOGIN_ATTEMPTS = 3
 LOGIN_RETRY_WAIT_MS = 15000
 
+# Galat jaringan Chromium yang berarti server EIS tidak terjangkau dari mesin ini (bukan gangguan aplikasi EIS).
+NETWORK_ERRORS = (
+    "ERR_NAME_NOT_RESOLVED",
+    "ERR_INTERNET_DISCONNECTED",
+    "ERR_ADDRESS_UNREACHABLE",
+    "ERR_NETWORK_CHANGED",
+    "ERR_CONNECTION_REFUSED",
+    "ERR_CONNECTION_TIMED_OUT",
+    "ERR_CONNECTION_RESET",
+    "ERR_TIMED_OUT",
+)
+
+
+class EisTidakTersedia(RuntimeError):
+    """EIS tidak dapat dibuka; pesannya sudah siap ditampilkan ke pengguna tanpa traceback."""
+
+
+class EisTidakTerjangkau(EisTidakTersedia):
+    """Nama atau alamat server EIS tidak terjangkau dari jaringan mesin ini."""
+
 
 def _open_login_page(page):
     """Buka halaman login EIS; ulangi bila server membalas galat 5xx.
@@ -170,14 +190,24 @@ def _open_login_page(page):
     """
     status = None
     for attempt in range(1, LOGIN_ATTEMPTS + 1):
-        response = page.goto(f"{LOGIN_URL}/login.aspx")
+        try:
+            response = page.goto(f"{LOGIN_URL}/login.aspx")
+        except Exception as exc:
+            code = next((c for c in NETWORK_ERRORS if c in str(exc)), None)
+            if code is None:
+                raise
+            raise EisTidakTerjangkau(
+                f"Server EIS tidak terjangkau dari komputer ini ({code}) saat membuka {LOGIN_URL}/login.aspx. "
+                "Biasanya VPN atau jaringan internal PLN belum aktif, atau DNS tidak mengenali nama server EIS. "
+                "Pastikan halaman login EIS bisa dibuka di browser, lalu jalankan ulang."
+            ) from None
         status = response.status if response else None
         if status is not None and status < 500:
             return
         print(f"⚠ EIS membalas HTTP {status} (percobaan {attempt}/{LOGIN_ATTEMPTS}).")
         if attempt < LOGIN_ATTEMPTS:
             page.wait_for_timeout(LOGIN_RETRY_WAIT_MS)
-    raise RuntimeError(
+    raise EisTidakTersedia(
         f"Server EIS sedang bermasalah (HTTP {status}, halaman login tidak tersedia). "
         "Ini gangguan di sisi EIS, bukan di DISTRIVA; coba lagi beberapa menit lagi."
     )

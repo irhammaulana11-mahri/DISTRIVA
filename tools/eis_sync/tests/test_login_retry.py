@@ -22,7 +22,10 @@ class FakePage:
 
     def goto(self, url):
         self.visited.append(url)
-        return types.SimpleNamespace(status=self.statuses.pop(0))
+        status = self.statuses.pop(0)
+        if isinstance(status, Exception):
+            raise status
+        return types.SimpleNamespace(status=status)
 
     def wait_for_timeout(self, ms):
         self.waits.append(ms)
@@ -48,6 +51,21 @@ class LoginRetryTest(unittest.TestCase):
         self.assertIn("Server EIS sedang bermasalah (HTTP 500", str(ctx.exception))
         self.assertEqual(session.LOGIN_ATTEMPTS, len(page.visited))
         self.assertEqual(session.LOGIN_ATTEMPTS - 1, len(page.waits))     # tidak menunggu setelah percobaan terakhir
+
+    def test_dns_tidak_resolve_memberi_pesan_jaringan_tanpa_mengulang(self):
+        page = FakePage([Exception("Page.goto: net::ERR_NAME_NOT_RESOLVED at http://eis.ap2t.pln.co.id/eis/login.aspx")])
+        with self.assertRaises(session.EisTidakTerjangkau) as ctx:
+            session._open_login_page(page)
+        self.assertIn("ERR_NAME_NOT_RESOLVED", str(ctx.exception))
+        self.assertIn("VPN", str(ctx.exception))
+        self.assertEqual(1, len(page.visited))
+        self.assertEqual([], page.waits)
+        self.assertIsInstance(ctx.exception, session.EisTidakTersedia)
+
+    def test_galat_lain_diteruskan_apa_adanya(self):
+        page = FakePage([ValueError("sesuatu yang lain")])
+        with self.assertRaises(ValueError):
+            session._open_login_page(page)
 
 
 if __name__ == "__main__":

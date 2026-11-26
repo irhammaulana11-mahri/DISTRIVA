@@ -320,4 +320,10 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    from app.session import EisTidakTersedia
+
+    try:
+        sys.exit(main())
+    except EisTidakTersedia as exc:
+        print(f"❌ {exc}", file=sys.stderr)
+        sys.exit(2)
