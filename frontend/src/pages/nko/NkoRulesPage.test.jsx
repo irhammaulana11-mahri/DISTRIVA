@@ -21,6 +21,8 @@ vi.mock('../../services/api.js', () => ({
     definitionSets: vi.fn(),
     definitionUploads: vi.fn(),
     definitionUpload: vi.fn(),
+    definitionTemplate: vi.fn(),
+    checkDefinitionUpload: vi.fn(),
     uploadDefinitions: vi.fn(),
     decideDefinitionUpload: vi.fn(),
     cancelDefinitionUpload: vi.fn(),
@@ -125,6 +127,7 @@ describe('NkoRulesPage', () => {
     nkoApi.ruleProposals.mockResolvedValue({ data: [] })
     nkoApi.definitionSets.mockResolvedValue({ data: [] })
     nkoApi.definitionUploads.mockResolvedValue({ data: [] })
+    nkoApi.definitionTemplate.mockResolvedValue(new Blob(['xlsx']))
   })
 
   it('1. menampilkan daftar aturan, item tanpa aturan, dan peringatan item berganti nama', async () => {
@@ -297,6 +300,7 @@ describe('NkoRulesPage', () => {
             compared_with: '2026 v1',
             total_rule_changed: false,
             warnings: ['Total bobot berubah'],
+            alerts: ['Jumlah indikator turun lebih dari 20%'],
             added: [{ code: 'item-baru', name: 'Item Baru', weight: 5, needs_realization: true, has_rule: false }],
             removed: [],
             possible_renames: [],
@@ -304,6 +308,16 @@ describe('NkoRulesPage', () => {
             targets_changed: { 'ULP Jombang': 3 },
           },
         ],
+        check: {
+          year: 2026,
+          year_found: 2026,
+          can_upload: true,
+          errors: [],
+          warnings: [],
+          tabs: [
+            { sheet: 'ULP Jombang', status: 'DIKENALI', level: 'ULP', unit_name: 'ULP Jombang', unit_found: true, items: 20, total_weight: 100, errors: [], warnings: [] },
+          ],
+        },
       },
     })
     nkoApi.decideDefinitionUpload.mockResolvedValue({
@@ -331,6 +345,8 @@ describe('NkoRulesPage', () => {
     await user.click(screen.getByRole('button', { name: /Lihat Perubahan/i }))
     expect(await screen.findByText(/Rincian Perubahan Workbook: nko-2026-v2.xlsx/i)).toBeInTheDocument()
     expect(screen.getByText('Total bobot berubah')).toBeInTheDocument()
+    expect(screen.getByText('Jumlah indikator turun lebih dari 20%')).toBeInTheDocument()
+    expect(screen.getByText(/Laporan Pemeriksaan Saat Unggah/i)).toBeInTheDocument()
     expect(screen.getByText(/ULP Jombang \(3 target\)/i)).toBeInTheDocument()
 
     // Setujui unggahan -> otomatis pindah ke tab Perubahan Item
@@ -345,5 +361,47 @@ describe('NkoRulesPage', () => {
     })
     expect(await screen.findByText(/Item Baru Tanpa Aturan Realisasi/i)).toBeInTheDocument()
     expect(screen.getByText('Item Baru')).toBeInTheDocument()
+  })
+
+  it('5. tab Versi Workbook mendukung unduh template dan pemeriksaan workbook yang menonaktifkan unggah bila gagal (Butir 63)', async () => {
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock')
+    globalThis.URL.revokeObjectURL = vi.fn()
+    nkoApi.checkDefinitionUpload.mockResolvedValue({
+      data: {
+        year: 2026,
+        year_found: 2026,
+        can_upload: false,
+        errors: ['Bobot total tidak 100'],
+        warnings: [],
+        tabs: [
+          { sheet: 'PETUNJUK', status: 'DILEWATI', level: null, unit_name: null, unit_found: null, reason: 'Tab petunjuk', items: null, total_weight: null, errors: [], warnings: [] },
+          { sheet: 'ULP Jombang', status: 'GALAT', level: 'ULP', unit_name: 'ULP Jombang', unit_found: true, items: 10, total_weight: 90, errors: ['Total bobot 90'], warnings: [] },
+        ],
+      },
+    })
+
+    const user = userEvent.setup()
+    wrap(<NkoRulesPage />, { 'nko.view': true, 'nko.rules.propose': true })
+
+    await user.click(await screen.findByRole('tab', { name: /Versi Workbook/i }))
+
+    // Unduh template
+    await user.click(await screen.findByRole('button', { name: /Unduh template/i }))
+    await waitFor(() => {
+      expect(nkoApi.definitionTemplate).toHaveBeenCalledWith({ year: 2026 })
+    })
+
+    // Pilih berkas dan klik Periksa
+    const file = new File(['dummy'], 'nko-test.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const fileInput = screen.getByLabelText(/Berkas Excel/i)
+    await user.upload(fileInput, file)
+
+    await user.click(screen.getByRole('button', { name: /^Periksa$/i }))
+
+    expect(await screen.findByText(/Tidak Lolos \(Perbaiki Galat\)/i)).toBeInTheDocument()
+    expect(screen.getByText('Bobot total tidak 100')).toBeInTheDocument()
+    expect(screen.getByText('PETUNJUK')).toBeInTheDocument()
+    expect(screen.getByText('Total bobot 90')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Unggah Workbook/i })).toBeDisabled()
   })
 })

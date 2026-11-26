@@ -6,7 +6,7 @@ import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
-import { IconAlertCircle, IconUpload, IconX } from '../../components/icons.jsx'
+import { IconAlertCircle, IconCheckCircle, IconDownload, IconUpload, IconX } from '../../components/icons.jsx'
 
 const UPLOAD_STATUS_CLS = {
   MENUNGGU: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
@@ -30,15 +30,154 @@ const fmtDate = (d) => {
   }
 }
 
+function CheckReportPanel({ report, title = 'Hasil Pemeriksaan Workbook' }) {
+  if (!report) return null
+  const tabs = Array.isArray(report.tabs) ? report.tabs : []
+  const errors = Array.isArray(report.errors) ? report.errors : []
+  const warnings = Array.isArray(report.warnings) ? report.warnings : []
+
+  return (
+    <div
+      className={`p-4 rounded-xl border space-y-3 text-xs ${
+        report.can_upload
+          ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20'
+          : 'border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20'
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {report.can_upload ? (
+            <IconCheckCircle size={16} className="text-emerald-600 shrink-0" />
+          ) : (
+            <IconAlertCircle size={16} className="text-rose-600 shrink-0" />
+          )}
+          <span className="font-bold text-slate-900 dark:text-slate-100">{title}</span>
+          <span
+            className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+              report.can_upload
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300'
+                : 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300'
+            }`}
+          >
+            {report.can_upload ? 'Lolos Pemeriksaan' : 'Tidak Lolos (Perbaiki Galat)'}
+          </span>
+        </div>
+        <div className="text-[11px] text-slate-600 dark:text-slate-400">
+          Tahun diminta: <strong>{report.year ?? '-'}</strong>
+          {report.year_found != null && (
+            <> • Tahun di berkas: <strong>{report.year_found}</strong></>
+          )}
+        </div>
+      </div>
+
+      {errors.length > 0 && (
+        <Alert kind="error">
+          <div className="font-bold mb-1">Galat Pemeriksaan ({errors.length}):</div>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {errors.map((err, i) => <li key={i}>{err}</li>)}
+          </ul>
+        </Alert>
+      )}
+
+      {warnings.length > 0 && (
+        <Alert kind="warning">
+          <div className="font-bold mb-1">Peringatan ({warnings.length}):</div>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </Alert>
+      )}
+
+      {tabs.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <table className="w-full text-left text-[11px]">
+            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="py-1.5 px-2.5">Tab / Lembar</th>
+                <th className="py-1.5 px-2.5">Status</th>
+                <th className="py-1.5 px-2.5">Unit & Tingkat</th>
+                <th className="py-1.5 px-2.5 text-right">Indikator</th>
+                <th className="py-1.5 px-2.5 text-right">Total Bobot</th>
+                <th className="py-1.5 px-2.5">Catatan / Galat</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {tabs.map((t, idx) => {
+                const hasError = (t.errors?.length || 0) > 0 || String(t.status || '').toUpperCase().includes('GALAT')
+                const isSkipped = !hasError && (!t.level || String(t.status || '').toUpperCase().includes('LEWAT') || String(t.status || '').toUpperCase().includes('ABAI'))
+                return (
+                  <tr
+                    key={`${t.sheet}-${idx}`}
+                    className={
+                      hasError
+                        ? 'bg-rose-50/50 dark:bg-rose-950/20'
+                        : isSkipped
+                        ? 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'
+                        : ''
+                    }
+                  >
+                    <td className="py-1.5 px-2.5 font-mono font-semibold text-slate-800 dark:text-slate-200">
+                      {t.sheet}
+                    </td>
+                    <td className="py-1.5 px-2.5">
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          hasError
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                            : isSkipped
+                            ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                        }`}
+                      >
+                        {t.status}
+                      </span>
+                    </td>
+                    <td className="py-1.5 px-2.5">
+                      {t.unit_name ? (
+                        <div>
+                          <span className="font-semibold">{t.unit_name}</span>{' '}
+                          {t.level && <span className="text-slate-400">({t.level})</span>}
+                          {t.unit_found === false && (
+                            <span className="ml-1 text-rose-600 font-bold">• Unit tidak ditemukan</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">{t.level || '-'}</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2.5 text-right font-mono">{t.items ?? '-'}</td>
+                    <td className="py-1.5 px-2.5 text-right font-mono">{t.total_weight ?? '-'}</td>
+                    <td className="py-1.5 px-2.5 space-y-0.5">
+                      {t.reason && <div className="text-slate-500">{t.reason}</div>}
+                      {t.errors?.map((e, ei) => (
+                        <div key={ei} className="text-rose-600 font-semibold">{e}</div>
+                      ))}
+                      {t.warnings?.map((w, wi) => (
+                        <div key={wi} className="text-amber-600">{w}</div>
+                      ))}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function UploadDecisionModal({ upload, mode, onClose, onDecided }) {
   const { notify } = useNotifications()
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [recheckReport, setRecheckReport] = useState(null)
 
   useEffect(() => {
     setNote('')
     setError('')
+    setRecheckReport(null)
   }, [upload, mode])
 
   if (!upload) return null
@@ -52,6 +191,7 @@ function UploadDecisionModal({ upload, mode, onClose, onDecided }) {
     }
     setSaving(true)
     setError('')
+    setRecheckReport(null)
     try {
       const res = await nkoApi.decideDefinitionUpload(upload.id, {
         decision: mode,
@@ -67,6 +207,10 @@ function UploadDecisionModal({ upload, mode, onClose, onDecided }) {
       onClose()
     } catch (err) {
       setError(err?.message || 'Gagal memproses keputusan unggahan.')
+      const checkData = err?.data?.data
+      if (checkData && (Array.isArray(checkData.tabs) || Array.isArray(checkData.errors))) {
+        setRecheckReport(checkData)
+      }
     } finally {
       setSaving(false)
     }
@@ -74,7 +218,7 @@ function UploadDecisionModal({ upload, mode, onClose, onDecided }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
             {isReject ? 'Tolak Unggahan Workbook' : 'Setujui Unggahan Workbook'}
@@ -83,7 +227,7 @@ function UploadDecisionModal({ upload, mode, onClose, onDecided }) {
             <IconX size={18} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
           <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1">
             <p>Berkas: <strong>{upload.source_name}</strong> ({upload.year})</p>
             <p>Catatan pengunggah: {upload.note}</p>
@@ -104,6 +248,7 @@ function UploadDecisionModal({ upload, mode, onClose, onDecided }) {
             />
           </label>
           {error && <Alert kind="error">{error}</Alert>}
+          {recheckReport && <CheckReportPanel report={recheckReport} title="Hasil Pemeriksaan Ulang" />}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>Batal</Button>
             <Button type="submit" variant={isReject ? 'danger' : 'primary'} loading={saving}>
@@ -136,6 +281,8 @@ function UploadChangesDetail({ detail, onClose }) {
         </button>
       </div>
 
+      {detail.check && <CheckReportPanel report={detail.check} title="Laporan Pemeriksaan Saat Unggah" />}
+
       {changes.length === 0 ? (
         <p className="text-xs text-slate-500">Tidak ada rincian perubahan tingkat unit.</p>
       ) : (
@@ -161,6 +308,19 @@ function UploadChangesDetail({ detail, onClose }) {
                     </span>
                   )}
                 </div>
+
+                {/* Alerts mencolok untuk penyetuju */}
+                {c.alerts?.length > 0 && (
+                  <div className="p-3 rounded-xl border-2 border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <IconAlertCircle size={16} className="text-rose-600 shrink-0" />
+                      <span>Perhatian Penting untuk Penyetuju ({c.alerts.length})</span>
+                    </div>
+                    <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
+                      {c.alerts.map((al, ai) => <li key={ai}>{al}</li>)}
+                    </ul>
+                  </div>
+                )}
 
                 {c.warnings?.length > 0 && (
                   <Alert kind="warning">
@@ -276,13 +436,64 @@ export default function NkoWorkbookTab({
   onApproved,
 }) {
   const { notify } = useNotifications()
+  const [templateYear, setTemplateYear] = useState(year || new Date().getFullYear())
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false)
+
+  const [uploadYear, setUploadYear] = useState(new Date().getFullYear())
   const [file, setFile] = useState(null)
   const [note, setNote] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [checkReport, setCheckReport] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
 
   const [detailState, setDetailState] = useState({ loading: false, error: '', data: null })
   const [decisionModal, setDecisionModal] = useState({ upload: null, mode: 'approve' })
+
+  const handleDownloadTemplate = async () => {
+    setDownloadingTemplate(true)
+    try {
+      const blob = await nkoApi.definitionTemplate({ year: templateYear })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `TEMPLATE-DEFINISI-NKO-${templateYear}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      notify({
+        type: 'error',
+        title: 'Gagal Unduh Template',
+        desc: err?.message || 'Tidak dapat mengunduh template workbook.',
+        tag: 'NKO',
+      })
+    } finally {
+      setDownloadingTemplate(false)
+    }
+  }
+
+  const handleCheck = async () => {
+    setUploadError('')
+    if (!file) {
+      setUploadError('Pilih berkas workbook (.xlsx) terlebih dahulu untuk diperiksa.')
+      return
+    }
+    setChecking(true)
+    setCheckReport(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('year', String(uploadYear))
+      const res = await nkoApi.checkDefinitionUpload(fd)
+      setCheckReport(res?.data || null)
+    } catch (err) {
+      setUploadError(err?.message || 'Gagal memeriksa workbook definisi.')
+    } finally {
+      setChecking(false)
+    }
+  }
 
   const handleUpload = async (e) => {
     e.preventDefault()
@@ -299,6 +510,7 @@ export default function NkoWorkbookTab({
     try {
       const fd = new FormData()
       fd.append('file', file)
+      fd.append('year', String(uploadYear))
       fd.append('note', note.trim())
       const res = await nkoApi.uploadDefinitions(fd)
       notify({
@@ -309,12 +521,17 @@ export default function NkoWorkbookTab({
       })
       setFile(null)
       setNote('')
+      setCheckReport(null)
       onRefresh?.()
       if (res?.data?.id) {
         loadUploadDetail(res.data.id)
       }
     } catch (err) {
       setUploadError(err?.message || 'Gagal mengunggah workbook definisi.')
+      const checkData = err?.data?.data
+      if (checkData && (Array.isArray(checkData.tabs) || Array.isArray(checkData.errors))) {
+        setCheckReport(checkData)
+      }
     } finally {
       setUploading(false)
     }
@@ -353,61 +570,137 @@ export default function NkoWorkbookTab({
     }
   }
 
+  const uploadBlockedByCheck = Boolean(checkReport && checkReport.can_upload === false)
+
   return (
     <div className="space-y-6">
-      {/* Unggah Workbook Baru */}
+      {/* Unduh Template & Unggah Workbook Baru */}
       {canPropose && (
-        <form onSubmit={handleUpload} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Unggah Workbook Definisi NKO (.xlsx)
-            </h3>
-            <p className="text-xs text-slate-500">
-              Berkas diperiksa terlebih dahulu tanpa langsung mengubah definisi aktif. Perubahan berlaku setelah disetujui ASMAN_PERENCANAAN.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="block text-xs">
-              <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Berkas Excel (.xlsx, maks. 8 MB)</span>
-              <input
-                type="file"
-                accept=".xlsx"
-                aria-label="Berkas Workbook NKO"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className={`${filterControlCls} w-full py-1.5 text-xs`}
-              />
-            </label>
-
-            <label className="block text-xs">
-              <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Catatan Perubahan <span className="text-rose-600">*</span></span>
-              <input
-                type="text"
-                maxLength={500}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Mis. Penambahan indikator baru / pembaruan target triwulan"
-                aria-label="Catatan Unggahan Workbook"
-                className={`${filterControlCls} w-full text-xs`}
-              />
-            </label>
-          </div>
-
-          {uploading && (
-            <div className="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-300">
-              <Spinner size="sm" />
-              <span>Memeriksa dan membandingkan isi workbook (.xlsx)...</span>
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Template Workbook Definisi NKO
+              </h3>
+              <p className="text-xs text-slate-500">
+                Unduh template dari definisi aktif untuk diubah lalu diunggah kembali.
+              </p>
             </div>
-          )}
-
-          {uploadError && <Alert kind="error">{uploadError}</Alert>}
-
-          <div className="flex justify-end">
-            <Button type="submit" variant="primary" size="md" icon={IconUpload} loading={uploading}>
-              Unggah Workbook
-            </Button>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={templateYear}
+                onChange={(e) => setTemplateYear(Number(e.target.value))}
+                aria-label="Tahun Template"
+                className={`${filterControlCls} w-24 tabular-nums text-xs`}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={IconDownload}
+                loading={downloadingTemplate}
+                onClick={handleDownloadTemplate}
+              >
+                Unduh template
+              </Button>
+            </div>
           </div>
-        </form>
+
+          <form onSubmit={handleUpload} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Unggah Workbook Definisi NKO (.xlsx)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Periksa berkas terlebih dahulu sebelum mengunggah. Perubahan berlaku setelah disetujui ASMAN_PERENCANAAN.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <label className="block text-xs md:col-span-2">
+                <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Tahun <span className="text-rose-600">*</span>
+                </span>
+                <input
+                  type="number"
+                  min="2000"
+                  max="2100"
+                  required
+                  value={uploadYear}
+                  onChange={(e) => {
+                    setUploadYear(Number(e.target.value))
+                    setCheckReport(null)
+                  }}
+                  aria-label="Tahun Unggahan Workbook"
+                  className={`${filterControlCls} w-full tabular-nums text-xs`}
+                />
+              </label>
+
+              <label className="block text-xs md:col-span-5">
+                <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Berkas Excel (.xlsx, maks. 8 MB)</span>
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  aria-label="Berkas Workbook NKO"
+                  onChange={(e) => {
+                    setFile(e.target.files?.[0] || null)
+                    setCheckReport(null)
+                  }}
+                  className={`${filterControlCls} w-full py-1.5 text-xs`}
+                />
+              </label>
+
+              <label className="block text-xs md:col-span-5">
+                <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Catatan Perubahan <span className="text-rose-600">*</span></span>
+                <input
+                  type="text"
+                  maxLength={500}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Mis. Penambahan indikator baru / pembaruan target triwulan"
+                  aria-label="Catatan Unggahan Workbook"
+                  className={`${filterControlCls} w-full text-xs`}
+                />
+              </label>
+            </div>
+
+            {(checking || uploading) && (
+              <div className="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-300">
+                <Spinner size="sm" />
+                <span>{checking ? 'Memeriksa struktur dan isi workbook (.xlsx)...' : 'Mengunggah dan menyimpan workbook (.xlsx)...'}</span>
+              </div>
+            )}
+
+            {uploadError && <Alert kind="error">{uploadError}</Alert>}
+            {checkReport && <CheckReportPanel report={checkReport} />}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                loading={checking}
+                disabled={uploading}
+                onClick={handleCheck}
+              >
+                Periksa
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                icon={IconUpload}
+                loading={uploading}
+                disabled={checking || uploadBlockedByCheck}
+              >
+                Unggah Workbook
+              </Button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* Daftar Unggahan */}

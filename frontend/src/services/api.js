@@ -1000,6 +1000,8 @@ export const nkoApi = {
   definitionSets: (params = {}) => request(`/nko/definition-sets${qs(params)}`),
   definitionUploads: (params = {}) => request(`/nko/definition-uploads${qs(params)}`),
   definitionUpload: (id) => request(`/nko/definition-uploads/${id}`),
+  definitionTemplate: (params = {}) => downloadBlob(`/nko/definition-template${qs(params)}`),
+  checkDefinitionUpload: (formData) => request('/nko/definition-uploads/check', { method: 'POST', body: formData }),
   uploadDefinitions: (formData) => request('/nko/definition-uploads', { method: 'POST', body: formData }),
   decideDefinitionUpload: (id, body) => request(`/nko/definition-uploads/${id}/decision`, { method: 'POST', body }),
   cancelDefinitionUpload: (id) => request(`/nko/definition-uploads/${id}`, { method: 'DELETE' }),
