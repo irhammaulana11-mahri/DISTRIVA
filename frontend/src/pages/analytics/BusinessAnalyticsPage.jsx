@@ -3552,7 +3552,7 @@ export default function BusinessAnalyticsPage() {
           isKontrol309Metric
             ? ['KONTROL309']
             : isPelunasanPrrMetric
-            ? (activeCode === 'pelunasan-prr' ? ['pelunasan_prr', 'saldo_prr'] : ['pelunasan_ex_prr'])
+            ? (activeCode === 'pelunasan-prr' ? ['pelunasan_prr', 'saldo_prr'] : ['pelunasan_ex_prr', 'hapus_prr'])
             : null
         }
         initialDataset={

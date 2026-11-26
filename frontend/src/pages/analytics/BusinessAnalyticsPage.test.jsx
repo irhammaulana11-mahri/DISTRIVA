@@ -3331,4 +3331,102 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('38,46%')).toBeInTheDocument()
     expect(screen.getByText('61,54%')).toBeInTheDocument()
   })
+
+  it('29. mendukung Butir 57: Perkiraan Saldo dan Pemulihan Ex PRR', async () => {
+    const exPrrDetail = {
+      data: {
+        code: 'pelunasan-ex-prr',
+        name: 'Pelunasan Ex PRR',
+        unit: 'Rp',
+        polarity: 'up',
+        months: ['2026-01', '2026-02'],
+        series: [{ key: 'rp', name: 'Pelunasan Ex PRR', unit: 'Rp', values: [50000, 40000], latest: 40000, ytd: 90000 }],
+        detail: {
+          kind: 'repayment_age',
+          available: true,
+          period: { from: '2026-01', to: '2026-02' },
+          files: 4,
+          rp_total: 90000,
+          rows: [
+            { key: 'lebih dari 24 bulan', rp: 90000, share_pct: 100.0 },
+          ],
+          monthly: [
+            { month: '2026-01', 'lebih dari 24 bulan': 50000 },
+            { month: '2026-02', 'lebih dari 24 bulan': 40000 },
+          ],
+          recovery: {
+            available: true,
+            estimated: true,
+            since_month: '2026-01',
+            latest_month: '2026-02',
+            estimated_balance_rp: 910000,
+            cumulative_written_off_rp: 1000000,
+            cumulative_repaid_rp: 90000,
+            recovery_pct: 9.0,
+            monthly: [
+              {
+                month: '2026-01',
+                written_off_rp: 600000,
+                written_off_customers: 20,
+                repaid_rp: 50000,
+                cumulative_written_off_rp: 600000,
+                cumulative_repaid_rp: 50000,
+                estimated_balance_rp: 550000,
+                partial: false,
+              },
+              {
+                month: '2026-02',
+                written_off_rp: 400000,
+                written_off_customers: 15,
+                repaid_rp: 40000,
+                cumulative_written_off_rp: 1000000,
+                cumulative_repaid_rp: 90000,
+                estimated_balance_rp: 910000,
+                partial: false,
+              },
+            ],
+            by_billing_year: [
+              { year: 2018, written_off_rp: 400000 },
+              { year: 2019, written_off_rp: 600000 },
+            ],
+            notes: [
+              'Perkiraan: AP2T tidak punya laporan saldo Ex PRR. Saldo perkiraan = penghapusan PRR kumulatif dikurangi pelunasan Ex PRR kumulatif, dihitung sejak 2026-01.',
+            ],
+          },
+          notes: ['Umur = selisih bulan bayar dan bulan tagihan.'],
+        },
+      },
+    }
+
+    pengusahaanApi.metric.mockImplementation((code) => {
+      if (code === 'pelunasan-ex-prr') {
+        return Promise.resolve(exPrrDetail)
+      }
+      return Promise.resolve(MOCK_METRIC_DETAIL)
+    })
+
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelunasan-ex-prr'])
+
+    const tabBtn = await screen.findByRole('button', { name: 'Umur BLTH Pelunasan' })
+    expect(tabBtn).toBeInTheDocument()
+    await userEvent.click(tabBtn)
+
+    // Verifikasi Butir 57: Komponen perkiraan recovery Ex PRR tampil
+    expect(await screen.findByTestId('exprr-recovery-section')).toBeInTheDocument()
+    expect(screen.getByText('Saldo Ex PRR')).toBeInTheDocument()
+    expect(screen.getAllByText('Perkiraan').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Penghapusan Kumulatif').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Pelunasan Kumulatif').length).toBeGreaterThan(0)
+    expect(screen.getByText('9,00%')).toBeInTheDocument()
+
+    // Verifikasi tabel riwayat bulanan penghapusan & perkiraan saldo
+    expect(screen.getByText(/Riwayat Bulanan Penghapusan & Perkiraan Saldo Ex PRR/i)).toBeInTheDocument()
+    expect(screen.getByText('Penghapusan (Bulan Ini)')).toBeInTheDocument()
+    expect(screen.getByText('Perkiraan Saldo')).toBeInTheDocument()
+
+    // Verifikasi tabel distribusi tahun tagihan penghapusan
+    expect(screen.getByText('Distribusi Penghapusan PRR Menurut Tahun Tagihan (BLTH)')).toBeInTheDocument()
+    expect(screen.getByText('2018')).toBeInTheDocument()
+    expect(screen.getByText('2019')).toBeInTheDocument()
+  })
 })

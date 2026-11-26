@@ -558,6 +558,7 @@ function RepaymentAgeSection({ detail, metricCode }) {
 
   const ageColors = ['#10b981', '#06b6d4', '#3b82f6', '#f59e0b', '#f43f5e']
   const isPrr = metricCode === 'pelunasan-prr'
+  const isExPrr = metricCode === 'pelunasan-ex-prr'
 
   return (
     <div className="space-y-6" data-testid="repayment-age-section">
@@ -775,6 +776,204 @@ function RepaymentAgeSection({ detail, metricCode }) {
                   <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
                     <IconInfo className="w-4 h-4 text-slate-500" />
                     <span>Catatan Perhitungan Tingkat Pemulihan:</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-0.5 pt-1 text-[11px] leading-relaxed">
+                    {recovery.notes.map((n, i) => (
+                      <li key={i}>{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Bagian Perkiraan Saldo & Pemulihan Ex PRR (Butir 57: docs/91, docs/92 §6.5) - khusus pelunasan-ex-prr */}
+      {isExPrr && (
+        <div className="space-y-4" data-testid="exprr-recovery-section">
+          {recovery && !recovery.available ? (
+            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/40 p-4 text-xs space-y-1 text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2 font-semibold">
+                <IconInfo className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Perkiraan Saldo & Pemulihan Ex PRR Belum Tersedia:</span>
+              </div>
+              <p className="text-amber-800 dark:text-amber-300">
+                {recovery.reason || 'Laporan Penghapusan PRR belum ditarik untuk cakupan ini. Tarik lewat tombol Tarik AP2T, opsi "Penghapusan PRR".'}
+              </p>
+            </div>
+          ) : recovery?.available ? (
+            <div className="space-y-4">
+              {/* Kartu Ringkasan Perkiraan Saldo & Pemulihan Ex PRR */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span className="flex items-center gap-1">
+                      <span>Saldo Ex PRR</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-semibold">Perkiraan</span>
+                    </span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {fmtMonth(recovery.latest_month)}
+                    </span>
+                  </div>
+                  <div className="text-xl font-extrabold text-slate-900 dark:text-white">
+                    {fmtRp(recovery.estimated_balance_rp)}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Penghapusan - Pelunasan kumulatif
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span>Penghapusan Kumulatif</span>
+                    <span className="text-[11px] text-slate-400">Sejak {fmtMonth(recovery.since_month)}</span>
+                  </div>
+                  <div className="text-xl font-extrabold text-slate-900 dark:text-white">
+                    {fmtRp(recovery.cumulative_written_off_rp)}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Total piutang dihapus (masuk Ex PRR)
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span>Pelunasan Kumulatif</span>
+                    <span className="text-[11px] text-slate-400">Sejak {fmtMonth(recovery.since_month)}</span>
+                  </div>
+                  <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {fmtRp(recovery.cumulative_repaid_rp)}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Total pembayaran Ex PRR diterima
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span>Tingkat Pemulihan</span>
+                    <span className="text-[11px] text-slate-400">Kumulatif</span>
+                  </div>
+                  <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">
+                    {recovery.recovery_pct !== null && recovery.recovery_pct !== undefined ? `${fmtFloat(recovery.recovery_pct, 2)}%` : '-'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Pelunasan ÷ Penghapusan kumulatif
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabel Riwayat Bulanan Penghapusan, Pelunasan, dan Perkiraan Saldo */}
+              {recovery.monthly && recovery.monthly.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                        <span>Riwayat Bulanan Penghapusan & Perkiraan Saldo Ex PRR</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-semibold">Perkiraan</span>
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Aliran masuk (penghapusan) lawan aliran keluar (pelunasan) sejak bulan {fmtMonth(recovery.since_month)}.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                          <th className="py-2 pr-3 font-semibold">Bulan</th>
+                          <th className="py-2 px-3 font-semibold text-right">Penghapusan (Bulan Ini)</th>
+                          <th className="py-2 px-3 font-semibold text-right">Pelanggan Dihapus</th>
+                          <th className="py-2 px-3 font-semibold text-right">Pelunasan (Bulan Ini)</th>
+                          <th className="py-2 px-3 font-semibold text-right">Penghapusan Kumulatif</th>
+                          <th className="py-2 px-3 font-semibold text-right">Pelunasan Kumulatif</th>
+                          <th className="py-2 pl-3 font-semibold text-right">Perkiraan Saldo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                        {recovery.monthly.map((m) => (
+                          <tr key={m.month} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-2.5 pr-3 font-sans font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                              {fmtMonth(m.month)}
+                              {m.partial && (
+                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-medium">
+                                  Bulan berjalan
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right text-rose-600 dark:text-rose-400 font-semibold">
+                              {fmtRp(m.written_off_rp)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              {fmtInt(m.written_off_customers)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right text-emerald-600 dark:text-emerald-400 font-semibold">
+                              {fmtRp(m.repaid_rp)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">
+                              {fmtRp(m.cumulative_written_off_rp)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">
+                              {fmtRp(m.cumulative_repaid_rp)}
+                            </td>
+                            <td className="py-2.5 pl-3 text-right font-bold text-slate-900 dark:text-white">
+                              {fmtRp(m.estimated_balance_rp)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabel Distribusi Penghapusan Menurut Tahun Tagihan */}
+              {recovery.by_billing_year && recovery.by_billing_year.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                        Distribusi Penghapusan PRR Menurut Tahun Tagihan (BLTH)
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Rekapitulasi nilai piutang yang dihapus berdasarkan tahun rekening listrik.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                          <th className="py-2 pr-3 font-semibold">Tahun Tagihan</th>
+                          <th className="py-2 pl-3 font-semibold text-right">Penghapusan PRR</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                        {recovery.by_billing_year.map((row) => (
+                          <tr key={row.year} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-2.5 pr-3 font-sans font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                              {row.year}
+                            </td>
+                            <td className="py-2.5 pl-3 text-right font-bold text-slate-900 dark:text-white">
+                              {fmtRp(row.written_off_rp)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Catatan Teknis Recovery Ex PRR */}
+              {recovery.notes && recovery.notes.length > 0 && (
+                <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 p-4 text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                    <IconInfo className="w-4 h-4 text-slate-500" />
+                    <span>Catatan Perhitungan Perkiraan Saldo & Pemulihan:</span>
                   </div>
                   <ul className="list-disc list-inside space-y-0.5 pt-1 text-[11px] leading-relaxed">
                     {recovery.notes.map((n, i) => (
