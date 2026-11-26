@@ -388,10 +388,12 @@ class NkoCalculationTest extends PostgresTestCase
         $jan = $resolver->resolve($this->ulpA->id, 2026, 1)['penjualan-tenaga-listrik'];
         $this->assertEqualsWithDelta(-2.0, $jan['value'], 1e-9);   // GWh: turun dibanding tahun lalu
         $this->assertSame('SISTEM', $jan['source']);
+        $this->assertSame('NEGATIF', $jan['flag']);   // hanya ditandai, nilai tidak diubah
 
         $jual('2026-02-01', 44000000);
         $jual('2025-02-01', 41000000);
         $this->assertEqualsWithDelta(1.0, $resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['value'], 1e-9);   // (48+44) - (50+41), kumulatif
+        $this->assertNull($resolver->resolve($this->ulpA->id, 2026, 2)['penjualan-tenaga-listrik']['flag']);
         $this->assertContains('penjualan-tenaga-listrik', NkoRealizationResolver::UNVALIDATED_CODES);
     }
 

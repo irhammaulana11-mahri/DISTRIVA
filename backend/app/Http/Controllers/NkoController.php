@@ -197,7 +197,7 @@ class NkoController extends Controller
             $t = $targets[$n['id']] ?? null;
             $items[] = ['code' => $n['code'], 'name' => $meta[$n['id']]->name, 'group' => $meta[$n['id']]->parent_name, 'unit_label' => $n['unit_label'], 'polarity' => $n['polarity'], 'weight' => $n['weight'],
                 'target' => $t === null ? null : ($t->target_value !== null ? (float) $t->target_value : $t->target_text), 'editable' => $needs, 'system_source' => isset(NkoRealizationResolver::SYSTEM_CODES[$n['code']]), 'system_validated' => ! in_array($n['code'], NkoRealizationResolver::UNVALIDATED_CODES, true),
-                'value' => $r['value'] ?? null, 'source' => $r['source'] ?? null, 'manual' => $r['manual'] ?? null, 'system' => $r['system'] ?? null, 'note' => $r['note'] ?? null];
+                'value' => $r['value'] ?? null, 'source' => $r['source'] ?? null, 'manual' => $r['manual'] ?? null, 'system' => $r['system'] ?? null, 'note' => $r['note'] ?? null, 'flag' => $r['flag'] ?? null];
         }
 
         $nodeCodes = array_column($nodes, 'code');

@@ -263,12 +263,21 @@ Temuan:
 5. **Menu lain** (RPT-RCT, anomali, P2TL, HPL BP) mengikuti pola yang sama.
 6. **Data luar:** uji di satu ULP (bangunan dan tutupan lahan untuk pelanggan; BMKG untuk keandalan), lalu diputuskan dipakai luas atau tidak.
 
-## 10. Keputusan terbuka
+## 10. Keputusan dan masukan pemilik
 
-- Sumber saldo PRR dan Ex PRR (untuk tingkat pemulihan, §6.5).
-- Sumber otomatis kWh beli, E-Min, PSSD (untuk susut, §6.10).
-- Ambang warna kartu status: jarak ke target berapa persen yang dianggap waspada dan tertinggal.
-- Definisi "gangguan berulang" penyulang (jumlah dan rentang hari).
+**Sudah dijawab (26 Nov 2026):**
+- **Sumber saldo PRR dan Ex PRR:** laporan AP2T "Daftar PRR" (`getLaporanDaftarPRR`, per ULP per BLTH). Belum diimpor: butuh satu contoh berkas hasil unduh untuk menyusun pembaca dan tes (§6.5). Alamat berisi ID pengguna, jadi tidak disimpan di repository.
+- **"Gangguan berulang":** untuk menu Anomali Gangguan adalah laporan pelanggan berulang menurut data anomali APKT (kolom `berulang`), sudah dipakai di §6.8. Aturan 3 kejadian dalam 30 hari tetap hanya untuk gangguan penyulang di menu keandalan (§6.6, aturan kerja).
+- **Penjualan TL (NKO):** selisih kumulatif tahun berjalan dengan periode yang sama tahun lalu (sudah demikian); bila minus hanya ditandai (`flag: NEGATIF`, docs/90).
+- **Selisih penetapan dan realisasi P2TL (sekitar 190.000 kWh per bulan):** penetapan yang belum terbayar bisa terbayar bulan berikutnya atau beberapa bulan sesudahnya, atau memang tidak terbayar. Artinya realisasi sebuah bulan bukan hanya dari penetapan bulan itu; rasio kumulatif tetap dipakai, dan prakiraan bulan depan belum meramal pembayaran terlambat.
+- **ULP Ploso Mei 2026 (kWh beli turunan -32%):** kemungkinan pelanggan berpemakaian tinggi menurunkan pemakaian sehingga kWh jual dan kWh beli turun bersama. Bukan galat data; tetap ditandai sebagai bulan tak biasa.
+- **Piutang baru prabayar nol Maret sampai Agustus 2026:** kemungkinan data belum disinkronkan atau memang belum ada piutang baru. Belum dapat dibedakan dari data yang ada.
+
+**Masih terbuka:**
+- Sumber otomatis kWh beli, E-Min, PSSD (sementara kWh beli diturunkan dari susut kumulatif realisasi NKO dan 309, §6.10).
+- Ambang warna kartu status: jarak ke target berapa persen yang dianggap waspada dan tertinggal (belum dijawab).
+- Open Buildings Temporal: akun Earth Engine tidak dapat dibuat atau dimasuki dari sini; pemilik perlu mendaftarkan proyek Earth Engine dan memberi akses.
+- Peringatan dini BMKG diuji terhadap gangguan setelah riwayat prakiraan terkumpul; API prakiraan BMKG yang dipakai hanya memberi tiga hari ke depan (bukan riwayat); pemilik meminta dicoba, sehingga rencananya menyimpan prakiraan harian per ULP agar riwayatnya bisa diuji. Pengumpul ini belum dibuat.
 - Urutan uji coba bila berbeda dari §9.
 
 ## Rujukan

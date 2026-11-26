@@ -38,21 +38,27 @@ class NkoRealizationResolver
     public const UNVALIDATED_CODES = [self::PELUNASAN_CODE, 'penjualan-tenaga-listrik', 'pendapatan-biaya-penyambungan', 'gangguan-tm', 'susut-distribusi-tanpa-e-min', 'response-time-atas-gangguan-diluar-clear-tamper', 'feedback-rating-negatif-pada-pln-mobile-gangguan'];
 
     /**
-     * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string}> menurut kode indikator
+     * @return array<string, array{value: float, source: string, manual: ?float, system: ?float, note: ?string, flag: ?string}> menurut kode indikator
      */
     public function resolve(string $unitId, int $year, int $month): array
     {
         $out = [];
         $system = $this->systemValues($unitId, $year, $month);
         foreach ($system as $code => $v) {
-            $out[$code] = ['value' => $v, 'source' => 'SISTEM', 'manual' => null, 'system' => $v, 'note' => null];
+            $out[$code] = ['value' => $v, 'source' => 'SISTEM', 'manual' => null, 'system' => $v, 'note' => null, 'flag' => $this->flagFor($code, $v)];
         }
         $manual = DB::table('kpi_manual_inputs')->where('organizational_unit_id', $unitId)->where('period', sprintf('%04d-%02d-01', $year, $month))->get(['definition_code', 'value', 'note']);
         foreach ($manual as $m) {
-            $out[$m->definition_code] = ['value' => (float) $m->value, 'source' => 'MANUAL', 'manual' => (float) $m->value, 'system' => $out[$m->definition_code]['system'] ?? null, 'note' => $m->note];
+            $out[$m->definition_code] = ['value' => (float) $m->value, 'source' => 'MANUAL', 'manual' => (float) $m->value, 'system' => $out[$m->definition_code]['system'] ?? null, 'note' => $m->note, 'flag' => $this->flagFor($m->definition_code, (float) $m->value)];
         }
 
         return $out;
+    }
+
+    /** penjualan TL negatif (kWh jual kumulatif lebih kecil dari periode sama tahun lalu) hanya ditandai, nilainya tidak diubah */
+    private function flagFor(string $code, float $value): ?string
+    {
+        return $code === 'penjualan-tenaga-listrik' && $value < 0 ? 'NEGATIF' : null;
     }
 
     /**
