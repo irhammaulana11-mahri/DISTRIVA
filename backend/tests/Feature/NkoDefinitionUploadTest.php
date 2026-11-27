@@ -270,7 +270,7 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         $report = $this->check($path, 2027);
         $this->assertSame(2027, $report['year_found']);
         $this->assertStringContainsString('target bulanan (kolom M sampai X) kosong untuk item berbobot', implode(' ', $report['errors']));
-        $this->as($this->planner)->get('/api/nko/definition-template?year=2020')->assertNotFound();
+        $this->as($this->planner)->get('/api/nko/definition-template?year=2020')->assertNotFound()->assertJsonPath('message', fn (string $m) => str_contains($m, 'tahun 2020') && str_contains($m, 'tersedia untuk tahun 2026'));
     }
 
     #[Test]
@@ -283,6 +283,52 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         $ulp = array_column($this->check($this->book(['UP3 MOJOKERTO', 'ULP JOMBANG'], saidiWeight: 8))['changes'], null, 'level')['ULP'];
 
         $this->assertStringContainsString('Unit ULP Ngoro punya target di versi 2026 v2 tetapi tidak ada di workbook', $ulp['alerts'][0]);
+    }
+
+    #[Test]
+    public function ganti_nama_dengan_kode_tetap_bukan_item_baru_dan_targetnya_tetap(): void
+    {
+        $response = $this->as($this->planner)->get('/api/nko/definition-template?year=2026')->assertOk();
+        $path = tempnam(sys_get_temp_dir(), 'nko').'.xlsx';
+        rename($response->baseResponse->getFile()->getPathname(), $path);
+        $this->edited($path, ['UP3 MOJOKERTO' => ['B13' => 'a. Durasi Padam Rata-rata'], 'ULP JOMBANG' => ['B13' => 'a. Durasi Padam Rata-rata']]);
+
+        $ulp = array_column($this->check($path)['changes'], null, 'level')['ULP'];
+        $this->assertSame([[], [], []], [$ulp['added'], $ulp['removed'], $ulp['possible_renames']]);
+        $this->assertSame(['saidi' => ['name']], array_map('array_keys', array_column($ulp['changed'], 'fields', 'code')));
+
+        $id = $this->upload($path)->assertCreated()->json('data.id');
+        $this->as($this->asman)->postJson("/api/nko/definition-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk();
+        $saidi = DB::table('kpi_definitions as d')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')->where('s.status', 'AKTIF')->where('s.unit_level', 'ULP')->where('d.code', 'saidi')->first(['d.id', 'd.name']);
+        $this->assertSame('Durasi Padam Rata-rata', $saidi->name);
+        $this->assertSame(7.0, (float) DB::table('kpi_targets')->where('definition_id', $saidi->id)->where('period', '2026-02-01')->value('target_value'));
+    }
+
+    #[Test]
+    public function kode_tidak_sah_ganda_atau_tidak_seragam_menghentikan_unggahan(): void
+    {
+        $ngoro = $this->makeUnit('ULP', $this->up3);
+        $ngoro->forceFill(['code' => '51454', 'name' => 'ULP Ngoro'])->save();
+        $tabs = ['UP3 MOJOKERTO', 'ULP JOMBANG', 'ULP NGORO'];
+
+        $errors = fn (array $cells) => implode(' ', $this->check($this->edited($this->book($tabs), ['ULP JOMBANG' => ['J9' => 'KODE'] + $cells]))['errors']);
+
+        $this->assertStringContainsString('baris 11: KODE "penjualan tl" tidak sah', $errors(['J11' => 'Penjualan TL']));
+        $this->assertStringContainsString('KODE "saidi" dipakai di baris 11 dan 13', $errors(['J11' => 'saidi', 'J13' => 'saidi']));
+        $this->assertStringContainsString('Tab ULP harus seragam: ULP NGORO tidak memiliki kolom KODE', $errors(['J13' => 'saidi']));
+    }
+
+    #[Test]
+    public function kode_yang_tidak_dikenal_diperingatkan_sebagai_item_baru(): void
+    {
+        app(NkoDefinitionImportService::class)->import($this->book(), 'awal.xlsx');
+
+        $report = $this->check($this->edited($this->book(), ['UP3 MOJOKERTO' => ['J9' => 'KODE', 'J13' => 'saidi-typo']]));
+        $up3 = array_column($report['changes'], null, 'level')['UP3'];
+
+        $this->assertTrue($report['can_upload']);
+        $this->assertSame(['saidi-typo'], array_column($up3['added'], 'code'));
+        $this->assertStringContainsString('KODE saidi-typo (SAIDI) tidak ada di versi 2026 v1; dianggap item baru', implode(' ', $up3['alerts']));
     }
 
     private function viewerOf(): User

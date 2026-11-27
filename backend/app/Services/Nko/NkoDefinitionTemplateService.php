@@ -27,14 +27,15 @@ class NkoDefinitionTemplateService
         '',
         '1. Satu tab per unit, bernama "UP3 <nama unit>" atau "ULP <nama unit>" persis seperti di master unit DISTRIVA. Tab lain (seperti tab ini) dilewati.',
         '2. Baris 9 adalah judul kolom: A NO, B KPI, C POLARITAS, D FORMULA, E SATUAN, F BOBOT. Sel H9 berisi tahun, mis. "TARGET 2026", dan harus sama dengan tahun yang dipilih saat unggah.',
-        '3. Kelompok: nomor di kolom A. Indikator: "a. Nama" di kolom B. Sub-indikator: "- Nama" di kolom B. Berganti nama berarti item baru; aturan realisasinya perlu diusulkan ulang.',
-        '4. Polaritas: 1 atau Negatif (makin kecil makin baik), 2 atau Rentang, 3 atau Positif (makin besar makin baik).',
-        '5. Jumlah bobot kelompok harus 100. Bobot pengurang ditulis sebagai teks, mis. "Max-8".',
-        '6. Target kumulatif per bulan di kolom M (Januari) sampai X (Desember); wajib diisi untuk setiap item berbobot.',
-        '7. Kolom I "SUMBER REALISASI": nama lembar sumber realisasi; kosong berarti item tidak butuh realisasi.',
-        '8. Blok bulanan mulai kolom Z (TARGET, REALISASI, PENCAPAIAN, NILAI, tiap bulan 8 kolom) memuat rumus pencapaian dan nilai. Jangan menggeser kolom atau baris TOTAL.',
-        '9. Bila ada rumus yang merujuk workbook lain, buka di Excel, perbarui tautan, lalu simpan sebelum diunggah: yang dibaca adalah nilai terakhir yang tersimpan.',
-        '10. Unggahan baru berlaku setelah disetujui ASMAN_PERENCANAAN.',
+        '3. Kelompok: nomor di kolom A. Indikator: "a. Nama" di kolom B. Sub-indikator: "- Nama" di kolom B.',
+        '4. Kolom J "KODE" adalah kunci item lintas versi: jangan diubah, juga saat item berganti nama, agar target dan aturan realisasinya tetap tersambung. Kosongkan untuk item baru; kodenya dibentuk dari nama.',
+        '5. Polaritas: 1 atau Negatif (makin kecil makin baik), 2 atau Rentang, 3 atau Positif (makin besar makin baik).',
+        '6. Jumlah bobot kelompok harus 100. Bobot pengurang ditulis sebagai teks, mis. "Max-8".',
+        '7. Target kumulatif per bulan di kolom M (Januari) sampai X (Desember); wajib diisi untuk setiap item berbobot.',
+        '8. Kolom I "SUMBER REALISASI": nama lembar sumber realisasi; kosong berarti item tidak butuh realisasi.',
+        '9. Blok bulanan mulai kolom Z (TARGET, REALISASI, PENCAPAIAN, NILAI, tiap bulan 8 kolom) memuat rumus pencapaian dan nilai. Jangan menggeser kolom atau baris TOTAL.',
+        '10. Bila ada rumus yang merujuk workbook lain, buka di Excel, perbarui tautan, lalu simpan sebelum diunggah: yang dibaca adalah nilai terakhir yang tersimpan.',
+        '11. Unggahan baru berlaku setelah disetujui ASMAN_PERENCANAAN.',
     ];
 
     /** @throws NkoRuleException 404 bila belum ada definisi sama sekali */
@@ -64,7 +65,10 @@ class NkoDefinitionTemplateService
             }
         }
         if ($tabs === 0) {
-            throw new NkoRuleException('Belum ada definisi NKO untuk dijadikan template.', 404);
+            $years = DB::table('kpi_definition_sets')->where('status', 'AKTIF')->distinct()->orderBy('year')->pluck('year')->map(fn ($y) => (string) $y)->all();
+            throw new NkoRuleException($years === []
+                ? 'Belum ada definisi NKO aktif untuk dijadikan template. Muat workbook definisi lebih dulu.'
+                : "Belum ada definisi NKO tahun {$year} atau sebelumnya untuk dijadikan template. Definisi aktif tersedia untuk tahun ".implode(', ', $years).'; pilih tahun itu atau sesudahnya.', 404);
         }
 
         $writer = new Xlsx($book);
@@ -98,7 +102,7 @@ class NkoDefinitionTemplateService
         $text = fn (string $cell, ?string $value) => $value === null || $value === '' ? null : $ws->setCellValueExplicit($cell, $value, DataType::TYPE_STRING);
         $text('A1', 'DEFINISI NKO '.Str::upper($unit->name));
         $text('A2', "TAHUN {$year}");
-        foreach (['A' => 'NO', 'B' => 'KPI', 'C' => 'POLARITAS', 'D' => 'FORMULA', 'E' => 'SATUAN', 'F' => 'BOBOT', 'H' => "TARGET {$year}", NkoWorkbookReader::SOURCE_COLUMN => NkoWorkbookReader::SOURCE_HEADER] as $col => $label) {
+        foreach (['A' => 'NO', 'B' => 'KPI', 'C' => 'POLARITAS', 'D' => 'FORMULA', 'E' => 'SATUAN', 'F' => 'BOBOT', 'H' => "TARGET {$year}", NkoWorkbookReader::SOURCE_COLUMN => NkoWorkbookReader::SOURCE_HEADER, NkoWorkbookReader::CODE_COLUMN => NkoWorkbookReader::CODE_HEADER] as $col => $label) {
             $text($col.$row, $label);
         }
         $monthNames = array_flip(NkoWorkbookReader::MONTHS);
@@ -143,6 +147,7 @@ class NkoDefinitionTemplateService
             $text('E'.$r, $d->unit_label);
             $d->weight !== null ? $ws->setCellValue('F'.$r, (float) $d->weight) : $text('F'.$r, $d->weight_note);
             $text(NkoWorkbookReader::SOURCE_COLUMN.$r, $d->source_sheet);
+            $text(NkoWorkbookReader::CODE_COLUMN.$r, $d->code);
             foreach ($targets[$d->id] ?? [] as $month => $value) {
                 $cell = NkoWorkbookReader::TARGET_COLUMNS[$month - 1].$r;
                 is_string($value) ? $text($cell, $value) : $ws->setCellValue($cell, $value);
@@ -179,6 +184,7 @@ class NkoDefinitionTemplateService
         }
         $ws->getColumnDimension('B')->setWidth(60);
         $ws->getColumnDimension('D')->setWidth(40);
+        $ws->getColumnDimension(NkoWorkbookReader::CODE_COLUMN)->setWidth(28);
         $ws->freezePane('C'.($row + 2));
     }
 

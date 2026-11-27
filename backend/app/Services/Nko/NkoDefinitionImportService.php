@@ -155,9 +155,10 @@ class NkoDefinitionImportService
             ]);
 
             $idByRow = [];
+            $idByCode = [];
             $rows = [];
             foreach ($canon['nodes'] as $n) {
-                $idByRow[$n['row_no']] = (string) Str::uuid7();
+                $idByRow[$n['row_no']] = $idByCode[$n['code']] = (string) Str::uuid7();
             }
             foreach ($canon['nodes'] as $n) {
                 $rows[] = [
@@ -178,14 +179,12 @@ class NkoDefinitionImportService
                     continue;
                 }
                 $unitNames[] = $s['unit_name'];
+                // tiap tab dicocokkan dengan tab acuan menurut kode item, bukan nomor baris
                 $byRow = $s['targets'];
                 $batch = [];
                 foreach ($s['nodes'] as $n) {
-                    $defId = $idByRow[$n['row_no']] ?? null;
-                    foreach ($byRow[$n['row_no']] ?? [] as $month => $t) {
-                        if ($defId === null || ! isset($idByRow[$n['row_no']])) {
-                            continue;
-                        }
+                    $defId = $idByCode[$n['code']] ?? null;
+                    foreach ($defId === null ? [] : $byRow[$n['row_no']] ?? [] as $month => $t) {
                         $batch[] = ['definition_id' => $defId, 'organizational_unit_id' => $unitId, 'period' => sprintf('%04d-%02d-01', $year, $month), 'target_value' => $t['value'], 'target_text' => $t['text']];
                     }
                 }
@@ -193,9 +192,9 @@ class NkoDefinitionImportService
                     DB::table('kpi_targets')->insert($chunk);
                 }
                 $targets += count($batch);
-                $this->storeReference($s, $unitId, $year, $setId, $idByRow);
+                $this->storeReference($s, $unitId, $year, $setId, $idByCode);
                 if ($s['sheet'] !== $canon['sheet']) {
-                    $this->storeUnitRules($canon, $s, $unitId, $idByRow);
+                    $this->storeUnitRules($canon, $s, $unitId, $idByCode);
                 }
             }
 
@@ -208,9 +207,9 @@ class NkoDefinitionImportService
      *
      * @param  array<string, mixed>  $canon
      * @param  array<string, mixed>  $sheet
-     * @param  array<int, string>  $idByRow
+     * @param  array<string, string>  $idByCode
      */
-    private function storeUnitRules(array $canon, array $sheet, string $unitId, array $idByRow): void
+    private function storeUnitRules(array $canon, array $sheet, string $unitId, array $idByCode): void
     {
         $base = [];
         foreach ($canon['nodes'] as $n) {
@@ -225,7 +224,7 @@ class NkoDefinitionImportService
             $mine = array_intersect_key($n['rules'], array_flip(['pencapaian', 'nilai', 'months']));
             $theirs = array_intersect_key($c['rules'], array_flip(['pencapaian', 'nilai', 'months']));
             if (json_encode($mine) !== json_encode($theirs)) {
-                $rows[] = ['definition_id' => $idByRow[$c['row_no']], 'organizational_unit_id' => $unitId, 'rules' => json_encode($mine, JSON_UNESCAPED_UNICODE)];
+                $rows[] = ['definition_id' => $idByCode[$c['code']], 'organizational_unit_id' => $unitId, 'rules' => json_encode($mine, JSON_UNESCAPED_UNICODE)];
             }
         }
         if ($rows !== []) {
@@ -237,14 +236,16 @@ class NkoDefinitionImportService
      * Angka acuan workbook per unit (realisasi, pencapaian, nilai per indikator dan bulan; total dan NKO akhir) untuk rekonsiliasi mesin hitung.
      *
      * @param  array<string, mixed>  $sheet
-     * @param  array<int, string>  $idByRow
+     * @param  array<string, string>  $idByCode
      */
-    private function storeReference(array $sheet, string $unitId, int $year, string $setId, array $idByRow): void
+    private function storeReference(array $sheet, string $unitId, int $year, string $setId, array $idByCode): void
     {
+        $codes = array_column($sheet['nodes'], 'code', 'row_no');
         $batch = [];
         foreach ($sheet['reference'] as $row => $months) {
-            foreach ($months as $month => $v) {
-                $batch[] = ['definition_id' => $idByRow[$row], 'organizational_unit_id' => $unitId, 'period' => sprintf('%04d-%02d-01', $year, $month), 'realisasi' => $v['real'], 'pencapaian' => $v['capai'], 'nilai' => $v['nilai']];
+            $defId = $idByCode[$codes[$row] ?? ''] ?? null;
+            foreach ($defId === null ? [] : $months as $month => $v) {
+                $batch[] = ['definition_id' => $defId, 'organizational_unit_id' => $unitId, 'period' => sprintf('%04d-%02d-01', $year, $month), 'realisasi' => $v['real'], 'pencapaian' => $v['capai'], 'nilai' => $v['nilai']];
             }
         }
         foreach (array_chunk($batch, 500) as $chunk) {

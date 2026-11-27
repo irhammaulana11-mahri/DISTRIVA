@@ -56,7 +56,12 @@ class NkoDefinitionCheckService
         }
         unset($tab);
 
-        foreach ($book['levels'] as $plan) {
+        foreach ($book['levels'] as $level => $plan) {
+            $withCode = array_column(array_filter($plan['sheets'], fn (array $s) => $s['code_column']), 'sheet');
+            if ($withCode !== [] && count($withCode) < count($plan['sheets'])) {
+                $without = array_diff(array_column($plan['sheets'], 'sheet'), $withCode);
+                $report['errors'][] = "Tab {$level} harus seragam: ".implode(', ', $without).' tidak memiliki kolom KODE (sel J9) sementara tab lain memilikinya.';
+            }
             foreach ($plan['warnings'] as $warning) {
                 if (! str_contains($warning, 'unit tidak ada di master unit')) {
                     $report['warnings'][] = $warning;

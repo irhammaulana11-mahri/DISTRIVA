@@ -28,6 +28,15 @@ class NkoWorkbookReader
 
     public const SOURCE_HEADER = 'SUMBER REALISASI';
 
+    /** kolom opsional berisi kode item tetap (docs/93 §11): kode menghubungkan item lintas versi sehingga ganti nama tidak memutus target dan aturan */
+    public const CODE_COLUMN = 'J';
+
+    public const CODE_HEADER = 'KODE';
+
+    public const CODE_PATTERN = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
+
+    public const CODE_MAX = 64;
+
     private const POLARITY_TEXT = ['negatif' => 1, 'rentang' => 2, 'range' => 2, 'positif' => 3];
 
     public const MONTHS = ['JANUARI' => 1, 'FEBRUARI' => 2, 'MARET' => 3, 'APRIL' => 4, 'MEI' => 5, 'JUNI' => 6, 'JULI' => 7, 'AGUSTUS' => 8, 'SEPTEMBER' => 9, 'OKTOBER' => 10, 'NOVEMBER' => 11, 'DESEMBER' => 12];
@@ -82,7 +91,9 @@ class NkoWorkbookReader
      * `uncached_targets`: sel target berisi rumus tanpa nilai tersimpan (rumus ke workbook lain yang belum dihitung); `uncached_scores`: sel pencapaian yang belum
      * pernah dihitung (berkas belum dibuka di Excel); `polarity_text`: polaritas tertulis yang dikonversi.
      *
-     * @return array{year: int, nodes: list<array<string, mixed>>, targets: array<int, array<int, array{value: ?float, text: ?string}>>, month_rules: array<int, array<string, mixed>>, total_weight: ?float, warnings: list<string>, uncached_targets: int, uncached_scores: int, polarity_text: int}
+     * `code_column`: tab memakai kolom KODE; node membawa `code_given` (kode dari kolom KODE, bukan dibentuk dari nama).
+     *
+     * @return array{year: int, code_column: bool, nodes: list<array<string, mixed>>, targets: array<int, array<int, array{value: ?float, text: ?string}>>, month_rules: array<int, array<string, mixed>>, total_weight: ?float, warnings: list<string>, uncached_targets: int, uncached_scores: int, polarity_text: int}
      */
     private function readSheet(Worksheet $ws): array
     {
@@ -98,6 +109,7 @@ class NkoWorkbookReader
         }
         $year = (int) $ym[1];
         $sourceColumn = strtoupper(trim((string) $ws->getCell(self::SOURCE_COLUMN.self::HEADER_ROW)->getValue())) === self::SOURCE_HEADER;
+        $codeColumn = strtoupper(trim((string) $ws->getCell(self::CODE_COLUMN.self::HEADER_ROW)->getValue())) === self::CODE_HEADER;
         $uncached = 0;
         $polarityText = 0;
 
@@ -125,7 +137,8 @@ class NkoWorkbookReader
         $targets = [];
         $stack = [];
         $order = 0;
-        $codes = [];
+        $given = $codeColumn ? $this->givenCodes($ws, $totalRow) : [];
+        $codes = array_flip($given);
         for ($r = self::FIRST_ROW; $r < $totalRow; $r++) {
             $a = trim((string) $ws->getCell('A'.$r)->getValue());
             $b = trim((string) $ws->getCell('B'.$r)->getValue());
@@ -150,11 +163,14 @@ class NkoWorkbookReader
                 $parentRow = $stack[array_key_last($stack)]['row'];
             }
 
-            $code = rtrim(mb_substr(Str::slug($name), 0, 64), '-');
-            if (isset($codes[$code])) {
-                $code .= '-'.$r;
+            $code = $given[$r] ?? null;
+            if ($code === null) {
+                $code = rtrim(mb_substr(Str::slug($name), 0, self::CODE_MAX), '-');
+                if (isset($codes[$code])) {
+                    $code .= '-'.$r;
+                }
+                $codes[$code] = true;
             }
-            $codes[$code] = true;
 
             $rules = $this->rules($ws, $r, $blocks, $warnings, $sourceColumn);
             $nodes[] = [
@@ -163,6 +179,7 @@ class NkoWorkbookReader
                 'level' => $level,
                 'parent_row' => $parentRow,
                 'code' => $code,
+                'code_given' => isset($given[$r]),
                 'number' => $number,
                 'name' => $name,
                 'polarity' => $this->polarity($cValue, "Tab {$ws->getTitle()} baris {$r}", $warnings, $polarityText),
@@ -224,8 +241,36 @@ class NkoWorkbookReader
             $warnings[] = "Tab {$ws->getTitle()}: jumlah bobot kelompok {$totalWeight}, bukan 100.";
         }
 
-        return ['year' => $year, 'nodes' => $nodes, 'targets' => $targets, 'reference' => $reference, 'month_rules' => $monthRules, 'total_weight' => $totalWeight, 'warnings' => $warnings,
+        return ['year' => $year, 'code_column' => $codeColumn, 'nodes' => $nodes, 'targets' => $targets, 'reference' => $reference, 'month_rules' => $monthRules, 'total_weight' => $totalWeight, 'warnings' => $warnings,
             'uncached_targets' => $uncached, 'uncached_scores' => $uncachedScores, 'polarity_text' => $polarityText];
+    }
+
+    /**
+     * Kode dari kolom KODE per baris item; sel kosong berarti item baru (kodenya dibentuk dari nama).
+     *
+     * @return array<int, string> baris => kode
+     *
+     * @throws NkoImportException kode tidak sah atau ganda
+     */
+    private function givenCodes(Worksheet $ws, int $totalRow): array
+    {
+        $codes = [];
+        for ($r = self::FIRST_ROW; $r < $totalRow; $r++) {
+            $code = Str::lower(trim((string) $ws->getCell(self::CODE_COLUMN.$r)->getValue()));
+            if ($code === '' || trim((string) $ws->getCell('B'.$r)->getValue()) === '') {
+                continue;
+            }
+            if (! preg_match(self::CODE_PATTERN, $code) || strlen($code) > self::CODE_MAX) {
+                throw new NkoImportException("Tab {$ws->getTitle()} baris {$r}: KODE \"{$code}\" tidak sah; hanya huruf kecil, angka, dan tanda minus (paling banyak ".self::CODE_MAX.' karakter).');
+            }
+            $twin = array_search($code, $codes, true);
+            if ($twin !== false) {
+                throw new NkoImportException("Tab {$ws->getTitle()}: KODE \"{$code}\" dipakai di baris {$twin} dan {$r}; tiap item harus berkode unik.");
+            }
+            $codes[$r] = $code;
+        }
+
+        return $codes;
     }
 
     /**

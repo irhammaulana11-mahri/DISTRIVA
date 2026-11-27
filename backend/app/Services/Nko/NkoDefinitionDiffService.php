@@ -111,6 +111,10 @@ class NkoDefinitionDiffService
         if ($ruled !== []) {
             $alerts[] = 'Item hilang yang punya aturan realisasi: '.implode(', ', $ruled).'.';
         }
+        $unknown = array_map(fn (array $n) => "{$n['code']} ({$n['name']})", array_filter(array_diff_key($new, $old), fn (array $n) => $n['code_given'] ?? false));
+        if ($unknown !== []) {
+            $alerts[] = 'KODE '.implode(', ', $unknown)." tidak ada di versi {$result['compared_with']}; dianggap item baru. Bila ini item lama, perbaiki KODE-nya agar target dan aturannya tetap tersambung.";
+        }
         if ($result['possible_renames'] !== []) {
             $alerts[] = count($result['possible_renames']).' item kemungkinan berganti nama. Setelah disetujui, usulkan aturan untuk nama baru dengan menunjuk kode lama.';
         }
@@ -180,7 +184,7 @@ class NkoDefinitionDiffService
             if ($unitId === null) {
                 continue;
             }
-            $codes = array_column($plan['canon']['nodes'], 'code', 'row_no');
+            $codes = array_column($sheet['nodes'], 'code', 'row_no');
             $incoming = [];
             foreach ($sheet['targets'] as $row => $months) {
                 $code = $codes[$row] ?? null;

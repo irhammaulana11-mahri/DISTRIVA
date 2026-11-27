@@ -139,7 +139,7 @@ Pemeriksaan usulan (diulang saat disetujui): indikator ada di definisi aktif tah
 
 ### Item berganti nama
 
-Usulkan aturan untuk kode baru dengan `replaces_code` kode lama (rumus lama dan saran pengganti ada di `GET /rules/mapping`). Saat disetujui: masukan manual kode lama sejak bulan berlaku **disalin** ke kode baru (yang sudah ada tidak ditimpa), target menu pengusahaan mengikuti kode baru, dan kode lama tidak lagi dilaporkan sebagai aturan tanpa item.
+Usulkan aturan untuk kode baru dengan `replaces_code` kode lama (rumus lama dan saran pengganti ada di `GET /rules/mapping`). Saat disetujui: masukan manual kode lama sejak bulan berlaku **disalin** ke kode baru (yang sudah ada tidak ditimpa), target menu pengusahaan mengikuti kode baru, dan kode lama tidak lagi dilaporkan sebagai aturan tanpa item. Lewat template dengan KODE tetap (§11), ganti nama tidak memerlukan langkah ini.
 
 ### Perubahan pada API yang sudah ada
 
@@ -184,13 +184,14 @@ Galat (menghentikan unggahan):
 - jumlah bobot kelompok bukan 100;
 - sel target berisi rumus ke workbook lain tanpa nilai tersimpan;
 - item berbobot (bukan kelompok) tanpa target bulanan sama sekali, atau tanpa polaritas;
+- KODE (kolom J, §11) tidak sah atau dipakai dua baris dalam satu tab; sebagian tab satu tingkat memakai kolom KODE dan sebagian tidak;
 - isi workbook sudah pernah dimuat.
 
 Peringatan (unggahan tetap diterima): target sebagian bulan kosong; polaritas tertulis dikonversi (Negatif 1, Rentang 2, Positif 3; tulisan lain dilaporkan dan dianggap kosong); rumus pencapaian belum pernah dihitung (berkas belum dibuka di Excel, sehingga angka acuan pencapaian dan nilai tidak tersimpan); perbedaan definisi antartab sejenis.
 
 ### Template
 
-Satu tab `PETUNJUK` (aturan pengisian) dan satu tab per unit yang punya target, tab acuan lebih dulu. Baris, nomor, rumus pencapaian dan nilai per bulan (termasuk aturan khusus unit), baris TOTAL, dan rumus NKO akhir sama dengan workbook asal. Bedanya: realisasi ditulis sebagai angka, bukan rumus ke workbook lain, dan lembar sumbernya di kolom I `SUMBER REALISASI` (pembaca memakai kolom ini bila rumus realisasi tidak menyebut lembar sumber). Rumus disimpan tanpa hasil hitung; Excel menghitungnya saat berkas dibuka.
+Satu tab `PETUNJUK` (aturan pengisian) dan satu tab per unit, dengan kolom J `KODE` terisi untuk setiap item (§11), yang punya target, tab acuan lebih dulu. Baris, nomor, rumus pencapaian dan nilai per bulan (termasuk aturan khusus unit), baris TOTAL, dan rumus NKO akhir sama dengan workbook asal. Bedanya: realisasi ditulis sebagai angka, bukan rumus ke workbook lain, dan lembar sumbernya di kolom I `SUMBER REALISASI` (pembaca memakai kolom ini bila rumus realisasi tidak menyebut lembar sumber). Rumus disimpan tanpa hasil hitung; Excel menghitungnya saat berkas dibuka.
 
 Diuji pada data dev 2026 (27 Nov 2026): template dibuat dalam kurang dari 1 detik. Diunggah tanpa diubah: nol perubahan item, kolom, rumus, dan target. Setelah dibuka dan disimpan ulang di LibreOffice: 3.717 angka acuan dan 99 total identik dengan versi aktif.
 
@@ -206,8 +207,20 @@ Satu entri per tingkat unit (`UP3`, `ULP`):
 - `total_rule_changed`: rumus total atau nilai akhir NKO berubah
 - `targets_changed`: `{nama unit: jumlah target bulanan yang berbeda}` untuk item yang ada di kedua versi (`[]` bila tidak ada, dan antartahun tidak dibandingkan)
 - `units[]` yang targetnya akan dimuat, `warnings[]`
-- `alerts[]`: hal yang perlu diperhatikan penyetuju: unit yang punya target di versi pembanding tetapi tidak ada di workbook, jumlah indikator turun lebih dari 20%, item hilang yang punya aturan realisasi, dan jumlah dugaan ganti nama
+- `alerts[]`: hal yang perlu diperhatikan penyetuju: unit yang punya target di versi pembanding tetapi tidak ada di workbook, jumlah indikator turun lebih dari 20%, item hilang yang punya aturan realisasi, KODE yang diisi tetapi tidak ada di versi pembanding (dianggap item baru; biasanya salah ketik), dan jumlah dugaan ganti nama
 
 Angka acuan realisasi di dalam workbook (dipakai pratinjau rumus §9) ikut diganti saat disetujui, tetapi perbedaannya **tidak** ditampilkan di `changes[]`.
 
 Membaca workbook contoh (11 tab, 1,3 MB) sekitar 4 detik dan 175 MB memori; aplikasi menaikkan `memory_limit` sampai 512 MB untuk permintaan ini. `upload_max_filesize` PHP bawaan 2M, tetapi workbook contoh 1,3 MB; naikkan bila workbook membesar (docs/85).
+
+## 11. Kode item tetap (tahap 1 pemisahan definisi dan target)
+
+Rancangan lanjutan: definisi dan target dipisah menjadi Template Definisi dan Template Target per tingkat, dihubungkan oleh kode item; versi definisi diberi "berlaku mulai bulan" (pilihan A, bulan sebelumnya tetap memakai versi lama). Tahap 1 menyiapkan kodenya.
+
+Kode item (`kpi_definitions.code`) dipakai aturan realisasi, usulan aturan, masukan manual, baseline, dan analitik. Sebelumnya kode selalu dibentuk dari nama, sehingga ganti nama berarti item baru dan hubungan itu putus.
+
+- Kolom J dengan judul `KODE` di sel J9 (opsional). Bila ada, kode item dibaca dari kolom ini; sel kosong berarti item baru dan kodenya dibentuk dari nama seperti sebelumnya. Workbook lama tanpa kolom J tetap dibaca seperti dulu.
+- Format: huruf kecil, angka, dan tanda minus, paling banyak 64 karakter (huruf besar dikecilkan). Kode harus unik dalam satu tab.
+- Template (§10) menulis kode setiap item. Ganti nama di template dengan KODE tetap muncul di `changed[]` sebagai perubahan `name`, bukan item hilang dan item baru; target dan aturannya tetap tersambung.
+- Target, angka acuan, dan aturan khusus unit tiap tab dicocokkan dengan tab acuan menurut kode, bukan nomor baris. Diuji pada data dev 2026: impor ulang workbook REV 3 menghasilkan 4.260 target, 3.717 angka acuan, dan 31 aturan khusus unit yang sama dengan versi aktif.
+
