@@ -46,7 +46,7 @@ describe('MimsStockPullPage', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: /Tarik Stok dari MIMS/i })).toBeInTheDocument()
-      expect(screen.getByText(/Koneksi Aman & Perlindungan Kredensial/i)).toBeInTheDocument()
+      expect(screen.getByText(/Token Pribadi Pengguna & Cakupan Gudang/i)).toBeInTheDocument()
       expect(screen.getByText(/Gudang Utama Mojokerto/i)).toBeInTheDocument()
       expect(screen.getByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i)).toBeInTheDocument()
     })
@@ -171,5 +171,50 @@ describe('MimsStockPullPage', () => {
     expect(screen.getByText(/Perkiraan sisa/)).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '36')
     expect(screen.getByRole('button', { name: /Menarik Stok/i })).toBeDisabled()
+  })
+
+  it('memfilter daftar gudang berdasarkan selectedUp3Id dan mengirim up3_id pada syncStock & mimsRunActive (Butir 72)', async () => {
+    warehousesApi.list.mockImplementation(async (params) => {
+      if (params?.up3_id === 'up3-2') {
+        return { data: [{ id: 'wh-sby', code: '5112-1001', name: 'Gd UP3 Surabaya', plant: '5112', stor_loc: '1001' }] }
+      }
+      return { data: [{ id: 'wh-mjk', code: '5118-2080', name: 'Gd UP3 Mojokerto', plant: '5118', stor_loc: '2080' }] }
+    })
+    warehousesApi.syncStock.mockResolvedValue({ data: [] })
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <NotificationProvider>
+          <MimsStockPullPage asPage={true} embedded selectedUp3Id="up3-1" />
+        </NotificationProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Gd UP3 Mojokerto/i)).toBeInTheDocument()
+    expect(warehousesApi.list).toHaveBeenCalledWith({ up3_id: 'up3-1' })
+    expect(warehousesApi.mimsRunActive).toHaveBeenCalledWith({ up3_id: 'up3-1' })
+
+    // Ganti UP3 ke up3-2
+    rerender(
+      <MemoryRouter>
+        <NotificationProvider>
+          <MimsStockPullPage asPage={true} embedded selectedUp3Id="up3-2" />
+        </NotificationProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Gd UP3 Surabaya/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Gd UP3 Mojokerto/i)).not.toBeInTheDocument()
+    expect(warehousesApi.list).toHaveBeenCalledWith({ up3_id: 'up3-2' })
+
+    fireEvent.change(screen.getByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i), { target: { value: 'tok-123' } })
+    await userEvent.click(screen.getByRole('button', { name: /Tarik Stok Sekarang/i }))
+
+    await waitFor(() => {
+      expect(warehousesApi.syncStock).toHaveBeenCalledWith(
+        expect.objectContaining({ up3_id: 'up3-2' }),
+        expect.any(Function),
+      )
+    })
   })
 })

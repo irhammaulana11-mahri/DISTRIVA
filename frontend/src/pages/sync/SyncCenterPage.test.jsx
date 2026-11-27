@@ -96,7 +96,7 @@ describe('SyncCenterPage', () => {
   })
 
   it('3. menampilkan Live Status Bar dari GET /sync/active beserta antrean, pemicu, dan progres unit', async () => {
-    syncApi.active.mockResolvedValueOnce({
+    syncApi.active.mockResolvedValue({
       data: [
         {
           id: 'run-q-1',

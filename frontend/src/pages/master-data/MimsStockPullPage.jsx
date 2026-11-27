@@ -11,6 +11,7 @@ import MimsSettingsDrawer from './MimsSettingsDrawer.jsx'
 import MimsPullProgress from './MimsPullProgress.jsx'
 import { SyncRunMetaBadges, SyncConflictAlert } from '../sync/SyncRunStatusHelpers.jsx'
 import SyncTabLayout from '../sync/SyncTabLayout.jsx'
+import SyncUnitPicker from '../sync/SyncUnitPicker.jsx'
 import {
   IconRefresh,
   IconCheck,
@@ -74,14 +75,14 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
   const loadWarehouses = useCallback(async () => {
     setLoadingWarehouses(true)
     try {
-      const res = await warehousesApi.list()
+      const res = await warehousesApi.list(selectedUp3Id ? { up3_id: selectedUp3Id } : {})
       setWarehouses(res?.data || [])
     } catch {
       setWarehouses([])
     } finally {
       setLoadingWarehouses(false)
     }
-  }, [])
+  }, [selectedUp3Id])
 
   const loadTokenStatus = useCallback(async () => {
     try {
@@ -114,7 +115,7 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
 
   // Mengikuti penarikan yang sudah berjalan (dibuka belakangan, oleh pengguna lain, atau saat mulai bertabrakan).
   const attachToActiveRun = useCallback(async () => {
-    const active = await warehousesApi.mimsRunActive?.().catch(() => null)
+    const active = await warehousesApi.mimsRunActive?.(selectedUp3Id ? { up3_id: selectedUp3Id } : {}).catch(() => null)
     const run = active?.data
     if (!run) return false
     setMimsPulling(true)
@@ -129,7 +130,11 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
       setMimsRun(null)
     }
     return true
-  }, [finishWatching, failWatching])
+  }, [finishWatching, failWatching, selectedUp3Id])
+
+  useEffect(() => {
+    setMimsWarehouseIds([])
+  }, [selectedUp3Id])
 
   useEffect(() => {
     loadWarehouses()
@@ -158,6 +163,7 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
     try {
       const res = await warehousesApi.syncStock(
         {
+          ...(selectedUp3Id ? { up3_id: selectedUp3Id } : {}),
           ...(mimsUseSaved ? { use_saved_token: true } : { token: tokenToSend, ...(mimsSaveToken && { save_token: true }) }),
           warehouse_ids: mimsWarehouseIds.length > 0 ? mimsWarehouseIds : undefined,
           date: mimsDate || undefined,
@@ -184,22 +190,15 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
     }
   }
 
+  const activeErpWarehouses = warehouses.filter((w) => w.plant && w.stor_loc)
+
   const handleSelectAllWarehouses = () => {
-    const allIds = warehouses.filter((w) => w.plant && w.stor_loc).map((w) => w.id)
-    setMimsWarehouseIds(allIds)
+    setMimsWarehouseIds(activeErpWarehouses.map((w) => w.id))
   }
 
   const handleClearWarehouses = () => {
     setMimsWarehouseIds([])
   }
-
-  const activeErpWarehouses = warehouses.filter((w) => {
-    if (!w.plant || !w.stor_loc) return false
-    if (!selectedUp3Id) return true
-    const wUp3 = w.up3_id || w.unit?.parent_id || w.parent_id
-    if (!wUp3 && !w.unit_id) return true
-    return wUp3 === selectedUp3Id || w.unit_id === selectedUp3Id
-  })
 
   // Metrik KPI Hasil Penarikan
   const kpiStats = mimsResults
@@ -216,8 +215,168 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
 
   const handleBack = onClose || (() => navigate('/master-data/warehouses'))
 
-  const mimsActionCard = (
-    <form onSubmit={handleMimsPull} className={embedded ? 'p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-5' : 'space-y-6'}>
+  const warehousePickerItems = activeErpWarehouses.map((w) => ({
+    id: w.id,
+    code: w.code,
+    name: `${w.name} (${w.plant}/${w.stor_loc})`,
+  }))
+  const codeToId = new Map(activeErpWarehouses.map((w) => [w.code || w.id, w.id]))
+  const idToCode = new Map(activeErpWarehouses.map((w) => [w.id, w.code || w.id]))
+  const effectiveSelectedIds = mimsWarehouseIds.length > 0 ? mimsWarehouseIds : activeErpWarehouses.map((w) => w.id)
+  const effectiveSelectedCodes = effectiveSelectedIds.map((id) => idToCode.get(id)).filter(Boolean)
+  const toggleWarehouse = (code) => {
+    const id = codeToId.get(code)
+    if (!id) return
+    const next = effectiveSelectedIds.includes(id)
+      ? effectiveSelectedIds.filter((x) => x !== id)
+      : activeErpWarehouses.map((w) => w.id).filter((x) => x === id || effectiveSelectedIds.includes(x))
+    setMimsWarehouseIds(next.length === activeErpWarehouses.length ? [] : next)
+  }
+
+  const mimsActionCard = embedded ? (
+    <form onSubmit={handleMimsPull} className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div>
+          <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+            Tarik Stok &amp; Mutasi Material dari MIMS
+          </h3>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Eksekusi penarikan posisi stok fisik, pengeluaran, penerimaan, dan reservasi material secara online.
+          </p>
+        </div>
+        <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+          MIMS API
+        </span>
+      </div>
+
+      <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+        <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Data yang Ditarik:</div>
+        <p>
+          Token MIMS bersifat pribadi per akun pengguna; daftar gudang mengikuti cakupan UP3/ULP terpilih. Gunakan uji coba (dry run) bila hanya ingin memeriksa respons server.
+        </p>
+      </div>
+
+      {/* Token Sesi MIMS */}
+      <div className="space-y-2.5 pt-1">
+        <div className="flex items-center justify-between">
+          <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">Token Sesi MIMS</div>
+          {mimsSaved?.saved && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+              Token Tersimpan Tersedia
+            </span>
+          )}
+        </div>
+        {mimsSaved?.saved && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Sumber token MIMS">
+            <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${mimsUseSaved ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800' : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800'}`}>
+              <input type="radio" name="mims-source" checked={mimsUseSaved} onChange={() => setMimsUseSaved(true)} disabled={mimsPulling} className="mt-0.5" />
+              <div>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Gunakan token tersimpan</span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Disimpan {mimsSaved.saved_at ? new Date(mimsSaved.saved_at).toLocaleDateString('id-ID') : '-'}
+                </p>
+              </div>
+            </label>
+            <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${!mimsUseSaved ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800' : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800'}`}>
+              <input type="radio" name="mims-source" checked={!mimsUseSaved} onChange={() => setMimsUseSaved(false)} disabled={mimsPulling} className="mt-0.5" />
+              <span className="font-semibold text-slate-800 dark:text-slate-200">Tempel token baru</span>
+            </label>
+          </div>
+        )}
+        {!mimsUseSaved && (
+          <div className="space-y-2">
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="off"
+                required={!mimsUseSaved}
+                disabled={mimsPulling}
+                value={mimsToken}
+                onChange={(e) => setMimsToken(e.target.value)}
+                placeholder="Tempel token sesi MIMS Anda di sini..."
+                className="block w-full px-3 py-2 pr-10 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" title={showPassword ? 'Sembunyikan token' : 'Tampilkan token'}>
+                {showPassword ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+              </button>
+            </div>
+            <label className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={mimsSaveToken} onChange={(e) => setMimsSaveToken(e.target.checked)} disabled={mimsPulling} className="rounded text-blue-600 focus:ring-blue-500" />
+              <span>Simpan token ini untuk penarikan berikutnya</span>
+            </label>
+          </div>
+        )}
+      </div>
+
+      {/* Periode & Tanggal */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div>
+          <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Tanggal Cuplikan Stok</label>
+          <input type="date" disabled={mimsPulling} max={new Date().toISOString().slice(0, 10)} value={mimsDate} onChange={(e) => setMimsDate(e.target.value)} className="block w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60" />
+          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Kosongkan untuk menarik stok hari ini.</p>
+        </div>
+        <div>
+          <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Rentang Mutasi (Pengeluaran/Penerimaan)</label>
+          <div className="flex items-center gap-1.5">
+            <input type="date" aria-label="Rentang dari" disabled={mimsPulling} max={new Date().toISOString().slice(0, 10)} value={mimsFrom} onChange={(e) => setMimsFrom(e.target.value)} className="block w-full px-2.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60" />
+            <span className="text-slate-400 text-xs">s/d</span>
+            <input type="date" aria-label="Rentang sampai" disabled={mimsPulling || !mimsFrom} min={mimsFrom || undefined} max={new Date().toISOString().slice(0, 10)} value={mimsTo} onChange={(e) => setMimsTo(e.target.value)} className="block w-full px-2.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-60" />
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Kosongkan untuk 90 hari terakhir.</p>
+        </div>
+      </div>
+
+      {/* Jenis Data yang Ditarik */}
+      <div className="space-y-2 pt-1">
+        <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">Jenis Data yang Ditarik</div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: 'mims-do-stock', title: 'Stok Fisik Gudang', checked: mimsDoStock, set: setMimsDoStock },
+            { id: 'mims-do-issues', title: 'Pengeluaran Material', checked: mimsDoIssues, set: setMimsDoIssues },
+            { id: 'mims-do-receipts', title: 'Penerimaan Material', checked: mimsDoReceipts, set: setMimsDoReceipts },
+            { id: 'mims-do-reservations', title: 'Reservasi Material', checked: mimsDoReservations, set: setMimsDoReservations },
+          ].map((item) => (
+            <label key={item.id} htmlFor={item.id} className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs cursor-pointer select-none transition ${item.checked ? 'border-blue-300 bg-blue-50/70 text-blue-900 font-semibold dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200' : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'}`}>
+              <input type="checkbox" id={item.id} disabled={mimsPulling} checked={item.checked} onChange={(e) => item.set(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+              <span>{item.title}</span>
+            </label>
+          ))}
+        </div>
+        <label className="inline-flex items-center gap-2 pt-1 text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer">
+          <input type="checkbox" id="mims-dry-run" disabled={mimsPulling || !mimsDoStock} checked={mimsDryRun && mimsDoStock} onChange={(e) => setMimsDryRun(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+          <span>Uji coba tanpa menyimpan (dry run)</span>
+        </label>
+      </div>
+
+      {/* Pilihan Gudang (seragam dengan SyncUnitPicker EIS/Maximo) */}
+      <SyncUnitPicker
+        units={warehousePickerItems}
+        selected={effectiveSelectedCodes}
+        onToggle={toggleWarehouse}
+        onSelectAll={handleSelectAllWarehouses}
+        onClear={handleClearWarehouses}
+        disabled={mimsPulling}
+        tone="blue"
+        checkboxAriaPrefix="Tarik MIMS"
+      />
+
+      <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
+      {mimsPulling && mimsRun && <SyncRunMetaBadges run={mimsRun} />}
+      {mimsPulling && (mimsRun ? <MimsPullProgress run={mimsRun} /> : <MimsPullProgress run={{ status: 'QUEUED', warehouses_total: 0, results: [] }} />)}
+
+      <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <Button type="submit" variant="primary" size="md" loading={mimsPulling} disabled={mimsPulling || (!mimsUseSaved && !mimsToken.trim())} icon={IconRefresh} className="w-full sm:w-auto">
+          {mimsPulling ? 'Menarik Stok…' : 'Tarik Stok Sekarang'}
+        </Button>
+        {!mimsUseSaved && !mimsToken.trim() && (
+          <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+            Tempel token sesi MIMS atau gunakan token tersimpan terlebih dulu.
+          </span>
+        )}
+      </div>
+    </form>
+  ) : (
+    <form onSubmit={handleMimsPull} className="space-y-6">
       {embedded && (
         <>
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -819,6 +978,7 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
         {/* Drawer Pengaturan Tarik Otomatis & Token Sesi MIMS */}
         <MimsSettingsDrawer
           isOpen={settingsOpen}
+          selectedUp3Id={selectedUp3Id}
           onClose={() => setSettingsOpen(false)}
           onChanged={() => loadTokenStatus()}
         />

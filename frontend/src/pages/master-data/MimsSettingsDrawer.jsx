@@ -11,7 +11,7 @@ import { IconCheck, IconZap, IconHistory } from '../../components/icons.jsx'
  * Form Pengaturan Tarik Otomatis & Token Sesi MIMS.
  * Terpisah dari proses interaktif penarikan stok agar fokus dan tidak bercampur.
  */
-export default function MimsSettingsDrawer({ isOpen, onClose, onChanged }) {
+export default function MimsSettingsDrawer({ isOpen, selectedUp3Id = '', onClose, onChanged }) {
   const { notify } = useNotifications()
 
   const [loading, setLoading] = useState(true)
@@ -33,7 +33,7 @@ export default function MimsSettingsDrawer({ isOpen, onClose, onChanged }) {
     try {
       const [tokenRes, autoRes] = await Promise.all([
         warehousesApi.mimsTokenStatus(),
-        warehousesApi.mimsAutoSettings(),
+        warehousesApi.mimsAutoSettings(selectedUp3Id ? { up3_id: selectedUp3Id } : {}),
       ])
       const tok = tokenRes?.data || null
       const aut = autoRes?.data || null
@@ -71,6 +71,7 @@ export default function MimsSettingsDrawer({ isOpen, onClose, onChanged }) {
     setError('')
     try {
       const res = await warehousesApi.saveMimsAutoSettings({
+        ...(selectedUp3Id ? { up3_id: selectedUp3Id } : {}),
         auto_enabled: enabled,
         auto_time: autoTime,
         auto_stock: autoWhat.stock,
@@ -205,6 +206,11 @@ export default function MimsSettingsDrawer({ isOpen, onClose, onChanged }) {
             </div>
 
             {/* Bagian 2: Penjadwalan Tarik Otomatis Harian */}
+            {autoSettings?.can_manage_settings === false ? (
+              <Alert kind="info">
+                Pengaturan penjadwalan tarik otomatis tingkat UP3 hanya dapat diubah oleh admin tingkat UP3. Token pribadi Anda tetap dapat dikelola di atas.
+              </Alert>
+            ) : (
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs">
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
@@ -338,6 +344,7 @@ export default function MimsSettingsDrawer({ isOpen, onClose, onChanged }) {
                 </div>
               </div>
             </div>
+            )}
           </>
         )}
       </div>

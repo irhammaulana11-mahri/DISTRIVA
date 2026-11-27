@@ -77,6 +77,7 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [canManageSettings, setCanManageSettings] = useState(true)
   const [logRun, setLogRun] = useState(null)
   const timer = useRef(null)
   const logRef = useRef(null)
@@ -97,6 +98,7 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
       const res = await maximoSyncApi.show(targetUp3 ? { up3_id: targetUp3 } : {})
       const s = res?.data?.settings
       setSettings(s)
+      setCanManageSettings(res?.data?.can_manage_settings ?? true)
       if (res?.data?.up3s) setUp3s(res.data.up3s)
       const resolvedUp3Id = res?.data?.up3_id || targetUp3 || ''
       if (res?.data?.up3_id) setUp3Id(res.data.up3_id)
@@ -469,6 +471,11 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
             <div className="space-y-5 text-xs">
               {error && <Alert kind="error">{error}</Alert>}
               {notice && <Alert kind="success">{notice}</Alert>}
+              {!canManageSettings ? (
+                <Alert kind="info">
+                  Pengaturan akun &amp; jadwal tingkat UP3 hanya dapat diubah oleh admin tingkat UP3. Anda tetap dapat mengelola akun khusus ULP di bawah.
+                </Alert>
+              ) : (
               <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 pb-3 border-b border-slate-100 dark:border-slate-800">Akun & parameter Maximo</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -493,7 +500,9 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
                   </Field>
                 </div>
               </section>
+              )}
               <SyncUlpAccountsPanel source="maximo" up3Id={up3Id} title="Akun Maximo Khusus per ULP" />
+              {canManageSettings && (
               <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 pb-3 border-b border-slate-100 dark:border-slate-800">Sinkronisasi otomatis</h4>
                 <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 cursor-pointer">
@@ -515,6 +524,7 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
                   <Button onClick={save} loading={saving} variant="primary" size="md"><IconCheck size={14} className="mr-1.5" />Simpan Pengaturan</Button>
                 </div>
               </section>
+              )}
             </div>
           </Modal>
         </div>

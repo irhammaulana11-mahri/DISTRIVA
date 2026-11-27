@@ -76,6 +76,7 @@ export default function EisSyncDrawer({ open, asPage = false, embedded = false, 
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [canManageSettings, setCanManageSettings] = useState(true)
 
   // Tab internal jika mode = 'all' atau tidak ditentukan
   const [activeTab, setActiveTab] = useState(
@@ -131,6 +132,7 @@ export default function EisSyncDrawer({ open, asPage = false, embedded = false, 
       const res = await eisSyncApi.show(targetUp3 ? { up3_id: targetUp3 } : {})
       const s = res?.data?.settings
       setSettings(s)
+      setCanManageSettings(res?.data?.can_manage_settings ?? true)
       if (res?.data?.up3s) setUp3s(res.data.up3s)
       const resolvedUp3Id = res?.data?.up3_id || targetUp3 || ''
       if (res?.data?.up3_id) setUp3Id(res.data.up3_id)
@@ -1401,6 +1403,12 @@ export default function EisSyncDrawer({ open, asPage = false, embedded = false, 
             <div className="space-y-5 text-xs">
               {error && <Alert kind="error">{error}</Alert>}
               {notice && <Alert kind="success">{notice}</Alert>}
+              {!canManageSettings ? (
+                <Alert kind="info">
+                  Pengaturan akun &amp; jadwal tingkat UP3 hanya dapat diubah oleh admin tingkat UP3. Anda tetap dapat mengelola akun khusus ULP di bawah.
+                </Alert>
+              ) : (
+                <>
               {/* KARTU 1: Akun & Parameter Rentang EIS */}
               <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -1493,9 +1501,11 @@ export default function EisSyncDrawer({ open, asPage = false, embedded = false, 
               </section>
 
               {/* KARTU 1B: Akun Khusus per ULP (docs/94 §7) */}
+              </>
+              )}
               <SyncUlpAccountsPanel source="eis" up3Id={up3Id} title="Akun EIS Khusus per ULP" />
 
-              {/* KARTU 2: Sinkronisasi Otomatis Harian */}
+              {canManageSettings && (
               <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
@@ -1552,6 +1562,7 @@ export default function EisSyncDrawer({ open, asPage = false, embedded = false, 
                   </Button>
                 </div>
               </section>
+              )}
             </div>
           </Modal>
         </div>

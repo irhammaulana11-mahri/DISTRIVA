@@ -757,4 +757,25 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     expect(await screen.findByText('51451 - ULP Mojokerto')).toBeInTheDocument()
     expect(screen.getByText('Ikut Akun UP3')).toBeInTheDocument()
   })
+
+  it('mengunci pengaturan UP3 saat can_manage_settings false tetapi tetap membuka kelola akun ULP (Butir 71)', async () => {
+    eisSyncApi.show.mockResolvedValue({
+      data: {
+        settings,
+        can_manage_settings: false,
+        runs: [],
+        units: [{ id: 'ulp-1', code: '51451', name: 'ULP Mojokerto' }],
+      },
+    })
+    syncApi.accounts.mockResolvedValue({
+      data: [{ unit_id: 'ulp-1', code: '51451', name: 'ULP Mojokerto', has_own_account: false, username: null }],
+    })
+
+    render(<EisSyncDrawer open mode="permohonan" onClose={() => {}} />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Pengaturan' }))
+    expect(await screen.findByText(/hanya dapat diubah oleh admin tingkat UP3/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText('User EIS')).not.toBeInTheDocument()
+    expect(screen.getByText('Akun EIS Khusus per ULP')).toBeInTheDocument()
+  })
 })

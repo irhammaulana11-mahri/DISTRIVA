@@ -155,6 +155,7 @@ export default function OutageSyncPage({ embedded = false, selectedUp3Id = '', o
 
   const data = state.data
   const canSync = !!data?.can?.sync
+  const canSettings = Boolean(data?.can?.settings ?? data?.can?.sync)
   const running = !!activeRun
 
   const start = async () => {
@@ -236,7 +237,7 @@ export default function OutageSyncPage({ embedded = false, selectedUp3Id = '', o
   const feederOptions = (data.feeders || []).map((f) => ({ value: f.id, label: `${f.name}${f.gi_name ? ` · ${f.gi_name}` : ''}${f.code ? ` (${f.code})` : ''}` }))
   const last = s.last_run
 
-  const settingsFormBody = canSync && form && (
+  const settingsFormBody = canSettings && form && (
     <form onSubmit={save} className={embedded ? 'space-y-4 text-xs' : `${CARD} p-5 sm:p-6 space-y-4`}>
       {!embedded && (
         <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -298,8 +299,8 @@ export default function OutageSyncPage({ embedded = false, selectedUp3Id = '', o
           badge: s.sheet_id_set ? `Terhubung (${s.sheet_id_hint || 'Sheet'})` : 'Sheet Belum Diatur',
           badgeTone: s.sheet_id_set ? 'ok' : 'warn',
           desc: 'Gangguan penyulang dan recloser dibaca dari Google Sheet per UP3, harian otomatis atau manual.',
-          actionLabel: canSync ? 'Pengaturan' : undefined,
-          onAction: canSync ? () => setSettingsOpen(true) : undefined,
+          actionLabel: canSettings ? 'Pengaturan' : undefined,
+          onAction: canSettings ? () => setSettingsOpen(true) : undefined,
         }}
         alerts={
           <>
