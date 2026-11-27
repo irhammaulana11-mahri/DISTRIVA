@@ -17,6 +17,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 | # | Tanggal | Perubahan | Dokumen | Kebutuhan frontend | Status |
 |---|---|---|---|---|---|
+| 72 | 2026-11-27 | **BUG: tab Stok MIMS di Pusat Sinkronisasi mengabaikan pilihan UP3** (`MimsStockPullPage.jsx`): (1) daftar gudang menampilkan semua 130 gudang, karena filter memakai `w.up3_id` / `w.unit.parent_id` / `w.unit_id` yang tidak ada di respons `GET /master-data/warehouses` (hanya `unit {id, code, name}`), sehingga semua lolos; (2) **`up3_id` tidak dikirim** pada `syncStock`, `mimsRunActive`, dan pengaturan tarik otomatis, sehingga server memakai UP3 utama (Mojokerto) walau yang dipilih UP3 lain. Backend tidak berubah | docs/94 §5 | `warehousesApi.list({ up3_id: selectedUp3Id })` dan muat ulang saat UP3 berganti (buang filter di klien; kosongkan pilihan gudang lama); "Pilih Semua" hanya dari daftar itu; kirim `up3_id` pada `syncStock`, `mimsRunActive({ up3_id })`, `mimsAutoSettings({ up3_id })` dan penyimpanannya. Tes: ganti UP3 mengganti daftar dan badan permintaan memuat `up3_id` | BARU |
 
 ## Selesai
 

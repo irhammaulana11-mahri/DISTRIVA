@@ -390,18 +390,34 @@ export default function DilSyncDrawer({ open = true, asPage = false, embedded = 
       >
         {running && run && <SyncRunMetaBadges run={run} />}
         {running && run && <Progress run={run} />}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <section className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Pilih ULP &amp; Mulai Sinkron</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Centang ULP yang berkas DIL-nya ingin dimuat.</p>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Tarik Data DIL Pelanggan per ULP</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Eksekusi pemuatan daftar pelanggan (.mdb / .csv) dari folder inbox server.</p>
             </div>
-            <Button icon={IconUpload} onClick={start} loading={starting} disabled={!canStart}>
-              {running ? 'Sedang berjalan…' : `Mulai sinkron (${selected.length} ULP)`}
-            </Button>
+            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+              Inbox Server
+            </span>
+          </div>
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+            <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Data yang Ditarik:</div>
+            <p>
+              Berkas DIL dibaca per ULP secara berurutan; satu ULP yang gagal tidak menghentikan ULP lainnya.
+            </p>
           </div>
           {body}
-        </div>
+          <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <Button icon={IconUpload} onClick={start} loading={starting} disabled={!canStart} variant="primary" size="md" className="w-full sm:w-auto">
+              {running ? 'Sedang berjalan…' : `Mulai sinkron (${selected.length} ULP)`}
+            </Button>
+            {withFile.length === 0 && (
+              <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                Belum ada berkas DIL siap di folder inbox untuk unit terpilih.
+              </span>
+            )}
+          </div>
+        </section>
       </SyncTabLayout>
     )
   }

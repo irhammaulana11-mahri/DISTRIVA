@@ -216,75 +216,40 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
 
   const handleBack = onClose || (() => navigate('/master-data/warehouses'))
 
-  const content = (
-    <div className="space-y-6 text-xs">
-      {embedded ? (
-        <SyncTabLayout
-          stats={[
-            { label: 'Token MIMS', value: mimsSaved?.saved ? 'Tersimpan' : 'Tempel Manual', sub: 'Pribadi per akun pengguna' },
-            { label: 'Gudang Terdaftar', value: `${activeErpWarehouses.length} Gudang`, sub: 'Cakupan unit UP3/ULP' },
-            { label: 'Gudang Dipilih', value: `${mimsWarehouseIds.length || activeErpWarehouses.length} Gudang`, sub: 'Siap ditarik' },
-            { label: 'Status Penarikan', value: mimsPulling ? 'Berjalan' : mimsResults ? 'Selesai' : 'Siap', sub: mimsRun?.triggered_by?.name ? `Pemicu: ${mimsRun.triggered_by.name}` : 'Manual / Otomatis' },
-          ]}
-          banner={{
-            title: 'Token Pribadi Pengguna & Cakupan Gudang UP3/ULP',
-            badge: mimsSaved?.saved ? 'Token Tersimpan' : 'Token Belum Disimpan',
-            badgeTone: mimsSaved?.saved ? 'ok' : 'warn',
-            desc: 'Token sesi MIMS bersifat pribadi per akun pengguna (dienkripsi AES-256 dan tidak dibagi lintas admin), sedangkan daftar gudang yang ditarik mengikuti cakupan unit UP3/ULP Anda.',
-            actionLabel: 'Pengaturan Tarik Otomatis',
-            actionIcon: IconSettings,
-            onAction: () => setSettingsOpen(true),
-          }}
-        />
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60">
-          <div className="flex items-start gap-2.5">
-            <IconShieldCheck size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <div className="font-bold text-blue-950 dark:text-blue-100">
-                Token Pribadi Pengguna &amp; Cakupan Gudang UP3/ULP
-              </div>
-              <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                Token sesi MIMS bersifat pribadi per akun pengguna (dienkripsi AES-256 dan tidak dibagi lintas admin), sedangkan daftar gudang yang ditarik mengikuti cakupan unit UP3/ULP Anda.
+  const mimsActionCard = (
+    <form onSubmit={handleMimsPull} className={embedded ? 'p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-5' : 'space-y-6'}>
+      {embedded && (
+        <>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                Tarik Stok &amp; Mutasi Material dari MIMS
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Eksekusi penarikan posisi stok fisik, pengeluaran, penerimaan, dan reservasi material secara online.
               </p>
             </div>
+            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+              MIMS API
+            </span>
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setSettingsOpen(true)}
-            className="cursor-pointer"
-          >
-            <IconSettings size={14} className="mr-1.5" />
-            Pengaturan Tarik Otomatis
-          </Button>
-        </div>
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+            <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Data yang Ditarik:</div>
+            <p>
+              Token MIMS bersifat pribadi per akun pengguna; daftar gudang mengikuti cakupan UP3/ULP terpilih. Gunakan uji coba (dry run) bila hanya ingin memeriksa respons server.
+            </p>
+          </div>
+        </>
       )}
-
-        {/* Pesan Galat */}
-        {mimsError && (
-          <Alert kind="error">
-            <div className="font-semibold">{mimsError}</div>
-            {(mimsError.toLowerCase().includes('token ditolak') ||
-              mimsError.toLowerCase().includes('kedaluwarsa')) && (
-              <div className="mt-1 text-[11px]">
-                Token sesi Anda mungkin sudah kedaluwarsa. Silakan ambil token baru dari aplikasi MIMS lalu pilih opsi &quot;Tempel token baru&quot;.
-              </div>
-            )}
-          </Alert>
-        )}
-
-        <form onSubmit={handleMimsPull} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* KOLOM KIRI: Autentikasi & Cakupan Gudang */}
-            <div className="space-y-5">
-              {/* KARTU 1: Kredensial Token Sesi MIMS */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                    1. Autentikasi Token MIMS
-                  </h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* KOLOM KIRI: Autentikasi & Cakupan Gudang */}
+        <div className="space-y-5">
+          {/* KARTU 1: Kredensial Token Sesi MIMS */}
+          <div className={embedded ? 'space-y-3' : 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs'}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                {embedded ? 'Autentikasi Token MIMS' : '1. Autentikasi Token MIMS'}
+              </h3>
                   {mimsSaved?.saved && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                       Token Tersimpan Tersedia
@@ -390,12 +355,12 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
                 )}
               </div>
 
-              {/* KARTU 2: Filter Gudang ERP & Periode */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                    2. Pilihan Gudang & Periode
-                  </h3>
+          {/* KARTU 2: Filter Gudang ERP & Periode */}
+          <div className={embedded ? 'pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3' : 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs'}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                {embedded ? 'Pilihan Gudang & Periode' : '2. Pilihan Gudang & Periode'}
+              </h3>
                   <div className="flex items-center gap-2 text-[11px]">
                     <button
                       type="button"
@@ -494,13 +459,13 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
               </div>
             </div>
 
-            {/* KOLOM KANAN: Pilihan Jenis Data & Eksekusi */}
-            <div className="space-y-5">
-              {/* KARTU 3: Jenis Data yang Ditarik */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs">
-                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                  3. Jenis Data yang Ditarik
-                </h3>
+        {/* KOLOM KANAN: Pilihan Jenis Data & Eksekusi */}
+        <div className="space-y-5">
+          {/* KARTU 3: Jenis Data yang Ditarik */}
+          <div className={embedded ? 'space-y-3' : 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs'}>
+            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+              {embedded ? 'Jenis Data yang Ditarik' : '3. Jenis Data yang Ditarik'}
+            </h3>
 
                 <div className="space-y-2.5">
                   {[
@@ -581,11 +546,13 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
                 </div>
               </div>
 
-              {/* KARTU 4: Eksekusi Penarikan */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs">
-                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                  4. Eksekusi Penarikan
-                </h3>
+          {/* KARTU 4: Eksekusi Penarikan */}
+          <div className={embedded ? 'pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3' : 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs'}>
+            {!embedded && (
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                4. Eksekusi Penarikan
+              </h3>
+            )}
 
                 <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
                 {mimsPulling && mimsRun && <SyncRunMetaBadges run={mimsRun} />}
@@ -616,9 +583,9 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
             </div>
           </div>
         </form>
+  )
 
-        {/* AREA HASIL PENARIKAN (MIMS RESULTS) */}
-        {mimsResults && (
+  const mimsResultsSection = mimsResults && (
           <div ref={resultsRef} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 space-y-5 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
@@ -782,7 +749,72 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
               </table>
             </div>
           </div>
-        )}
+  )
+
+  const content = (
+    <div className="space-y-6 text-xs">
+      {embedded ? (
+        <SyncTabLayout
+          stats={[
+            { label: 'Token MIMS', value: mimsSaved?.saved ? 'Tersimpan' : 'Tempel Manual', sub: 'Pribadi per akun pengguna' },
+            { label: 'Gudang Terdaftar', value: `${activeErpWarehouses.length} Gudang`, sub: 'Cakupan unit UP3/ULP' },
+            { label: 'Gudang Dipilih', value: `${mimsWarehouseIds.length || activeErpWarehouses.length} Gudang`, sub: 'Siap ditarik' },
+            { label: 'Status Penarikan', value: mimsPulling ? 'Berjalan' : mimsResults ? 'Selesai' : 'Siap', sub: mimsRun?.triggered_by?.name ? `Pemicu: ${mimsRun.triggered_by.name}` : 'Manual / Otomatis' },
+          ]}
+          banner={{
+            title: 'Token Pribadi Pengguna & Cakupan Gudang UP3/ULP',
+            badge: mimsSaved?.saved ? 'Token Tersimpan' : 'Token Belum Disimpan',
+            badgeTone: mimsSaved?.saved ? 'ok' : 'warn',
+            desc: 'Token sesi MIMS bersifat pribadi per akun pengguna (dienkripsi AES-256 dan tidak dibagi lintas admin), sedangkan daftar gudang yang ditarik mengikuti cakupan unit UP3/ULP Anda.',
+            actionLabel: 'Pengaturan Tarik Otomatis',
+            actionIcon: IconSettings,
+            onAction: () => setSettingsOpen(true),
+          }}
+          alerts={
+            mimsError ? (
+              <Alert kind="error">
+                <div className="font-semibold">{mimsError}</div>
+              </Alert>
+            ) : null
+          }
+        >
+          {mimsActionCard}
+          {mimsResultsSection}
+        </SyncTabLayout>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60">
+            <div className="flex items-start gap-2.5">
+              <IconShieldCheck size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <div className="font-bold text-blue-950 dark:text-blue-100">
+                  Token Pribadi Pengguna &amp; Cakupan Gudang UP3/ULP
+                </div>
+                <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                  Token sesi MIMS bersifat pribadi per akun pengguna (dienkripsi AES-256 dan tidak dibagi lintas admin), sedangkan daftar gudang yang ditarik mengikuti cakupan unit UP3/ULP Anda.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setSettingsOpen(true)}
+              className="cursor-pointer"
+            >
+              <IconSettings size={14} className="mr-1.5" />
+              Pengaturan Tarik Otomatis
+            </Button>
+          </div>
+          {mimsError && (
+            <Alert kind="error">
+              <div className="font-semibold">{mimsError}</div>
+            </Alert>
+          )}
+          {mimsActionCard}
+          {mimsResultsSection}
+        </>
+      )}
 
         {/* Drawer Pengaturan Tarik Otomatis & Token Sesi MIMS */}
         <MimsSettingsDrawer

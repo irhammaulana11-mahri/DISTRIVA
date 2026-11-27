@@ -309,20 +309,36 @@ export default function OutageSyncPage({ embedded = false, selectedUp3Id = '', o
           </>
         }
       >
-        <section className={`${CARD} p-5 space-y-3`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <section className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Tarik Data Gangguan dari Google Sheet</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {s.sheet_id_set ? 'Menarik seluruh tab GID terdaftar pada UP3 terpilih.' : 'Isi tautan Google Sheet di Pengaturan terlebih dulu.'}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {s.sheet_id_set ? 'Eksekusi penarikan peristiwa gangguan penyulang dan recloser per UP3 secara online.' : 'Isi tautan Google Sheet pada tombol Pengaturan di atas terlebih dulu.'}
               </p>
             </div>
-            {canSync && (
-              <Button icon={IconRefresh} onClick={start} loading={starting || running} disabled={!s.sheet_id_set || running}>
-                {running ? 'Menyinkronkan…' : 'Sinkron sekarang'}
-              </Button>
-            )}
+            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+              Google Sheet
+            </span>
           </div>
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+            <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Data yang Ditarik:</div>
+            <p>
+              Membaca seluruh tab GID terdaftar ({(s.gids || []).length || 1} tab) untuk UP3 terpilih, menghitung SAIDI/SAIFI sesuai ambang ({s.saidi_min_minutes ?? 5} menit), dan menandai penyulang yang belum terpetakan.
+            </p>
+          </div>
+          {canSync && (
+            <div className="pt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <Button icon={IconRefresh} onClick={start} loading={starting || running} disabled={!s.sheet_id_set || running} variant="primary" size="md" className="w-full sm:w-auto">
+                {running ? 'Menyinkronkan…' : 'Sinkronkan Sekarang'}
+              </Button>
+              {!s.sheet_id_set && (
+                <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                  Simpan tautan Google Sheet pada Pengaturan terlebih dulu.
+                </span>
+              )}
+            </div>
+          )}
         </section>
 
         {data.unmatched.length > 0 && (
@@ -368,31 +384,31 @@ export default function OutageSyncPage({ embedded = false, selectedUp3Id = '', o
           </section>
         )}
 
-        <section className={`${CARD} p-5 space-y-3`}>
-          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <section className={`${CARD} overflow-hidden`}>
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
             <IconDatabase size={16} className="text-slate-500" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Riwayat sinkronisasi</h3>
+            <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">Riwayat Sinkronisasi Data Gangguan</h4>
           </div>
           {data.runs.length === 0 ? (
-            <p className="py-4 text-center text-xs text-slate-500">Belum ada sinkronisasi.</p>
+            <p className="p-6 text-center text-slate-500">Belum ada sesi sinkronisasi.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="text-left text-slate-500 border-b border-slate-100 dark:border-slate-800">
-                    <th className="py-2 pr-3 font-semibold">Waktu</th>
-                    <th className="py-2 pr-3 font-semibold">Pemicu</th>
-                    <th className="py-2 pr-3 font-semibold">Status</th>
-                    <th className="py-2 font-semibold">Hasil</th>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold text-[11px]">
+                    <th className="py-3 px-4">Waktu</th>
+                    <th className="py-3 px-4">Pemicu</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Hasil</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                   {data.runs.map((r) => (
-                    <tr key={r.id} className="border-b border-slate-50 dark:border-slate-800/60">
-                      <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(r.created_at)}</td>
-                      <td className="py-2 pr-3">{TRIGGER[r.trigger] || r.trigger}</td>
-                      <td className="py-2 pr-3"><StatusBadge status={r.status} /></td>
-                      <td className="py-2 text-slate-600 dark:text-slate-300">{r.status === 'FAILED' ? r.message || 'Gagal' : countsText(r.counts)}</td>
+                    <tr key={r.id}>
+                      <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">{fmtDate(r.created_at)}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{TRIGGER[r.trigger] || r.trigger}</td>
+                      <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{r.status === 'FAILED' ? r.message || 'Gagal' : countsText(r.counts)}</td>
                     </tr>
                   ))}
                 </tbody>

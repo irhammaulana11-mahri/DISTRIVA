@@ -335,9 +335,20 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
           {!settingsOpen && notice && <Alert kind="success">{notice}</Alert>}
 
           <section className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-white dark:bg-slate-900 shadow-xs space-y-4">
-            <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Tarik WO Inspeksi dari Maximo</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">WO berstatus COMP berjenis {settings?.work_type}; laporan tiap WO dibaca lalu dimuat sebagai pembacaan gardu yang sudah ada di master (gardu yang belum ada hanya dilaporkan).</p>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Tarik WO Inspeksi dari Maximo</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Eksekusi penarikan WO berstatus COMP berjenis {settings?.work_type} secara online.</p>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+                Maximo Pull
+              </span>
+            </div>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+              <div className="font-semibold text-slate-800 dark:text-slate-200">Cakupan Data yang Ditarik:</div>
+              <p>
+                Laporan tiap WO dibaca lalu dimuat sebagai pembacaan beban dan tegangan gardu yang sudah ada di master (gardu yang belum terdaftar hanya dilaporkan).
+              </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="WO selesai sejak tanggal (opsional)" hint={`Kosong = ${form.lookback_days} hari terakhir. Rentang panjang (mis. satu tahun) cukup ditarik sekali; penarikan berikutnya melewati WO yang sudah diambil.`}>
