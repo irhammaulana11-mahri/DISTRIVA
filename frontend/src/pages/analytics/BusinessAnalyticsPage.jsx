@@ -14,6 +14,7 @@ import OutageSyncDrawer from '../outages/OutageSyncDrawer.jsx'
 import BusinessForecastTab from './BusinessForecastTab.jsx'
 import BusinessHistoryTab from './BusinessHistoryTab.jsx'
 import ReliabilityFeederTab from './ReliabilityFeederTab.jsx'
+import { BreakdownCard, ComparisonCard } from './AnalyticsDetailsSection.jsx'
 import ReceivableAgingTab from './ReceivableAgingTab.jsx'
 import SalesDecompositionTab from './SalesDecompositionTab.jsx'
 import LossAnalysisTab from './LossAnalysisTab.jsx'
@@ -22,6 +23,7 @@ import AnomalyAnalysisTab from './AnomalyAnalysisTab.jsx'
 import P2tlFunnelTab from './P2tlFunnelTab.jsx'
 import ConnectionFeeQueueTab from './ConnectionFeeQueueTab.jsx'
 import CustomerGrowthTab from './CustomerGrowthTab.jsx'
+import GrowthAnalysisSection from './GrowthAnalysisSection.jsx'
 import PrepaidReceivableTab from './PrepaidReceivableTab.jsx'
 import { DemandForecast } from '../forecast/ForecastPage.jsx'
 import { CustomerAnalysisContent } from '../customer-analysis/CustomerAnalysisPage.jsx'
@@ -138,6 +140,67 @@ function PolarityPctBadge({ pct, polarity = 'up', label = '' }) {
 /** Komponen grafik tren SVG interaktif (values vs previous_year)
  * Didesain full-width (kiri s/d kanan), legenda di atas kiri, dan kartu tooltip mengambang persis di atas chart saat hover.
  */
+const FLOW_METRICS = new Set([
+  'kwh-jual',
+  'pendapatan',
+  'hpl-bp',
+  'pelunasan-prr',
+  'pelunasan-ex-prr',
+  'kwh-p2tl',
+  'gangguan',
+  'saidi-saifi',
+  'ens',
+])
+
+const POSITION_DELTA_METRICS = new Set(['pelanggan', 'daya'])
+
+function buildYtdSeries(months, vals) {
+  let acc = 0
+  let currentYear = null
+  return vals.map((v, idx) => {
+    const yr = String(months[idx] || '').slice(0, 4)
+    if (yr !== currentYear) {
+      currentYear = yr
+      acc = 0
+    }
+    if (v === null || v === undefined) return null
+    acc += Number(v)
+    return acc
+  })
+}
+
+function buildPositionDeltaSeries(months, vals, prevYearVals) {
+  // Cari nilai posisi Desember tahun sebelumnya sebagai baseline penambahan YTD
+  const decByYear = {}
+  months.forEach((m, idx) => {
+    const s = String(m || '')
+    if (s.endsWith('-12') && vals[idx] !== null && vals[idx] !== undefined) {
+      decByYear[s.slice(0, 4)] = Number(vals[idx])
+    }
+    if (s.endsWith('-12') && prevYearVals[idx] !== null && prevYearVals[idx] !== undefined) {
+      const prevYr = String(Number(s.slice(0, 4)) - 1)
+      if (decByYear[prevYr] === undefined) {
+        decByYear[prevYr] = Number(prevYearVals[idx])
+      }
+    }
+  })
+
+  return vals.map((v, idx) => {
+    if (v === null || v === undefined) return null
+    const yr = String(months[idx] || '').slice(0, 4)
+    const prevYr = String(Number(yr) - 1)
+    const base = decByYear[prevYr]
+    if (base !== undefined) {
+      return Number(v) - base
+    }
+    const prevSameMonth = prevYearVals[idx]
+    if (prevSameMonth !== null && prevSameMonth !== undefined) {
+      return Number(v) - Number(prevSameMonth)
+    }
+    return null
+  })
+}
+
 function MetricTrendChart({
   months = [],
   series = [],
@@ -149,6 +212,8 @@ function MetricTrendChart({
   incompleteMonths = [],
   metricCode,
   events = [],
+  ytdMode,
+  targets = [],
 }) {
   const [hoverData, setHoverData] = useState(null)
   const containerRef = useRef(null)
@@ -156,7 +221,23 @@ function MetricTrendChart({
   // Khusus rpt-rct-gangguan: kita tampilkan tab ukuran: RPT, RCT, Jumlah WO
   const isRptRctGangguan = metricCode === 'rpt-rct-gangguan'
   const isApktMetric = metricCode === 'rpt-rct-gangguan' || metricCode === 'rpt-rct-keluhan' || metricCode === 'anomali-gangguan' || metricCode === 'anomali-keluhan'
+  const isFlowMetric = FLOW_METRICS.has(metricCode)
+  const isPositionDeltaMetric = POSITION_DELTA_METRICS.has(metricCode) || ytdMode === 'last'
+
+  const hasDeltaTarget = useMemo(
+    () => isPositionDeltaMetric && (targets || []).some((t) => typeof t.target === 'number'),
+    [isPositionDeltaMetric, targets],
+  )
+
   const [rptRctTab, setRptRctTab] = useState('rpt') // 'rpt' | 'rct' | 'jumlah'
+  const [viewMode, setViewMode] = useState(() => (hasDeltaTarget ? 'delta' : 'monthly')) // 'monthly' | 'ytd' | 'delta'
+
+  // Reset viewMode saat berganti metrik
+  useEffect(() => {
+    setViewMode(hasDeltaTarget ? 'delta' : 'monthly')
+  }, [metricCode, hasDeltaTarget])
+
+  const supportsYtdToggle = isFlowMetric && ytdMode !== 'last'
 
   const activeSeries = useMemo(() => {
     if (isRptRctGangguan) {
@@ -175,27 +256,62 @@ function MetricTrendChart({
     return null
   }, [series, isRptRctGangguan, rptRctTab])
 
-  const values = activeSeries?.values || []
-  const previousYear = isRptRctGangguan ? (companionSeries?.values || []) : (activeSeries?.previous_year || [])
+  const rawValues = activeSeries?.values || []
+  const rawPreviousYear = isRptRctGangguan ? (companionSeries?.values || []) : (activeSeries?.previous_year || [])
+
+  const isYtdView = supportsYtdToggle && viewMode === 'ytd'
+  const isDeltaView = isPositionDeltaMetric && viewMode === 'delta'
+
+  const values = useMemo(() => {
+    if (isYtdView) return buildYtdSeries(months, rawValues)
+    if (isDeltaView) return buildPositionDeltaSeries(months, rawValues, rawPreviousYear)
+    return rawValues
+  }, [isYtdView, isDeltaView, months, rawValues, rawPreviousYear])
+
+  const previousYear = useMemo(() => {
+    if (isYtdView) return buildYtdSeries(months, rawPreviousYear)
+    if (isDeltaView) return [] // Mode delta YTD berfokus pada penambahan terhadap target
+    return rawPreviousYear
+  }, [isYtdView, isDeltaView, months, rawPreviousYear])
+
+  // Garis acuan Target NKO hanya tampil bila skala datanya sebanding:
+  // - Metrik aliran: hanya di mode Kumulatif (YTD)
+  // - Metrik posisi (Pelanggan/Daya): hanya di mode Penambahan (Δ YTD) karena targetnya adalah penambahan
+  // - Metrik rasio/laju (RPT-RCT, Susut): langsung tampil
+  const matchingTarget = useMemo(() => {
+    if (!targets || targets.length === 0 || !activeSeries) return null
+    if (isFlowMetric && !isYtdView) return null
+    if (isPositionDeltaMetric && !isDeltaView) return null
+    const unitNorm = String(activeSeries.unit || '').trim().toLowerCase()
+    const found = targets.find((t) => {
+      if (t.target === null || t.target === undefined || typeof t.target !== 'number') return false
+      const tUnit = String(t.unit_label || '').trim().toLowerCase()
+      return !tUnit || !unitNorm || tUnit === unitNorm
+    })
+    return found || null
+  }, [targets, activeSeries, isFlowMetric, isYtdView, isPositionDeltaMetric, isDeltaView])
 
   // Hitung rentang nilai min & max
   const allNums = useMemo(() => {
     const list = []
-    values.forEach((v) => v !== null && list.push(v))
-    previousYear.forEach((v) => v !== null && list.push(v))
+    values.forEach((v) => v !== null && v !== undefined && list.push(v))
+    previousYear.forEach((v) => v !== null && v !== undefined && list.push(v))
+    if (matchingTarget && typeof matchingTarget.target === 'number') {
+      list.push(matchingTarget.target)
+    }
     return list
-  }, [values, previousYear])
+  }, [values, previousYear, matchingTarget])
 
   const { minVal, maxVal } = useMemo(() => {
     if (allNums.length === 0) return { minVal: 0, maxVal: 100 }
     let mn = Math.min(...allNums)
     let mx = Math.max(...allNums)
     if (mn === mx) {
-      mn = mn * 0.9
+      mn = mn < 0 ? mn * 1.1 : mn * 0.9
       mx = mx * 1.1 || 10
     } else {
-      const padding = (mx - mn) * 0.1
-      mn = Math.max(0, mn - padding)
+      const padding = (mx - mn) * 0.12
+      mn = mn < 0 ? mn - padding : Math.max(0, mn - padding)
       mx = mx + padding
     }
     return { minVal: mn, maxVal: mx }
@@ -205,7 +321,7 @@ function MetricTrendChart({
   const width = 1000
   const height = 300
   const padLeft = 70
-  const padRight = 20
+  const padRight = 24
   const padTop = 25
   const padBottom = 45
 
@@ -222,6 +338,9 @@ function MetricTrendChart({
     const norm = (val - minVal) / (maxVal - minVal || 1)
     return padTop + chartH - norm * chartH
   }
+
+  const zeroY = minVal < 0 && maxVal > 0 ? getY(0) : null
+  const baselineY = zeroY !== null ? zeroY : padTop + chartH
 
   // Buat path garis
   const buildPath = (data) => {
@@ -249,7 +368,7 @@ function MetricTrendChart({
     let d = ''
     let firstX = null
     let lastX = null
-    const baseY = padTop + chartH
+    const baseY = baselineY
 
     data.forEach((val, idx) => {
       const y = getY(val)
@@ -270,9 +389,9 @@ function MetricTrendChart({
     return d
   }
 
-  const currentPath = useMemo(() => buildPath(values), [values, minVal, maxVal])
-  const prevPath = useMemo(() => buildPath(previousYear), [previousYear, minVal, maxVal])
-  const currentArea = useMemo(() => buildAreaPath(values), [values, minVal, maxVal])
+  const currentPath = useMemo(() => buildPath(values), [values, minVal, maxVal, months.length])
+  const prevPath = useMemo(() => buildPath(previousYear), [previousYear, minVal, maxVal, months.length])
+  const currentArea = useMemo(() => buildAreaPath(values), [values, minVal, maxVal, months.length])
 
   // Sumbu Y ticks
   const yTicks = useMemo(() => {
@@ -284,22 +403,38 @@ function MetricTrendChart({
       ticks.push({ val, y })
     }
     return ticks
-  }, [minVal, maxVal])
+  }, [minVal, maxVal, chartH])
 
   const handlePointerMove = (idx) => {
     const currentVal = values[idx]
-    const prevVal = previousYear[idx]
+    const prevVal = previousYear[idx] ?? null
+    const prevMonthVal = idx > 0 ? values[idx - 1] : null
+    const yoyDiff = currentVal !== null && currentVal !== undefined && prevVal !== null && prevVal !== undefined
+      ? currentVal - prevVal
+      : null
     let yoyPct = null
-    if (currentVal !== null && prevVal !== null && prevVal !== 0) {
-      yoyPct = ((currentVal - prevVal) / Math.abs(prevVal)) * 100
+    if (yoyDiff !== null && prevVal !== 0) {
+      yoyPct = (yoyDiff / Math.abs(prevVal)) * 100
     }
+    const momDiff = currentVal !== null && currentVal !== undefined && prevMonthVal !== null && prevMonthVal !== undefined
+      ? currentVal - prevMonthVal
+      : null
+    let momPct = null
+    if (momDiff !== null && prevMonthVal !== 0) {
+      momPct = (momDiff / Math.abs(prevMonthVal)) * 100
+    }
+    const matchedEvent = (events || []).find((ev) => ev.month === months[idx]) || null
 
     setHoverData({
       idx,
       month: months[idx],
       currentVal,
       prevVal,
+      yoyDiff,
       yoyPct,
+      momDiff,
+      momPct,
+      matchedEvent,
       unitsReporting: unitsReporting[idx],
       xPct: (getX(idx) / width) * 100,
     })
@@ -307,10 +442,10 @@ function MetricTrendChart({
 
   return (
     <div className="space-y-3 relative" ref={containerRef} onMouseLeave={() => setHoverData(null)}>
-      {/* Selector Tab Ukuran untuk RPT-RCT Gangguan atau Series Selector Buttons untuk metrik lain */}
-      {isRptRctGangguan ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
+      {/* Selector Tab Ukuran / Series + Mode Bulanan/YTD/Delta */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+        {isRptRctGangguan ? (
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-slate-500">Pilih Ukuran:</span>
             {[
               { id: 'rpt', label: 'RPT (Response Time)', unit: 'menit' },
@@ -331,62 +466,145 @@ function MetricTrendChart({
               </button>
             ))}
           </div>
-
-          <span className="text-[11px] text-slate-400">
-            Sumber APKT &bull; Garis tebal solid vs garis putus-putus
+        ) : series.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500">Pilih Seri:</span>
+            {series.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => onSelectSeries?.(s.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeSeries?.key === s.key
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                {s.name} ({s.unit})
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs font-semibold text-slate-500">
+            {activeSeries?.name} ({activeSeries?.unit})
           </span>
-        </div>
-      ) : series.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-          <span className="text-xs font-semibold text-slate-500">Pilih Seri:</span>
-          {series.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => onSelectSeries?.(s.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeSeries?.key === s.key
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              {s.name} ({s.unit})
-            </button>
-          ))}
-        </div>
-      )}
+        )}
 
-      {/* Baris Atas: Legend di Sebelah Kiri */}
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-5">
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-1.5 rounded-full bg-indigo-600 shrink-0" />
-            <span className="font-semibold text-slate-700 dark:text-slate-300">
-              {isRptRctGangguan ? 'Semua Laporan (Utama)' : `Tahun Berjalan (${activeSeries?.unit})`}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-1 rounded-full border-b-2 border-dashed border-slate-400 bg-slate-300 dark:bg-slate-600 shrink-0" />
-            <span className="text-slate-500 dark:text-slate-400">
-              {isRptRctGangguan ? 'Laporan Tanpa Clear Temper (Pembanding)' : 'Bulan Sama Tahun Lalu'}
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {supportsYtdToggle && (
+            <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-xs" role="group" aria-label="Mode tampilan tren">
+              <button
+                type="button"
+                onClick={() => setViewMode('monthly')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                  viewMode === 'monthly'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Bulanan
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('ytd')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                  viewMode === 'ytd'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Kumulatif (YTD)
+              </button>
+            </div>
+          )}
+
+          {isPositionDeltaMetric && (
+            <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-xs" role="group" aria-label="Mode tampilan posisi atau delta">
+              <button
+                type="button"
+                onClick={() => setViewMode('monthly')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                  viewMode !== 'delta'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Posisi Total
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('delta')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                  viewMode === 'delta'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Penambahan (Δ YTD)
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Tooltip Melayang Interaktif (Persis di atas titik hover chart seperti contoh gambar) */}
+      {/* Baris Atas: Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-1.5 rounded-full bg-indigo-600 shrink-0" />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              {isRptRctGangguan
+                ? 'Semua Laporan (Utama)'
+                : isDeltaView
+                ? `Penambahan Δ YTD (${activeSeries?.unit})`
+                : isYtdView
+                ? `Kumulatif YTD (${activeSeries?.unit})`
+                : `Tahun Berjalan (${activeSeries?.unit})`}
+            </span>
+          </div>
+          {previousYear.some((v) => v !== null && v !== undefined) && (
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-1 rounded-full border-b-2 border-dashed border-slate-400 bg-slate-300 dark:bg-slate-600 shrink-0" />
+              <span className="text-slate-500 dark:text-slate-400">
+                {isRptRctGangguan
+                  ? 'Laporan Tanpa Clear Temper (Pembanding)'
+                  : isYtdView
+                  ? 'Kumulatif YTD Tahun Lalu'
+                  : 'Bulan Sama Tahun Lalu'}
+              </span>
+            </div>
+          )}
+          {matchingTarget && (
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-0.5 border-b-2 border-dashed border-emerald-600 shrink-0" />
+              <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                Target NKO ({fmtMetricValue(matchingTarget.target, activeSeries?.unit)} {activeSeries?.unit})
+              </span>
+            </div>
+          )}
+        </div>
+        <span className="text-[11px] text-slate-400">
+          {isDeltaView
+            ? 'Penambahan kumulatif sejak akhir tahun lalu'
+            : isYtdView
+            ? 'Akumulasi Kumulatif Tahun Berjalan'
+            : 'Grafik Garis Tren'}
+        </span>
+      </div>
+
+      {/* Tooltip Melayang Interaktif */}
       {hoverData && (
         <div
           className="absolute z-20 pointer-events-none transition-all duration-150 ease-out"
           style={{
             left: `${hoverData.xPct}%`,
-            top: '55px',
+            top: '65px',
             transform: hoverData.xPct > 70 ? 'translateX(-100%)' : hoverData.xPct < 30 ? 'translateX(0%)' : 'translateX(-50%)',
           }}
         >
-          <div className="rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-xl p-3 min-w-[220px] backdrop-blur-xs text-xs space-y-1.5">
+          <div className="rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-xl p-3 min-w-[240px] backdrop-blur-xs text-xs space-y-1.5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5 font-bold text-slate-900 dark:text-slate-100">
-              <span>Bulan {fmtMonth(hoverData.month)}</span>
+              <span>{isYtdView || isDeltaView ? `YTD s/d ${fmtMonth(hoverData.month)}` : `Bulan ${fmtMonth(hoverData.month)}`}</span>
               {unitsExpected > 1 && hoverData.unitsReporting !== undefined && (
                 <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
                   hoverData.unitsReporting < unitsExpected ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
@@ -400,18 +618,20 @@ function MetricTrendChart({
               <div className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0" />
-                  <span>{isRptRctGangguan ? 'Semua Laporan:' : 'Berjalan:'}</span>
+                  <span>{isRptRctGangguan ? 'Semua Laporan:' : isDeltaView ? 'Penambahan Δ:' : isYtdView ? 'YTD Berjalan:' : 'Berjalan:'}</span>
                 </span>
                 <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
-                  {hoverData.currentVal !== null ? `${fmtMetricValue(hoverData.currentVal, activeSeries?.unit)} ${activeSeries?.unit}` : '-'}
+                  {hoverData.currentVal !== null && hoverData.currentVal !== undefined
+                    ? `${fmtMetricValue(hoverData.currentVal, activeSeries?.unit)} ${activeSeries?.unit}`
+                    : '-'}
                 </span>
               </div>
 
-              {hoverData.prevVal !== null && (
+              {hoverData.prevVal !== null && hoverData.prevVal !== undefined && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-1.5 text-slate-500 font-medium">
                     <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0" />
-                    <span>{isRptRctGangguan ? 'Tanpa CT:' : 'Thn Lalu:'}</span>
+                    <span>{isRptRctGangguan ? 'Tanpa CT:' : isYtdView ? 'YTD Thn Lalu:' : 'Thn Lalu:'}</span>
                   </span>
                   <span className="font-mono text-slate-600 dark:text-slate-300 tabular-nums">
                     {fmtMetricValue(hoverData.prevVal, activeSeries?.unit)} {activeSeries?.unit}
@@ -419,10 +639,33 @@ function MetricTrendChart({
                 </div>
               )}
 
-              {hoverData.yoyPct !== null && (
+              {hoverData.yoyDiff !== null && (
                 <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px]">
-                  <span className="text-slate-500">{isRptRctGangguan ? 'Selisih Varian:' : 'Pertumbuhan YoY:'}</span>
-                  <PolarityPctBadge pct={hoverData.yoyPct} polarity={polarity} />
+                  <span className="text-slate-500">{isRptRctGangguan ? 'Selisih Varian:' : 'YoY (Selisih):'}</span>
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <span className="text-slate-600 dark:text-slate-300">
+                      {hoverData.yoyDiff > 0 ? '+' : ''}{fmtMetricValue(hoverData.yoyDiff, activeSeries?.unit)}
+                    </span>
+                    {hoverData.yoyPct !== null && <PolarityPctBadge pct={hoverData.yoyPct} polarity={polarity} />}
+                  </span>
+                </div>
+              )}
+
+              {hoverData.momDiff !== null && !isYtdView && (
+                <div className="flex items-center justify-between gap-3 text-[11px]">
+                  <span className="text-slate-500">MoM (Bln Lalu):</span>
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <span className="text-slate-600 dark:text-slate-300">
+                      {hoverData.momDiff > 0 ? '+' : ''}{fmtMetricValue(hoverData.momDiff, activeSeries?.unit)}
+                    </span>
+                    {hoverData.momPct !== null && <PolarityPctBadge pct={hoverData.momPct} polarity={polarity} />}
+                  </span>
+                </div>
+              )}
+
+              {hoverData.matchedEvent && (
+                <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                  Catatan: {hoverData.matchedEvent.label}
                 </div>
               )}
             </div>
@@ -430,7 +673,7 @@ function MetricTrendChart({
         </div>
       )}
 
-      {/* SVG Chart Container Full Width (Kiri s/d Kanan) */}
+      {/* SVG Chart Container Full Width */}
       <div className="relative w-full">
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -466,8 +709,58 @@ function MetricTrendChart({
             </g>
           ))}
 
+          {/* Garis Nol (y = 0) yang tegas bila ada nilai negatif */}
+          {zeroY !== null && (
+            <line
+              x1={padLeft}
+              y1={zeroY}
+              x2={width - padRight}
+              y2={zeroY}
+              stroke="#64748b"
+              strokeWidth="1.25"
+            />
+          )}
+
           {/* Area fill tahun berjalan */}
           {currentArea && <path d={currentArea} fill="url(#areaGradientFull)" />}
+
+          {/* Garis Acuan Target NKO */}
+          {matchingTarget && (() => {
+            const ty = getY(matchingTarget.target)
+            if (ty === null) return null
+            return (
+              <g className="pointer-events-none">
+                <line
+                  x1={padLeft}
+                  y1={ty}
+                  x2={width - padRight}
+                  y2={ty}
+                  stroke="#059669"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 4"
+                />
+                <rect
+                  x={width - padRight - 142}
+                  y={Math.max(padTop, ty - 18)}
+                  width={140}
+                  height={16}
+                  rx={4}
+                  fill="#ecfdf5"
+                  stroke="#6ee7b7"
+                  strokeWidth="1"
+                  className="dark:fill-emerald-950 dark:stroke-emerald-800"
+                />
+                <text
+                  x={width - padRight - 72}
+                  y={Math.max(padTop, ty - 18) + 11}
+                  textAnchor="middle"
+                  className="text-[9px] font-bold fill-emerald-800 dark:fill-emerald-200 font-mono"
+                >
+                  Target: {fmtMetricValue(matchingTarget.target, activeSeries?.unit)}
+                </text>
+              </g>
+            )
+          })()}
 
           {/* Garis Tahun Lalu (Dashed) */}
           {prevPath && (
@@ -607,7 +900,7 @@ function MetricTrendChart({
                   </circle>
                 )}
 
-                {/* Label Bulan pada Sumbu X (dijarangkan mis. tiap 3 bulan bila banyak bulan agar tidak bertumpuk) */}
+                {/* Label Bulan pada Sumbu X */}
                 {(months.length <= 12 || (months.length <= 24 ? idx % 2 === 0 : idx % 3 === 0) || idx === months.length - 1 || isHovered) && (
                   <text
                     x={x}
@@ -1786,6 +2079,21 @@ export default function BusinessAnalyticsPage() {
           </button>
         )}
 
+        {/* Tab Pertumbuhan untuk kWh Jual, Pendapatan, dan Pendapatan BP */}
+        {(activeCode === 'kwh-jual' || activeCode === 'pendapatan' || activeCode === 'hpl-bp') && (
+          <button
+            type="button"
+            onClick={() => setMainTab('growth_analysis')}
+            className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              mainTab === 'growth_analysis'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            Pertumbuhan
+          </button>
+        )}
+
         {/* Tab Tunggakan & Pelunasan untuk Piutang Prabayar (Butir 52 docs/92 §6.4) */}
         {(d?.detail?.kind === 'prepaid_receivable' || activeCode === 'piutang-prabayar') && (
           <button
@@ -2907,6 +3215,8 @@ export default function BusinessAnalyticsPage() {
                   incompleteMonths={(d.warnings || []).map((w) => w.month).filter(Boolean)}
                   metricCode={activeCode}
                   events={d.events || []}
+                  ytdMode={d.metric?.ytd_mode}
+                  targets={d.targets || []}
                 />
               </div>
 
@@ -2959,377 +3269,46 @@ export default function BusinessAnalyticsPage() {
             <div className="space-y-6">
               {/* Grid: Rincian (Breakdown) & Perbandingan Antar ULP (Comparison) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Rincian Komposisi Utama (Breakdown) */}
                 {d.breakdown && (
-                  <div className={`${CARD} p-5 space-y-4`}>
-                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          {`Rincian: ${d.breakdown.dimension}`}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          Komposisi pada periode {fmtMonth(d.breakdown.period)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                          <tr>
-                            <th className="py-2.5 px-3">Kategori</th>
-                            <th className="py-2.5 px-3 text-right">Nilai</th>
-                            <th className="py-2.5 px-3 text-right">Porsi</th>
-                            <th className="py-2.5 px-3 text-right">Thn Lalu</th>
-                            <th className="py-2.5 px-3 text-right">YoY</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {(d.breakdown.rows || [])
-                            .slice((breakdownPage - 1) * breakdownPerPage, breakdownPage * breakdownPerPage)
-                            .map((r) => (
-                            <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                                {r.key}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                                {fmtFloat(r.value)}
-                              </td>
-                              <td className="py-2.5 px-3 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full ${r.value < 0 || r.share_pct < 0 ? 'bg-rose-500' : 'bg-indigo-600'}`}
-                                      style={{ width: `${Math.min(100, Math.max(0, Math.abs(r.share_pct || 0)))}%` }}
-                                    />
-                                  </div>
-                                  <span className={`font-mono tabular-nums text-[11px] ${r.share_pct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
-                                    {fmtFloat(r.share_pct, 1)}%
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
-                                {r.same_month_last_year !== null ? fmtFloat(r.same_month_last_year) : '-'}
-                              </td>
-                              <td className="py-2.5 px-3 text-right">
-                                <PolarityPctBadge pct={r.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {(d.breakdown.rows || []).length > 5 && (
-                      <div className="pt-2">
-                        <Pagination
-                          page={breakdownPage}
-                          total={(d.breakdown.rows || []).length}
-                          perPage={breakdownPerPage}
-                          onPage={setBreakdownPage}
-                          onPerPage={(pp) => {
-                            setBreakdownPerPage(pp)
-                            setBreakdownPage(1)
-                          }}
-                          perPageOptions={[5, 10, 25]}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  <BreakdownCard
+                    breakdown={d.breakdown}
+                    polarity={d.metric?.polarity || 'up'}
+                    page={breakdownPage}
+                    perPage={breakdownPerPage}
+                    onPage={setBreakdownPage}
+                    onPerPage={setBreakdownPerPage}
+                  />
                 )}
 
-                {/* Rincian Komposisi Kedua (Breakdown Secondary, misal: Kogol pada Umur Piutang atau anomali) */}
                 {d.breakdown_secondary && (
-                  <div className={`${CARD} p-5 space-y-4`}>
-                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          {`Rincian: ${d.breakdown_secondary.dimension}`}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          {d.breakdown_secondary.dimension === 'Komponen penjualan'
-                            ? `Komponen penjualan pada periode ${fmtMonth(d.breakdown_secondary.period || d.to)} (nilai negatif menunjukkan pos pengurangan)`
-                            : `Komposisi pada periode ${fmtMonth(d.breakdown_secondary.period)}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                          <tr>
-                            <th className="py-2.5 px-3">Kategori</th>
-                            <th className="py-2.5 px-3 text-right">Nilai</th>
-                            <th className="py-2.5 px-3 text-right">Porsi</th>
-                            <th className="py-2.5 px-3 text-right">Thn Lalu</th>
-                            <th className="py-2.5 px-3 text-right">YoY</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {(d.breakdown_secondary.rows || [])
-                            .slice((breakdownSecondaryPage - 1) * breakdownSecondaryPerPage, breakdownSecondaryPage * breakdownSecondaryPerPage)
-                            .map((r) => (
-                            <tr key={r.key} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                                {r.key}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                                {fmtFloat(r.value)}
-                              </td>
-                              <td className="py-2.5 px-3 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full ${r.value < 0 || r.share_pct < 0 ? 'bg-rose-500' : 'bg-indigo-600'}`}
-                                      style={{ width: `${Math.min(100, Math.max(0, Math.abs(r.share_pct || 0)))}%` }}
-                                    />
-                                  </div>
-                                  <span className={`font-mono tabular-nums text-[11px] ${r.share_pct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
-                                    {fmtFloat(r.share_pct, 1)}%
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
-                                {r.same_month_last_year !== null ? fmtFloat(r.same_month_last_year) : '-'}
-                              </td>
-                              <td className="py-2.5 px-3 text-right">
-                                <PolarityPctBadge pct={r.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {(d.breakdown_secondary.rows || []).length > 5 && (
-                      <div className="pt-2">
-                        <Pagination
-                          page={breakdownSecondaryPage}
-                          total={(d.breakdown_secondary.rows || []).length}
-                          perPage={breakdownSecondaryPerPage}
-                          onPage={setBreakdownSecondaryPage}
-                          onPerPage={(pp) => {
-                            setBreakdownSecondaryPerPage(pp)
-                            setBreakdownSecondaryPage(1)
-                          }}
-                          perPageOptions={[5, 10, 25]}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  <BreakdownCard
+                    breakdown={d.breakdown_secondary}
+                    polarity={d.metric?.polarity || 'up'}
+                    page={breakdownSecondaryPage}
+                    perPage={breakdownSecondaryPerPage}
+                    onPage={setBreakdownSecondaryPage}
+                    onPerPage={setBreakdownSecondaryPerPage}
+                    subtitle={
+                      d.breakdown_secondary.dimension === 'Komponen penjualan'
+                        ? `Komponen penjualan pada periode ${fmtMonth(d.breakdown_secondary.period || d.to)} (nilai negatif menunjukkan pos pengurangan)`
+                        : undefined
+                    }
+                  />
                 )}
 
-                {/* Perbandingan Antar ULP (Hanya untuk unit UP3) */}
-                {isUp3 && d.comparison && d.comparison.length > 0 && (() => {
-                  const contribBases = d.contribution?.bases || {}
-                  const activeContrib = contribBases[contributionBase] || contribBases['yoy']
-                  const contribMap = (activeContrib?.units || []).reduce((acc, u) => {
-                    acc[u.unit_id] = u
-                    return acc
-                  }, {})
-
-                  return (
-                    <div className={`${CARD} p-5 space-y-4`}>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 gap-2">
-                        <div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            {activeCode === 'rpt-rct-gangguan'
-                              ? 'Perbandingan Antar ULP (Semua Laporan vs Tanpa Clear Temper)'
-                              : 'Perbandingan Antar ULP'}
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            Capaian bulan {fmtMonth(d.to)}
-                            {(d.warnings || []).some((w) => w.month === d.to && (w.code === 'apkt_current_month_partial' || w.code === 'ap2t_current_month_partial')) && (
-                              <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                                Bulan berjalan, belum final
-                              </span>
-                            )}
-                            {' '}&bull; diurutkan dari capaian ULP
-                          </p>
-                        </div>
-
-                        {/* Switcher Pilihan Dasar Kontribusi (Butir 36 docs/92 §4) */}
-                        {d.contribution && (
-                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs self-start sm:self-auto">
-                            <span className="text-[10px] text-slate-400 font-medium px-1.5">Sumbangan:</span>
-                            {['yoy', 'mom', 'ytd'].map((bKey) => {
-                              const bData = contribBases[bKey]
-                              if (!bData) return null
-                              const isSelected = (contributionBase || 'yoy') === bKey
-                              return (
-                                <button
-                                  key={bKey}
-                                  type="button"
-                                  onClick={() => setContributionBase(bKey)}
-                                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors uppercase ${
-                                    isSelected
-                                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
-                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                                  }`}
-                                  title={bData.label}
-                                >
-                                  {bKey}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                      {d.contribution && activeContrib && (
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-800/30 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800/60 flex items-center justify-between flex-wrap gap-2">
-                          <span>
-                            Dasar sumbangan: <strong className="text-slate-700 dark:text-slate-300">{activeContrib.label}</strong> ({activeContrib.units_compared} ULP setara)
-                          </span>
-                          {activeContrib.total !== null && activeContrib.total !== undefined && (
-                            <span className="font-mono">
-                              Total perubahan: <strong>{activeContrib.total > 0 ? '+' : ''}{fmtMetricValue(activeContrib.total, d.contribution.unit)} {d.contribution.unit}</strong>
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                            {activeCode === 'rpt-rct-gangguan' ? (
-                              <>
-                                <tr>
-                                  <th rowSpan={2} className="py-2.5 px-3 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
-                                  <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">Unit Layanan (ULP)</th>
-                                  <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-950/20 text-purple-800 dark:text-purple-300 font-semibold">
-                                    Semua Laporan (Utama)
-                                  </th>
-                                  <th colSpan={3} className="py-1.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-800/50 font-semibold">
-                                    Tanpa Clear Temper (Pembanding)
-                                  </th>
-                                  <th rowSpan={2} className="py-2.5 px-3 text-right bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-semibold">
-                                    Porsi CT
-                                  </th>
-                                </tr>
-                                <tr className="border-t border-slate-200 dark:border-slate-700">
-                                  <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
-                                  <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
-                                  <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
-                                  <th className="py-1.5 px-2.5 text-right font-medium">WO</th>
-                                  <th className="py-1.5 px-2.5 text-right font-medium">RPT</th>
-                                  <th className="py-1.5 px-2.5 text-right font-medium border-r border-slate-200 dark:border-slate-700">RCT</th>
-                                </tr>
-                              </>
-                            ) : (
-                              <tr>
-                                <th className="py-2.5 px-3 w-10 text-center">#</th>
-                                <th className="py-2.5 px-3">Unit Layanan (ULP)</th>
-                                <th className="py-2.5 px-3 text-right">Bulan Ini</th>
-                                <th className="py-2.5 px-3 text-right">YoY</th>
-                                <th className="py-2.5 px-3 text-right">Kumulatif YTD</th>
-                                {d.contribution && (
-                                  <>
-                                    <th className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
-                                      Perubahan ({contributionBase.toUpperCase()})
-                                    </th>
-                                    <th className="py-2.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-300">
-                                      Sumbangan
-                                    </th>
-                                  </>
-                                )}
-                              </tr>
-                            )}
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {(d.comparison || [])
-                              .slice((comparisonPage - 1) * comparisonPerPage, comparisonPage * comparisonPerPage)
-                              .map((c, idx) => {
-                                const cu = contribMap[c.unit_id]
-
-                                return (
-                                  <tr key={c.unit_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                                    <td className="py-2.5 px-3 text-center font-mono text-slate-400 text-[11px]">
-                                      {(comparisonPage - 1) * comparisonPerPage + idx + 1}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                                      {c.unit_name}
-                                    </td>
-                                    {activeCode === 'rpt-rct-gangguan' ? (
-                                      <>
-                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
-                                          {c.jumlah !== undefined && c.jumlah !== null ? fmtFloat(c.jumlah, 0) : '-'}
-                                        </td>
-                                        <td className="py-2.5 px-2.5 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                                          {c.latest !== null ? fmtFloat(c.latest, 1) : '-'}
-                                        </td>
-                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800">
-                                          {c.rct !== undefined && c.rct !== null ? fmtFloat(c.rct, 1) : '-'}
-                                        </td>
-                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
-                                          {c.jumlah_tanpa_ct !== undefined && c.jumlah_tanpa_ct !== null ? fmtFloat(c.jumlah_tanpa_ct, 0) : '-'}
-                                        </td>
-                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
-                                          {c.rpt_tanpa_ct !== undefined && c.rpt_tanpa_ct !== null ? fmtFloat(c.rpt_tanpa_ct, 1) : '-'}
-                                        </td>
-                                        <td className="py-2.5 px-2.5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
-                                          {c.rct_tanpa_ct !== undefined && c.rct_tanpa_ct !== null ? fmtFloat(c.rct_tanpa_ct, 1) : '-'}
-                                        </td>
-                                        <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold text-amber-700 dark:text-amber-400">
-                                          {c.porsi_clear_temper !== undefined && c.porsi_clear_temper !== null ? `${fmtFloat(c.porsi_clear_temper, 1)}%` : '-'}
-                                        </td>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
-                                          {c.latest !== null ? fmtFloat(c.latest) : '-'}
-                                        </td>
-                                        <td className="py-2.5 px-3 text-right">
-                                          <PolarityPctBadge pct={c.yoy_pct} polarity={d.metric?.polarity || 'up'} />
-                                        </td>
-                                        <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-300">
-                                          {c.ytd !== null ? fmtFloat(c.ytd) : '-'}
-                                        </td>
-                                        {d.contribution && (
-                                          <>
-                                            <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                                              {cu?.change !== undefined && cu?.change !== null ? (
-                                                <span className={cu.change > 0 ? 'text-emerald-600 dark:text-emerald-400' : cu.change < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}>
-                                                  {cu.change > 0 ? '+' : ''}{fmtMetricValue(cu.change, d.contribution.unit)}
-                                                </span>
-                                              ) : '-'}
-                                            </td>
-                                            <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold">
-                                              {cu?.share_pct !== undefined && cu?.share_pct !== null ? (
-                                                <span className="inline-flex items-center gap-1">
-                                                  <span>{fmtFloat(cu.share_pct, 1)}%</span>
-                                                </span>
-                                              ) : '-'}
-                                            </td>
-                                          </>
-                                        )}
-                                      </>
-                                    )}
-                                  </tr>
-                                )
-                              })}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {(d.comparison || []).length > 5 && (
-                        <div className="pt-2">
-                          <Pagination
-                            page={comparisonPage}
-                            total={(d.comparison || []).length}
-                            perPage={comparisonPerPage}
-                            onPage={setComparisonPage}
-                            onPerPage={(pp) => {
-                              setComparisonPerPage(pp)
-                              setComparisonPage(1)
-                            }}
-                            perPageOptions={[5, 10, 20]}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
+                {isUp3 && d.comparison && d.comparison.length > 0 && (
+                  <ComparisonCard
+                    d={d}
+                    activeCode={activeCode}
+                    contributionBase={contributionBase}
+                    onContributionBaseChange={setContributionBase}
+                    page={comparisonPage}
+                    perPage={comparisonPerPage}
+                    onPage={setComparisonPage}
+                    onPerPage={setComparisonPerPage}
+                    onSelectUnit={(uid) => setSelectedUnitId(uid)}
+                  />
+                )}
               </div>
 
               {/* Matriks Silang (Matrix Heatmap, misal: Kogol x Umur Tunggakan) */}
@@ -3506,7 +3485,15 @@ export default function BusinessAnalyticsPage() {
 
           {/* Tab Pertumbuhan Pelanggan/Daya (Butir 51 docs/92 §6.1) */}
           {mainTab === 'customer_growth' && (
-            <CustomerGrowthTab detail={d.detail} metricCode={activeCode} />
+            <div className="space-y-6">
+              <GrowthAnalysisSection d={d} activeCode={activeCode} isUp3={isUp3} onSelectUnit={(uid) => setSelectedUnitId(uid)} />
+              <CustomerGrowthTab detail={d.detail} metricCode={activeCode} />
+            </div>
+          )}
+
+          {/* Tab Pertumbuhan kWh Jual & Pendapatan BP */}
+          {mainTab === 'growth_analysis' && (
+            <GrowthAnalysisSection d={d} activeCode={activeCode} isUp3={isUp3} onSelectUnit={(uid) => setSelectedUnitId(uid)} />
           )}
 
           {/* Tab Tunggakan & Pelunasan Piutang Prabayar (Butir 52 docs/92 §6.4) */}

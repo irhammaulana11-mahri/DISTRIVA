@@ -346,8 +346,8 @@ describe('BusinessAnalyticsPage', () => {
 
     // Rincian breakdown
     expect(screen.getByText(/Kelompok Tarif/i)).toBeInTheDocument()
-    expect(screen.getByText('Rumah tangga')).toBeInTheDocument()
-    expect(screen.getByText('75,0%')).toBeInTheDocument()
+    expect(screen.getAllByText('Rumah tangga').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('75,0%').length).toBeGreaterThan(0)
 
     // Perbandingan antar ULP
     expect(screen.getAllByText(/ULP Jombang/i).length).toBeGreaterThan(0)
@@ -818,8 +818,8 @@ describe('BusinessAnalyticsPage', () => {
     const rincianTab = screen.getByRole('button', { name: /^Rincian$/i })
     await user.click(rincianTab)
     expect(await screen.findByText(/Rincian: Kanal Pengaduan Masuk/i)).toBeInTheDocument()
-    expect(screen.getByText('PLN Mobile')).toBeInTheDocument()
-    expect(screen.getByText('70,0%')).toBeInTheDocument()
+    expect(screen.getAllByText('PLN Mobile').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('70,0%').length).toBeGreaterThan(0)
   })
 
   it('11. mendukung Butir 17: Gangguan Penyulang, SAIDI/SAIFI, dan ENS tingkat penyulang lawan DIFI', async () => {
@@ -1525,8 +1525,8 @@ describe('BusinessAnalyticsPage', () => {
 
     // Verifikasi rincian Komponen Penjualan dan nilai negatif
     expect(await screen.findByText('Rincian: Komponen penjualan')).toBeInTheDocument()
-    expect(screen.getByText('TUL III-07 (11)')).toBeInTheDocument()
-    expect(screen.getByText('Pembatalan Rekening (MEMO4)')).toBeInTheDocument()
+    expect(screen.getAllByText('TUL III-07 (11)').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Pembatalan Rekening (MEMO4)').length).toBeGreaterThan(0)
   })
 
   it('19. mendukung menu Pelunasan PRR dan Pelunasan Ex PRR dengan tombol Tarik AP2T dan peringatan bulan berjalan (Butir 35)', async () => {
@@ -1619,9 +1619,9 @@ describe('BusinessAnalyticsPage', () => {
 
     // Verifikasi rincian Komponen Pelunasan dan Bulan tagihan (BLTH)
     expect(await screen.findByText('Rincian: Komponen pelunasan')).toBeInTheDocument()
-    expect(screen.getByText('Pemakaian listrik (RPPTL)')).toBeInTheDocument()
+    expect(screen.getAllByText('Pemakaian listrik (RPPTL)').length).toBeGreaterThan(0)
     expect(screen.getByText('Rincian: Bulan tagihan (BLTH)')).toBeInTheDocument()
-    expect(screen.getByText('2026-08')).toBeInTheDocument()
+    expect(screen.getAllByText('2026-08').length).toBeGreaterThan(0)
   })
 
   it('20. mendukung Butir 36: Standar halaman tahap 1 (target NKO, laju kebutuhan, diagnosis, dan sumbangan ULP)', async () => {
@@ -1771,7 +1771,7 @@ describe('BusinessAnalyticsPage', () => {
 
     // Verifikasi tabel Perbandingan ULP memuat kolom sumbangan dan perubahannya
     expect(await screen.findByText(/Perubahan \(YOY\)/i)).toBeInTheDocument()
-    expect(screen.getByText('Sumbangan')).toBeInTheDocument()
+    expect(screen.getAllByText('Sumbangan').length).toBeGreaterThan(0)
     expect(screen.getByText('+40,00')).toBeInTheDocument()
     expect(screen.getByText('80,0%')).toBeInTheDocument()
 
@@ -2356,7 +2356,7 @@ describe('BusinessAnalyticsPage', () => {
     // Verifikasi (b) Tabel rincian menurut golongan tarif
     expect(screen.getByText('Rincian Menurut Golongan Tarif (Bulan Apr 26)')).toBeInTheDocument()
     expect(screen.getByText('Industri')).toBeInTheDocument()
-    expect(screen.getByText('Rumah tangga')).toBeInTheDocument()
+    expect(screen.getAllByText('Rumah tangga').length).toBeGreaterThan(0)
     expect(screen.getByText('+60,0%')).toBeInTheDocument()
   })
 
@@ -3438,5 +3438,174 @@ describe('BusinessAnalyticsPage', () => {
     expect(screen.getByText('Distribusi Penghapusan PRR Menurut Tahun Tagihan (BLTH)')).toBeInTheDocument()
     expect(screen.getByText('2018')).toBeInTheDocument()
     expect(screen.getByText('2019')).toBeInTheDocument()
+  })
+
+  it('30. tab Tren mempertahankan grafik garis+area, toggle Bulanan/Kumulatif YTD, dan mode Penambahan (Δ YTD) untuk Target NKO delta', async () => {
+    const kwhFlowDetail = {
+      data: {
+        metric: { code: 'kwh-jual', name: 'kWh Jual', unit: 'GWh', polarity: 'up', source: '309', ytd_mode: 'sum' },
+        from: '2026-01',
+        to: '2026-03',
+        months: ['2026-01', '2026-02', '2026-03'],
+        units_expected: 1,
+        units_reporting: [1, 1, 1],
+        series: [
+          { key: 'kwh', name: 'kWh Jual', unit: 'GWh', values: [100, 110, 120], previous_year: [95, 100, 105] },
+        ],
+        summary: [{ key: 'kwh', latest: 120, mom_pct: 9.1, yoy_pct: 14.3 }],
+        targets: [
+          { name: 'Penjualan TL', month: '2026-03', target: 350, realisasi: 330, pencapaian_pct: 94.3, status: 'waspada', unit_label: 'GWh' },
+        ],
+      },
+    }
+
+    const pelangganPositionDetail = {
+      data: {
+        metric: { code: 'pelanggan', name: 'Pelanggan', unit: 'Plg', polarity: 'up', source: '309', ytd_mode: 'last' },
+        from: '2026-01',
+        to: '2026-03',
+        months: ['2026-01', '2026-02', '2026-03'],
+        units_expected: 1,
+        units_reporting: [1, 1, 1],
+        series: [
+          { key: 'pelanggan', name: 'Pelanggan', unit: 'Plg', values: [502000, 504500, 508000], previous_year: [490000, 491500, 493000] },
+        ],
+        summary: [{ key: 'pelanggan', latest: 508000, mom_pct: 0.69, yoy_pct: 3.04 }],
+        targets: [
+          { name: 'Penambahan Pelanggan', month: '2026-03', target: 15000, realisasi: 15000, pencapaian_pct: 100, status: 'aman', unit_label: 'Plg' },
+        ],
+      },
+    }
+
+    pengusahaanApi.metric.mockResolvedValue(kwhFlowDetail)
+
+    const user = userEvent.setup()
+    const { unmount } = wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/kwh-jual'])
+
+    // Default Bulanan -> Grafik Garis Tren (Line+Area)
+    expect(await screen.findByText('Grafik Garis Tren')).toBeInTheDocument()
+
+    // Beralih ke Kumulatif (YTD) -> menampilkan garis Target NKO
+    await user.click(screen.getByRole('button', { name: 'Kumulatif (YTD)' }))
+    expect(await screen.findByText('Akumulasi Kumulatif Tahun Berjalan')).toBeInTheDocument()
+    expect(screen.getByText(/Target NKO \(350/i)).toBeInTheDocument()
+
+    unmount()
+
+    // Pelanggan (posisi dengan target delta): otomatis membuka mode Penambahan (Δ YTD) agar sebanding dengan Target NKO
+    pengusahaanApi.metric.mockResolvedValue(pelangganPositionDetail)
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pelanggan'])
+    expect(await screen.findByText(/Penambahan Δ YTD \(Plg\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Target NKO \(15\.000/i)).toBeInTheDocument()
+
+    // Beralih ke Posisi Total -> Target NKO delta tidak ditampilkan di skala total
+    await user.click(screen.getByRole('button', { name: 'Posisi Total' }))
+    expect(screen.queryByText(/Target NKO \(15\.000/i)).not.toBeInTheDocument()
+  })
+
+  it('31. tab Rincian menampilkan grafik komposisi, ringkasan konsentrasi, Δ Porsi, baris Total, sebaran rata-rata ULP, dan drill-down klik ULP', async () => {
+    const rincianDetail = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: { code: 'kwh-jual', name: 'kWh Jual', unit: 'GWh', polarity: 'up', source: '309' },
+        from: '2026-01',
+        to: '2026-03',
+        months: ['2026-01', '2026-02', '2026-03'],
+        units_expected: 2,
+        units_reporting: [2, 2, 2],
+        series: [{ key: 'kwh', name: 'kWh Jual', unit: 'GWh', values: [100, 110, 120], previous_year: [95, 100, 105] }],
+        summary: [{ key: 'kwh', latest: 120, mom_pct: 9.1, yoy_pct: 14.3 }],
+        breakdown: {
+          dimension: 'Golongan Tarif',
+          period: '2026-03',
+          rows: [
+            { key: 'Rumah tangga', value: 70, share_pct: 58.3, same_month_last_year: 60, yoy_pct: 16.7 },
+            { key: 'Bisnis', value: 30, share_pct: 25.0, same_month_last_year: 25, yoy_pct: 20.0 },
+            { key: 'Industri', value: 20, share_pct: 16.7, same_month_last_year: 20, yoy_pct: 0.0 },
+          ],
+        },
+        comparison: [
+          { unit_id: 'ulp-1', unit_name: 'ULP Mojokerto Kota', latest: 70, yoy_pct: 12.0, ytd: 200 },
+          { unit_id: 'ulp-2', unit_name: 'ULP Jombang', latest: 50, yoy_pct: 8.0, ytd: 150 },
+        ],
+      },
+    }
+    pengusahaanApi.metric.mockResolvedValue(rincianDetail)
+
+    const user = userEvent.setup()
+    const { unmount } = wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/kwh-jual'])
+
+    const detailsTab = await screen.findByRole('button', { name: 'Rincian' })
+    await user.click(detailsTab)
+
+    expect(await screen.findByText(/kategori terbesar menyumbang/i)).toBeInTheDocument()
+    expect(screen.getByText('Komposisi Terbesar')).toBeInTheDocument()
+    expect(screen.getByText('Δ Porsi')).toBeInTheDocument()
+    expect(screen.getByText(/Total \(3\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Sebaran Capaian ULP/i)).toBeInTheDocument()
+    expect(screen.getByText(/Rata-rata ULP/i)).toBeInTheDocument()
+
+    // Drill-down klik ULP dari tabel Perbandingan Antar ULP
+    const ulpButtons = screen.getAllByRole('button', { name: 'ULP Mojokerto Kota' })
+    await user.click(ulpButtons[0])
+    await waitFor(() => {
+      expect(pengusahaanApi.metric).toHaveBeenCalledWith(
+        'kwh-jual',
+        expect.objectContaining({ unit_id: 'ulp-1' }),
+      )
+    })
+  })
+
+  it('32. menu kWh Jual, Pendapatan, dan Pendapatan BP menampilkan tab Pertumbuhan beserta grafik garis vs tahun sebelumnya, kuadran ULP, dan pertumbuhan per segmen', async () => {
+    const kwhGrowthDetail = {
+      data: {
+        unit: { id: 'up3-1', name: 'UP3 Mojokerto', unit_type: 'UP3' },
+        metric: { code: 'kwh-jual', name: 'kWh Jual', unit: 'GWh', polarity: 'up', source: '309', ytd_mode: 'sum' },
+        from: '2026-01',
+        to: '2026-03',
+        months: ['2026-01', '2026-02', '2026-03'],
+        units_expected: 2,
+        units_reporting: [2, 2, 2],
+        series: [{ key: 'kwh', name: 'kWh Jual', unit: 'GWh', values: [100, 110, 125], previous_year: [95, 100, 105] }],
+        summary: [{ key: 'kwh', latest: 125, mom_pct: 13.6, yoy_pct: 19.0 }],
+        targets: [{ name: 'Penjualan TL', month: '2026-03', target: 350, realisasi: 335, pencapaian_pct: 95.7, needed_per_month: 25, unit_label: 'GWh' }],
+        breakdown: {
+          dimension: 'Golongan Tarif',
+          period: '2026-03',
+          rows: [
+            { key: 'Rumah tangga', value: 75, share_pct: 60.0, same_month_last_year: 60, yoy_pct: 25.0 },
+            { key: 'Industri', value: 50, share_pct: 40.0, same_month_last_year: 45, yoy_pct: 11.1 },
+          ],
+        },
+        comparison: [
+          { unit_id: 'ulp-1', unit_name: 'ULP Mojokerto Kota', latest: 75, yoy_pct: 18.0, ytd: 210 },
+          { unit_id: 'ulp-2', unit_name: 'ULP Jombang', latest: 50, yoy_pct: -2.0, ytd: 140 },
+        ],
+      },
+    }
+    pengusahaanApi.metric.mockResolvedValue(kwhGrowthDetail)
+
+    const user = userEvent.setup()
+    const { unmount } = wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/kwh-jual'])
+
+    const growthTab = await screen.findByRole('button', { name: 'Pertumbuhan' })
+    await user.click(growthTab)
+
+    expect(await screen.findByTestId('growth-analysis-section')).toBeInTheDocument()
+    expect(screen.getByText('Pertumbuhan Bulanan (Δ MoM)')).toBeInTheDocument()
+    expect(screen.getByText('Pertumbuhan Tahunan (Δ YoY)')).toBeInTheDocument()
+    expect(screen.getByText('Pertumbuhan YTD vs Thn Lalu')).toBeInTheDocument()
+    expect(screen.getByText('Laju vs Kebutuhan Target')).toBeInTheDocument()
+    expect(screen.getByText(/Kuadran Pertumbuhan ULP/i)).toBeInTheDocument()
+    expect(screen.getByText('Tumbuh Cepat & Besar')).toBeInTheDocument()
+    expect(screen.getByText('Kontraksi')).toBeInTheDocument()
+    expect(screen.getByText('Pertumbuhan per Golongan Tarif')).toBeInTheDocument()
+    expect(screen.getByText(/Tren Pertumbuhan Bulanan.*vs Tahun Sebelumnya/i)).toBeInTheDocument()
+    expect(screen.getByText('Tahun Sebelumnya')).toBeInTheDocument()
+
+    // Verifikasi menu Pendapatan juga memiliki tab Pertumbuhan
+    unmount()
+    wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pendapatan'])
+    expect(await screen.findByRole('button', { name: 'Pertumbuhan' })).toBeInTheDocument()
   })
 })

@@ -113,7 +113,6 @@ const reportsNav = [
   { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
   { to: '/nko', label: 'NKO & Kinerja Unit', capability: 'nko.view', icon: IconChart },
   { to: '/nko/aturan', label: 'Aturan Realisasi NKO', capability: 'nko.view', icon: IconClipboard },
-  { to: '/pengusahaan/pelanggan', label: 'Analisa Pelanggan', capability: 'reports.view', icon: IconUsers },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
   { to: '/analisis-gangguan', label: 'Analisis Gangguan', capability: 'outages.view', icon: IconActivity },
