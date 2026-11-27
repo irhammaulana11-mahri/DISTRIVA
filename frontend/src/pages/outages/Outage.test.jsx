@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthContext } from '../../features/auth/AuthContext.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import OutageSyncPage from './OutageSyncPage.jsx'
 import OutageAnalysisPage from './OutageAnalysisPage.jsx'
+import FeederDetailPage from './FeederDetailPage.jsx'
 import { outageApi, triggerFileDownload } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
@@ -119,16 +120,13 @@ describe('OutageAnalysisPage', () => {
     expect(screen.getByText('Catatan uji.')).toBeInTheDocument()
   })
 
-  it('tab penyulang membuka rincian penyulang dengan gardu', async () => {
+  it('tab penyulang menautkan penyulang ke halaman detail penyulang penuh', async () => {
     outageApi.analysis.mockResolvedValue({ data: ANALYSIS })
-    outageApi.feeder.mockResolvedValue({ data: FEEDER })
     wrap(<OutageAnalysisPage />)
     await screen.findByText('Gangguan 12 bln terakhir')
     await userEvent.click(screen.getByRole('tab', { name: 'Penyulang & gardu' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Penyulang Satu' }))
-    expect(await screen.findByText('GD001')).toBeInTheDocument()
-    expect(screen.getByText(/1 gardu ≥ 100%/)).toBeInTheDocument()
-    expect(outageApi.feeder).toHaveBeenCalledWith('f-1', expect.any(Object))
+    const feederLink = await screen.findByRole('link', { name: 'Penyulang Satu' })
+    expect(feederLink).toHaveAttribute('href', '/outages/analysis/feeders/f-1')
   })
 
   it('tab prakiraan menampilkan kualitas dan risiko penyulang', async () => {
@@ -159,5 +157,64 @@ describe('OutageAnalysisPage', () => {
     outageApi.analysis.mockResolvedValue({ data: { ...ANALYSIS, coverage: { ...ANALYSIS.coverage, events: 0 } } })
     wrap(<OutageAnalysisPage />)
     expect(await screen.findByText(/Belum ada data gangguan/)).toBeInTheDocument()
+  })
+})
+
+describe('FeederDetailPage', () => {
+  it('menampilkan halaman penuh detail penyulang, filter gardu, dan tombol Kembali', async () => {
+    outageApi.feeder.mockResolvedValue({
+      data: {
+        feeder: { id: 'f-1', name: 'PPLG-01', code: 'F01', gi_name: 'GI Mojokerto', owner: 'ULP Mojokerto', customers: 4200 },
+        monthly: [
+          { month: '2026-01', events: 5, permanent: 3, temporary: 2, prev_events: 4, prev_permanent: 2, prev_temporary: 2 },
+          { month: '2026-02', events: 3, permanent: 1, temporary: 2, prev_events: 3, prev_permanent: 1, prev_temporary: 2 },
+        ],
+        by_cause: [{ label: 'Pohon', events: 6, permanent: 3, share_pct: 75, ens_kwh: 1200 }],
+        gardu: {
+          count: 2,
+          measured: 2,
+          avg_loading_pct: 72.5,
+          at_80: 1,
+          at_100: 0,
+          items: [
+            { id: 'g-1', code: 'GD-01', name: 'Gardu 01', unit_name: 'ULP Mojokerto', capacity_kva: 160, loading_pct: 85.0 },
+            { id: 'g-2', code: 'GD-02', name: 'Gardu 02', unit_name: 'ULP Mojokerto', capacity_kva: 100, loading_pct: 60.0 },
+          ],
+        },
+        recent: [
+          { occurred_at: '2026-02-10T10:00:00Z', type: 'PERMANEN', minutes: 45, ens_kwh: 500, category: 'Pohon', weather: 'Hujan' },
+        ],
+      },
+    })
+
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/outages/analysis/feeders/f-1']}>
+        <AuthContext.Provider value={{ user: { id: 'u-1', name: 'Tester' }, status: 'authenticated' }}>
+          <AccessContext.Provider value={{ can: { 'outages.view': true }, isSysAdmin: false, createUnits: [], loading: false }}>
+            <NotificationProvider>
+              <Routes>
+                <Route path="/outages/analysis/feeders/:feederId" element={<FeederDetailPage />} />
+                <Route path="/pengusahaan/gangguan" element={<div>Halaman Gangguan</div>} />
+              </Routes>
+            </NotificationProvider>
+          </AccessContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('PPLG-01')).toBeInTheDocument()
+    expect(screen.getByText('Total Gangguan')).toBeInTheDocument()
+    expect(screen.getByText('72,5%')).toBeInTheDocument()
+    expect(screen.getByText('GD-01')).toBeInTheDocument()
+    expect(screen.getByText('GD-02')).toBeInTheDocument()
+
+    // Filter gardu beban >= 80%
+    await user.click(screen.getByRole('button', { name: 'Beban ≥ 80%' }))
+    expect(screen.getByText('GD-01')).toBeInTheDocument()
+    expect(screen.queryByText('GD-02')).not.toBeInTheDocument()
+
+    // Tombol Kembali ada
+    expect(screen.getByRole('button', { name: /Kembali/i })).toBeInTheDocument()
   })
 })

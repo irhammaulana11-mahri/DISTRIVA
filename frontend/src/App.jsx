@@ -51,6 +51,7 @@ import ForecastPage from './pages/forecast/ForecastPage.jsx'
 import CustomerAnalysisPage from './pages/customer-analysis/CustomerAnalysisPage.jsx'
 import OutageSyncPage from './pages/outages/OutageSyncPage.jsx'
 import OutageAnalysisPage from './pages/outages/OutageAnalysisPage.jsx'
+import FeederDetailPage from './pages/outages/FeederDetailPage.jsx'
 import CategoriesPage from './pages/master-data/CategoriesPage.jsx'
 import ApplicationsPage from './pages/applications/ApplicationsPage.jsx'
 import KhsMaterialMapImportPage from './pages/master-data/KhsMaterialMapImportPage.jsx'
@@ -174,8 +175,8 @@ export default function App() {
         <Route path="master-data/laporan-eis" element={<RequireCapability capability="eis_reports.view"><EisReportsPage /></RequireCapability>} />
         <Route path="master-data/gangguan-sinkron" element={<RequireCapability capability="outages.view"><OutageSyncPage /></RequireCapability>} />
         <Route path="analisis-gangguan" element={<RequireCapability capability="outages.view"><OutageAnalysisPage /></RequireCapability>} />
-        <Route path="analisis-gangguan/penyulang/:feederId" element={<RequireCapability capability="outages.view"><OutageAnalysisPage /></RequireCapability>} />
-        <Route path="outages/analysis/feeders/:feederId" element={<RequireCapability capability="outages.view"><OutageAnalysisPage /></RequireCapability>} />
+        <Route path="analisis-gangguan/penyulang/:feederId" element={<RequireCapability capability="outages.view"><FeederDetailPage /></RequireCapability>} />
+        <Route path="outages/analysis/feeders/:feederId" element={<RequireCapability capability="outages.view"><FeederDetailPage /></RequireCapability>} />
         <Route path="nko" element={<RequireCapability capability="nko.view"><NkoPage /></RequireCapability>} />
         <Route path="nko/aturan" element={<RequireCapability capability="nko.view"><NkoRulesPage /></RequireCapability>} />
         <Route path="pengusahaan" element={<RequireCapability capability="pengusahaan.view"><BusinessAnalyticsPage /></RequireCapability>} />

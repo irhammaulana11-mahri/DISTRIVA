@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { outageApi, triggerFileDownload } from '../../services/api.js'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
@@ -460,7 +460,7 @@ function FeedersTab({ data, params, initialOpenFeederId }) {
                   <tr key={r.feeder_id || `${r.gi_name}-${r.name}`} className="border-b border-slate-50 dark:border-slate-800/60">
                     <td className="py-2 pr-3">
                       {r.matched ? (
-                        <button type="button" className="text-left font-medium text-blue-700 dark:text-blue-400 hover:underline" onClick={() => setOpen(r.feeder_id)}>{r.name}</button>
+                        <Link to={`/outages/analysis/feeders/${r.feeder_id}`} className="text-left font-medium text-blue-700 dark:text-blue-400 hover:underline">{r.name}</Link>
                       ) : <span className="font-medium">{r.name} <span className="text-xs text-amber-600">(belum terpetakan)</span></span>}
                       <div className="text-xs text-slate-500">{r.gi_name || '-'}</div>
                     </td>

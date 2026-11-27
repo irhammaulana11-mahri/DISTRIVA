@@ -6,9 +6,10 @@ import { AuthContext } from '../../features/auth/AuthContext.jsx'
 import { AccessContext } from '../../features/admin/AccessContext.jsx'
 import { NotificationProvider } from '../../features/notifications/NotificationContext.jsx'
 import NkoRulesPage from './NkoRulesPage.jsx'
-import { nkoApi } from '../../services/api.js'
+import { nkoApi, triggerFileDownload } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
+  triggerFileDownload: vi.fn(),
   nkoApi: {
     rules: vi.fn(),
     rulesCatalog: vi.fn(),
@@ -134,9 +135,9 @@ describe('NkoRulesPage', () => {
     nkoApi.ruleProposals.mockResolvedValue({ data: [] })
     nkoApi.definitionSets.mockResolvedValue({ data: [] })
     nkoApi.definitionUploads.mockResolvedValue({ data: [] })
-    nkoApi.definitionTemplate.mockResolvedValue(new Blob(['xlsx']))
+    nkoApi.definitionTemplate.mockResolvedValue({ blob: new Blob(['xlsx']), filename: 'definisi.xlsx' })
     nkoApi.targetUploads.mockResolvedValue({ data: [] })
-    nkoApi.targetTemplate.mockResolvedValue(new Blob(['xlsx']))
+    nkoApi.targetTemplate.mockResolvedValue({ blob: new Blob(['xlsx']), filename: 'target.xlsx' })
   })
 
   it('1. menampilkan daftar aturan, item tanpa aturan, dan peringatan item berganti nama', async () => {
@@ -403,6 +404,7 @@ describe('NkoRulesPage', () => {
     await waitFor(() => {
       expect(nkoApi.definitionTemplate).toHaveBeenCalledWith({ year: 2026 })
     })
+    await waitFor(() => expect(triggerFileDownload).toHaveBeenCalledWith(expect.any(Blob), 'definisi.xlsx'))
 
     // Pilih berlaku mulai bulan & berkas lalu klik Periksa
     await user.selectOptions(screen.getByLabelText('Berlaku mulai bulan'), '7')
@@ -467,6 +469,7 @@ describe('NkoRulesPage', () => {
     await waitFor(() => {
       expect(nkoApi.targetTemplate).toHaveBeenCalledWith({ year: 2026, level: 'UP3' })
     })
+    await waitFor(() => expect(triggerFileDownload).toHaveBeenCalledWith(expect.any(Blob), 'target.xlsx'))
 
     // Lihat perubahan target
     await user.click(screen.getByRole('button', { name: /Lihat Perubahan Target/i }))

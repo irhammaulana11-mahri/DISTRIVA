@@ -115,7 +115,6 @@ const reportsNav = [
   { to: '/nko/aturan', label: 'Aturan Realisasi NKO', capability: 'nko.view', icon: IconClipboard },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
-  { to: '/analisis-gangguan', label: 'Analisis Gangguan', capability: 'outages.view', icon: IconActivity },
   { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconActivity },
   { to: '/reports/sla', tabId: 'sla', label: 'Siklus Waktu & SLA', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconClock },
   { to: '/reports/cost-variance', tabId: 'costVariance', label: 'Realisasi Biaya (RAB/SPK)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'admin'], icon: IconCalculator },
@@ -256,6 +255,9 @@ const PENGUSAHAAN_TITLES = {
 }
 
 const titleFor = (path, search = '') => {
+  if (path.startsWith('/outages/analysis/feeders/') || path.startsWith('/analisis-gangguan/penyulang/')) {
+    return 'Analisa & Tren Pengusahaan / Gangguan Penyulang / Detail Penyulang'
+  }
   if (path.startsWith('/pengusahaan')) {
     const slug = path.replace('/pengusahaan', '').replace(/^\//, '')
     if (!slug) return 'Analisa & Tren Pengusahaan / Ikhtisar'
@@ -319,7 +321,7 @@ const titleFor = (path, search = '') => {
 // Helper to determine which sidebar section is active for a given pathname
 const getSectionForPath = (path) => {
   if (path.startsWith('/admin') || path.startsWith('/master-data/vendors')) return 'admin'
-  if (path.startsWith('/pengusahaan')) return 'pengusahaan'
+  if (path.startsWith('/pengusahaan') || path.startsWith('/outages/analysis/feeders/')) return 'pengusahaan'
   if (
     path.startsWith('/rkm') ||
     path.startsWith('/forecast') ||

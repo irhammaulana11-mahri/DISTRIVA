@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { nkoApi } from '../../services/api.js'
+import { nkoApi, triggerFileDownload } from '../../services/api.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
@@ -229,15 +229,8 @@ export default function NkoTargetSection({ year, canPropose, canApprove, current
   const handleDownloadTemplate = async () => {
     setDownloading(true)
     try {
-      const blob = await nkoApi.targetTemplate({ year: templateYear, level: templateLevel })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `TEMPLATE-TARGET-NKO-${templateLevel}-${templateYear}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      const { blob, filename } = await nkoApi.targetTemplate({ year: templateYear, level: templateLevel })
+      triggerFileDownload(blob, filename)
     } catch (err) {
       notify({
         type: 'error',
