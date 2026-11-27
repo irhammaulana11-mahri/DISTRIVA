@@ -9,8 +9,6 @@ import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import Pagination from '../../components/Pagination.jsx'
 import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
-import EisSyncDrawer from '../applications/EisSyncDrawer.jsx'
-import OutageSyncDrawer from '../outages/OutageSyncDrawer.jsx'
 import BusinessForecastTab from './BusinessForecastTab.jsx'
 import BusinessHistoryTab from './BusinessHistoryTab.jsx'
 import ReliabilityFeederTab from './ReliabilityFeederTab.jsx'
@@ -1312,8 +1310,42 @@ export default function BusinessAnalyticsPage() {
   const [customerTab, setCustomerTab] = useState('trend')
   // State sub-tab untuk metrik gangguan & keandalan ('eis' | 'trend' | 'feeders' | 'forecast')
   const [outageTab, setOutageTab] = useState('eis')
-  const [syncDrawerOpen, setSyncDrawerOpen] = useState(false)
-  const [outageSyncDrawerOpen, setOutageSyncDrawerOpen] = useState(false)
+  const openSyncCenter = () => {
+    const mode = isKontrol309Metric
+      ? 'piutang'
+      : isPelunasanPrrMetric
+      ? 'ap2t'
+      : activeCode.startsWith('piutang')
+      ? 'piutang'
+      : activeCode === 'pelanggan' || activeCode === 'daya'
+      ? 'permohonan'
+      : activeCode === 'kwh-p2tl'
+      ? 'ap2t'
+      : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan' || activeCode === 'rpt-rct-keluhan' || activeCode === 'anomali-gangguan' || activeCode === 'anomali-keluhan'
+      ? 'apkt'
+      : ''
+    const reports = isKontrol309Metric
+      ? ['KONTROL309']
+      : isPelunasanPrrMetric
+      ? (activeCode === 'pelunasan-prr' ? ['pelunasan_prr', 'saldo_prr'] : ['pelunasan_ex_prr', 'hapus_prr'])
+      : []
+    const dataset =
+      activeCode === 'rpt-rct-gangguan'
+        ? 'rpt-rct-gangguan'
+        : activeCode === 'rpt-rct-keluhan'
+        ? 'rpt-rct-keluhan'
+        : activeCode === 'anomali-gangguan'
+        ? 'anomali-gangguan'
+        : activeCode === 'anomali-keluhan'
+        ? 'anomali-keluhan'
+        : 'saidi-saifi'
+
+    const qp = new URLSearchParams({ tab: 'eis' })
+    if (mode) qp.set('mode', mode)
+    if (dataset) qp.set('dataset', dataset)
+    if (reports.length > 0) qp.set('reports', reports.join(','))
+    navigate(`/sinkronisasi?${qp.toString()}`)
+  }
 
   // State katalog metrik & unit
   const [catalogState, setCatalogState] = useState({ loading: true, error: '', data: null })
@@ -1723,7 +1755,7 @@ export default function BusinessAnalyticsPage() {
                 {activeCode !== 'rpt-rct-gangguan' && (
                   <Button
                     variant="primary"
-                    onClick={() => setOutageSyncDrawerOpen(true)}
+                    onClick={() => navigate('/sinkronisasi?tab=gangguan')}
                     icon={IconRefresh}
                     aria-label="Sinkronisasi Gangguan"
                   >
@@ -1732,7 +1764,7 @@ export default function BusinessAnalyticsPage() {
                 )}
                 <Button
                   variant={activeCode === 'rpt-rct-gangguan' ? 'primary' : 'secondary'}
-                  onClick={() => setSyncDrawerOpen(true)}
+                  onClick={openSyncCenter}
                   icon={IconRefresh}
                   aria-label={activeCode === 'rpt-rct-gangguan' ? 'Tarik APKT (RPT/RCT)' : 'Tarik SAIDI/SAIFI APKT'}
                 >
@@ -1742,7 +1774,7 @@ export default function BusinessAnalyticsPage() {
             ) : isKeluhanMetric ? (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label="Tarik APKT (RPT/RCT Keluhan)"
               >
@@ -1751,7 +1783,7 @@ export default function BusinessAnalyticsPage() {
             ) : isAnomaliGangguanMetric ? (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label="Tarik APKT (Anomali Gangguan)"
               >
@@ -1760,7 +1792,7 @@ export default function BusinessAnalyticsPage() {
             ) : isAnomaliKeluhanMetric ? (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label="Tarik APKT (Anomali Keluhan)"
               >
@@ -1769,7 +1801,7 @@ export default function BusinessAnalyticsPage() {
             ) : isPelunasanPrrMetric ? (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label="Tarik AP2T (PRR dan Ex PRR)"
               >
@@ -1778,7 +1810,7 @@ export default function BusinessAnalyticsPage() {
             ) : isKwhP2tlMetric ? (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label="Tarik AP2T (kWh P2TL)"
               >
@@ -1787,7 +1819,7 @@ export default function BusinessAnalyticsPage() {
             ) : isKontrol309Metric ? (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label="Tarik Kontrol 309 (EIS)"
               >
@@ -1796,7 +1828,7 @@ export default function BusinessAnalyticsPage() {
             ) : isEisMetric ? (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label={
                   isPiutangMetric
@@ -1809,7 +1841,7 @@ export default function BusinessAnalyticsPage() {
             ) : (
               <Button
                 variant="primary"
-                onClick={() => setSyncDrawerOpen(true)}
+                onClick={openSyncCenter}
                 icon={IconRefresh}
                 aria-label="Sinkronisasi Data"
               >
@@ -2618,7 +2650,7 @@ export default function BusinessAnalyticsPage() {
                 </div>
               </div>
               <Link
-                to={`/master-data/laporan-eis?tab=coverage&up3_id=${up3Id || d?.unit?.id || ''}&year=${d?.to ? d.to.slice(0, 4) : new Date().getFullYear()}`}
+                to={`/sinkronisasi?tab=kelengkapan&subtab=coverage&up3_id=${up3Id || d?.unit?.id || ''}&year=${d?.to ? d.to.slice(0, 4) : new Date().getFullYear()}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs shrink-0 self-center"
               >
                 Lihat Matriks Kelengkapan UP3 &rarr;
@@ -2643,7 +2675,7 @@ export default function BusinessAnalyticsPage() {
                 ))}
                 .{' '}
                 <Link
-                  to={`/master-data/laporan-eis?tab=coverage&up3_id=${up3Id || d?.unit?.id || ''}&year=${d?.to ? d.to.slice(0, 4) : new Date().getFullYear()}`}
+                  to={`/sinkronisasi?tab=kelengkapan&subtab=coverage&up3_id=${up3Id || d?.unit?.id || ''}&year=${d?.to ? d.to.slice(0, 4) : new Date().getFullYear()}`}
                   className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline ml-1"
                 >
                   Buka Matriks Kelengkapan &rarr;
@@ -3507,58 +3539,6 @@ export default function BusinessAnalyticsPage() {
       </>
       )}
 
-      {/* Drawer Sinkronisasi Data Gangguan */}
-      <OutageSyncDrawer
-        open={outageSyncDrawerOpen}
-        onClose={() => setOutageSyncDrawerOpen(false)}
-        onSynced={() => {
-          loadCatalog()
-          loadMetricData()
-        }}
-      />
-
-      {/* Drawer Sinkronisasi Data EIS / APKT / AP2T */}
-      <EisSyncDrawer
-        open={syncDrawerOpen}
-        mode={
-          isKontrol309Metric
-            ? 'piutang'
-            : isPelunasanPrrMetric
-            ? 'ap2t'
-            : activeCode.startsWith('piutang')
-            ? 'piutang'
-            : activeCode === 'pelanggan' || activeCode === 'daya'
-            ? 'permohonan'
-            : activeCode === 'kwh-p2tl'
-            ? 'ap2t'
-            : activeCode === 'saidi-saifi' || activeCode === 'ens' || activeCode === 'gangguan' || activeCode === 'rpt-rct-gangguan' || activeCode === 'rpt-rct-keluhan' || activeCode === 'anomali-gangguan' || activeCode === 'anomali-keluhan'
-            ? 'apkt'
-            : null
-        }
-        initialReports={
-          isKontrol309Metric
-            ? ['KONTROL309']
-            : isPelunasanPrrMetric
-            ? (activeCode === 'pelunasan-prr' ? ['pelunasan_prr', 'saldo_prr'] : ['pelunasan_ex_prr', 'hapus_prr'])
-            : null
-        }
-        initialDataset={
-          activeCode === 'rpt-rct-gangguan'
-            ? 'rpt-rct-gangguan'
-            : activeCode === 'rpt-rct-keluhan'
-            ? 'rpt-rct-keluhan'
-            : activeCode === 'anomali-gangguan'
-            ? 'anomali-gangguan'
-            : activeCode === 'anomali-keluhan'
-            ? 'anomali-keluhan'
-            : 'saidi-saifi'
-        }
-        onClose={() => setSyncDrawerOpen(false)}
-        onSynced={() => {
-          loadCatalog()
-          loadMetricData()
-        }}
-      />
     </div>
   )
 }

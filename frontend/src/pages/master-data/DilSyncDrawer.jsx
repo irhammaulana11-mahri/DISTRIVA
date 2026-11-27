@@ -4,6 +4,9 @@ import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import { connectionsApi } from '../../services/api.js'
+import StatusBadge from '../../components/StatusBadge.jsx'
+import { SyncUp3Selector, SyncRunMetaBadges, SyncConflictAlert } from '../sync/SyncRunStatusHelpers.jsx'
+import SyncTabLayout from '../sync/SyncTabLayout.jsx'
 import { IconRefresh, IconFolder, IconUpload, IconCheckCircle, IconAlertCircle } from '../../components/icons.jsx'
 
 const fmtSize = (bytes) => {
@@ -101,28 +104,46 @@ function Progress({ run }) {
 }
 
 /** Sinkron DIL per ULP, seperti penarikan MIMS per gudang: pilih ULP, jalan berurutan, satu yang gagal tidak menghentikan yang lain, dan hasil tiap ULP dipantau. */
-export default function DilSyncDrawer({ open, onClose, onFinished }) {
+export default function DilSyncDrawer({ open = true, asPage = false, embedded = false, selectedUp3Id = '', onUp3Context, onClose, onFinished }) {
   const [info, setInfo] = useState(null)
   const [run, setRun] = useState(null)
+  const [up3Id, setUp3Id] = useState(selectedUp3Id || '')
+  const [up3s, setUp3s] = useState([])
   const [picked, setPicked] = useState(null)
   const [error, setError] = useState('')
+  const [conflict, setConflict] = useState(null)
   const [loading, setLoading] = useState(false)
   const [starting, setStarting] = useState(false)
   const [notified, setNotified] = useState('')
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (overrideUp3Id) => {
     setLoading(true)
     setError('')
     try {
-      const r = await connectionsApi.syncInfo()
+      const targetUp3 = overrideUp3Id !== undefined ? overrideUp3Id : up3Id
+      const r = await connectionsApi.syncInfo(targetUp3 ? { up3_id: targetUp3 } : {})
       setInfo(r?.data || null)
+      if (r?.data?.up3s) setUp3s(r.data.up3s)
+      const resolvedUp3Id = r?.data?.up3_id || targetUp3 || ''
+      if (r?.data?.up3_id) setUp3Id(r.data.up3_id)
+      onUp3Context?.({ up3Id: resolvedUp3Id, up3s: r?.data?.up3s || [] })
       setRun((cur) => (isActive(r?.data?.active) ? r.data.active : cur && isActive(cur) ? cur : r?.data?.recent?.[0] || cur))
     } catch (err) {
       setError(err?.message || 'Gagal memuat info sinkron DIL.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [up3Id])
+
+  useEffect(() => {
+    if (selectedUp3Id && selectedUp3Id !== up3Id) {
+      setUp3Id(selectedUp3Id)
+      setRun(null)
+      setPicked(null)
+      setConflict(null)
+      load(selectedUp3Id)
+    }
+  }, [selectedUp3Id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (open) load() }, [open, load])
 
@@ -158,11 +179,20 @@ export default function DilSyncDrawer({ open, onClose, onFinished }) {
   const start = async () => {
     setStarting(true)
     setError('')
+    setConflict(null)
     try {
-      const r = await connectionsApi.syncStart({ units: selected })
+      const r = await connectionsApi.syncStart({ units: selected, ...(up3Id ? { up3_id: up3Id } : {}) })
       setRun(r?.data || null)
       setPicked(null)
     } catch (err) {
+      if (err?.status === 409 && err?.data) {
+        setConflict(err.data)
+        if (err.data.active_run_id) {
+          connectionsApi.syncRun(err.data.active_run_id).then((res) => {
+            if (res?.data) setRun(res.data)
+          }).catch(() => {})
+        }
+      }
       setError(err?.message || 'Sinkron DIL tidak dapat dimulai.')
     } finally {
       setStarting(false)
@@ -172,20 +202,35 @@ export default function DilSyncDrawer({ open, onClose, onFinished }) {
   const mon = info?.monitor
   const history = info?.history || []
 
-  return (
-    <Drawer open={open} onClose={onClose} title="Sinkron DIL" subtitle="Muat daftar pelanggan terbaru per ULP dari berkas DIL" size="max-w-3xl"
-      footer={(
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Button variant="secondary" icon={IconRefresh} onClick={load} loading={loading} disabled={running}>Periksa ulang folder</Button>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={onClose}>Tutup</Button>
-            <Button icon={IconUpload} onClick={start} loading={starting} disabled={!canStart}>{running ? 'Sedang berjalan…' : `Mulai sinkron (${selected.length} ULP)`}</Button>
-          </div>
-        </div>
-      )}>
-      <div className="space-y-5">
+  const footerActions = (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Button variant="secondary" icon={IconRefresh} onClick={load} loading={loading} disabled={running}>Periksa ulang folder</Button>
+      <div className="flex items-center gap-2">
+        {!asPage && <Button variant="secondary" onClick={onClose}>Tutup</Button>}
+        <Button icon={IconUpload} onClick={start} loading={starting} disabled={!canStart}>{running ? 'Sedang berjalan…' : `Mulai sinkron (${selected.length} ULP)`}</Button>
+      </div>
+    </div>
+  )
+
+  const body = (
+    <div className="space-y-5">
+        {!embedded && (
+          <SyncUp3Selector
+            up3Id={up3Id}
+            up3s={up3s}
+            onChange={(nextId) => {
+              setUp3Id(nextId)
+              setRun(null)
+              setPicked(null)
+              setConflict(null)
+              load(nextId)
+            }}
+          />
+        )}
+        <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
         {error && <Alert variant="error">{error}</Alert>}
 
+        {running && run && <SyncRunMetaBadges run={run} />}
         {running && run && <Progress run={run} />}
 
         <details className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-4" open={withFile.length === 0}>
@@ -312,7 +357,71 @@ export default function DilSyncDrawer({ open, onClose, onFinished }) {
             </ul>
           </section>
         )}
+    </div>
+  )
+
+  if (asPage && embedded) {
+    const dilStats = [
+      { label: 'Unit DIL', value: `${units.length} ULP`, sub: 'Terdaftar di folder inbox' },
+      { label: 'Berkas Siap', value: `${withFile.length} ULP`, sub: 'Berkas .mdb / .csv ditemukan' },
+      { label: 'Dipilih', value: `${selected.length} ULP`, sub: `Dari ${withFile.length} ULP siap` },
+      { label: 'Sesi Terakhir', value: run ? <StatusBadge status={run.status} /> : 'Belum ada', sub: run?.created_at ? String(run.created_at).slice(0, 16).replace('T', ' ') : '-' },
+    ]
+    return (
+      <SyncTabLayout
+        stats={dilStats}
+        banner={{
+          title: 'Sinkronisasi DIL Pelanggan per ULP',
+          badge: `${withFile.length} ULP siap`,
+          badgeTone: withFile.length > 0 ? 'ok' : 'warn',
+          desc: 'Muat daftar pelanggan terbaru per ULP dari berkas DIL (.mdb / .csv) di folder inbox server.',
+          actionLabel: 'Periksa ulang folder',
+          actionIcon: IconRefresh,
+          actionLoading: loading,
+          actionDisabled: running,
+          onAction: load,
+        }}
+        alerts={
+          <>
+            <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
+            {error && <Alert variant="error">{error}</Alert>}
+          </>
+        }
+      >
+        {running && run && <SyncRunMetaBadges run={run} />}
+        {running && run && <Progress run={run} />}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Pilih ULP &amp; Mulai Sinkron</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Centang ULP yang berkas DIL-nya ingin dimuat.</p>
+            </div>
+            <Button icon={IconUpload} onClick={start} loading={starting} disabled={!canStart}>
+              {running ? 'Sedang berjalan…' : `Mulai sinkron (${selected.length} ULP)`}
+            </Button>
+          </div>
+          {body}
+        </div>
+      </SyncTabLayout>
+    )
+  }
+
+  if (asPage) {
+    return (
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 space-y-5 shadow-xs">
+        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Sinkron DIL Pelanggan</h2>
+          <p className="text-xs text-slate-500">Muat daftar pelanggan terbaru per ULP dari berkas DIL (.mdb / .csv).</p>
+        </div>
+        {body}
+        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">{footerActions}</div>
       </div>
+    )
+  }
+
+  return (
+    <Drawer open={open} onClose={onClose} title="Sinkron DIL" subtitle="Muat daftar pelanggan terbaru per ULP dari berkas DIL" size="max-w-3xl" footer={footerActions}>
+      {body}
     </Drawer>
   )
 }

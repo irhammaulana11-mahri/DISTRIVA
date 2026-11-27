@@ -588,7 +588,7 @@ export default function SubstationMeasurementsPage() {
                 size="md"
                 variant="secondary"
                 icon={IconActivity}
-                onClick={() => navigate('/master-data/substation-measurements/sinkronisasi-maximo')}
+                onClick={() => navigate('/sinkronisasi?tab=maximo')}
               >
                 Sinkronisasi Maximo
               </Button>
@@ -640,7 +640,7 @@ export default function SubstationMeasurementsPage() {
 
       {tab === 'sync' && canMaximoSync ? (
         <SubstationSyncHistory
-          onOpenSync={() => navigate('/master-data/substation-measurements/sinkronisasi-maximo')}
+          onOpenSync={() => navigate('/sinkronisasi?tab=maximo')}
         />
       ) : (
         <>

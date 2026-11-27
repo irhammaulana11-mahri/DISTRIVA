@@ -35,6 +35,7 @@ vi.mock('../../features/admin/AccessContext.jsx', () => ({
 }))
 
 vi.mock('../../services/api.js', () => ({
+  syncApi: { active: vi.fn().mockResolvedValue({ data: [] }), accounts: vi.fn().mockResolvedValue({ data: [] }), saveAccount: vi.fn(), deleteAccount: vi.fn() },
   eisSyncApi: { show: vi.fn().mockResolvedValue({ data: { settings: { eis_username: 'u', has_password: true, power_min: 0, power_max: 99999999, lookback_days: 180, auto_enabled: false, auto_time: '18:13' }, runs: [] } }), save: vi.fn(), start: vi.fn(), run: vi.fn() },
   applicationApi: {
     attention: vi.fn().mockResolvedValue({ data: [], meta: { current_page: 1, per_page: 10, total: 0, last_page: 1 } }),
@@ -79,6 +80,7 @@ function renderApp(path = '/permohonan') {
           <Route path="/permohonan/baru" element={<ApplicationCreatePage />} />
           <Route path="/permohonan/impor" element={<ApplicationImportPage />} />
           <Route path="/permohonan/sinkronisasi-eis" element={<EisSyncPage />} />
+          <Route path="/sinkronisasi" element={<EisSyncPage />} />
           <Route path="/permohonan/:applicationId" element={<ApplicationDetailPage />} />
         </Routes>
       </NotificationProvider>

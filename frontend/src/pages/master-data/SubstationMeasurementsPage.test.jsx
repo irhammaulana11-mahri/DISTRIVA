@@ -20,6 +20,7 @@ vi.mock('../../services/api.js', () => ({
   feedersApi: { list: vi.fn() },
   adminApi: { units: vi.fn() },
   maximoSyncApi: { show: vi.fn(), save: vi.fn(), runs: vi.fn(), start: vi.fn(), run: vi.fn() },
+  syncApi: { active: vi.fn().mockResolvedValue({ data: [] }), accounts: vi.fn().mockResolvedValue({ data: [] }), saveAccount: vi.fn(), deleteAccount: vi.fn() },
 }))
 
 const row = (over = {}) => ({
@@ -153,6 +154,7 @@ function renderPage(
           <Routes>
             <Route path="/master-data/substation-measurements/impor" element={<SubstationReadingsImportPage />} />
             <Route path="/master-data/substation-measurements/sinkronisasi-maximo" element={<MaximoSyncPage />} />
+            <Route path="/sinkronisasi" element={<MaximoSyncPage />} />
             <Route path="/master-data/substation-measurements/:id" element={<SubstationMeasurementDetailPage />} />
             <Route path="*" element={<SubstationMeasurementsPage />} />
           </Routes>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthContext.jsx'
 import { useAccess } from '../features/admin/AccessContext.jsx'
 import { useNotifications, formatRelativeTime } from '../features/notifications/NotificationContext.jsx'
@@ -81,14 +81,15 @@ const operationsNav = [
 // 3. Perencanaan & Logistik (kosong karena dipindah ke Laporan & Operasional)
 const planningNav = []
 
-// 3. Master Data (Dikelompokkan secara logis & disaring kewenangan)
+// 3. Master Data & Sinkronisasi (Dikelompokkan secara logis & disaring kewenangan)
 const masterDataNav = [
+  // Sinkronisasi Lintas Modul
+  { to: '/sinkronisasi', label: 'Pusat Sinkronisasi', anyOf: ['eis_reports.view', 'applications.sync', 'outages.view', 'customers.view', 'substations.sync', 'stock.import'], icon: IconRefresh, group: 'Sinkronisasi Data' },
+
   // Aset Jaringan & Pelanggan
   { to: '/master-data/substations', label: 'Master Gardu', capability: 'substations.view', icon: IconZap, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/feeders', label: 'Master Penyulang', capability: 'feeders.view', icon: IconLayers, group: 'Aset Jaringan & Pelanggan' },
   { to: '/master-data/customers', label: 'Master Pelanggan', capability: 'customers.view', icon: IconUsers, group: 'Aset Jaringan & Pelanggan' },
-  { to: '/master-data/gangguan-sinkron', label: 'Data Gangguan (Sinkron)', capability: 'outages.view', icon: IconZap, group: 'Aset Jaringan & Pelanggan' },
-  { to: '/master-data/laporan-eis', label: 'Upload APKT/EIS/AP2T', capability: 'eis_reports.view', icon: IconUpload, group: 'Aset Jaringan & Pelanggan' },
 
   // Standar & Konstruksi
   { to: '/master-data/constructions', label: 'Standar Konstruksi', capability: 'master_data.view', profiles: ['perencanaan', 'jaringan', 'konstruksi', 'teknik', 'mulp', 'executive'], icon: IconLayers, group: 'Standar & Konstruksi' },
@@ -108,11 +109,15 @@ const masterDataNav = [
   { to: '/master-data/excel-import', label: 'Impor dari Excel', anyOf: ['bom.manage', 'prices.manage', 'tariffs.manage'], profiles: ['perencanaan'], icon: IconUpload, group: 'Keuangan & Tarif' },
 ]
 
-// 4. Laporan & Monitoring (RKM, Forecasting, serta sub-halaman analitika)
+// 4. NKO & Kinerja Unit
+const nkoNav = [
+  { to: '/nko', label: 'NKO & Kinerja Unit', capability: 'nko.view', icon: IconChart, end: true },
+  { to: '/nko/aturan', label: 'Aturan Realisasi NKO', capability: 'nko.view', icon: IconClipboard },
+]
+
+// 5. Laporan & Perencanaan (RKM, Forecasting, serta analitika KKF & operasional)
 const reportsNav = [
   { to: '/reports/overview', tabId: 'overview', label: 'Ringkasan Eksekutif', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconChart },
-  { to: '/nko', label: 'NKO & Kinerja Unit', capability: 'nko.view', icon: IconChart },
-  { to: '/nko/aturan', label: 'Aturan Realisasi NKO', capability: 'nko.view', icon: IconClipboard },
   { to: '/rkm', label: 'RKM Distribusi', capability: 'rkm.view', profiles: ['perencanaan', 'jaringan', 'teknik', 'mulp', 'executive'], icon: IconCalendar },
   { to: '/forecast', label: 'Forecasting', capability: 'forecast.view', icon: IconChart },
   { to: '/reports/pipeline', tabId: 'pipeline', label: 'Alur Pekerjaan (Funnel)', capability: 'reports.view', profiles: ['executive', 'mulp', 'teknik', 'perencanaan', 'jaringan', 'konstruksi', 'niaga', 'admin'], icon: IconActivity },
@@ -195,8 +200,9 @@ const titles = {
   '/forecast': 'Laporan & Monitoring / Forecasting',
   '/analisis-pelanggan': 'Laporan & Monitoring / Analisa Pelanggan',
   '/analisis-gangguan': 'Laporan & Monitoring / Analisis Gangguan',
-  '/nko': 'Laporan & Monitoring / Nilai Kinerja Organisasi (NKO)',
-  '/nko/aturan': 'Laporan & Monitoring / NKO / Aturan Realisasi',
+  '/nko': 'NKO & Kinerja / Nilai Kinerja Organisasi (NKO)',
+  '/nko/aturan': 'NKO & Kinerja / NKO / Aturan Realisasi',
+  '/sinkronisasi': 'Data & Sinkronisasi / Pusat Sinkronisasi Data',
   '/permohonan': 'Operasional / Permohonan (PB/PD)',
   '/permohonan/sinkronisasi-eis': 'Operasional / Sinkronisasi EIS',
   '/survei': 'Operasional / Usulan Survei',
@@ -318,16 +324,50 @@ const titleFor = (path, search = '') => {
   return '—'
 }
 
+const PARENT_ROUTE_PREFIXES = [
+  ['/outages/analysis/feeders/', '/pengusahaan/gangguan'],
+  ['/analisis-gangguan/penyulang/', '/pengusahaan/gangguan'],
+  ['/nko/aturan', '/nko'],
+  ['/rkm/versions/', '/rkm'],
+  ['/permohonan/', '/permohonan'],
+  ['/tugas/', '/tugas'],
+  ['/usulan/', '/usulan'],
+  ['/survei/', '/survei'],
+  ['/work-orders/', '/work-orders'],
+  ['/wo-tiang/', '/work-orders'],
+  ['/admin/users/', '/admin/users'],
+  ['/admin/units/', '/admin/units'],
+  ['/master-data/vendors/', '/master-data/vendors'],
+  ['/master-data/warehouses/', '/master-data/warehouses'],
+  ['/master-data/materials/', '/master-data/materials'],
+  ['/master-data/khs/', '/master-data/khs'],
+  ['/master-data/mapping/', '/master-data/mapping'],
+  ['/master-data/constructions/', '/master-data/constructions'],
+  ['/master-data/bom/', '/master-data/bom'],
+  ['/master-data/harga/', '/master-data/harga'],
+  ['/master-data/tariff-books/', '/master-data/tariff-books'],
+  ['/master-data/pole-contracts/', '/master-data/pole-contracts'],
+  ['/master-data/categories/', '/master-data/categories'],
+  ['/master-data/substations/', '/master-data/substations'],
+  ['/master-data/substation-measurements/', '/master-data/substation-measurements'],
+  ['/master-data/kkf-parameters/', '/master-data/kkf-parameters'],
+]
+
+const parentRouteFor = (path) => {
+  const match = PARENT_ROUTE_PREFIXES.find(([prefix]) => path.startsWith(prefix))
+  return match ? match[1] : null
+}
+
 // Helper to determine which sidebar section is active for a given pathname
 const getSectionForPath = (path) => {
   if (path.startsWith('/admin') || path.startsWith('/master-data/vendors')) return 'admin'
-  if (path.startsWith('/pengusahaan') || path.startsWith('/outages/analysis/feeders/')) return 'pengusahaan'
+  if (path.startsWith('/nko')) return 'nko'
+  if (path.startsWith('/pengusahaan') || path.startsWith('/outages/analysis/feeders/') || path.startsWith('/analisis-gangguan/penyulang/')) return 'pengusahaan'
   if (
     path.startsWith('/rkm') ||
     path.startsWith('/forecast') ||
     path.startsWith('/analisis-pelanggan') ||
     path.startsWith('/analisis-gangguan') ||
-    path.startsWith('/nko') ||
     path.startsWith('/reports')
   ) {
     return 'reports'
@@ -347,7 +387,7 @@ const getSectionForPath = (path) => {
   ) {
     return 'operations'
   }
-  if (path.startsWith('/master-data')) return 'masterData'
+  if (path.startsWith('/master-data') || path.startsWith('/sinkronisasi')) return 'masterData'
   if (path.startsWith('/sistem') || path.startsWith('/pengaturan') || path === '/mfa') return 'settings'
   if (path.startsWith('/modul')) return 'modules'
   if (path === '/') return 'main'
@@ -367,11 +407,12 @@ export default function AppLayout() {
     const active = getSectionForPath(pathname)
     return {
       main: active === 'main' || !active,
+      nko: active === 'nko',
+      pengusahaan: active === 'pengusahaan',
       operations: active === 'operations',
       planning: active === 'planning',
-      masterData: active === 'masterData',
       reports: active === 'reports',
-      pengusahaan: active === 'pengusahaan',
+      masterData: active === 'masterData',
       admin: active === 'admin',
       settings: active === 'settings',
       modules: active === 'modules',
@@ -383,11 +424,12 @@ export default function AppLayout() {
     const active = getSectionForPath(pathname)
     setExpandedSections({
       main: active === 'main' || !active,
+      nko: active === 'nko',
+      pengusahaan: active === 'pengusahaan',
       operations: active === 'operations',
       planning: active === 'planning',
-      masterData: active === 'masterData',
       reports: active === 'reports',
-      pengusahaan: active === 'pengusahaan',
+      masterData: active === 'masterData',
       admin: active === 'admin',
       settings: active === 'settings',
       modules: active === 'modules',
@@ -496,11 +538,17 @@ export default function AppLayout() {
 
   // Menu disaring menurut profil kerja (petunjuk tampilan; server tetap menegakkan izin).
   const userProfiles = resolveMenuProfiles({ can, isSysAdmin })
-  const showModuleRoadmap = isSysAdmin || userProfiles.includes('admin')
+  const showModuleRoadmap = Boolean(isSysAdmin)
 
   const mainItems = mustChangePassword
     ? nav.filter((n) => n.to === '/ubah-password')
     : nav
+
+  const accessibleNkoItems = mustChangePassword
+    ? []
+    : nkoNav.filter(
+        (n) => (n.anyOf ? n.anyOf.some((c) => Boolean(can[c])) : can[n.capability]) && visibleForProfiles(n, userProfiles),
+      )
 
   const accessibleOperationsItems = mustChangePassword
     ? []
@@ -651,7 +699,124 @@ export default function AppLayout() {
             </div>
           </div>
 
-          {/* 2. Operasional Navigation */}
+          {/* 2. NKO & Kinerja */}
+          {accessibleNkoItems.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => toggleSection('nko')}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                aria-expanded={expandedSections.nko}
+              >
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">NKO &amp; Kinerja</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleNkoItems.length})</span>
+                  {getSectionForPath(pathname) === 'nko' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
+                  )}
+                </div>
+                <IconChevronDown
+                  size={14}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.nko ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                  expandedSections.nko ? 'max-h-[400px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
+                }`}
+              >
+                <nav aria-label="Navigasi NKO dan kinerja" className="space-y-1">
+                  {accessibleNkoItems.map((n) => {
+                    const Icon = n.icon
+                    const active = isLinkActive(n)
+                    return (
+                      <NavLink
+                        key={n.to}
+                        to={n.to}
+                        end={n.end}
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                          active
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {Icon && <Icon size={18} className={active ? 'text-white' : 'text-slate-400'} />}
+                        <span>{n.label}</span>
+                      </NavLink>
+                    )
+                  })}
+                </nav>
+              </div>
+            </div>
+          )}
+
+          {/* 3. Analisa & Tren Pengusahaan */}
+          {accessiblePengusahaanItems.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => toggleSection('pengusahaan')}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                aria-expanded={expandedSections.pengusahaan}
+              >
+                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                  <span className="truncate">Analisa &amp; Tren Pengusahaan</span>
+                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessiblePengusahaanItems.length})</span>
+                  {getSectionForPath(pathname) === 'pengusahaan' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
+                  )}
+                </div>
+                <IconChevronDown
+                  size={14}
+                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.pengusahaan ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                  expandedSections.pengusahaan ? 'max-h-[900px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
+                }`}
+              >
+                <nav aria-label="Navigasi analisa pengusahaan" className="space-y-1">
+                  {(() => {
+                    let lastGroup = null
+                    return accessiblePengusahaanItems.map((n) => {
+                      const Icon = n.icon
+                      const active = isLinkActive(n)
+                      const isNewGroup = n.group && n.group !== lastGroup
+                      lastGroup = n.group
+
+                      return (
+                        <div key={n.to}>
+                          {isNewGroup && n.group !== 'Ikhtisar' && (
+                            <div className="pt-2 pb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              {n.group}
+                            </div>
+                          )}
+                          <NavLink
+                            to={n.to}
+                            end={n.end}
+                            title={n.tooltip}
+                            onClick={() => setOpen(false)}
+                            className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                              active
+                                ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
+                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            }`}
+                          >
+                            {Icon && <Icon size={16} className={active ? 'text-white' : 'text-slate-400'} />}
+                            <span className="truncate">{n.label}</span>
+                          </NavLink>
+                        </div>
+                      )
+                    })
+                  })()}
+                </nav>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Pelayanan & Konstruksi */}
           {accessibleOperationsItems.length > 0 && (
             <div>
               <button
@@ -661,7 +826,7 @@ export default function AppLayout() {
                 aria-expanded={expandedSections.operations}
               >
                 <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                  <span className="truncate">Operasional</span>
+                  <span className="truncate">Pelayanan &amp; Konstruksi</span>
                   <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleOperationsItems.length})</span>
                   {getSectionForPath(pathname) === 'operations' && (
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
@@ -763,7 +928,7 @@ export default function AppLayout() {
                 aria-expanded={expandedSections.masterData}
               >
                 <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                  <span className="truncate">Master Data</span>
+                  <span className="truncate">Data &amp; Sinkronisasi</span>
                   <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleMasterDataItems.length})</span>
                   {getSectionForPath(pathname) === 'masterData' && (
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
@@ -826,7 +991,7 @@ export default function AppLayout() {
                 aria-expanded={expandedSections.reports}
               >
                 <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                  <span className="truncate">Laporan &amp; Monitoring</span>
+                  <span className="truncate">Laporan &amp; Perencanaan</span>
                   <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessibleReportsItems.length})</span>
                   {getSectionForPath(pathname) === 'reports' && (
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
@@ -862,71 +1027,6 @@ export default function AppLayout() {
                       </NavLink>
                     )
                   })}
-                </nav>
-              </div>
-            </div>
-          )}
-
-          {/* 6. Analisa & Tren Pengusahaan (Label Tersendiri & Indikator Pengusahaan) */}
-          {accessiblePengusahaanItems.length > 0 && (
-            <div>
-              <button
-                type="button"
-                onClick={() => toggleSection('pengusahaan')}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                aria-expanded={expandedSections.pengusahaan}
-              >
-                <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                  <span className="truncate">Analisa &amp; Tren Pengusahaan</span>
-                  <span className="shrink-0 text-[10px] text-slate-400 font-mono">({accessiblePengusahaanItems.length})</span>
-                  {getSectionForPath(pathname) === 'pengusahaan' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0 ml-0.5" />
-                  )}
-                </div>
-                <IconChevronDown
-                  size={14}
-                  className={`shrink-0 transform transition-transform duration-200 ${expandedSections.pengusahaan ? 'rotate-180' : ''}`}
-                />
-              </button>
-              <div
-                className={`overflow-hidden transition-all duration-200 ease-in-out ${
-                  expandedSections.pengusahaan ? 'max-h-[900px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
-                }`}
-              >
-                <nav aria-label="Navigasi analisa pengusahaan" className="space-y-1">
-                  {(() => {
-                    let lastGroup = null
-                    return accessiblePengusahaanItems.map((n) => {
-                      const Icon = n.icon
-                      const active = isLinkActive(n)
-                      const isNewGroup = n.group && n.group !== lastGroup
-                      lastGroup = n.group
-
-                      return (
-                        <div key={n.to}>
-                          {isNewGroup && n.group !== 'Ikhtisar' && (
-                            <div className="pt-2 pb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                              {n.group}
-                            </div>
-                          )}
-                          <NavLink
-                            to={n.to}
-                            end={n.end}
-                            title={n.tooltip}
-                            onClick={() => setOpen(false)}
-                            className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                              active
-                                ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
-                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                            }`}
-                          >
-                            {Icon && <Icon size={16} className={active ? 'text-white' : 'text-slate-400'} />}
-                            <span className="truncate">{n.label}</span>
-                          </NavLink>
-                        </div>
-                      )
-                    })
-                  })()}
                 </nav>
               </div>
             </div>
@@ -1119,8 +1219,33 @@ export default function AppLayout() {
               <IconMenu size={20} className="mr-1" />
               <span>Menu</span>
             </button>
-            <nav aria-label="Breadcrumb" className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate max-w-[130px] xs:max-w-[180px] sm:max-w-none">
-              DISTRIVA / <span className="font-medium text-slate-900 dark:text-slate-100">{titleFor(pathname, search)}</span>
+            <nav aria-label="Breadcrumb" className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate max-w-[130px] xs:max-w-[180px] sm:max-w-none flex items-center gap-1">
+              <Link to="/" className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors shrink-0">
+                DISTRIVA
+              </Link>
+              {(() => {
+                const parts = titleFor(pathname, search).split(' / ').filter(Boolean)
+                const parentTo = parentRouteFor(pathname)
+                const parentIdx = parts.length >= 3 ? parts.length - 2 : -1
+                return parts.map((part, idx) => {
+                  const isLast = idx === parts.length - 1
+                  const linkTo = idx === parentIdx ? parentTo : null
+                  return (
+                    <span key={`${part}-${idx}`} className="inline-flex items-center gap-1 min-w-0">
+                      <span aria-hidden="true">/</span>
+                      {isLast ? (
+                        <span className="font-medium text-slate-900 dark:text-slate-100 truncate">{part}</span>
+                      ) : linkTo ? (
+                        <Link to={linkTo} className="hover:text-slate-800 dark:hover:text-slate-200 hover:underline transition-colors truncate">
+                          {part}
+                        </Link>
+                      ) : (
+                        <span className="truncate">{part}</span>
+                      )}
+                    </span>
+                  )
+                })
+              })()}
             </nav>
           </div>
 

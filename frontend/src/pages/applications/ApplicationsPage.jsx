@@ -290,7 +290,7 @@ export default function ApplicationsPage() {
                 variant="secondary"
                 size="md"
                 icon={IconRefresh}
-                onClick={() => navigate('/permohonan/sinkronisasi-eis')}
+                onClick={() => navigate('/sinkronisasi?tab=eis&mode=permohonan')}
                 aria-label="Sinkronisasi EIS"
               >
                 Sinkronisasi EIS

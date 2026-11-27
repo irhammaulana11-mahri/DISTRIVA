@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { eisSyncApi } from '../../services/api.js'
+import { eisSyncApi, syncApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Modal from '../../components/Modal.jsx'
 import EisRunResults from './EisRunResults.jsx'
+import { SyncUp3Selector, SyncRunMetaBadges, SyncConflictAlert } from '../sync/SyncRunStatusHelpers.jsx'
+import SyncUlpAccountsPanel from '../sync/SyncUlpAccountsPanel.jsx'
+import SyncUnitPicker from '../sync/SyncUnitPicker.jsx'
 import {
   IconRefresh,
   IconCheck,
@@ -50,7 +53,7 @@ function Field({ label, hint, children }) {
  * - 'piutang': hanya menampilkan form penarikan Laporan Saldo Piutang (Golongan, Lembar, Kogol).
  * - 'all' / null: menampilkan selector/tab atau mode kontekstual.
  */
-export default function EisSyncDrawer({ open, asPage = false, mode = null, initialDataset = 'saidi-saifi', initialReports = null, onClose, onSynced }) {
+export default function EisSyncDrawer({ open, asPage = false, embedded = false, selectedUp3Id = '', onUp3Context, mode = null, initialDataset = 'saidi-saifi', initialReports = null, onClose, onSynced }) {
   const { can } = useAccess?.() || { can: {} }
   const canApktSync = Boolean(can?.['eis_sync.manage'] && can?.['eis_reports.import'])
 
@@ -58,8 +61,13 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   const [form, setForm] = useState(null)
   const [runs, setRuns] = useState([])
   const [units, setUnits] = useState([])
+  const [up3Id, setUp3Id] = useState(selectedUp3Id || '')
+  const [up3s, setUp3s] = useState([])
+  const [ulpAccounts, setUlpAccounts] = useState([])
   const [picked, setPicked] = useState(null)       // null = semua unit; selain itu daftar kode ULP yang dipilih
   const [current, setCurrent] = useState(null)
+  const [batchRuns, setBatchRuns] = useState([])
+  const [conflict, setConflict] = useState(null)
   const [range, setRange] = useState({ from: '', to: '' })
   const [completeOld, setCompleteOld] = useState(false)       // melengkapi permohonan lama (maks. 180 hari sebelum rentang): hanya bila pengguna memilihnya
   const [saving, setSaving] = useState(false)
@@ -117,11 +125,21 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   const timer = useRef(null)
   const logRef = useRef(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (overrideUp3Id) => {
     try {
-      const res = await eisSyncApi.show()
+      const targetUp3 = overrideUp3Id !== undefined ? overrideUp3Id : up3Id
+      const res = await eisSyncApi.show(targetUp3 ? { up3_id: targetUp3 } : {})
       const s = res?.data?.settings
       setSettings(s)
+      if (res?.data?.up3s) setUp3s(res.data.up3s)
+      const resolvedUp3Id = res?.data?.up3_id || targetUp3 || ''
+      if (res?.data?.up3_id) setUp3Id(res.data.up3_id)
+      onUp3Context?.({ up3Id: resolvedUp3Id, up3s: res?.data?.up3s || [] })
+      if (syncApi?.accounts) {
+        syncApi.accounts({ source: 'eis', ...(resolvedUp3Id ? { up3_id: resolvedUp3Id } : {}) })
+          .then((aRes) => setUlpAccounts(Array.isArray(aRes?.data) ? aRes.data : []))
+          .catch(() => {})
+      }
       setForm((f) => f || {
         eis_username: s?.eis_username || '',
         eis_password: '',
@@ -132,7 +150,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
         auto_time: s?.auto_time || '18:13',
       })
       setRuns(res?.data?.runs || [])
-      setUnits(res?.data?.units || [])
+      const rawUnits = res?.data?.units || []
+      setUnits(
+        resolvedUp3Id
+          ? rawUnits.filter((u) => (!u.parent_id && !u.up3_id) || u.parent_id === resolvedUp3Id || u.up3_id === resolvedUp3Id)
+          : rawUnits,
+      )
       const live = (res?.data?.runs || []).find((r) => r.status === 'QUEUED' || r.status === 'RUNNING')
       if (live) setCurrent((c) => c || live)
 
@@ -153,7 +176,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     } catch (err) {
       setError(err?.message || 'Gagal memuat pengaturan sinkronisasi EIS.')
     }
-  }, [canApktSync])
+  }, [canApktSync, up3Id])
 
   useEffect(() => {
     if (initialDataset) {
@@ -172,6 +195,18 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   }, [initialReports, mode, activeTab])
 
   useEffect(() => {
+    if (selectedUp3Id && selectedUp3Id !== up3Id) {
+      setUp3Id(selectedUp3Id)
+      setForm(null)
+      setCurrent(null)
+      setBatchRuns([])
+      setConflict(null)
+      setPicked(null)
+      load(selectedUp3Id)
+    }
+  }, [selectedUp3Id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (open) {
       setForm(null)
       setCurrent(null)
@@ -184,24 +219,49 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     return () => clearTimeout(timer.current)
   }, [open, load])
 
-  // Ikuti satu sinkronisasi yang sedang berjalan sampai selesai
+  // Ikuti satu atau beberapa sinkronisasi yang sedang berjalan sampai selesai
   useEffect(() => {
     clearTimeout(timer.current)
-    if (!open || !current || !['QUEUED', 'RUNNING'].includes(current.status)) return undefined
+    const liveBatch = batchRuns.filter((r) => ['QUEUED', 'RUNNING'].includes(r.status))
+    const hasCurrentLive = current && ['QUEUED', 'RUNNING'].includes(current.status)
+    if (!open || (!hasCurrentLive && liveBatch.length === 0)) return undefined
     timer.current = setTimeout(async () => {
       try {
-        const res = await eisSyncApi.run(current.id)
-        setCurrent(res?.data)
-        if (res?.data && !['QUEUED', 'RUNNING'].includes(res.data.status)) {
-          load()
-          if (res.data.status === 'OK') onSynced?.()
+        if (hasCurrentLive) {
+          const res = await eisSyncApi.run(current.id)
+          if (res?.data) {
+            setCurrent(res.data)
+            if (!['QUEUED', 'RUNNING'].includes(res.data.status)) {
+              load()
+              if (res.data.status === 'OK') onSynced?.()
+            }
+          }
+        }
+        if (batchRuns.length > 1 && liveBatch.length > 0) {
+          const updated = await Promise.all(
+            batchRuns.map(async (r) => {
+              if (!['QUEUED', 'RUNNING'].includes(r.status)) return r
+              try {
+                const res = await eisSyncApi.run(r.id)
+                return res?.data || r
+              } catch {
+                return r
+              }
+            }),
+          )
+          setBatchRuns(updated)
+          const firstFinished = updated.find((r) => r.status === 'OK')
+          if (updated.every((r) => !['QUEUED', 'RUNNING'].includes(r.status))) {
+            load()
+            if (firstFinished) onSynced?.()
+          }
         }
       } catch {
-        setCurrent((c) => ({ ...c }))
+        setCurrent((c) => (c ? { ...c } : c))
       }
     }, 3000)
     return () => clearTimeout(timer.current)
-  }, [open, current, load, onSynced])
+  }, [open, current, batchRuns, load, onSynced])
 
   // Auto-scroll log saat ada pembaruan
   useEffect(() => {
@@ -216,6 +276,36 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
       [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value,
     }))
 
+  const handleUp3Change = (nextUp3Id) => {
+    setUp3Id(nextUp3Id)
+    setForm(null)
+    setCurrent(null)
+    setBatchRuns([])
+    setConflict(null)
+    setPicked(null)
+    load(nextUp3Id)
+  }
+
+  const handleStartResponse = (res) => {
+    const primary = res?.data || null
+    const allRuns = Array.isArray(res?.runs) && res.runs.length > 0 ? res.runs : primary ? [primary] : []
+    setCurrent(primary)
+    setBatchRuns(allRuns)
+    setConflict(null)
+  }
+
+  const handleStartConflict = (err, fallbackMsg, setErrFn) => {
+    if (err?.status === 409 && err?.data) {
+      setConflict(err.data)
+      if (err.data.active_run_id) {
+        eisSyncApi.run(err.data.active_run_id).then((r) => {
+          if (r?.data) setCurrent(r.data)
+        }).catch(() => {})
+      }
+    }
+    setErrFn(err?.message || fallbackMsg)
+  }
+
   const save = async () => {
     setSaving(true)
     setError('')
@@ -223,6 +313,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     try {
       const res = await eisSyncApi.save({
         ...form,
+        ...(up3Id ? { up3_id: up3Id } : {}),
         power_min: Number(form.power_min),
         power_max: Number(form.power_max),
         lookback_days: Number(form.lookback_days),
@@ -245,14 +336,16 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     setStarting(true)
     setError('')
     setNotice('')
+    setConflict(null)
     try {
       const body = range.from && range.to ? { from: range.from, to: range.to } : {}
+      if (up3Id) body.up3_id = up3Id
       if (units.length > 0 && selected.length < units.length) body.units = selected      // semua unit = tanpa daftar; sebagian = hanya unit itu, berurutan
       if (completeOld) body.complete_old = true
       const res = await eisSyncApi.start(body)
-      setCurrent(res?.data)
+      handleStartResponse(res)
     } catch (err) {
-      setError(err?.message || 'Gagal memulai sinkronisasi.')
+      handleStartConflict(err, 'Gagal memulai sinkronisasi.', setError)
     } finally {
       setStarting(false)
     }
@@ -268,6 +361,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     setPiutangStarting(true)
     setPiutangError('')
     setNotice('')
+    setConflict(null)
     try {
       const body = {
         kind: 'piutang',
@@ -275,11 +369,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
         from_month: piutangFromMonth || piutangToMonth,
         reports: piutangReports,
       }
+      if (up3Id) body.up3_id = up3Id
       if (units.length > 0 && selected.length < units.length) body.units = selected
       const res = await eisSyncApi.start(body)
-      setCurrent(res?.data)
+      handleStartResponse(res)
     } catch (err) {
-      setPiutangError(err?.message || 'Gagal memulai penarikan saldo piutang.')
+      handleStartConflict(err, 'Gagal memulai penarikan saldo piutang.', setPiutangError)
     } finally {
       setPiutangStarting(false)
     }
@@ -295,6 +390,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     setAp2tStarting(true)
     setAp2tError('')
     setNotice('')
+    setConflict(null)
     try {
       const body = {
         kind: 'ap2t',
@@ -302,11 +398,12 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
         from_month: ap2tFromMonth || ap2tToMonth,
         reports: ap2tReports,
       }
+      if (up3Id) body.up3_id = up3Id
       if (units.length > 0 && selected.length < units.length) body.units = selected
       const res = await eisSyncApi.start(body)
-      setCurrent(res?.data)
+      handleStartResponse(res)
     } catch (err) {
-      setAp2tError(err?.message || 'Gagal memulai penarikan TAGSUS AP2T.')
+      handleStartConflict(err, 'Gagal memulai penarikan TAGSUS AP2T.', setAp2tError)
     } finally {
       setAp2tStarting(false)
     }
@@ -316,6 +413,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     setApktStarting(true)
     setApktError('')
     setNotice('')
+    setConflict(null)
     const token = apktToken.trim()
     // Segera kosongkan input token demi keamanan; jangan pernah simpan di browser storage
     setApktToken('')
@@ -327,6 +425,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
         to_month: apktToMonth,
         from_month: apktFromMonth || apktToMonth,
       }
+      if (up3Id) body.up3_id = up3Id
       if (useSavedToken) {
         body.use_saved_token = true
       } else {
@@ -335,7 +434,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
       }
       if (units.length > 0 && selected.length < units.length) body.units = selected
       const res = await eisSyncApi.start(body)
-      setCurrent(res?.data)
+      handleStartResponse(res)
       // Refresh status token
       if (saveApktToken) {
         setSavedTokenInfo((prev) => ({ ...prev, saved: true, saved_at: new Date().toISOString() }))
@@ -343,7 +442,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
     } catch (err) {
       // Backend mengirim pesan Indonesia apa adanya (422 / 409)
       const msg = err?.message || 'Gagal memulai penarikan SAIDI/SAIFI APKT.'
-      setApktError(msg)
+      handleStartConflict(err, msg, setApktError)
       // Galat 409 terkait token tersimpan: tampilkan pesan dan pindah ke pilihan tempel token
       if (useSavedToken && (err?.status === 409 || msg.includes('token APKT tersimpan') || msg.includes('tidak dapat dibaca lagi'))) {
         setUseSavedToken(false)
@@ -375,6 +474,11 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   }, [current?.log])
 
   const running = current && ['QUEUED', 'RUNNING'].includes(current.status)
+  const sameUp3Active = !current?.up3?.id || !up3Id || current.up3.id === up3Id
+  const runningPermohonan = Boolean(running && sameUp3Active && (!current?.kind || current.kind === 'permohonan'))
+  const runningPiutang = Boolean(running && sameUp3Active && current?.kind === 'piutang')
+  const runningApkt = Boolean(running && sameUp3Active && current?.kind === 'apkt' && (!current?.dataset || current.dataset === apktDataset))
+  const runningAp2t = Boolean(running && sameUp3Active && current?.kind === 'ap2t')
   const ready = Boolean(settings?.eis_username && settings?.has_password)
 
   // Metrik Ringkasan KPI
@@ -424,7 +528,8 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
   return (
     <PanelShell
       asPage={asPage}
-      onBack={onClose}
+      embedded={embedded}
+      onBack={embedded ? undefined : onClose}
       open={open}
       onClose={onClose}
       title={titleText}
@@ -439,16 +544,31 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
         </div>
       ) : (
         <div className="space-y-6 text-xs">
+          {!embedded && <SyncUp3Selector up3Id={up3Id} up3s={up3s} onChange={handleUp3Change} />}
+          <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
           {/* Kartu ringkasan: akun, otomasi, total riwayat, sesi terakhir */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase">Akun EIS</div>
+              <div className="text-[10px] text-slate-400 font-semibold uppercase">
+                Akun EIS {up3s.find((u) => u.id === up3Id)?.name ? `· ${up3s.find((u) => u.id === up3Id).name}` : ''}
+              </div>
               <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
                 {settings?.eis_username || 'Belum diatur'}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
                 {settings?.has_password ? 'Password aman tersimpan' : 'Password belum ada'}
               </div>
+              {ulpAccounts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="mt-1.5 inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline cursor-pointer"
+                >
+                  {ulpAccounts.length === 1
+                    ? `${ulpAccounts[0].name}: ${ulpAccounts[0].has_own_account ? `Akun sendiri (${ulpAccounts[0].username})` : 'Ikut akun UP3'}`
+                    : `Akun Khusus ULP: ${ulpAccounts.filter((a) => a.has_own_account).length}/${ulpAccounts.length} ULP`}
+                </button>
+              )}
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -638,43 +758,32 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 </div>
 
                 {/* Pilih unit yang disinkronkan */}
-                {units.length > 0 && (
-                  <fieldset className="space-y-2 pt-1" aria-label="Unit yang disinkronkan">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
-                        Unit yang disinkronkan <span className="font-normal text-slate-500">({selected.length} dari {units.length}, diproses berurutan dari atas)</span>
-                      </legend>
-                      <div className="flex gap-3 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {units.map((u) => (
-                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-blue-300 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
-                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Sinkronkan ${u.code} ${u.name}`} />
-                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Unit dipilih di EIS satu per satu; tiap unit diunduh dan diunggah dulu sebelum lanjut ke unit berikutnya. Satu unit yang gagal tidak menghentikan yang lain.
-                    </p>
-                  </fieldset>
-                )}
+                <SyncUnitPicker
+                  units={units}
+                  selected={selected}
+                  onToggle={toggleUnit}
+                  onSelectAll={() => setPicked(null)}
+                  onClear={() => setPicked([])}
+                  disabled={runningPermohonan}
+                  up3Name={up3s.find((u) => u.id === up3Id)?.name || ''}
+                  ulpAccounts={ulpAccounts}
+                  tone="blue"
+                  checkboxAriaPrefix="Sinkronkan"
+                  hint="Unit dipilih di EIS satu per satu; tiap unit diunduh dan diunggah dulu sebelum lanjut ke unit berikutnya. Satu unit yang gagal tidak menghentikan yang lain."
+                />
 
                 {/* Tombol Eksekusi Penarikan Permohonan */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <Button
                     onClick={start}
                     loading={starting}
-                    disabled={!ready || running || Boolean(range.from) !== Boolean(range.to) || (units.length > 0 && selected.length === 0)}
+                    disabled={!ready || runningPermohonan || Boolean(range.from) !== Boolean(range.to) || (units.length > 0 && selected.length === 0)}
                     variant="primary"
                     size="md"
                     className="w-full sm:w-auto cursor-pointer"
                   >
-                    <IconRefresh size={14} className={running && current?.kind !== 'piutang' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                    {running && current?.kind !== 'piutang' ? 'Sedang berjalan…' : 'Sinkronkan Sekarang'}
+                    <IconRefresh size={14} className={runningPermohonan ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {runningPermohonan ? 'Sedang berjalan…' : 'Sinkronkan Sekarang'}
                   </Button>
 
                   {!ready && (
@@ -779,29 +888,20 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 </div>
 
                 {/* Pilih unit yang disinkronkan untuk piutang (hanya bila kartu permohonan tidak tampil) */}
-                {!isPermohonan && units.length > 0 && (
-                  <fieldset className="space-y-2 pt-1" aria-label="Unit yang disinkronkan">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
-                        Unit yang disinkronkan <span className="font-normal text-slate-500">({selected.length} dari {units.length}, diproses berurutan dari atas)</span>
-                      </legend>
-                      <div className="flex gap-3 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {units.map((u) => (
-                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
-                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Sinkronkan ${u.code} ${u.name}`} />
-                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Unit dipilih di EIS satu per satu; tiap unit diunduh dan diunggah dulu sebelum lanjut ke unit berikutnya.
-                    </p>
-                  </fieldset>
+                {!isPermohonan && (
+                  <SyncUnitPicker
+                    units={units}
+                    selected={selected}
+                    onToggle={toggleUnit}
+                    onSelectAll={() => setPicked(null)}
+                    onClear={() => setPicked([])}
+                    disabled={runningPiutang}
+                    up3Name={up3s.find((u) => u.id === up3Id)?.name || ''}
+                    ulpAccounts={ulpAccounts}
+                    tone="emerald"
+                    checkboxAriaPrefix="Sinkronkan"
+                    hint="Unit dipilih di EIS satu per satu; tiap unit diunduh dan diunggah dulu sebelum lanjut ke unit berikutnya."
+                  />
                 )}
 
                 {/* Info Unit terpilih bila kartu permohonan tampil bersamaan */}
@@ -816,13 +916,13 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                   <Button
                     onClick={startPiutang}
                     loading={piutangStarting}
-                    disabled={!ready || running || !piutangToMonth || piutangReports.length === 0 || (units.length > 0 && selected.length === 0)}
+                    disabled={!ready || runningPiutang || !piutangToMonth || piutangReports.length === 0 || (units.length > 0 && selected.length === 0)}
                     variant="primary"
                     size="md"
                     className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white cursor-pointer"
                   >
-                    <IconRefresh size={14} className={running && current?.kind === 'piutang' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                    {running && current?.kind === 'piutang' ? 'Sedang menarik piutang…' : 'Tarik Piutang'}
+                    <IconRefresh size={14} className={runningPiutang ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {runningPiutang ? 'Sedang menarik piutang…' : 'Tarik Piutang'}
                   </Button>
 
                   {!ready && (
@@ -1071,27 +1171,17 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 </div>
 
                 {/* Pilih unit ULP yang ditarik */}
-                {units.length > 0 && (
-                  <fieldset className="space-y-2 pt-1" aria-label="Unit APKT yang disinkronkan">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
-                        Unit yang ditarik <span className="font-normal text-slate-500">({selected.length} dari {units.length}, kosong = semua ULP)</span>
-                      </legend>
-                      <div className="flex gap-3 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {units.map((u) => (
-                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-purple-300 bg-purple-50/60 dark:border-purple-800 dark:bg-purple-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
-                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Tarik APKT ${u.code} ${u.name}`} />
-                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                )}
+                <SyncUnitPicker
+                  units={units}
+                  selected={selected}
+                  onToggle={toggleUnit}
+                  onSelectAll={() => setPicked(null)}
+                  onClear={() => setPicked([])}
+                  disabled={runningApkt}
+                  up3Name={up3s.find((u) => u.id === up3Id)?.name || ''}
+                  tone="purple"
+                  checkboxAriaPrefix="Tarik APKT"
+                />
 
                 {/* Tombol Eksekusi Penarikan APKT */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1100,7 +1190,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                     loading={apktStarting}
                     disabled={
                       !canApktSync ||
-                      running ||
+                      runningApkt ||
                       (!useSavedToken && !apktToken.trim()) ||
                       !apktToMonth ||
                       (units.length > 0 && selected.length === 0)
@@ -1109,8 +1199,8 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                     size="md"
                     className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white cursor-pointer"
                   >
-                    <IconRefresh size={14} className={running && current?.kind === 'apkt' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                    {running && current?.kind === 'apkt'
+                    <IconRefresh size={14} className={runningApkt ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {runningApkt
                       ? apktDataset === 'rpt-rct-gangguan'
                         ? 'Sedang menarik RPT/RCT Gangguan…'
                         : apktDataset === 'rpt-rct-keluhan'
@@ -1247,27 +1337,17 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                 </div>
 
                 {/* Pilih unit yang disinkronkan untuk AP2T */}
-                {units.length > 0 && (
-                  <fieldset className="space-y-2 pt-1" aria-label="Unit AP2T yang disinkronkan">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <legend className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
-                        Unit yang ditarik <span className="font-normal text-slate-500">({selected.length} dari {units.length}, kosong = semua ULP)</span>
-                      </legend>
-                      <div className="flex gap-3 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked(null)} disabled={running}>Pilih semua</button>
-                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setPicked([])} disabled={running}>Kosongkan</button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {units.map((u) => (
-                        <label key={u.code} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer ${selected.includes(u.code) ? 'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
-                          <input type="checkbox" checked={selected.includes(u.code)} onChange={() => toggleUnit(u.code)} disabled={running} aria-label={`Tarik AP2T ${u.code} ${u.name}`} />
-                          <span className="font-mono">{u.code}</span> <span className="truncate">{u.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                )}
+                <SyncUnitPicker
+                  units={units}
+                  selected={selected}
+                  onToggle={toggleUnit}
+                  onSelectAll={() => setPicked(null)}
+                  onClear={() => setPicked([])}
+                  disabled={runningAp2t}
+                  up3Name={up3s.find((u) => u.id === up3Id)?.name || ''}
+                  tone="amber"
+                  checkboxAriaPrefix="Tarik AP2T"
+                />
 
                 {/* Tombol Eksekusi Penarikan AP2T */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1276,7 +1356,7 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                     loading={ap2tStarting}
                     disabled={
                       !canApktSync ||
-                      running ||
+                      runningAp2t ||
                       !ap2tToMonth ||
                       ap2tReports.length === 0 ||
                       (units.length > 0 && selected.length === 0)
@@ -1285,8 +1365,8 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                     size="md"
                     className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white cursor-pointer"
                   >
-                    <IconRefresh size={14} className={running && current?.kind === 'ap2t' ? 'animate-spin mr-1.5' : 'mr-1.5'} />
-                    {running && current?.kind === 'ap2t'
+                    <IconRefresh size={14} className={runningAp2t ? 'animate-spin mr-1.5' : 'mr-1.5'} />
+                    {runningAp2t
                       ? (isAp2tBpMode ? 'Sedang menarik Rekap BP…' : isAp2tPrrMode ? 'Sedang menarik Pelunasan PRR…' : 'Sedang menarik TAGSUS AP2T…')
                       : (isAp2tBpMode ? 'Tarik Rekap BP' : isAp2tPrrMode ? 'Tarik Pelunasan PRR' : 'Tarik TAGSUS AP2T')}
                   </Button>
@@ -1298,6 +1378,21 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                   )}
                 </div>
               </section>
+            )}
+            {current && <SyncRunMetaBadges run={current} />}
+            {batchRuns.length > 1 && (
+              <div className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 p-3.5 space-y-2">
+                <div className="font-bold text-xs text-indigo-900 dark:text-indigo-200">
+                  Progres Multi-Akun ({batchRuns.length} run)
+                </div>
+                <div className="space-y-1.5">
+                  {batchRuns.map((r) => (
+                    <div key={r.id} className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2">
+                      <SyncRunMetaBadges run={r} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
             <EisRunResults run={current} units={units} />
           </div>
@@ -1396,6 +1491,9 @@ export default function EisSyncDrawer({ open, asPage = false, mode = null, initi
                   </div>
                 </div>
               </section>
+
+              {/* KARTU 1B: Akun Khusus per ULP (docs/94 §7) */}
+              <SyncUlpAccountsPanel source="eis" up3Id={up3Id} title="Akun EIS Khusus per ULP" />
 
               {/* KARTU 2: Sinkronisasi Otomatis Harian */}
               <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">

@@ -301,7 +301,7 @@ export default function WarehousesPage() {
                   variant="secondary"
                   size="md"
                   icon={IconRefresh}
-                  onClick={() => navigate('/master-data/warehouses/tarik-mims')}
+                  onClick={() => navigate('/sinkronisasi?tab=mims')}
                   title="Buka Halaman Tarik MIMS"
                 >
                   Halaman Tarik MIMS

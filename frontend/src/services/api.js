@@ -292,7 +292,7 @@ export const connectionsApi = {
   get: (id) => request(`/master-data/customer-connections/${id}`),
   link: (id, body) => request(`/master-data/customer-connections/${id}/link`, { method: 'PATCH', body }),
   // Sinkron DIL dari folder di server: info folder + berkas, mulai, dan pantau satu run
-  syncInfo: () => request('/master-data/customer-connections/sync'),
+  syncInfo: (params = {}) => request(`/master-data/customer-connections/sync${qs(params)}`),
   syncStart: (body) => request('/master-data/customer-connections/sync/runs', { method: 'POST', body }),
   syncRun: (id) => request(`/master-data/customer-connections/sync/runs/${id}`),
 }
@@ -364,7 +364,7 @@ export const warehousesApi = {
     return warehousesApi.watchMimsRun(started?.data, onProgress)
   },
   // Penarikan yang sedang berjalan (atau null), agar halaman yang dibuka belakangan tetap menampilkan kemajuannya.
-  mimsRunActive: () => request('/master-data/stock-sync/runs/active'),
+  mimsRunActive: (params = {}) => request(`/master-data/stock-sync/runs/active${qs(params)}`),
   watchMimsRun: async (first, onProgress) => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
     let run = first
@@ -382,7 +382,7 @@ export const warehousesApi = {
     return { data: rows }
   },
   mimsTokenStatus: () => request('/master-data/stock-sync/token'),
-  mimsAutoSettings: () => request('/master-data/stock-sync/settings'),
+  mimsAutoSettings: (params = {}) => request(`/master-data/stock-sync/settings${qs(params)}`),
   saveMimsAutoSettings: (body) => request('/master-data/stock-sync/settings', { method: 'PUT', body }),
   forgetMimsToken: () => request('/master-data/stock-sync/token', { method: 'DELETE' }),
   position: (params) => {
@@ -767,7 +767,7 @@ export const applicationApi = {
 }
 
 export const eisSyncApi = {
-  show: () => request('/eis-sync'),
+  show: (params = {}) => request(`/eis-sync${qs(params)}`),
   save: (body) => request('/eis-sync/settings', { method: 'PUT', body }),
   start: (body = {}) => request('/eis-sync/runs', { method: 'POST', body }),
   run: (id) => request(`/eis-sync/runs/${id}`),
@@ -782,9 +782,9 @@ export const whatsappSettingsApi = {
 }
 
 export const outageApi = {
-  sync: () => request('/outages/sync'),
+  sync: (params = {}) => request(`/outages/sync${qs(params)}`),
   saveSettings: (body) => request('/outages/sync/settings', { method: 'PUT', body }),
-  start: () => request('/outages/sync/runs', { method: 'POST' }),
+  start: (body = {}) => request('/outages/sync/runs', { method: 'POST', body }),
   run: (id) => request(`/outages/sync/runs/${id}`),
   alias: (body) => request('/outages/sync/aliases', { method: 'POST', body }),
   analysis: (params = {}) => request(`/outages/analysis${qs(params)}`),
@@ -964,11 +964,19 @@ export const unitScopeApi = {
 
 /** Sinkronisasi Maximo dari DISTRIVA (WO inspeksi gardu -> pembacaan): pengaturan, sesi, dan riwayat. */
 export const maximoSyncApi = {
-  show: () => request('/maximo-sync'),
+  show: (params = {}) => request(`/maximo-sync${qs(params)}`),
   save: (body) => request('/maximo-sync/settings', { method: 'PUT', body }),
   runs: (params = {}) => request(`/maximo-sync/runs${qs(params)}`),
   start: (body = {}) => request('/maximo-sync/runs', { method: 'POST', body }),
   run: (id) => request(`/maximo-sync/runs/${id}`),
+}
+
+/** Pusat Sinkronisasi multi-UP3 & manajemen akun per ULP (docs/94). */
+export const syncApi = {
+  active: (params = {}) => request(`/sync/active${qs(params)}`),
+  accounts: (params = {}) => request(`/sync/accounts${qs(params)}`),
+  saveAccount: (body) => request('/sync/accounts', { method: 'PUT', body }),
+  deleteAccount: (source, unitId) => request(`/sync/accounts/${source}/${unitId}`, { method: 'DELETE' }),
 }
 
 /** Laporan bulanan EIS/AP2T (309, DIFI, GGN, KLH, Piutang, TAGSUS): daftar, kelengkapan, isi, dan impor (docs/88). */

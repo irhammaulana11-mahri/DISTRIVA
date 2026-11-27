@@ -5,6 +5,9 @@ import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import SearchSelect from '../../components/SearchSelect.jsx'
+import Modal from '../../components/Modal.jsx'
+import { SyncUp3Selector, SyncRunMetaBadges, SyncConflictAlert } from '../sync/SyncRunStatusHelpers.jsx'
+import SyncTabLayout from '../sync/SyncTabLayout.jsx'
 import { IconRefresh, IconZap, IconDatabase, IconAlertCircle } from '../../components/icons.jsx'
 import { fmtInt } from '../../components/TrendCharts.jsx'
 
@@ -53,7 +56,7 @@ function countsText(c) {
 }
 
 /** Menu Master Data > Data Gangguan (Sinkron): sumber sheet, sinkron harian/manual, riwayat, dan pemetaan nama penyulang. */
-export default function OutageSyncPage() {
+export default function OutageSyncPage({ embedded = false, selectedUp3Id = '', onUp3Context }) {
   const { notify } = useNotifications()
   const [state, setState] = useState({ loading: true, error: '', data: null })
   const [form, setForm] = useState(null)
@@ -64,6 +67,11 @@ export default function OutageSyncPage() {
   const [formError, setFormError] = useState('')
   const [starting, setStarting] = useState(false)
   const [activeRun, setActiveRun] = useState(null)
+  const [activeRunData, setActiveRunData] = useState(null)
+  const [up3Id, setUp3Id] = useState(selectedUp3Id || '')
+  const [up3s, setUp3s] = useState([])
+  const [conflict, setConflict] = useState(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [mapping, setMapping] = useState({})
   const [mapBusy, setMapBusy] = useState('')
   const timer = useRef(null)
@@ -79,16 +87,33 @@ export default function OutageSyncPage() {
     setSheetUrl('')
   }, [])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (overrideUp3Id) => {
     try {
-      const r = await outageApi.sync()
+      const targetUp3 = overrideUp3Id !== undefined ? overrideUp3Id : up3Id
+      const r = await outageApi.sync(targetUp3 ? { up3_id: targetUp3 } : {})
       setState({ loading: false, error: '', data: r.data })
+      if (r.data?.up3s) setUp3s(r.data.up3s)
+      const resolvedUp3Id = r.data?.up3_id || targetUp3 || ''
+      if (r.data?.up3_id) setUp3Id(r.data.up3_id)
+      onUp3Context?.({ up3Id: resolvedUp3Id, up3s: r.data?.up3s || [] })
       return r.data
     } catch (e) {
       setState({ loading: false, error: e?.message || 'Gagal memuat data sinkronisasi gangguan.', data: null })
       return null
     }
-  }, [])
+  }, [up3Id])
+
+  useEffect(() => {
+    if (selectedUp3Id && selectedUp3Id !== up3Id) {
+      setUp3Id(selectedUp3Id)
+      setActiveRun(null)
+      setActiveRunData(null)
+      setConflict(null)
+      load(selectedUp3Id).then((d) => {
+        if (d?.settings) apply(d.settings)
+      })
+    }
+  }, [selectedUp3Id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let alive = true
@@ -107,8 +132,10 @@ export default function OutageSyncPage() {
       try {
         const r = await outageApi.run(activeRun)
         if (stop) return
+        if (r?.data) setActiveRunData(r.data)
         if (!ACTIVE.includes(r.data.status)) {
           setActiveRun(null)
+          setActiveRunData(null)
           const d = await load()
           if (d) setState((s) => ({ ...s, data: d }))
           notify({
@@ -133,11 +160,19 @@ export default function OutageSyncPage() {
   const start = async () => {
     setStarting(true)
     setFormError('')
+    setConflict(null)
     try {
-      const r = await outageApi.start()
+      const r = await outageApi.start(up3Id ? { up3_id: up3Id } : {})
       setActiveRun(r.data.id)
+      setActiveRunData(r.data)
       await load()
     } catch (e) {
+      if (e?.status === 409 && e?.data) {
+        setConflict(e.data)
+        if (e.data.active_run_id) {
+          setActiveRun(e.data.active_run_id)
+        }
+      }
       setFormError(e?.message || 'Gagal memulai sinkronisasi.')
     } finally {
       setStarting(false)
@@ -157,6 +192,7 @@ export default function OutageSyncPage() {
     }
     try {
       const r = await outageApi.saveSettings({
+        ...(up3Id ? { up3_id: up3Id } : {}),
         sheet_url: sheetUrl.trim() || undefined,
         gids: gids.length ? gids : undefined,
         auto_enabled: form.auto_enabled,
@@ -200,16 +236,214 @@ export default function OutageSyncPage() {
   const feederOptions = (data.feeders || []).map((f) => ({ value: f.id, label: `${f.name}${f.gi_name ? ` · ${f.gi_name}` : ''}${f.code ? ` (${f.code})` : ''}` }))
   const last = s.last_run
 
+  const settingsFormBody = canSync && form && (
+    <form onSubmit={save} className={embedded ? 'space-y-4 text-xs' : `${CARD} p-5 sm:p-6 space-y-4`}>
+      {!embedded && (
+        <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Pengaturan sumber &amp; jadwal</h2>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Sheet harus dibagikan "siapa saja dengan tautan dapat melihat". Alamat sheet tidak ditampilkan kembali setelah disimpan.</p>
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label htmlFor="outage-url" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Tautan Google Sheet</label>
+          <input id="outage-url" className={INPUT} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} autoComplete="off" placeholder={s.sheet_id_set ? `Tersimpan (${s.sheet_id_hint}); isi hanya untuk mengganti` : 'Tempel tautan sheet'} />
+          {fieldErrors.sheet_url && <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.sheet_url[0]}</p>}
+        </div>
+        <div>
+          <label htmlFor="outage-gids" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">GID tab yang dibaca</label>
+          <input id="outage-gids" className={INPUT} value={gidText} onChange={(e) => setGidText(e.target.value)} placeholder="Contoh: 0, 123456" />
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Angka setelah gid= pada alamat tab; pisahkan dengan koma.</p>
+          {(fieldErrors.gids || fieldErrors['gids.0']) && <p className="mt-1 text-xs font-medium text-red-600">{(fieldErrors.gids || fieldErrors['gids.0'])[0]}</p>}
+        </div>
+        <div className="flex items-end gap-4">
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={form.auto_enabled} onChange={(e) => setForm((f) => ({ ...f, auto_enabled: e.target.checked }))} />
+            Sinkron harian otomatis
+          </label>
+          <div>
+            <label htmlFor="outage-time" className="block text-xs font-semibold text-slate-600 dark:text-slate-400">Jam</label>
+            <input id="outage-time" type="time" className={`${INPUT} w-32`} value={form.auto_time} onChange={(e) => setForm((f) => ({ ...f, auto_time: e.target.value }))} />
+            {fieldErrors.auto_time && <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.auto_time[0]}</p>}
+          </div>
+        </div>
+        <div>
+          <label htmlFor="outage-min" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Ambang SAIDI/SAIFI (menit)</label>
+          <input id="outage-min" type="number" min="0" max="120" className={`${INPUT} w-32`} value={form.saidi_min_minutes} onChange={(e) => setForm((f) => ({ ...f, saidi_min_minutes: e.target.value }))} />
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Gangguan lebih singkat dari ambang tidak dihitung dalam SAIDI/SAIFI.</p>
+          {fieldErrors.saidi_min_minutes && <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.saidi_min_minutes[0]}</p>}
+          <label className="mt-2 inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={form.saidi_only_permanent} onChange={(e) => setForm((f) => ({ ...f, saidi_only_permanent: e.target.checked }))} />
+            Hitung hanya gangguan permanen
+          </label>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button type="submit" loading={saving}>Simpan pengaturan</Button>
+      </div>
+    </form>
+  )
+
+  if (embedded) {
+    return (
+      <SyncTabLayout
+        stats={[
+          { label: 'Sumber Sheet', value: s.sheet_id_set ? 'Terhubung' : 'Belum diatur', sub: `${(s.gids || []).length || 1} Tab GID` },
+          { label: 'Otomasi Harian', value: s.auto_enabled ? `Pukul ${s.auto_time} WIB` : 'Nonaktif', sub: s.auto_enabled ? 'Jadwal harian aktif' : 'Manual saja' },
+          { label: 'Peristiwa Gangguan', value: fmtInt(data.stats.events), sub: `${fmtInt(data.stats.feeders)} penyulang terpetakan` },
+          { label: 'Sesi Terakhir', value: last ? <StatusBadge status={last.status} /> : 'Belum ada', sub: last ? `${TRIGGER[last.trigger] || last.trigger} · ${fmtDate(last.finished_at || last.created_at)}` : '-' },
+        ]}
+        banner={{
+          title: 'Google Sheet Data Gangguan per UP3',
+          badge: s.sheet_id_set ? `Terhubung (${s.sheet_id_hint || 'Sheet'})` : 'Sheet Belum Diatur',
+          badgeTone: s.sheet_id_set ? 'ok' : 'warn',
+          desc: 'Gangguan penyulang dan recloser dibaca dari Google Sheet per UP3, harian otomatis atau manual.',
+          actionLabel: canSync ? 'Pengaturan' : undefined,
+          onAction: canSync ? () => setSettingsOpen(true) : undefined,
+        }}
+        alerts={
+          <>
+            <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
+            {activeRunData && <SyncRunMetaBadges run={activeRunData} />}
+            {formError && <Alert type="error">{formError}</Alert>}
+          </>
+        }
+      >
+        <section className={`${CARD} p-5 space-y-3`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Tarik Data Gangguan dari Google Sheet</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {s.sheet_id_set ? 'Menarik seluruh tab GID terdaftar pada UP3 terpilih.' : 'Isi tautan Google Sheet di Pengaturan terlebih dulu.'}
+              </p>
+            </div>
+            {canSync && (
+              <Button icon={IconRefresh} onClick={start} loading={starting || running} disabled={!s.sheet_id_set || running}>
+                {running ? 'Menyinkronkan…' : 'Sinkron sekarang'}
+              </Button>
+            )}
+          </div>
+        </section>
+
+        {data.unmatched.length > 0 && (
+          <section className={`${CARD} p-5 space-y-3`}>
+            <div className="flex items-start gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <IconAlertCircle size={18} className="mt-0.5 text-amber-500" />
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Nama penyulang belum terpetakan ({data.unmatched.length})</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Petakan ke penyulang master agar masuk perhitungan SAIDI/SAIFI.</p>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-slate-100 dark:border-slate-800">
+                    <th className="py-2 pr-3 font-semibold">GI</th>
+                    <th className="py-2 pr-3 font-semibold">Penyulang di sheet</th>
+                    <th className="py-2 pr-3 font-semibold text-right">Peristiwa</th>
+                    <th className="py-2 pr-3 font-semibold">Petakan ke master</th>
+                    <th className="py-2 font-semibold"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {data.unmatched.map((row) => {
+                    const key = `${row.gi_name}|${row.feeder_name}`
+                    return (
+                      <tr key={key}>
+                        <td className="py-2 pr-3">{row.gi_name || '-'}</td>
+                        <td className="py-2 pr-3 font-semibold">{row.feeder_name}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{fmtInt(row.events)}</td>
+                        <td className="py-2 pr-3 min-w-[220px]">
+                          <SearchSelect options={feederOptions} value={mapping[key] || ''} onChange={(val) => setMapping((m) => ({ ...m, [key]: val }))} placeholder="Pilih penyulang…" />
+                        </td>
+                        <td className="py-2 text-right">
+                          <Button size="xs" variant="secondary" disabled={!mapping[key] || mapBusy === key} loading={mapBusy === key} onClick={() => mapFeeder(row)}>Simpan</Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        <section className={`${CARD} p-5 space-y-3`}>
+          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <IconDatabase size={16} className="text-slate-500" />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Riwayat sinkronisasi</h3>
+          </div>
+          {data.runs.length === 0 ? (
+            <p className="py-4 text-center text-xs text-slate-500">Belum ada sinkronisasi.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-slate-100 dark:border-slate-800">
+                    <th className="py-2 pr-3 font-semibold">Waktu</th>
+                    <th className="py-2 pr-3 font-semibold">Pemicu</th>
+                    <th className="py-2 pr-3 font-semibold">Status</th>
+                    <th className="py-2 font-semibold">Hasil</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.runs.map((r) => (
+                    <tr key={r.id} className="border-b border-slate-50 dark:border-slate-800/60">
+                      <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(r.created_at)}</td>
+                      <td className="py-2 pr-3">{TRIGGER[r.trigger] || r.trigger}</td>
+                      <td className="py-2 pr-3"><StatusBadge status={r.status} /></td>
+                      <td className="py-2 text-slate-600 dark:text-slate-300">{r.status === 'FAILED' ? r.message || 'Gagal' : countsText(r.counts)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Pengaturan Sumber & Jadwal Gangguan" subtitle="Tautan Google Sheet, tab GID, jadwal otomatis, dan ambang SAIDI/SAIFI" size="max-w-3xl" width="max-w-3xl">
+          {settingsFormBody}
+        </Modal>
+      </SyncTabLayout>
+    )
+  }
+
   return (
     <div className="space-y-5 w-full">
+      {!embedded && (
+        <SyncUp3Selector
+          up3Id={up3Id}
+          up3s={up3s}
+          onChange={(nextId) => {
+            setUp3Id(nextId)
+            setActiveRun(null)
+            setActiveRunData(null)
+            setConflict(null)
+            load(nextId).then((d) => {
+              if (d?.settings) apply(d.settings)
+            })
+          }}
+        />
+      )}
+      <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
+      {activeRunData && <SyncRunMetaBadges run={activeRunData} />}
       <div className={`${CARD} p-5 sm:p-6`}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-start gap-3">
             <span className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-2.5 text-amber-600"><IconZap size={22} /></span>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Data Gangguan (Sinkron)</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Gangguan penyulang dan recloser dibaca dari Google Sheet, harian otomatis atau manual. Analisis ada di Laporan &amp; Monitoring &rsaquo; Analisis Gangguan.
+              <div className="flex items-center gap-2 flex-wrap">
+                {embedded ? (
+                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Data Gangguan (Google Sheet)</h2>
+                ) : (
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Data Gangguan (Sinkron)</h1>
+                )}
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${s.sheet_id_set ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'}`}>
+                  {s.sheet_id_set ? `Sheet Terhubung · ${(s.gids || []).length || 1} Tab GID` : 'Sheet Belum Diatur'}
+                </span>
+              </div>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                Gangguan penyulang dan recloser dibaca dari Google Sheet per UP3, harian otomatis atau manual. Analisis ada di Analisa &amp; Tren Pengusahaan &rsaquo; Gangguan Penyulang.
               </p>
             </div>
           </div>

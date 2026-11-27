@@ -9,6 +9,8 @@ import Spinner from '../../components/Spinner.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
 import MimsSettingsDrawer from './MimsSettingsDrawer.jsx'
 import MimsPullProgress from './MimsPullProgress.jsx'
+import { SyncRunMetaBadges, SyncConflictAlert } from '../sync/SyncRunStatusHelpers.jsx'
+import SyncTabLayout from '../sync/SyncTabLayout.jsx'
 import {
   IconRefresh,
   IconCheck,
@@ -23,7 +25,7 @@ import {
  * Halaman Kerja Terpisah untuk Proses Penarikan Stok dari MIMS.
  * Desain proporsional, modern, user-friendly, dan memisahkan proses interaktif dari pengaturan otomatis.
  */
-export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, onOpenUnmapped }) {
+export default function MimsStockPullPage({ asPage = true, embedded = false, selectedUp3Id = '', onClose, onSuccess, onOpenUnmapped }) {
   const navigate = useNavigate()
   const { notify } = useNotifications()
 
@@ -56,6 +58,7 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
   const [mimsResults, setMimsResults] = useState(null)
   const [mimsRun, setMimsRun] = useState(null)
   const [mimsError, setMimsError] = useState('')
+  const [conflict, setConflict] = useState(null)
 
   // Settings drawer state
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -170,6 +173,9 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
       )
       finishWatching(res)
     } catch (err) {
+      if (err?.status === 409 && err?.data) {
+        setConflict(err.data)
+      }
       if (/sedang berjalan/i.test(err?.message || '') && (await attachToActiveRun())) return
       failWatching(err)
     } finally {
@@ -187,7 +193,13 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
     setMimsWarehouseIds([])
   }
 
-  const activeErpWarehouses = warehouses.filter((w) => w.plant && w.stor_loc)
+  const activeErpWarehouses = warehouses.filter((w) => {
+    if (!w.plant || !w.stor_loc) return false
+    if (!selectedUp3Id) return true
+    const wUp3 = w.up3_id || w.unit?.parent_id || w.parent_id
+    if (!wUp3 && !w.unit_id) return true
+    return wUp3 === selectedUp3Id || w.unit_id === selectedUp3Id
+  })
 
   // Metrik KPI Hasil Penarikan
   const kpiStats = mimsResults
@@ -206,16 +218,34 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
 
   const content = (
     <div className="space-y-6 text-xs">
-      {/* Header Bar dengan Shortcut ke Pengaturan */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60">
-        <div className="flex items-start gap-2.5">
-          <IconShieldCheck size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <div className="font-bold text-blue-950 dark:text-blue-100">
-              Koneksi Aman & Perlindungan Kredensial
-            </div>
+      {embedded ? (
+        <SyncTabLayout
+          stats={[
+            { label: 'Token MIMS', value: mimsSaved?.saved ? 'Tersimpan' : 'Tempel Manual', sub: 'Pribadi per akun pengguna' },
+            { label: 'Gudang Terdaftar', value: `${activeErpWarehouses.length} Gudang`, sub: 'Cakupan unit UP3/ULP' },
+            { label: 'Gudang Dipilih', value: `${mimsWarehouseIds.length || activeErpWarehouses.length} Gudang`, sub: 'Siap ditarik' },
+            { label: 'Status Penarikan', value: mimsPulling ? 'Berjalan' : mimsResults ? 'Selesai' : 'Siap', sub: mimsRun?.triggered_by?.name ? `Pemicu: ${mimsRun.triggered_by.name}` : 'Manual / Otomatis' },
+          ]}
+          banner={{
+            title: 'Token Pribadi Pengguna & Cakupan Gudang UP3/ULP',
+            badge: mimsSaved?.saved ? 'Token Tersimpan' : 'Token Belum Disimpan',
+            badgeTone: mimsSaved?.saved ? 'ok' : 'warn',
+            desc: 'Token sesi MIMS bersifat pribadi per akun pengguna (dienkripsi AES-256 dan tidak dibagi lintas admin), sedangkan daftar gudang yang ditarik mengikuti cakupan unit UP3/ULP Anda.',
+            actionLabel: 'Pengaturan Tarik Otomatis',
+            actionIcon: IconSettings,
+            onAction: () => setSettingsOpen(true),
+          }}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60">
+          <div className="flex items-start gap-2.5">
+            <IconShieldCheck size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <div className="font-bold text-blue-950 dark:text-blue-100">
+                Token Pribadi Pengguna &amp; Cakupan Gudang UP3/ULP
+              </div>
               <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                Token sesi MIMS ditransmisikan lewat HTTPS terenkripsi. Bila disimpan, token dilindungi enkripsi AES-256 pada server untuk akun Anda.
+                Token sesi MIMS bersifat pribadi per akun pengguna (dienkripsi AES-256 dan tidak dibagi lintas admin), sedangkan daftar gudang yang ditarik mengikuti cakupan unit UP3/ULP Anda.
               </p>
             </div>
           </div>
@@ -230,6 +260,7 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
             Pengaturan Tarik Otomatis
           </Button>
         </div>
+      )}
 
         {/* Pesan Galat */}
         {mimsError && (
@@ -556,6 +587,8 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
                   4. Eksekusi Penarikan
                 </h3>
 
+                <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
+                {mimsPulling && mimsRun && <SyncRunMetaBadges run={mimsRun} />}
                 {mimsPulling && (mimsRun ? <MimsPullProgress run={mimsRun} /> : <MimsPullProgress run={{ status: 'QUEUED', warehouses_total: 0, results: [] }} />)}
 
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
@@ -767,9 +800,10 @@ export default function MimsStockPullPage({ asPage = true, onClose, onSuccess, o
   return (
     <PanelShell
       asPage={true}
+      embedded={embedded}
       isOpen={true}
       onClose={handleBack}
-      onBack={handleBack}
+      onBack={embedded ? undefined : handleBack}
       title="Tarik Stok dari MIMS"
       subtitle="Sinkronisasi posisi stok fisik, pengeluaran, penerimaan, dan reservasi material langsung dari server MIMS"
       size="max-w-4xl"

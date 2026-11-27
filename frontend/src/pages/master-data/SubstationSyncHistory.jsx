@@ -269,7 +269,7 @@ export default function SubstationSyncHistory({ onOpenSync }) {
           size="sm"
           onClick={
             onOpenSync ||
-            (() => navigate('/master-data/substation-measurements/sinkronisasi-maximo'))
+            (() => navigate('/sinkronisasi?tab=maximo'))
           }
           className="cursor-pointer"
         >

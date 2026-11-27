@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import EisSyncDrawer from './EisSyncDrawer.jsx'
-import { eisSyncApi } from '../../services/api.js'
+import { eisSyncApi, syncApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   eisSyncApi: {
@@ -12,6 +12,12 @@ vi.mock('../../services/api.js', () => ({
     run: vi.fn(),
     apktTokenStatus: vi.fn().mockResolvedValue({ data: { saved: false, saved_at: null, last_result: null, last_used_at: null } }),
     deleteApktToken: vi.fn().mockResolvedValue({ data: { ok: true } }),
+  },
+  syncApi: {
+    active: vi.fn().mockResolvedValue({ data: [] }),
+    accounts: vi.fn().mockResolvedValue({ data: [] }),
+    saveAccount: vi.fn().mockResolvedValue({ data: {} }),
+    deleteAccount: vi.fn().mockResolvedValue({ data: {} }),
   },
 }))
 vi.mock('../../features/admin/AccessContext.jsx', () => ({
@@ -82,7 +88,7 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     eisSyncApi.run.mockResolvedValue({ data: { id: 'r1', status: 'RUNNING', log: '=== Unit 1/2: 51453 ===', created_at: '2026-11-16T01:00:00Z' } })
     render(<EisSyncDrawer open onClose={() => {}} />)
     const group = await screen.findByRole('group', { name: 'Unit yang disinkronkan' })
-    expect(group).toHaveTextContent('(3 dari 3, diproses berurutan dari atas)')
+    expect(group).toHaveTextContent('(3 dari 3 dipilih)')
     expect(screen.getByLabelText('Sinkronkan 51453 ULP Jombang')).toBeChecked()               // semua unit dipilih bawaan
 
     await userEvent.click(screen.getByRole('button', { name: 'Kosongkan' }))
@@ -684,5 +690,71 @@ describe('Sinkronisasi EIS dari DISTRIVA', () => {
     })
 
     expect(await screen.findByText('Rekap BP (AP2T)')).toBeInTheDocument()
+  })
+
+  it('mendukung pemilihan UP3, konflik 409 dengan active_run_id & conflicts, dan multi-run akun ULP (Butir 69 & 70)', async () => {
+    eisSyncApi.show.mockResolvedValue({
+      data: {
+        settings,
+        up3_id: 'up3-1',
+        up3s: [
+          { id: 'up3-1', code: '51MJK', name: 'UP3 Mojokerto' },
+          { id: 'up3-2', code: '51SDA', name: 'UP3 Sidoarjo' },
+        ],
+        runs: [],
+        units: [{ id: 'ulp-1', code: '51451', name: 'ULP Mojokerto' }],
+      },
+    })
+    syncApi.accounts.mockResolvedValue({
+      data: [
+        { unit_id: 'ulp-1', code: '51451', name: 'ULP Mojokerto', has_own_account: false, username: null },
+      ],
+    })
+    eisSyncApi.start.mockResolvedValueOnce({
+      data: {
+        id: 'run-ulp-1',
+        status: 'QUEUED',
+        state: 'QUEUED',
+        queue_position: 1,
+        scope: { id: 'ulp-1', name: 'ULP Mojokerto', type: 'ULP' },
+        account: { id: 'ulp-1', name: 'ULP Mojokerto', type: 'ULP' },
+        progress: { done_units: 0, total_units: 1 },
+        created_at: '2026-11-27T12:00:00Z',
+      },
+      runs: [
+        {
+          id: 'run-ulp-1',
+          status: 'QUEUED',
+          state: 'QUEUED',
+          queue_position: 1,
+          scope: { id: 'ulp-1', name: 'ULP Mojokerto', type: 'ULP' },
+          account: { id: 'ulp-1', name: 'ULP Mojokerto', type: 'ULP' },
+          progress: { done_units: 0, total_units: 1 },
+        },
+        {
+          id: 'run-up3-1',
+          status: 'RUNNING',
+          state: 'RUNNING',
+          scope: { id: 'up3-1', name: 'UP3 Mojokerto', type: 'UP3' },
+          account: { id: 'up3-1', name: 'UP3 Mojokerto', type: 'UP3' },
+          progress: { done_units: 1, total_units: 3 },
+        },
+      ],
+    })
+
+    render(<EisSyncDrawer open mode="permohonan" onClose={() => {}} />)
+
+    const up3Select = await screen.findByLabelText('Unit Induk / UP3')
+    expect(up3Select).toHaveValue('up3-1')
+
+    await userEvent.click(screen.getByRole('button', { name: /Sinkronkan Sekarang/i }))
+    expect(await screen.findByText(/Progres Multi-Akun \(2 run\)/i)).toBeInTheDocument()
+    expect(screen.getByText('1/3')).toBeInTheDocument()
+
+    // Buka pengaturan dan cek daftar akun per ULP
+    await userEvent.click(screen.getByRole('button', { name: 'Pengaturan' }))
+    expect(await screen.findByText('Akun EIS Khusus per ULP')).toBeInTheDocument()
+    expect(await screen.findByText('51451 - ULP Mojokerto')).toBeInTheDocument()
+    expect(screen.getByText('Ikut Akun UP3')).toBeInTheDocument()
   })
 })

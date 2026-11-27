@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { maximoSyncApi } from '../../services/api.js'
+import { maximoSyncApi, syncApi } from '../../services/api.js'
 import PanelShell from '../../components/PanelShell.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Modal from '../../components/Modal.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
+import { SyncUp3Selector, SyncRunMetaBadges, SyncConflictAlert } from '../sync/SyncRunStatusHelpers.jsx'
+import SyncUlpAccountsPanel from '../sync/SyncUlpAccountsPanel.jsx'
+import SyncUnitPicker from '../sync/SyncUnitPicker.jsx'
 import { IconRefresh, IconCheck, IconShieldCheck, IconEye, IconEyeOff } from '../../components/icons.jsx'
 
 const inputCls =
@@ -52,13 +55,20 @@ function SummaryText({ run }) {
  * Sinkronisasi Maximo dari DISTRIVA: WO inspeksi gardu (INST1) yang selesai ditarik dari Maximo lalu dimuat sebagai pembacaan gardu
  * (beban dan tegangan per jurusan). Pengaturan akun dan jadwal harian, tombol sinkron manual, log sesi berjalan, dan riwayat sesi.
  */
-export default function MaximoSyncDrawer({ open = true, asPage = false, onClose, onSynced }) {
+export default function MaximoSyncDrawer({ open = true, asPage = false, embedded = false, selectedUp3Id = '', onUp3Context, onClose, onSynced }) {
   const [settings, setSettings] = useState(null)
   const [form, setForm] = useState(null)
   const [runs, setRuns] = useState({ rows: [], meta: null })
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
   const [current, setCurrent] = useState(null)
+  const [batchRuns, setBatchRuns] = useState([])
+  const [up3Id, setUp3Id] = useState(selectedUp3Id || '')
+  const [up3s, setUp3s] = useState([])
+  const [ulpAccounts, setUlpAccounts] = useState([])
+  const [units, setUnits] = useState([])
+  const [pickedUnits, setPickedUnits] = useState(null)
+  const [conflict, setConflict] = useState(null)
   const [since, setSince] = useState('')
   const [allWo, setAllWo] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -71,20 +81,32 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
   const timer = useRef(null)
   const logRef = useRef(null)
 
-  const loadRuns = useCallback(async () => {
+  const loadRuns = useCallback(async (overrideUp3Id) => {
     try {
-      const res = await maximoSyncApi.runs({ page, per_page: perPage })
+      const targetUp3 = overrideUp3Id !== undefined ? overrideUp3Id : up3Id
+      const res = await maximoSyncApi.runs({ page, per_page: perPage, ...(targetUp3 ? { up3_id: targetUp3 } : {}) })
       setRuns({ rows: res?.data || [], meta: res?.meta || null })
     } catch (err) {
       setError(err?.message || 'Gagal memuat riwayat sinkronisasi Maximo.')
     }
-  }, [page, perPage])
+  }, [page, perPage, up3Id])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (overrideUp3Id) => {
     try {
-      const res = await maximoSyncApi.show()
+      const targetUp3 = overrideUp3Id !== undefined ? overrideUp3Id : up3Id
+      const res = await maximoSyncApi.show(targetUp3 ? { up3_id: targetUp3 } : {})
       const s = res?.data?.settings
       setSettings(s)
+      if (res?.data?.up3s) setUp3s(res.data.up3s)
+      const resolvedUp3Id = res?.data?.up3_id || targetUp3 || ''
+      if (res?.data?.up3_id) setUp3Id(res.data.up3_id)
+      onUp3Context?.({ up3Id: resolvedUp3Id, up3s: res?.data?.up3s || [] })
+      if (syncApi?.accounts) {
+        syncApi.accounts({ source: 'maximo', ...(resolvedUp3Id ? { up3_id: resolvedUp3Id } : {}) })
+          .then((aRes) => setUlpAccounts(Array.isArray(aRes?.data) ? aRes.data : []))
+          .catch(() => {})
+      }
+      if (res?.data?.units) setUnits(res.data.units)
       setForm((f) => f || {
         maximo_url: s?.maximo_url || 'http://10.99.10.41',
         maximo_username: s?.maximo_username || '',
@@ -99,7 +121,20 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
     } catch (err) {
       setError(err?.message || 'Gagal memuat pengaturan sinkronisasi Maximo.')
     }
-  }, [])
+  }, [up3Id])
+
+  useEffect(() => {
+    if (selectedUp3Id && selectedUp3Id !== up3Id) {
+      setUp3Id(selectedUp3Id)
+      setForm(null)
+      setCurrent(null)
+      setBatchRuns([])
+      setConflict(null)
+      setPickedUnits(null)
+      load(selectedUp3Id)
+      loadRuns(selectedUp3Id)
+    }
+  }, [selectedUp3Id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (open) {
@@ -146,7 +181,7 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
     setError('')
     setNotice('')
     try {
-      const res = await maximoSyncApi.save({ ...form, lookback_days: Number(form.lookback_days) })
+      const res = await maximoSyncApi.save({ ...form, ...(up3Id ? { up3_id: up3Id } : {}), lookback_days: Number(form.lookback_days) })
       setSettings(res?.data)
       setForm((f) => ({ ...f, maximo_password: '' }))
       setNotice('Pengaturan disimpan.')
@@ -157,18 +192,38 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
     }
   }
 
+  const allUnitCodes = units.map((u) => u.code || u.id)
+  const selectedUnits = pickedUnits ?? allUnitCodes
+  const toggleMaximoUnit = (code) => {
+    setPickedUnits(selectedUnits.includes(code) ? selectedUnits.filter((c) => c !== code) : allUnitCodes.filter((c) => c === code || selectedUnits.includes(c)))
+  }
+
   const start = async () => {
     setStarting(true)
     setError('')
     setNotice('')
+    setConflict(null)
     try {
       const body = {}
+      if (up3Id) body.up3_id = up3Id
       if (since) body.since = since
       if (allWo) body.all_work_orders = true
+      if (units.length > 0 && selectedUnits.length < units.length) body.units = selectedUnits
       const res = await maximoSyncApi.start(body)
-      setCurrent(res?.data)
+      const primary = res?.data || null
+      const allRuns = Array.isArray(res?.runs) && res.runs.length > 0 ? res.runs : primary ? [primary] : []
+      setCurrent(primary)
+      setBatchRuns(allRuns)
       loadRuns()
     } catch (err) {
+      if (err?.status === 409 && err?.data) {
+        setConflict(err.data)
+        if (err.data.active_run_id) {
+          maximoSyncApi.run(err.data.active_run_id).then((r) => {
+            if (r?.data) setCurrent(r.data)
+          }).catch(() => {})
+        }
+      }
       setError(err?.message || 'Gagal memulai sinkronisasi.')
     } finally {
       setStarting(false)
@@ -193,8 +248,9 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
     <PanelShell
       open={open}
       asPage={asPage}
+      embedded={embedded}
       onClose={onClose}
-      onBack={onClose}
+      onBack={embedded ? undefined : onClose}
       title="Sinkronisasi Maximo"
       subtitle="Tarik WO inspeksi gardu dari Maximo menjadi pembacaan beban dan tegangan per jurusan"
       size={asPage ? 'max-w-6xl' : 'max-w-3xl'}
@@ -207,11 +263,41 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
         </div>
       ) : (
         <div className="space-y-6 text-xs" data-testid="maximo-sync">
+          {!embedded && (
+            <SyncUp3Selector
+              up3Id={up3Id}
+              up3s={up3s}
+              onChange={(nextId) => {
+                setUp3Id(nextId)
+                setForm(null)
+                setCurrent(null)
+                setBatchRuns([])
+                setConflict(null)
+                setPickedUnits(null)
+                load(nextId)
+                loadRuns(nextId)
+              }}
+            />
+          )}
+          <SyncConflictAlert conflict={conflict} onDismiss={() => setConflict(null)} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase">Akun Maximo</div>
+              <div className="text-[10px] text-slate-400 font-semibold uppercase">
+                Akun Maximo {up3s.find((u) => u.id === up3Id)?.name ? `· ${up3s.find((u) => u.id === up3Id).name}` : ''}
+              </div>
               <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">{settings?.maximo_username || 'Belum diatur'}</div>
               <div className="text-[11px] text-slate-500 mt-0.5">{settings?.has_password ? 'Password aman tersimpan' : 'Password belum ada'}</div>
+              {ulpAccounts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="mt-1.5 inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline cursor-pointer"
+                >
+                  {ulpAccounts.length === 1
+                    ? `${ulpAccounts[0].name}: ${ulpAccounts[0].has_own_account ? `Akun sendiri (${ulpAccounts[0].username})` : 'Ikut akun UP3'}`
+                    : `Akun Khusus ULP: ${ulpAccounts.filter((a) => a.has_own_account).length}/${ulpAccounts.length} ULP`}
+                </button>
+              )}
             </div>
             <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
               <div className="text-[10px] text-slate-400 font-semibold uppercase">Otomasi Harian</div>
@@ -265,8 +351,20 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
                 </span>
               </label>
             </div>
+            <SyncUnitPicker
+              units={units}
+              selected={selectedUnits}
+              onToggle={toggleMaximoUnit}
+              onSelectAll={() => setPickedUnits(null)}
+              onClear={() => setPickedUnits([])}
+              disabled={running}
+              up3Name={up3s.find((u) => u.id === up3Id)?.name || ''}
+              ulpAccounts={ulpAccounts}
+              tone="blue"
+              checkboxAriaPrefix="Tarik Maximo"
+            />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <Button onClick={start} loading={starting} disabled={!ready || running} variant="primary" size="md" className="w-full sm:w-auto">
+              <Button onClick={start} loading={starting} disabled={!ready || running || (units.length > 0 && selectedUnits.length === 0)} variant="primary" size="md" className="w-full sm:w-auto">
                 <IconRefresh size={14} className={running ? 'animate-spin mr-1.5' : 'mr-1.5'} />
                 {running ? 'Sedang berjalan…' : 'Sinkronkan Sekarang'}
               </Button>
@@ -276,10 +374,21 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
 
           {current && (
             <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-3" aria-label="Sesi berjalan">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">Sesi {current.trigger === 'AUTO' ? 'otomatis' : 'manual'} · sejak {dayText(current.since)}</h4>
                 <StatusBadge status={current.status} />
               </div>
+              <SyncRunMetaBadges run={current} />
+              {batchRuns.length > 1 && (
+                <div className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 p-3 space-y-1.5">
+                  <div className="font-bold text-[11px] text-indigo-900 dark:text-indigo-200">Progres Multi-Akun ({batchRuns.length} run)</div>
+                  {batchRuns.map((r) => (
+                    <div key={r.id} className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5">
+                      <SyncRunMetaBadges run={r} />
+                    </div>
+                  ))}
+                </div>
+              )}
               {current.summary && <div><SummaryText run={current} /></div>}
               <pre ref={logRef} aria-label="Log sinkronisasi" className="max-h-64 overflow-auto rounded-xl bg-slate-950 text-slate-100 p-3 text-[11px] leading-relaxed whitespace-pre-wrap">{current.log || 'Menunggu proses dimulai…'}</pre>
             </section>
@@ -308,7 +417,19 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
                     {runs.rows.map((r) => (
                       <tr key={r.id}>
                         <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">{when(r.created_at)}</td>
-                        <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{r.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}{r.all_work_orders && <span className="ml-1.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">semua WO</span>}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                          <div>
+                            {r.trigger === 'AUTO' ? 'Otomatis' : 'Manual'}
+                            {r.all_work_orders && <span className="ml-1.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">semua WO</span>}
+                          </div>
+                          {(r.triggered_by?.name || r.scope?.name || r.account?.name) && (
+                            <div className="text-[10px] font-normal text-slate-500 mt-0.5 space-x-1.5">
+                              {r.triggered_by?.name && <span>oleh {r.triggered_by.name}</span>}
+                              {r.scope?.name && <span>· {r.scope.name}</span>}
+                              {r.account?.name && <span>· Akun: {r.account.name}</span>}
+                            </div>
+                          )}
+                        </td>
                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{dayText(r.since)}</td>
                         <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
                         <td className="py-3 px-4"><SummaryText run={r} /></td>
@@ -361,6 +482,7 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, onClose,
                   </Field>
                 </div>
               </section>
+              <SyncUlpAccountsPanel source="maximo" up3Id={up3Id} title="Akun Maximo Khusus per ULP" />
               <section className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 pb-3 border-b border-slate-100 dark:border-slate-800">Sinkronisasi otomatis</h4>
                 <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 cursor-pointer">

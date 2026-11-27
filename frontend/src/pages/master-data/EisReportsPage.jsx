@@ -1249,19 +1249,28 @@ function SingleUnitCoverageView({ data, expectedUntil = 12, onBackToUp3, onTrigg
   )
 }
 
-export default function EisReportsPage() {
+export default function EisReportsPage({ embedded = false, selectedUp3Id = '' }) {
   const { can } = useAccess()
   const canImport = Boolean(can?.['eis_reports.import'])
 
   const [searchParams] = useSearchParams()
-  const initialTab = searchParams.get('tab') || 'files'
+  const rawTab = searchParams.get('subtab') || searchParams.get('tab')
+  const initialTab = rawTab === 'coverage' || rawTab === 'files' ? rawTab : 'files'
   const initialUp3Id = searchParams.get('up3_id') || ''
   const initialUnitId = searchParams.get('unit_id') || ''
   const initialYear = Number(searchParams.get('year')) || new Date().getFullYear()
 
   const [tab, setTab] = useState(initialTab)
-  const [up3Id, setUp3Id] = useState(initialUp3Id)
+  const [up3Id, setUp3Id] = useState(selectedUp3Id || initialUp3Id)
   const [unitId, setUnitId] = useState(initialUnitId)
+
+  useEffect(() => {
+    if (selectedUp3Id && selectedUp3Id !== up3Id) {
+      setPage(1)
+      setUp3Id(selectedUp3Id)
+      setUnitId('')
+    }
+  }, [selectedUp3Id]) // eslint-disable-line react-hooks/exhaustive-deps
   const [family, setFamily] = useState('')
   const [fromMonth, setFromMonth] = useState('')
   const [toMonth, setToMonth] = useState('')
@@ -1388,32 +1397,23 @@ export default function EisReportsPage() {
 
   return (
     <div className="space-y-6 w-full">
-      {/* Hero Header Card */}
-      <div className={`${CARD} p-5 sm:p-6 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
-              <IconFileText size={24} />
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 shadow-xs">
+          <div className="space-y-0.5">
+            <div className="font-bold text-sm text-blue-950 dark:text-blue-100 flex items-center gap-2 flex-wrap">
+              <span>Matriks Kelengkapan &amp; Upload Manual APKT/EIS/AP2T</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                Basis Data NKO &amp; Pengusahaan
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Upload APKT/EIS/AP2T
-                </h1>
-                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                  Penjualan & Keandalan
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
-                Arsip dan normalisasi laporan bulanan EIS (309, DIFI, Gangguan, Keluhan, Piutang, TAGSUS) sebagai basis data NKO dan pengusahaan.
-              </p>
-            </div>
+            <p className="text-[11px] text-blue-700 dark:text-blue-300">
+              Arsip dan normalisasi laporan bulanan EIS (309, DIFI, Gangguan, Keluhan, Piutang, TAGSUS) per ULP dan UP3.
+            </p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Button
               variant="secondary"
-              size="md"
+              size="sm"
               icon={IconRefresh}
               onClick={tab === 'files' ? loadFiles : loadCoverage}
               aria-label="Segarkan"
@@ -1423,7 +1423,7 @@ export default function EisReportsPage() {
             {canImport && (
               <Button
                 variant="primary"
-                size="md"
+                size="sm"
                 icon={IconUpload}
                 onClick={() => setIsUploadOpen(true)}
               >
@@ -1432,7 +1432,52 @@ export default function EisReportsPage() {
             )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className={`${CARD} p-5 sm:p-6 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs">
+                <IconFileText size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                    Upload APKT/EIS/AP2T
+                  </h1>
+                  <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                    Penjualan &amp; Keandalan
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
+                  Arsip dan normalisasi laporan bulanan EIS (309, DIFI, Gangguan, Keluhan, Piutang, TAGSUS) sebagai basis data NKO dan pengusahaan.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="secondary"
+                size="md"
+                icon={IconRefresh}
+                onClick={tab === 'files' ? loadFiles : loadCoverage}
+                aria-label="Segarkan"
+              >
+                Segarkan
+              </Button>
+              {canImport && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  icon={IconUpload}
+                  onClick={() => setIsUploadOpen(true)}
+                >
+                  Unggah Laporan
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Stats Cards */}
       <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

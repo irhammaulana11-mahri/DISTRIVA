@@ -82,6 +82,7 @@ import EisReportsPage from './pages/master-data/EisReportsPage.jsx'
 import NkoPage from './pages/nko/NkoPage.jsx'
 import NkoRulesPage from './pages/nko/NkoRulesPage.jsx'
 import BusinessAnalyticsPage from './pages/analytics/BusinessAnalyticsPage.jsx'
+import SyncCenterPage from './pages/sync/SyncCenterPage.jsx'
 
 // UX gate only: the server enforces authentication on every request.
 function RequireAuth({ children }) {
@@ -179,6 +180,7 @@ export default function App() {
         <Route path="outages/analysis/feeders/:feederId" element={<RequireCapability capability="outages.view"><FeederDetailPage /></RequireCapability>} />
         <Route path="nko" element={<RequireCapability capability="nko.view"><NkoPage /></RequireCapability>} />
         <Route path="nko/aturan" element={<RequireCapability capability="nko.view"><NkoRulesPage /></RequireCapability>} />
+        <Route path="sinkronisasi" element={<RequireCapability anyOf={['eis_reports.view', 'applications.sync', 'outages.view', 'customers.view', 'substations.sync', 'stock.import', 'pengusahaan.view']}><SyncCenterPage /></RequireCapability>} />
         <Route path="pengusahaan" element={<RequireCapability capability="pengusahaan.view"><BusinessAnalyticsPage /></RequireCapability>} />
         <Route path="pengusahaan/:metricCode" element={<RequireCapability capability="pengusahaan.view"><BusinessAnalyticsPage /></RequireCapability>} />
         <Route path="master-data/warehouses" element={<RequireCapability capability="master_data.view"><WarehousesPage /></RequireCapability>} />
