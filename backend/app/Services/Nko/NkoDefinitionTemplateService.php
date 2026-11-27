@@ -38,12 +38,31 @@ class NkoDefinitionTemplateService
         '11. Unggahan baru berlaku setelah disetujui ASMAN_PERENCANAAN.',
     ];
 
-    /** @throws NkoRuleException 404 bila belum ada definisi sama sekali */
-    public function write(int $year, string $path): void
+    private const DEFINITION_GUIDE = [
+        'Petunjuk workbook definisi NKO (tanpa target)',
+        '',
+        '1. Satu tab per tingkat: "DEFINISI UP3" dan "DEFINISI ULP". Tab yang dihapus dari berkas berarti tingkat itu tidak diubah.',
+        '2. Sel H9 berisi tahun, mis. "TARGET 2026", dan harus sama dengan tahun yang dipilih saat unggah.',
+        '3. Kelompok: nomor di kolom A. Indikator: "a. Nama" di kolom B. Sub-indikator: "- Nama" di kolom B.',
+        '4. Kolom J "KODE" adalah kunci item lintas versi: jangan diubah, juga saat item berganti nama. Kosongkan untuk item baru.',
+        '5. Polaritas: 1 atau Negatif, 2 atau Rentang, 3 atau Positif. Jumlah bobot kelompok harus 100.',
+        '6. Kolom M sampai X (target) dibiarkan kosong. Target yang berlaku disalin otomatis; ubah lewat workbook target.',
+        '7. Kolom I "SUMBER REALISASI": nama lembar sumber realisasi; kosong berarti item tidak butuh realisasi.',
+        '8. Blok bulanan mulai kolom Z memuat rumus pencapaian dan nilai per bulan. Sisipkan atau hapus baris lewat Excel agar rujukan rumus ikut bergeser.',
+        '9. Aturan khusus unit dibawa dari versi aktif selama rumus dasar itemnya tidak berubah.',
+        '10. Unggahan baru berlaku setelah disetujui ASMAN_PERENCANAAN.',
+    ];
+
+    /**
+     * `$definitionOnly`: satu tab "DEFINISI <tingkat>" tanpa unit, target, dan realisasi (docs/93 §13); selain itu satu tab per unit.
+     *
+     * @throws NkoRuleException 404 bila belum ada definisi sama sekali
+     */
+    public function write(int $year, string $path, bool $definitionOnly = false): void
     {
         $book = new Spreadsheet;
         $book->getActiveSheet()->setTitle('PETUNJUK');
-        foreach (self::GUIDE as $i => $line) {
+        foreach ($definitionOnly ? self::DEFINITION_GUIDE : self::GUIDE as $i => $line) {
             $book->getActiveSheet()->setCellValueExplicit('A'.($i + 1), $line, DataType::TYPE_STRING);
         }
         $book->getActiveSheet()->getStyle('A1')->getFont()->setBold(true);
@@ -57,10 +76,10 @@ class NkoDefinitionTemplateService
             $sameYear = (int) $set->year === $year;
             $definitions = DB::table('kpi_definitions')->where('set_id', $set->id)->orderBy('sort_order')->get()->all();
             $monthRules = json_decode($set->month_rules ?? '[]', true) ?: [];
-            foreach ($this->units($set->id, $monthRules['canonical_sheet'] ?? null) as $unit) {
+            foreach ($definitionOnly ? [null] : $this->units($set->id, $monthRules['canonical_sheet'] ?? null) as $unit) {
                 $ws = $book->createSheet();
-                $ws->setTitle(mb_substr($level.' '.Str::upper(trim((string) preg_replace('/^'.$level.'\s+/i', '', $unit->name))), 0, 31));
-                $this->sheet($ws, $year, $unit, $definitions, $monthRules['months'] ?? [], $sameYear);
+                $ws->setTitle($unit === null ? "DEFINISI {$level}" : mb_substr($level.' '.Str::upper(trim((string) preg_replace('/^'.$level.'\s+/i', '', $unit->name))), 0, 31));
+                $this->sheet($ws, $year, $unit, $level, $definitions, $monthRules['months'] ?? [], $sameYear);
                 $tabs++;
             }
         }
@@ -96,11 +115,11 @@ class NkoDefinitionTemplateService
      * @param  list<object>  $definitions
      * @param  array<int, array<string, mixed>>  $months
      */
-    private function sheet(Worksheet $ws, int $year, object $unit, array $definitions, array $months, bool $sameYear): void
+    private function sheet(Worksheet $ws, int $year, ?object $unit, string $level, array $definitions, array $months, bool $sameYear): void
     {
         $row = NkoWorkbookReader::HEADER_ROW;
         $text = fn (string $cell, ?string $value) => $value === null || $value === '' ? null : $ws->setCellValueExplicit($cell, $value, DataType::TYPE_STRING);
-        $text('A1', 'DEFINISI NKO '.Str::upper($unit->name));
+        $text('A1', 'DEFINISI NKO '.Str::upper($unit->name ?? $level));
         $text('A2', "TAHUN {$year}");
         foreach (['A' => 'NO', 'B' => 'KPI', 'C' => 'POLARITAS', 'D' => 'FORMULA', 'E' => 'SATUAN', 'F' => 'BOBOT', 'H' => "TARGET {$year}", NkoWorkbookReader::SOURCE_COLUMN => NkoWorkbookReader::SOURCE_HEADER, NkoWorkbookReader::CODE_COLUMN => NkoWorkbookReader::CODE_HEADER] as $col => $label) {
             $text($col.$row, $label);
@@ -123,7 +142,7 @@ class NkoDefinitionTemplateService
         $ids = array_column($definitions, 'id');
         $targets = [];
         $reference = [];
-        if ($sameYear) {
+        if ($sameYear && $unit !== null) {
             foreach (DB::table('kpi_targets')->whereIn('definition_id', $ids)->where('organizational_unit_id', $unit->id)->get() as $t) {
                 $targets[$t->definition_id][(int) substr($t->period, 5, 2)] = $t->target_text ?? (float) $t->target_value;
             }
@@ -131,7 +150,7 @@ class NkoDefinitionTemplateService
                 $reference[$r->definition_id][(int) substr($r->period, 5, 2)] = (float) $r->realisasi;
             }
         }
-        $unitRules = DB::table('kpi_unit_rules')->whereIn('definition_id', $ids)->where('organizational_unit_id', $unit->id)->pluck('rules', 'definition_id')->map(fn (string $r) => json_decode($r, true))->all();
+        $unitRules = DB::table('kpi_unit_rules')->whereIn('definition_id', $ids)->where('organizational_unit_id', $unit?->id)->pluck('rules', 'definition_id')->map(fn (string $r) => json_decode($r, true))->all();
 
         foreach ($definitions as $d) {
             $r = (int) $d->row_no;

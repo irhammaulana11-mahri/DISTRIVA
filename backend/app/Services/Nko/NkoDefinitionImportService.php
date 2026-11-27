@@ -15,7 +15,7 @@ class NkoDefinitionImportService
     /** Naik bila pembaca menyimpan lebih banyak/ berbeda dari berkas yang sama, agar versi set ikut diperbarui. */
     public const READER_VERSION = 4;
 
-    public function __construct(private readonly NkoWorkbookReader $reader) {}
+    public function __construct(private readonly NkoWorkbookReader $reader, private readonly NkoUnitRuleCarry $unitRules) {}
 
     /**
      * @return array{year: int, sets: list<array{level: string, status: string, version: int, set_id: string, definitions: int, targets: int, units: list<string>, warnings: list<string>}>}
@@ -84,6 +84,12 @@ class NkoDefinitionImportService
                 $errors[] = $tab['reason'];
             }
         }
+        foreach (['UP3', 'ULP'] as $level) {
+            $sheets = array_filter($read['sheets'], fn (array $s) => $s['level'] === $level);
+            if (count($sheets) > 1 && in_array(true, array_column($sheets, 'definition_only'), true)) {
+                $errors[] = "Tab \"DEFINISI {$level}\" tidak boleh digabung dengan tab unit {$level}; pakai salah satu.";
+            }
+        }
         $years = array_values(array_unique(array_column($read['sheets'], 'year')));
         if (count($years) > 1) {
             $errors[] = 'Tab berisi tahun berbeda ('.implode(', ', $years).'); satu workbook untuk satu tahun.';
@@ -101,7 +107,7 @@ class NkoDefinitionImportService
     {
         $canon = $sheets[0];
         $active = DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $level)->where('status', 'AKTIF')->first();
-        $plan = ['status' => $active !== null ? 'DIGANTIKAN' : 'BARU', 'active' => $active, 'previous' => null, 'canon' => $canon, 'sheets' => $sheets, 'unit_ids' => [], 'warnings' => []];
+        $plan = ['status' => $active !== null ? 'DIGANTIKAN' : 'BARU', 'active' => $active, 'previous' => null, 'canon' => $canon, 'sheets' => $sheets, 'unit_ids' => [], 'warnings' => [], 'definition_only' => $canon['definition_only']];
         if ($active !== null && $active->source_sha256 === $sha) {
             return ['status' => 'DUPLIKAT', 'previous' => $active, 'warnings' => json_decode($active->warnings ?? '[]', true) ?: []] + $plan;
         }
@@ -118,7 +124,7 @@ class NkoDefinitionImportService
         }
         $warnings = array_values(array_unique($warnings));
 
-        foreach ($sheets as $s) {
+        foreach ($plan['definition_only'] ? [] : $sheets as $s) {
             $key = Str::lower($level.' '.$s['unit_name']);
             if (isset($units[$key])) {
                 $plan['unit_ids'][$s['sheet']] = $units[$key];
@@ -139,9 +145,9 @@ class NkoDefinitionImportService
         if (in_array($plan['status'], ['DUPLIKAT', 'SUDAH_DIGANTIKAN'], true)) {
             return $this->summary($level, $plan['status'], (int) $plan['previous']->version, $plan['previous']->id, [], $plan['warnings']);
         }
-        ['active' => $active, 'canon' => $canon, 'sheets' => $sheets, 'unit_ids' => $unitIds, 'warnings' => $warnings] = $plan;
+        ['active' => $active, 'canon' => $canon, 'sheets' => $sheets, 'unit_ids' => $unitIds, 'warnings' => $warnings, 'definition_only' => $definitionOnly] = $plan;
 
-        return DB::transaction(function () use ($level, $year, $sha, $originalName, $user, $active, $canon, $sheets, $unitIds, $warnings) {
+        return DB::transaction(function () use ($level, $year, $sha, $originalName, $user, $active, $canon, $sheets, $unitIds, $warnings, $definitionOnly) {
             $version = (int) (DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $level)->max('version')) + 1;
             if ($active !== null) {
                 DB::table('kpi_definition_sets')->where('id', $active->id)->update(['status' => 'ARSIP', 'updated_at' => now()]);
@@ -150,7 +156,8 @@ class NkoDefinitionImportService
             DB::table('kpi_definition_sets')->insert([
                 'id' => $setId, 'year' => $year, 'unit_level' => $level, 'version' => $version, 'status' => 'AKTIF',
                 'source_name' => mb_substr($originalName, 0, 200), 'source_sha256' => $sha, 'total_weight' => $canon['total_weight'],
-                'month_rules' => json_encode(['canonical_sheet' => $canon['sheet']] + ['months' => $canon['month_rules']]),
+                // tab DEFINISI tidak menunjuk unit acuan; nama tab acuan versi sebelumnya dipertahankan agar urutan template lengkap tetap
+                'month_rules' => json_encode(['canonical_sheet' => $definitionOnly && $active !== null ? (json_decode($active->month_rules ?? '[]', true)['canonical_sheet'] ?? $canon['sheet']) : $canon['sheet']] + ['months' => $canon['month_rules']]),
                 'warnings' => json_encode($warnings), 'imported_by' => $user?->id, 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now(),
             ]);
 
@@ -199,6 +206,9 @@ class NkoDefinitionImportService
             }
 
             $copied = $active === null ? 0 : $this->copyTargets($active->id, $setId);
+            if ($definitionOnly && $active !== null) {
+                $this->copyUnitData($active->id, $setId, $canon['nodes'], $idByCode);
+            }
 
             return $this->summary($level, $active !== null ? 'DIGANTIKAN' : 'BARU', $version, $setId, ['definitions' => count($rows), 'targets' => $targets, 'targets_copied' => $copied, 'units' => $unitNames], $warnings);
         });
@@ -216,6 +226,27 @@ class NkoDefinitionImportService
                 ->where('o.set_id', $fromSetId)->where('n.set_id', $toSetId)
                 ->whereNotExists(fn ($q) => $q->from('kpi_targets as x')->whereColumn('x.definition_id', 'n.id')->whereColumn('x.organizational_unit_id', 't.organizational_unit_id'))
                 ->select(['n.id', 't.organizational_unit_id', 't.period', 't.target_value', 't.target_text']),
+        );
+    }
+
+    /**
+     * Definisi tanpa tab unit: aturan khusus unit yang masih berlaku dan angka realisasi acuan (dipakai pratinjau rumus) dibawa dari versi sebelumnya.
+     * Angka pencapaian, nilai, dan total acuan tidak dibawa karena bergantung pada rumus versi lama.
+     *
+     * @param  list<array<string, mixed>>  $nodes
+     * @param  array<string, string>  $idByCode
+     */
+    private function copyUnitData(string $fromSetId, string $toSetId, array $nodes, array $idByCode): void
+    {
+        $rows = array_map(fn (array $r) => ['definition_id' => $idByCode[$r['code']], 'organizational_unit_id' => $r['organizational_unit_id'], 'rules' => json_encode($r['rules'], JSON_UNESCAPED_UNICODE)],
+            $this->unitRules->plan($fromSetId, $nodes)['keep']);
+        if ($rows !== []) {
+            DB::table('kpi_unit_rules')->insert($rows);
+        }
+        DB::table('kpi_reference_values')->insertUsing(
+            ['definition_id', 'organizational_unit_id', 'period', 'realisasi'],
+            DB::table('kpi_reference_values as v')->join('kpi_definitions as o', 'o.id', '=', 'v.definition_id')->join('kpi_definitions as n', 'n.code', '=', 'o.code')
+                ->where('o.set_id', $fromSetId)->where('n.set_id', $toSetId)->whereNotNull('v.realisasi')->select(['n.id', 'v.organizational_unit_id', 'v.period', 'v.realisasi']),
         );
     }
 

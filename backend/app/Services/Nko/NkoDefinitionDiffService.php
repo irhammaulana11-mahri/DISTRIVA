@@ -16,7 +16,7 @@ class NkoDefinitionDiffService
     /** skor minimal agar pasangan item hilang dan item baru disarankan sebagai ganti nama */
     private const MIN_SCORE = 0.6;
 
-    public function __construct(private readonly NkoRealizationRules $rules) {}
+    public function __construct(private readonly NkoRealizationRules $rules, private readonly NkoUnitRuleCarry $unitRules) {}
 
     /**
      * @param  array<string, mixed>  $book  hasil `analyze()`
@@ -79,7 +79,12 @@ class NkoDefinitionDiffService
         if ((int) $base->year === $year) {
             $result['targets_changed'] = $this->changedTargets($base->id, $plan, array_intersect_key($new, $old));
         }
-        $result['alerts'] = $this->alerts($result, $base, $old, $new, $year);
+        $result['alerts'] = $this->alerts($result, $base, $old, $new, $year, $plan['definition_only']);
+        if ($plan['definition_only'] && (int) $base->year === $year) {
+            foreach ($this->unitRules->plan($base->id, $plan['canon']['nodes'])['dropped'] as $item) {
+                $result['alerts'][] = "Rumus dasar \"{$item['name']}\" berubah, sehingga aturan khusus unit tidak dibawa untuk ".implode(', ', $item['units']).'.';
+            }
+        }
 
         return $result;
     }
@@ -92,14 +97,14 @@ class NkoDefinitionDiffService
      * @param  array<string, array<string, mixed>>  $new
      * @return list<string>
      */
-    private function alerts(array $result, object $base, array $old, array $new, int $year): array
+    private function alerts(array $result, object $base, array $old, array $new, int $year, bool $definitionOnly): array
     {
         $alerts = [];
         $units = DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->join('organizational_units as u', 'u.id', '=', 't.organizational_unit_id')
             ->where('d.set_id', $base->id)->distinct()->orderBy('u.name')->pluck('u.name')->all();
         $kept = array_map(fn (string $name) => Str::lower($result['level'].' '.$name), $result['units']);
         $missing = array_values(array_filter($units, fn (string $name) => ! in_array(Str::lower($name), $kept, true) && ! in_array(Str::lower($result['level'].' '.$name), $kept, true)));
-        if ($missing !== []) {
+        if ($missing !== [] && ! $definitionOnly) {     // tab DEFINISI tidak memuat unit
             $alerts[] = 'Unit '.implode(', ', $missing)." punya target di versi {$result['compared_with']} tetapi tidak ada di workbook; "
                 .((int) $base->year === $year ? 'targetnya disalin dari versi itu.' : 'versi baru tidak akan memuat targetnya.');
         }
@@ -159,7 +164,7 @@ class NkoDefinitionDiffService
         if (! is_string($rules)) {
             return $rules;
         }
-        $compact = preg_replace_callback('/"[^"]*"|[^"]+/', fn (array $m) => str_starts_with($m[0], '"') ? $m[0] : str_replace(['FALSE()', 'TRUE()'], ['FALSE', 'TRUE'], strtoupper((string) preg_replace('/\s+/', '', $m[0]))), $rules);
+        $compact = NkoSheetFormula::compact($rules);
 
         return preg_replace_callback('/(?<![A-Za-z])(\$?[A-Z]{1,3}\$?)(\d+)(?![\d(A-Za-z])/', fn (array $m) => $m[1].'{'.((int) $m[2] - $row).'}', $compact);
     }

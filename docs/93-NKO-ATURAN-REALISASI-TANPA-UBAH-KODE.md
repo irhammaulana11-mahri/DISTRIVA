@@ -164,7 +164,7 @@ Izin sama dengan aturan (§9): `nko.rules.propose` untuk mengunggah dan membatal
 | `GET /definition-sets?year=` | versi definisi, terbaru dulu: `id, year, unit_level, version, status` (`AKTIF, ARSIP`), `source_name, total_weight, warnings[], imported_at, imported_by {id,name}` (null bila dari server) |
 | `GET /definition-uploads?status=` | maksimal 100: `id, year, source_name, note, status` (`MENUNGGU, DISETUJUI, DITOLAK, DIBATALKAN`), `uploaded_by {id,name}, uploaded_at, decided_by, decided_at, decision_note` |
 | `GET /definition-uploads/{id}` | sama, ditambah `changes[]` dan `check` (hasil pemeriksaan saat diunggah, tanpa `changes`; null untuk unggahan lama) |
-| `GET /definition-template?year=` | berkas `TEMPLATE-DEFINISI-NKO-<tahun>.xlsx` (izin `nko.rules.propose`). Dari versi aktif tahun itu; bila belum ada, dari versi aktif tahun terakhir **tanpa target dan realisasi**. 404 bila belum ada definisi sama sekali |
+| `GET /definition-template?year=&format=` | `format=lengkap` (bawaan): berkas `TEMPLATE-DEFINISI-NKO-<tahun>.xlsx`; `format=definisi` lihat §13. Izin `nko.rules.propose`. Dari versi aktif tahun itu; bila belum ada, dari versi aktif tahun terakhir **tanpa target dan realisasi**. 404 bila belum ada definisi sama sekali |
 | `POST /definition-uploads/check` | multipart `file` (.xlsx, maksimal 8 MB) dan `year`; tidak menyimpan. 200 `data` = hasil pemeriksaan (di bawah), juga bila tidak lolos |
 | `POST /definition-uploads` | multipart `file`, `year`, `note` (wajib); 201 `data.id`. **422 dengan `data` = hasil pemeriksaan** bila tidak lolos (`message` menyebut galat pertama); 409 bila masih ada unggahan menunggu untuk tahun itu |
 | `POST /definition-uploads/{id}/decision` | `{decision: "approve"\|"reject", note?}`; `note` wajib saat menolak. Respons `data {status, sets[], mapping}`; `mapping` sama dengan `GET /rules/mapping` (null bila ditolak). 409 bila sudah diputus, definisi aktif berubah sejak diunggah, atau workbook tidak lolos pemeriksaan ulang (mis. unit dihapus dari master; `data` = hasil pemeriksaan) |
@@ -257,4 +257,19 @@ Galat: bukan .xlsx; tidak ada tab target; sel A4 bukan `KODE` (mis. workbook def
 Peringatan: item berbobot belum punya target; target sebagian bulan kosong; jumlah target yang akan dihapus.
 
 Diuji pada data dev 2026: template UP3 (37 baris item) dan ULP (340) diperiksa tanpa diubah, juga setelah disimpan ulang di LibreOffice: nol perubahan.
+
+## 13. Template Definisi tanpa target (tahap 3)
+
+`GET /nko/definition-template?year=&format=definisi` menghasilkan `TEMPLATE-DEFINISI-SAJA-NKO-<tahun>.xlsx`: tab `PETUNJUK`, `DEFINISI UP3`, `DEFINISI ULP`. Tata letak tab sama dengan tab unit (§10) tetapi tanpa target dan realisasi. Blok 12 bulan dipertahankan karena banyak item berumus beda antarbulan (data 2026: 21 item UP3 dan 9 item ULP; rumus total Januari–Mei berbeda dari Juni–September). Unggahan memakai alur definisi (§10); tab yang dihapus berarti tingkat itu tidak diubah. Satu tingkat tidak boleh memuat tab DEFINISI dan tab unit sekaligus.
+
+Saat disetujui, dari versi aktif tahun yang sama menurut KODE:
+
+- target disalin (§12);
+- aturan khusus unit (`kpi_unit_rules`) dibawa bila rumus dasar itemnya tidak berubah setelah nomor baris disesuaikan; bila berubah, tidak dibawa dan penyetuju mendapat `alerts[]`;
+- angka **realisasi** acuan dibawa (dipakai pratinjau rumus §9); angka pencapaian, nilai, dan total acuan tidak, sehingga rekonsiliasi (docs/90) tidak punya pembanding untuk versi itu;
+- nama tab acuan versi sebelumnya dipertahankan.
+
+Pemeriksaan: tab DEFINISI yang berisi target ditolak; item berbobot yang belum punya target di versi aktif (atau tahun baru) hanya peringatan, diisi lewat workbook target. Aturan khusus unit hanya bisa diubah lewat workbook lengkap (per unit).
+
+Diuji pada data dev 2026 (berkas asli dan hasil simpan ulang LibreOffice): nol perubahan; 4.260 target, 31 aturan khusus unit, dan 3.096 realisasi acuan tetap; 33 hitungan NKO (11 unit, bulan 3, 6, 9) identik sebelum dan sesudah.
 

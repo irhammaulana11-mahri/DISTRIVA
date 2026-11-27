@@ -408,6 +408,90 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         $this->assertSame(7.0, $this->saidiTarget(2));
     }
 
+    private function definitionTemplate(): string
+    {
+        $response = $this->as($this->planner)->get('/api/nko/definition-template?year=2026&format=definisi')->assertOk();
+        $path = tempnam(sys_get_temp_dir(), 'nko').'.xlsx';
+        rename($response->baseResponse->getFile()->getPathname(), $path);
+
+        return $path;
+    }
+
+    /** definisi v2 dengan ULP Ngoro yang rumus nilai SAIDI-nya berbeda dari tab acuan */
+    private function importWithUnitRule(): void
+    {
+        $ngoro = $this->makeUnit('ULP', $this->up3);
+        $ngoro->forceFill(['code' => '51454', 'name' => 'ULP Ngoro'])->save();
+        $path = $this->edited($this->book(['UP3 MOJOKERTO', 'ULP JOMBANG', 'ULP NGORO']), ['ULP NGORO' => ['AC13' => '=IF(AB13<=0,0,F13)']]);
+        app(NkoDefinitionImportService::class)->import($path, 'dengan-aturan-unit.xlsx');
+    }
+
+    /** @return array{targets: int, unit_rules: int, references: int} milik versi aktif ULP */
+    private function ulpData(): array
+    {
+        $count = fn (string $table) => DB::table("{$table} as x")->join('kpi_definitions as d', 'd.id', '=', 'x.definition_id')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')
+            ->where('s.status', 'AKTIF')->where('s.unit_level', 'ULP')->count();
+
+        return ['targets' => $count('kpi_targets'), 'unit_rules' => $count('kpi_unit_rules'), 'references' => $count('kpi_reference_values')];
+    }
+
+    #[Test]
+    public function template_definisi_saja_mempertahankan_target_dan_aturan_khusus_unit(): void
+    {
+        $this->importWithUnitRule();
+        $before = $this->ulpData();
+        $this->assertSame(1, $before['unit_rules']);
+
+        $path = $this->edited($this->definitionTemplate(), ['DEFINISI ULP' => ['F13' => 8, 'F12' => 86]]);
+        $report = $this->check($path);
+        $this->assertTrue($report['can_upload'], json_encode($report['errors']));
+        $this->assertSame(['PETUNJUK', 'DEFINISI UP3', 'DEFINISI ULP'], array_column($report['tabs'], 'sheet'));
+        $ulp = array_column($report['changes'], null, 'level')['ULP'];
+        $this->assertSame(['saidi' => ['weight']], array_map('array_keys', array_column($ulp['changed'], 'fields', 'code')));
+        $this->assertSame([[], [], []], [$ulp['added'], $ulp['targets_changed'], $ulp['alerts']]);
+
+        $id = $this->upload($path)->assertCreated()->json('data.id');
+        $this->as($this->asman)->postJson("/api/nko/definition-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk();
+        $this->assertSame($before, $this->ulpData());
+        $this->assertSame(7.0, $this->saidiTarget(2));
+    }
+
+    #[Test]
+    public function aturan_khusus_unit_tidak_dibawa_bila_rumus_dasar_berubah_dan_baris_baru_menggeser_rujukan(): void
+    {
+        $this->importWithUnitRule();
+
+        $changed = $this->edited($this->definitionTemplate(), ['DEFINISI ULP' => ['AC13' => '=AB13/100*F13']]);
+        $alerts = implode(' ', array_column($this->check($changed)['changes'], null, 'level')['ULP']['alerts']);
+        $this->assertStringContainsString('Rumus dasar "SAIDI" berubah, sehingga aturan khusus unit tidak dibawa untuk ULP Ngoro.', $alerts);
+
+        // sisipkan baris di atas SAIDI lewat pustaka, yang menggeser rujukan seperti Excel
+        $shifted = $this->definitionTemplate();
+        $book = IOFactory::load($shifted);
+        $book->getSheetByName('DEFINISI ULP')->insertNewRowBefore(13);
+        $this->save($book, $shifted);
+        $id = $this->upload($shifted)->assertCreated()->json('data.id');
+        $this->as($this->asman)->postJson("/api/nko/definition-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk();
+        $rule = json_decode(DB::table('kpi_unit_rules as r')->join('kpi_definitions as d', 'd.id', '=', 'r.definition_id')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')
+            ->where('s.status', 'AKTIF')->value('r.rules'), true);
+        $this->assertSame('=IF(AB14<=0,0,F14)', $rule['nilai']);
+    }
+
+    #[Test]
+    public function tab_definisi_tidak_boleh_memuat_target_atau_digabung_dengan_tab_unit(): void
+    {
+        $filled = $this->edited($this->definitionTemplate(), ['DEFINISI ULP' => ['M13' => 5]]);
+        $this->assertStringContainsString('tab DEFINISI tidak memuat target', implode(' ', $this->check($filled)['errors']));
+
+        $mixed = $this->definitionTemplate();
+        $book = IOFactory::load($mixed);
+        $copy = clone $book->getSheetByName('DEFINISI ULP');
+        $copy->setTitle('ULP JOMBANG');
+        $book->addSheet($copy);
+        $this->save($book, $mixed);
+        $this->assertStringContainsString('Tab "DEFINISI ULP" tidak boleh digabung dengan tab unit ULP', implode(' ', $this->check($mixed)['errors']));
+    }
+
     private function viewerOf(): User
     {
         return $this->actor('MANAGER_ULP', $this->ulp);

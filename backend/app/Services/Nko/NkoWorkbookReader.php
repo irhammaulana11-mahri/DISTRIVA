@@ -37,6 +37,9 @@ class NkoWorkbookReader
 
     public const CODE_MAX = 64;
 
+    /** tab definisi tanpa unit dan tanpa target, satu per tingkat (docs/93 §13) */
+    public const DEFINITION_TAB = '/^DEFINISI\s+(UP3|ULP)$/i';
+
     private const POLARITY_TEXT = ['negatif' => 1, 'rentang' => 2, 'range' => 2, 'positif' => 3];
 
     public const MONTHS = ['JANUARI' => 1, 'FEBRUARI' => 2, 'MARET' => 3, 'APRIL' => 4, 'MEI' => 5, 'JUNI' => 6, 'JULI' => 7, 'AGUSTUS' => 8, 'SEPTEMBER' => 9, 'OKTOBER' => 10, 'NOVEMBER' => 11, 'DESEMBER' => 12];
@@ -60,12 +63,13 @@ class NkoWorkbookReader
             $ws = $book->getSheetByName($name);
             $layout = $ws instanceof Worksheet && strtoupper(trim((string) $ws->getCell('A'.self::HEADER_ROW)->getValue())) === 'NO';
             $tab = ['sheet' => $name, 'status' => 'DILEWATI', 'level' => null, 'unit_name' => null, 'reason' => null];
-            if (! preg_match('/^(UP3|ULP)\s+(.+)$/i', trim($name), $m)) {
+            $definitionOnly = preg_match(self::DEFINITION_TAB, trim($name), $m) === 1;
+            if (! $definitionOnly && ! preg_match('/^(UP3|ULP)\s+(.+)$/i', trim($name), $m)) {
                 $tabs[] = ['reason' => $layout ? 'Tata letaknya NKO, tetapi nama tab harus "UP3 <nama unit>" atau "ULP <nama unit>", mis. "ULP JOMBANG".' : 'Bukan tab unit.'] + $tab;
 
                 continue;
             }
-            $tab = ['level' => strtoupper($m[1]), 'unit_name' => trim($m[2])] + $tab;
+            $tab = ['level' => strtoupper($m[1]), 'unit_name' => $definitionOnly ? null : trim($m[2])] + $tab;
             if (! $layout) {
                 $tabs[] = ['reason' => 'Sel A9 harus berisi "NO" (baris judul kolom ke-9: NO, KPI, POLARITAS, FORMULA, SATUAN, BOBOT).'] + $tab;
 
@@ -79,7 +83,7 @@ class NkoWorkbookReader
                 continue;
             }
             $year ??= $parsed['year'];
-            $sheets[] = ['sheet' => $name, 'level' => $tab['level'], 'unit_name' => $tab['unit_name']] + $parsed;
+            $sheets[] = ['sheet' => $name, 'level' => $tab['level'], 'unit_name' => $tab['unit_name'], 'definition_only' => $definitionOnly] + $parsed;
             $tabs[] = ['status' => 'DIKENALI'] + $tab;
         }
         $this->release($book);

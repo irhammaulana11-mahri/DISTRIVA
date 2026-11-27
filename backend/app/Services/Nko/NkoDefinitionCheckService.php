@@ -47,10 +47,10 @@ class NkoDefinitionCheckService
             if ($sheet === null) {
                 continue;
             }
-            $tab['unit_found'] = isset($book['levels'][$sheet['level']]['unit_ids'][$sheet['sheet']]);
+            $tab['unit_found'] = $sheet['definition_only'] ? null : isset($book['levels'][$sheet['level']]['unit_ids'][$sheet['sheet']]);
             $tab['items'] = count(array_filter($sheet['nodes'], fn (array $n) => $n['polarity'] !== null));
             $tab['total_weight'] = $sheet['total_weight'];
-            $inherited = $this->inheritedCodes($book['levels'][$sheet['level']], $sheet['sheet']);
+            $inherited = $this->inheritedCodes($book['levels'][$sheet['level']], $sheet);
             [$tab['errors'], $tab['warnings']] = $this->sheetProblems($sheet, $tab['unit_found'], $inherited);
             foreach ($tab['errors'] as $error) {
                 $report['errors'][] = "Tab {$tab['sheet']}: {$error}";
@@ -80,20 +80,21 @@ class NkoDefinitionCheckService
     }
 
     /**
-     * Kode item yang targetnya sudah ada di versi aktif untuk unit tab itu, jadi akan disalin bila workbook tidak mengisinya.
+     * Kode item yang targetnya sudah ada di versi aktif (untuk unit tab itu; unit mana pun pada tab DEFINISI), jadi akan disalin bila workbook tidak mengisinya.
      *
      * @param  array<string, mixed>  $plan
+     * @param  array<string, mixed>  $sheet
      * @return array<string, int>
      */
-    private function inheritedCodes(array $plan, string $sheet): array
+    private function inheritedCodes(array $plan, array $sheet): array
     {
-        $unitId = $plan['unit_ids'][$sheet] ?? null;
-        if ($plan['active'] === null || $unitId === null) {
+        $unitId = $plan['unit_ids'][$sheet['sheet']] ?? null;
+        if ($plan['active'] === null || ($unitId === null && ! $sheet['definition_only'])) {
             return [];
         }
 
         return array_flip(DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')
-            ->where('d.set_id', $plan['active']->id)->where('t.organizational_unit_id', $unitId)->distinct()->pluck('d.code')->all());
+            ->where('d.set_id', $plan['active']->id)->when($unitId !== null, fn ($q) => $q->where('t.organizational_unit_id', $unitId))->distinct()->pluck('d.code')->all());
     }
 
     /**
@@ -101,17 +102,20 @@ class NkoDefinitionCheckService
      * @param  array<string, int>  $inherited
      * @return array{0: list<string>, 1: list<string>} galat dan peringatan
      */
-    private function sheetProblems(array $sheet, bool $unitFound, array $inherited): array
+    private function sheetProblems(array $sheet, ?bool $unitFound, array $inherited): array
     {
         $errors = [];
         $warnings = [];
-        if (! $unitFound) {
+        $definitionOnly = $sheet['definition_only'];
+        if ($unitFound === false) {
             $errors[] = "unit \"{$sheet['level']} {$sheet['unit_name']}\" tidak ada di master unit; periksa ejaan nama tab.";
         }
         if ($sheet['total_weight'] === null || abs($sheet['total_weight'] - 100) > 0.001) {
             $errors[] = 'jumlah bobot kelompok '.($sheet['total_weight'] ?? 0).', harus 100.';
         }
-        if ($sheet['uncached_targets'] > 0) {
+        if ($definitionOnly && ($sheet['targets'] !== [] || $sheet['uncached_targets'] > 0)) {
+            $errors[] = 'tab DEFINISI tidak memuat target (kolom M sampai X harus kosong); unggah target lewat workbook target.';
+        } elseif ($sheet['uncached_targets'] > 0) {
             $errors[] = "{$sheet['uncached_targets']} sel target berisi rumus tanpa nilai tersimpan (rumus ke workbook lain). Buka di Excel, perbarui tautan, simpan, lalu unggah lagi.";
         }
 
@@ -134,6 +138,12 @@ class NkoDefinitionCheckService
                 $noPolarity[] = $n['name'];
             }
         }
+        if ($definitionOnly) {
+            if ($noTarget !== []) {
+                $warnings[] = 'target belum ada untuk item berbobot: '.$this->names($noTarget).'. Isi lewat workbook target setelah definisi disetujui.';
+            }
+            [$noTarget, $copied, $partial] = [[], [], []];
+        }
         if ($noTarget !== []) {
             $errors[] = 'target bulanan (kolom M sampai X) kosong untuk item berbobot: '.$this->names($noTarget).'.';
         }
@@ -146,7 +156,7 @@ class NkoDefinitionCheckService
         if ($partial !== []) {
             $warnings[] = 'target sebagian bulan kosong: '.$this->names($partial).'.';
         }
-        if ($sheet['uncached_scores'] > 0) {
+        if ($sheet['uncached_scores'] > 0 && ! $definitionOnly) {
             $warnings[] = 'rumus pencapaian belum pernah dihitung (berkas belum dibuka di Excel), sehingga angka acuan pencapaian dan nilai workbook tidak tersimpan. Perhitungan NKO tidak terpengaruh; buka dan simpan di Excel bila angka acuan diperlukan.';
         }
         if ($sheet['polarity_text'] > 0) {

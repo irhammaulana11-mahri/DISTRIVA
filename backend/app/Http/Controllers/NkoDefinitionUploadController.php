@@ -66,20 +66,21 @@ class NkoDefinitionUploadController extends Controller
         return response()->json(['data' => $this->present($row) + ['changes' => json_decode($row->changes, true), 'check' => json_decode($row->check_report ?? 'null', true)]]);
     }
 
-    /** GET /nko/definition-template?year=: workbook dari definisi aktif, untuk diubah lalu diunggah. */
+    /** GET /nko/definition-template?year=&format=lengkap|definisi: workbook dari definisi aktif, untuk diubah lalu diunggah. */
     public function template(Request $request): BinaryFileResponse
     {
         $this->authorizeChange($request, 'nko.rules.propose');
-        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100']]);
+        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100'], 'format' => ['nullable', 'in:lengkap,definisi']]);
+        $definitionOnly = ($d['format'] ?? null) === 'definisi';
         $path = storage_path('app/nko-template-'.Str::uuid().'.xlsx');
         try {
-            $this->templates->write((int) $d['year'], $path);
+            $this->templates->write((int) $d['year'], $path, $definitionOnly);
         } catch (NkoRuleException $e) {
             @unlink($path);
             throw new AdministrationDenied($e->getMessage(), $e->status);
         }
 
-        return response()->download($path, "TEMPLATE-DEFINISI-NKO-{$d['year']}.xlsx", ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
+        return response()->download($path, ($definitionOnly ? 'TEMPLATE-DEFINISI-SAJA-NKO' : 'TEMPLATE-DEFINISI-NKO')."-{$d['year']}.xlsx", ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
     }
 
     /** POST /nko/definition-uploads/check (multipart: file, year): hasil pemeriksaan tanpa menyimpan. */
