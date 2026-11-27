@@ -27,6 +27,12 @@ vi.mock('../../services/api.js', () => ({
     start: vi.fn(),
     run: vi.fn(),
   },
+  syncApi: {
+    active: vi.fn().mockResolvedValue({ data: [] }),
+    accounts: vi.fn().mockResolvedValue({ data: [] }),
+    saveAccount: vi.fn(),
+    deleteAccount: vi.fn(),
+  },
 }))
 
 const mockSubstation = {
@@ -88,7 +94,7 @@ describe('SubstationPages — Dedicated Drawer Pages (PanelShell asPage)', () =>
 
     expect(await screen.findByTestId('substation-detail')).toBeInTheDocument()
     expect(screen.getAllByText(/HL0257/).length).toBeGreaterThan(0)
-    expect(screen.getByText('← Kembali')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Kembali/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Ubah Data Induk/i })).toBeInTheDocument()
   })
 
@@ -125,7 +131,7 @@ describe('SubstationPages — Dedicated Drawer Pages (PanelShell asPage)', () =>
     )
 
     expect(await screen.findByTestId('substation-measurement-detail')).toBeInTheDocument()
-    expect(screen.getByText('← Kembali')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Kembali/i })).toBeInTheDocument()
     expect(screen.getByTestId('reading-form')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Simpan pembacaan/i })).toBeInTheDocument()
   })
@@ -166,7 +172,7 @@ describe('SubstationPages — Dedicated Drawer Pages (PanelShell asPage)', () =>
     )
 
     expect(await screen.findByText('Tarik WO Inspeksi dari Maximo')).toBeInTheDocument()
-    expect(screen.getByText('← Kembali')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Kembali/i })).toBeInTheDocument()
     expect(screen.getByText('mx.admin')).toBeInTheDocument()
   })
 })

@@ -103,11 +103,6 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
       const resolvedUp3Id = res?.data?.up3_id || targetUp3 || ''
       if (res?.data?.up3_id) setUp3Id(res.data.up3_id)
       onUp3Context?.({ up3Id: resolvedUp3Id, up3s: res?.data?.up3s || [] })
-      if (syncApi?.accounts) {
-        syncApi.accounts({ source: 'maximo', ...(resolvedUp3Id ? { up3_id: resolvedUp3Id } : {}) })
-          .then((aRes) => setUlpAccounts(Array.isArray(aRes?.data) ? aRes.data : []))
-          .catch(() => {})
-      }
       if (res?.data?.units) setUnits(res.data.units)
       setForm((f) => f || {
         maximo_url: s?.maximo_url || 'http://10.99.10.41',
@@ -120,6 +115,14 @@ export default function MaximoSyncDrawer({ open = true, asPage = false, embedded
       })
       const running = (res?.data?.runs || []).find(live)
       if (running) setCurrent((c) => c || running)
+      if (syncApi?.accounts) {
+        try {
+          const aRes = await syncApi.accounts({ source: 'maximo', ...(resolvedUp3Id ? { up3_id: resolvedUp3Id } : {}) })
+          setUlpAccounts(Array.isArray(aRes?.data) ? aRes.data : [])
+        } catch {
+          // Abaikan bila endpoint/izin akun ULP tidak tersedia
+        }
+      }
     } catch (err) {
       setError(err?.message || 'Gagal memuat pengaturan sinkronisasi Maximo.')
     }

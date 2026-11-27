@@ -92,7 +92,7 @@ export default function SearchSelect({ options, value, onChange, placeholder = '
       {required && <input tabIndex={-1} aria-hidden="true" required value={value || ''} onChange={() => {}} className="absolute inset-x-0 bottom-0 h-px w-full opacity-0 pointer-events-none" />}
 
       {open && (
-        <ul id={listId} role="listbox" ref={listRef} className="absolute z-30 mt-1 w-full max-h-64 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg py-1">
+        <ul id={listId} role="listbox" ref={listRef} className="absolute z-30 mt-1 min-w-full w-max max-w-xs max-h-64 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg py-1">
           {shown.length === 0 && <li className="px-3 py-3 text-xs text-slate-500 text-center">{emptyText}</li>}
           {shown.map((o, i) => (
             <li

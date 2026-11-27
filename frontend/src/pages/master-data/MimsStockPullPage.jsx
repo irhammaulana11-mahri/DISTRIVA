@@ -910,6 +910,18 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
           </div>
   )
 
+  const mimsErrorAlert = mimsError ? (
+    <Alert kind="error">
+      <div className="font-semibold">{mimsError}</div>
+      {(mimsError.toLowerCase().includes('token ditolak') ||
+        mimsError.toLowerCase().includes('kedaluwarsa')) && (
+        <div className="mt-1 text-[11px]">
+          Token sesi Anda mungkin sudah kedaluwarsa. Silakan ambil token baru dari aplikasi MIMS lalu pilih opsi &quot;Tempel token baru&quot;.
+        </div>
+      )}
+    </Alert>
+  ) : null
+
   const content = (
     <div className="space-y-6 text-xs">
       {embedded ? (
@@ -929,13 +941,7 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
             actionIcon: IconSettings,
             onAction: () => setSettingsOpen(true),
           }}
-          alerts={
-            mimsError ? (
-              <Alert kind="error">
-                <div className="font-semibold">{mimsError}</div>
-              </Alert>
-            ) : null
-          }
+          alerts={mimsErrorAlert}
         >
           {mimsActionCard}
           {mimsResultsSection}
@@ -965,11 +971,7 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
               Pengaturan Tarik Otomatis
             </Button>
           </div>
-          {mimsError && (
-            <Alert kind="error">
-              <div className="font-semibold">{mimsError}</div>
-            </Alert>
-          )}
+          {mimsErrorAlert}
           {mimsActionCard}
           {mimsResultsSection}
         </>

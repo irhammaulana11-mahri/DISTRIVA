@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useScopedUnits, useUnitScope } from '../utils/unitScope.js'
 import SearchSelect from './SearchSelect.jsx'
 
@@ -22,6 +23,15 @@ export default function HierarchicalUnitFilter({
   const info = useScopedUnits(permission)
   const s = useUnitScope(info, up3Id, unitId)
   const label = (text) => showLabels && <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{text}</span>
+
+  useEffect(() => {
+    if (s.up3Locked && s.up3Value && String(up3Id) !== String(s.up3Value)) {
+      onUp3Change?.(s.up3Value)
+    }
+    if (s.ulpLocked && s.ulpValue && String(unitId) !== String(s.ulpValue)) {
+      onUnitChange?.(s.ulpValue)
+    }
+  }, [s.up3Locked, s.up3Value, s.ulpLocked, s.ulpValue, up3Id, unitId, onUp3Change, onUnitChange])
 
   return (
     <>

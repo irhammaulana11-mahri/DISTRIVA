@@ -6,6 +6,7 @@ import { maximoSyncApi } from '../../services/api.js'
 
 vi.mock('../../services/api.js', () => ({
   maximoSyncApi: { show: vi.fn(), save: vi.fn(), runs: vi.fn(), start: vi.fn(), run: vi.fn() },
+  syncApi: { active: vi.fn().mockResolvedValue({ data: [] }), accounts: vi.fn().mockResolvedValue({ data: [] }), saveAccount: vi.fn(), deleteAccount: vi.fn() },
 }))
 
 const settings = { maximo_url: 'http://10.99.10.41', maximo_username: 'petugas.mx', has_password: true, work_type: 'INST1', lookback_days: 3, auto_enabled: true, auto_time: '19:30' }

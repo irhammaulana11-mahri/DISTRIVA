@@ -44,14 +44,35 @@ export function useScopedUnits(permission) {
       .catch(() => {})
     let first
     try { first = api.unitScopeApi?.get?.(permission) } catch { first = undefined }
+    const applyScoped = (res) => {
+      if (!live) return false
+      const d = res?.data?.scope ? res.data : res
+      if (d && d.scope) {
+        setInfo({ scope: d.scope, up3_units: d.up3_units || [], ulp_units: d.ulp_units || [], default_up3_id: d.default_up3_id, default_unit_id: d.default_unit_id })
+        return true
+      }
+      return false
+    }
     Promise.resolve(first)
       .then((res) => {
-        if (!live) return
-        const d = res?.data?.scope ? res.data : res
-        if (d && d.scope) setInfo({ scope: d.scope, up3_units: d.up3_units || [], ulp_units: d.ulp_units || [], default_up3_id: d.default_up3_id, default_unit_id: d.default_unit_id })
-        else fallback()
+        if (applyScoped(res)) return
+        fallback()
       })
-      .catch(fallback)
+      .catch((err) => {
+        // Jika backend belum mendaftarkan permission halaman ini di ScopedUnitController::PERMISSIONS (422),
+        // coba izin umum yang terdaftar agar peran UP3/ULP tetap mendapat scope unit aslinya (bukan GLOBAL).
+        if (err?.status === 422 && permission && permission !== 'applications.view') {
+          let retry
+          try { retry = api.unitScopeApi?.get?.('applications.view') } catch { retry = undefined }
+          if (retry) {
+            Promise.resolve(retry)
+              .then((res2) => { if (!applyScoped(res2)) fallback() })
+              .catch(fallback)
+            return
+          }
+        }
+        fallback()
+      })
     return () => { live = false }
   }, [permission])
   return info
