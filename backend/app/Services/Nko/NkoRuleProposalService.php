@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * Usulan dan persetujuan aturan realisasi NKO (docs/93 tahap 4). Aturan hanya berubah lewat persetujuan, dan pengusul tidak boleh memutus usulannya sendiri. Pemanggil mengotorisasi lebih dulu.
+ * Usulan dan persetujuan aturan realisasi NKO (docs/93 tahap 4). Aturan hanya berubah lewat persetujuan, dan pengusul tidak boleh memutus usulannya sendiri (kecuali SYS_ADMIN). Pemanggil mengotorisasi lebih dulu.
  */
 class NkoRuleProposalService
 {
@@ -97,7 +97,7 @@ class NkoRuleProposalService
     {
         return DB::transaction(function () use ($id, $approve, $note, $actor) {
             $p = $this->pending($id);
-            if ($p->proposed_by === $actor->id) {
+            if ($p->proposed_by === $actor->id && ! $actor->isSysAdmin()) {
                 throw new NkoRuleException('Pengusul tidak boleh memutus usulannya sendiri.', 409);
             }
             if (! $approve && trim((string) $note) === '') {

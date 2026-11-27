@@ -100,7 +100,7 @@ Hasil pada data 2026 (26 Nov 2026): 12 aturan semuanya masih cocok dengan item; 
 
 ## 9. Pengaturan aturan (tahap 4)
 
-Alur: **PERENCANAAN mengusulkan, ASMAN_PERENCANAAN menyetujui atau menolak**. Aturan berubah hanya setelah disetujui. Pengusul tidak boleh memutus usulannya sendiri (berlaku juga untuk SYS_ADMIN). Persetujuan tidak menghitung ulang NKO.
+Alur: **PERENCANAAN mengusulkan, ASMAN_PERENCANAAN menyetujui atau menolak**. Aturan berubah hanya setelah disetujui. Pengusul tidak boleh memutus usulannya sendiri, **kecuali SYS_ADMIN** (keputusan pemilik 27 Nov 2026; MFA tetap wajib dan jejak pengusul serta pemutus tetap tercatat). Pengecualian yang sama berlaku untuk unggahan definisi (§10) dan target (§12). Persetujuan tidak menghitung ulang NKO.
 
 ### Mode
 
@@ -155,7 +155,7 @@ Item kinerja bertambah, berkurang, atau berganti nama, serta bobot dan target, t
 2. Hasil pemeriksaan dan pratinjau perubahan dibaca siapa pun yang punya `nko.view`.
 3. ASMAN_PERENCANAAN menyetujui (workbook diperiksa ulang; definisi versi baru aktif, versi lama `ARSIP`) atau menolak.
 
-Izin sama dengan aturan (§9): `nko.rules.propose` untuk mengunggah dan membatalkan, `nko.rules.approve` untuk memutus, keduanya hanya tingkat UP3. Tidak ada izin atau seeder baru. Pengunggah tidak boleh memutus unggahannya sendiri. Perintah `distriva:nko-import-definitions` tetap ada.
+Izin sama dengan aturan (§9): `nko.rules.propose` untuk mengunggah dan membatalkan, `nko.rules.approve` untuk memutus, keduanya hanya tingkat UP3. Tidak ada izin atau seeder baru. Pengunggah tidak boleh memutus unggahannya sendiri, kecuali SYS_ADMIN (§9). Perintah `distriva:nko-import-definitions` tetap ada.
 
 ### API (di bawah `/api/nko`)
 

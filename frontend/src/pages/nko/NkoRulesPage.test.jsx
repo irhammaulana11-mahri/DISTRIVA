@@ -42,11 +42,11 @@ vi.mock('../../services/api.js', () => ({
   },
 }))
 
-function wrap(ui, can = { 'nko.view': true }, userId = 'usr-1') {
+function wrap(ui, can = { 'nko.view': true }, userId = 'usr-1', isSysAdmin = false) {
   return render(
     <MemoryRouter>
       <AuthContext.Provider value={{ user: { id: userId, name: 'Tester' }, status: 'authenticated' }}>
-        <AccessContext.Provider value={{ can, isSysAdmin: false, createUnits: [], loading: false }}>
+        <AccessContext.Provider value={{ can, isSysAdmin, createUnits: [], loading: false }}>
           <NotificationProvider>{ui}</NotificationProvider>
         </AccessContext.Provider>
       </AuthContext.Provider>
@@ -264,6 +264,19 @@ describe('NkoRulesPage', () => {
     await waitFor(() => {
       expect(nkoApi.cancelRuleProposal).toHaveBeenCalledWith('prop-own')
     })
+  })
+
+  it('SYS_ADMIN dapat memutus usulannya sendiri', async () => {
+    nkoApi.ruleProposals.mockResolvedValue({
+      data: [{ id: 'prop-own', definition_code: 'saidi', definition_name: 'SAIDI', mode: 'MANUAL', formula: null, effective_from: '2026-06', reason: 'Usulan sendiri', status: 'MENUNGGU', proposed_by: { id: 'usr-1', name: 'Admin' }, proposed_at: '2026-11-26T11:00:00Z' }],
+    })
+
+    const user = userEvent.setup()
+    wrap(<NkoRulesPage />, { 'nko.view': true, 'nko.rules.propose': true, 'nko.rules.approve': true }, 'usr-1', true)
+    await user.click(await screen.findByRole('tab', { name: /Daftar Usulan/i }))
+
+    expect(await screen.findByRole('button', { name: /^Setujui$/i })).toBeInTheDocument()
+    expect(screen.queryByText('Pengusul tidak dapat memutus usulannya sendiri')).not.toBeInTheDocument()
   })
 
   it('4. tab Versi Workbook menampilkan versi, rincian changes[], menolak (alasan wajib), dan menyetujui mengarahkan ke Perubahan Item', async () => {

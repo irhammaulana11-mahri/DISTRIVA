@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Unggah dan persetujuan workbook definisi NKO (docs/93 tahap 5): unggahan hanya disimpan beserta pratinjau perubahannya; definisi berganti setelah disetujui orang lain.
+ * Unggah dan persetujuan workbook definisi NKO (docs/93 tahap 5): unggahan hanya disimpan beserta pratinjau perubahannya; definisi berganti setelah disetujui orang lain (SYS_ADMIN boleh menyetujui unggahannya sendiri).
  * Pemanggil mengotorisasi lebih dulu.
  */
 class NkoDefinitionUploadService
@@ -68,7 +68,7 @@ class NkoDefinitionUploadService
     {
         return DB::transaction(function () use ($id, $approve, $note, $actor, $kind) {
             $upload = $this->pending($id, $kind);
-            if ($upload->uploaded_by === $actor->id) {
+            if ($upload->uploaded_by === $actor->id && ! $actor->isSysAdmin()) {
                 throw new NkoRuleException('Pengunggah tidak boleh memutus unggahannya sendiri.', 403);
             }
             if (! $approve) {

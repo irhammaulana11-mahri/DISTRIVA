@@ -554,6 +554,16 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         $this->assertContains('Belum ada definisi ULP 2026; versi pertama harus berlaku sejak Januari.', $errors);
     }
 
+    #[Test]
+    public function sys_admin_boleh_menyetujui_unggahannya_sendiri(): void
+    {
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'SYS_ADMIN')->firstOrFail(), null);     // SYS_ADMIN tidak terikat unit
+        $id = $this->upload($this->book(saidiWeight: 8), $admin)->assertCreated()->json('data.id');
+
+        $this->as($admin)->postJson("/api/nko/definition-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk()->assertJsonPath('data.status', 'DISETUJUI');
+    }
+
     private function viewerOf(): User
     {
         return $this->actor('MANAGER_ULP', $this->ulp);

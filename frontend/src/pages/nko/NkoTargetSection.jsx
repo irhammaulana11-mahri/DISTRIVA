@@ -193,7 +193,7 @@ function TargetChangesDetail({ detail, onClose }) {
   )
 }
 
-export default function NkoTargetSection({ year, canPropose, canApprove, currentUserId }) {
+export default function NkoTargetSection({ year, canPropose, canApprove, currentUserId, isSysAdmin = false }) {
   const { notify } = useNotifications()
   const [templateYear, setTemplateYear] = useState(year || new Date().getFullYear())
   const [templateLevel, setTemplateLevel] = useState('ULP')
@@ -509,7 +509,7 @@ export default function NkoTargetSection({ year, canPropose, canApprove, current
                           Batalkan
                         </Button>
                       )}
-                      {isPending && canApprove && !isOwn && (
+                      {isPending && canApprove && (!isOwn || isSysAdmin) && (
                         <>
                           <Button type="button" variant="primary" size="sm" onClick={() => setDecisionModal({ upload: u, mode: 'approve' })}>
                             Setujui Target

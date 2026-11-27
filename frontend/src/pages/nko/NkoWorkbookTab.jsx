@@ -439,6 +439,7 @@ export default function NkoWorkbookTab({
   canPropose,
   canApprove,
   currentUserId,
+  isSysAdmin = false,
   setsState,
   uploadsState,
   uploadStatusFilter,
@@ -829,7 +830,7 @@ export default function NkoWorkbookTab({
                         Batalkan
                       </Button>
                     )}
-                    {isPending && canApprove && !isOwn && (
+                    {isPending && canApprove && (!isOwn || isSysAdmin) && (
                       <>
                         <Button type="button" variant="primary" size="sm" onClick={() => setDecisionModal({ upload: u, mode: 'approve' })}>
                           Setujui
@@ -839,7 +840,7 @@ export default function NkoWorkbookTab({
                         </Button>
                       </>
                     )}
-                    {isPending && canApprove && isOwn && (
+                    {isPending && canApprove && isOwn && !isSysAdmin && (
                       <span className="text-[11px] text-amber-600 dark:text-amber-400 italic">
                         Pengunggah tidak dapat memutus unggahannya sendiri
                       </span>
@@ -917,6 +918,7 @@ export default function NkoWorkbookTab({
         canPropose={canPropose}
         canApprove={canApprove}
         currentUserId={currentUserId}
+        isSysAdmin={isSysAdmin}
       />
 
       <UploadDecisionModal

@@ -134,6 +134,16 @@ class NkoRuleApprovalTest extends PostgresTestCase
     }
 
     #[Test]
+    public function sys_admin_boleh_menyetujui_usulannya_sendiri(): void
+    {
+        $admin = $this->makeUser();
+        $this->assign($admin, Role::query()->where('name', 'SYS_ADMIN')->firstOrFail(), null);     // SYS_ADMIN tidak terikat unit
+        $id = $this->as($admin)->postJson('/api/nko/rule-proposals', $this->payload())->assertCreated()->json('data.id');
+
+        $this->as($admin)->postJson("/api/nko/rule-proposals/{$id}/decision", ['decision' => 'approve'])->assertOk()->assertJsonPath('data.status', 'DISETUJUI');
+    }
+
+    #[Test]
     public function usulan_yang_tidak_sah_ditolak(): void
     {
         $bad = [

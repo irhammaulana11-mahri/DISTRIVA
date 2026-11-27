@@ -635,7 +635,7 @@ function DecisionModal({ proposal, mode, onClose, onDecided }) {
 }
 
 export default function NkoRulesPage() {
-  const { can } = useAccess()
+  const { can, isSysAdmin } = useAccess()
   const { user } = useAuth()
   const { notify } = useNotifications()
 
@@ -1139,6 +1139,7 @@ export default function NkoRulesPage() {
           canPropose={canPropose}
           canApprove={canApprove}
           currentUserId={user?.id}
+          isSysAdmin={isSysAdmin}
           setsState={setsState}
           uploadsState={uploadsState}
           uploadStatusFilter={uploadStatusFilter}
@@ -1374,7 +1375,7 @@ export default function NkoRulesPage() {
                               Batalkan
                             </Button>
                           )}
-                          {canApprove && !isOwn && (
+                          {canApprove && (!isOwn || isSysAdmin) && (
                             <>
                               <Button
                                 type="button"
@@ -1394,7 +1395,7 @@ export default function NkoRulesPage() {
                               </Button>
                             </>
                           )}
-                          {canApprove && isOwn && (
+                          {canApprove && isOwn && !isSysAdmin && (
                             <span className="text-[11px] text-amber-600 dark:text-amber-400 italic">
                               Pengusul tidak dapat memutus usulannya sendiri
                             </span>
