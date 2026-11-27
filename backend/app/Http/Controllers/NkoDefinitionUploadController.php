@@ -49,7 +49,7 @@ class NkoDefinitionUploadController extends Controller
     {
         $this->authorizer->authorizeScope($request->user(), 'nko.view');
         $d = $request->validate(['status' => ['nullable', 'in:MENUNGGU,DISETUJUI,DITOLAK,DIBATALKAN']]);
-        $rows = $this->query()->when(! empty($d['status']), fn ($q) => $q->where('p.status', $d['status']))->orderByDesc('p.uploaded_at')->orderByDesc('p.id')->limit(100)->get();
+        $rows = $this->query()->where('p.kind', 'DEFINISI')->when(! empty($d['status']), fn ($q) => $q->where('p.status', $d['status']))->orderByDesc('p.uploaded_at')->orderByDesc('p.id')->limit(100)->get();
 
         return response()->json(['data' => $rows->map(fn (object $row) => $this->present($row))->all()]);
     }
@@ -58,7 +58,7 @@ class NkoDefinitionUploadController extends Controller
     public function show(Request $request, string $upload): JsonResponse
     {
         $this->authorizer->authorizeScope($request->user(), 'nko.view');
-        $row = $this->query()->where('p.id', $upload)->first();
+        $row = $this->query()->where('p.kind', 'DEFINISI')->where('p.id', $upload)->first();
         if ($row === null) {
             throw new AdministrationDenied('Unggahan tidak ditemukan.', 404);
         }

@@ -17,6 +17,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 | # | Tanggal | Perubahan | Dokumen | Kebutuhan frontend | Status |
 |---|---|---|---|---|---|
+| 64 | 2026-11-27 | **Unggah target NKO terpisah dari definisi**: API baru `GET /nko/target-template?year=&level=UP3\|ULP`, `POST /nko/target-uploads/check`, `POST /nko/target-uploads`, `GET /nko/target-uploads[/{id}]`, `POST /nko/target-uploads/{id}/decision`, `DELETE /nko/target-uploads/{id}`. Izin sama dengan unggahan definisi. Bentuk `changes[]` **berbeda** dari definisi (sel per unit). Satu unggahan menunggu per tahun berlaku untuk definisi dan target bersama (409). Daftar `definition-uploads` tidak memuat unggahan target | docs/93 §12 | Di `/nko/aturan` tambah kartu **Target** di samping kartu definisi: unduh template (pilih tahun dan tingkat UP3/ULP), Periksa, Unggah, daftar unggahan, rincian perubahan per unit (item, bulan, dari → ke) untuk penyetuju, setujui/tolak/batalkan. Pesan sukses setuju mengingatkan hitung ulang NKO | BARU |
 
 ## Selesai
 

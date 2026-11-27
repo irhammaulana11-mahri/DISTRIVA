@@ -183,11 +183,11 @@ Galat (menghentikan unggahan):
 - unit tab tidak ada di master unit;
 - jumlah bobot kelompok bukan 100;
 - sel target berisi rumus ke workbook lain tanpa nilai tersimpan;
-- item berbobot (bukan kelompok) tanpa target bulanan sama sekali, atau tanpa polaritas;
+- item berbobot (bukan kelompok) tanpa polaritas, atau tanpa target bulanan sama sekali **dan** belum punya target di versi aktif untuk unit itu (§12);
 - KODE (kolom J, §11) tidak sah atau dipakai dua baris dalam satu tab; sebagian tab satu tingkat memakai kolom KODE dan sebagian tidak;
 - isi workbook sudah pernah dimuat.
 
-Peringatan (unggahan tetap diterima): target sebagian bulan kosong; polaritas tertulis dikonversi (Negatif 1, Rentang 2, Positif 3; tulisan lain dilaporkan dan dianggap kosong); rumus pencapaian belum pernah dihitung (berkas belum dibuka di Excel, sehingga angka acuan pencapaian dan nilai tidak tersimpan); perbedaan definisi antartab sejenis.
+Peringatan (unggahan tetap diterima): target kosong di workbook sehingga diambil dari versi aktif; target sebagian bulan kosong; polaritas tertulis dikonversi (Negatif 1, Rentang 2, Positif 3; tulisan lain dilaporkan dan dianggap kosong); rumus pencapaian belum pernah dihitung (berkas belum dibuka di Excel, sehingga angka acuan pencapaian dan nilai tidak tersimpan); perbedaan definisi antartab sejenis.
 
 ### Template
 
@@ -207,7 +207,7 @@ Satu entri per tingkat unit (`UP3`, `ULP`):
 - `total_rule_changed`: rumus total atau nilai akhir NKO berubah
 - `targets_changed`: `{nama unit: jumlah target bulanan yang berbeda}` untuk item yang ada di kedua versi (`[]` bila tidak ada, dan antartahun tidak dibandingkan)
 - `units[]` yang targetnya akan dimuat, `warnings[]`
-- `alerts[]`: hal yang perlu diperhatikan penyetuju: unit yang punya target di versi pembanding tetapi tidak ada di workbook, jumlah indikator turun lebih dari 20%, item hilang yang punya aturan realisasi, KODE yang diisi tetapi tidak ada di versi pembanding (dianggap item baru; biasanya salah ketik), dan jumlah dugaan ganti nama
+- `alerts[]`: hal yang perlu diperhatikan penyetuju: unit yang punya target di versi pembanding tetapi tidak ada di workbook (di tahun yang sama targetnya disalin), jumlah indikator turun lebih dari 20%, item hilang yang punya aturan realisasi, KODE yang diisi tetapi tidak ada di versi pembanding (dianggap item baru; biasanya salah ketik), dan jumlah dugaan ganti nama
 
 Angka acuan realisasi di dalam workbook (dipakai pratinjau rumus §9) ikut diganti saat disetujui, tetapi perbedaannya **tidak** ditampilkan di `changes[]`.
 
@@ -223,4 +223,38 @@ Kode item (`kpi_definitions.code`) dipakai aturan realisasi, usulan aturan, masu
 - Format: huruf kecil, angka, dan tanda minus, paling banyak 64 karakter (huruf besar dikecilkan). Kode harus unik dalam satu tab.
 - Template (§10) menulis kode setiap item. Ganti nama di template dengan KODE tetap muncul di `changed[]` sebagai perubahan `name`, bukan item hilang dan item baru; target dan aturannya tetap tersambung.
 - Target, angka acuan, dan aturan khusus unit tiap tab dicocokkan dengan tab acuan menurut kode, bukan nomor baris. Diuji pada data dev 2026: impor ulang workbook REV 3 menghasilkan 4.260 target, 3.717 angka acuan, dan 31 aturan khusus unit yang sama dengan versi aktif.
+
+## 12. Unggah target terpisah (tahap 2)
+
+Target dapat diubah tanpa mengunggah ulang definisi. Target tetap disimpan di `kpi_targets` pada versi definisi aktif; snapshot NKO menyimpan salinan targetnya sendiri, jadi riwayat tidak berubah sampai dihitung ulang.
+
+### Penyalinan saat definisi berganti versi
+
+Saat workbook definisi disetujui (atau diimpor), untuk setiap pasangan item (menurut KODE) dan unit yang **sama sekali tidak diisi** workbook, target versi aktif sebelumnya di tahun yang sama disalin ke versi baru. Item yang sebagian bulannya diisi mengikuti workbook apa adanya. Item hilang tidak disalin. Akibatnya, target yang kosong di workbook definisi berarti "pertahankan", bukan "hapus"; menghapus target dilakukan lewat workbook target.
+
+### Template Target
+
+`GET /nko/target-template?year=&level=UP3|ULP` (izin `nko.rules.propose`), berkas `TEMPLATE-TARGET-NKO-<tingkat>-<tahun>.xlsx`. 404 bila belum ada definisi aktif tingkat itu pada tahun itu. Tab `PETUNJUK` dan satu tab per unit yang punya target (bila belum ada, semua unit aktif tingkat itu): sel A2 `TAHUN <tahun>`, baris 4 judul `KODE, KPI, SATUAN, BOBOT, JAN..DES`, data mulai baris 5. Baris tanpa KODE hanya judul. Lembar diproteksi tanpa kata sandi; yang terbuka hanya sel bulan.
+
+Isi sel: angka, rentang `95 - 105`, atau kosong (menghapus target bulan itu). Baris atau tab yang tidak ada di berkas tidak diubah.
+
+### API (di bawah `/api/nko`)
+
+Izin dan alur sama dengan §10. Hanya satu unggahan `MENUNGGU` per tahun, dihitung bersama unggahan definisi (409).
+
+| Metode | Isi |
+|---|---|
+| `POST /target-uploads/check` | multipart `file`, `year`; 200 `data` = hasil pemeriksaan |
+| `POST /target-uploads` | multipart `file`, `year`, `note` (wajib); 201 `{id}`; 422 dengan `data` bila tidak lolos |
+| `GET /target-uploads?status=` , `GET /target-uploads/{id}` | bentuk sama dengan unggahan definisi; rincian memuat `changes[]` dan `check` |
+| `POST /target-uploads/{id}/decision` | `{decision: approve\|reject, note?}`; 200 `data {status, cells}`; 409 bila definisi atau target aktif sudah berubah sejak pratinjau |
+| `DELETE /target-uploads/{id}` | pengunggah membatalkan |
+
+Hasil pemeriksaan: `{year, year_found, can_upload, errors[], warnings[], tabs[], changes[]}`; `tabs[]`: `sheet, status, level, unit_name, reason, unit_found, items, errors[], warnings[]`. `changes[]` per unit: `{level, unit_name, compared_with, cells, items: [{code, name, months: {"2": {from, to}}}]}` (`from`/`to` angka, teks rentang, atau null).
+
+Galat: bukan .xlsx; tidak ada tab target; sel A4 bukan `KODE` (mis. workbook definisi); tahun A2 tidak cocok; unit tidak ada di master; belum ada definisi aktif tingkat itu; KODE tidak dikenal atau ganda; sel bukan angka/rentang; rumus tanpa nilai tersimpan; seluruh target item berbobot yang sebelumnya terisi dikosongkan; tidak ada yang berubah.
+
+Peringatan: item berbobot belum punya target; target sebagian bulan kosong; jumlah target yang akan dihapus.
+
+Diuji pada data dev 2026: template UP3 (37 baris item) dan ULP (340) diperiksa tanpa diubah, juga setelah disimpan ulang di LibreOffice: nol perubahan.
 

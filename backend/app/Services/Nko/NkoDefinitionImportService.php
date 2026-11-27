@@ -198,8 +198,25 @@ class NkoDefinitionImportService
                 }
             }
 
-            return $this->summary($level, $active !== null ? 'DIGANTIKAN' : 'BARU', $version, $setId, ['definitions' => count($rows), 'targets' => $targets, 'units' => $unitNames], $warnings);
+            $copied = $active === null ? 0 : $this->copyTargets($active->id, $setId);
+
+            return $this->summary($level, $active !== null ? 'DIGANTIKAN' : 'BARU', $version, $setId, ['definitions' => count($rows), 'targets' => $targets, 'targets_copied' => $copied, 'units' => $unitNames], $warnings);
         });
+    }
+
+    /**
+     * Target versi sebelumnya disalin menurut kode item untuk pasangan item dan unit yang sama sekali tidak diisi workbook (docs/93 §12),
+     * sehingga mengubah definisi tidak menghapus target yang diunggah terpisah.
+     */
+    private function copyTargets(string $fromSetId, string $toSetId): int
+    {
+        return DB::table('kpi_targets')->insertUsing(
+            ['definition_id', 'organizational_unit_id', 'period', 'target_value', 'target_text'],
+            DB::table('kpi_targets as t')->join('kpi_definitions as o', 'o.id', '=', 't.definition_id')->join('kpi_definitions as n', 'n.code', '=', 'o.code')
+                ->where('o.set_id', $fromSetId)->where('n.set_id', $toSetId)
+                ->whereNotExists(fn ($q) => $q->from('kpi_targets as x')->whereColumn('x.definition_id', 'n.id')->whereColumn('x.organizational_unit_id', 't.organizational_unit_id'))
+                ->select(['n.id', 't.organizational_unit_id', 't.period', 't.target_value', 't.target_text']),
+        );
     }
 
     /**

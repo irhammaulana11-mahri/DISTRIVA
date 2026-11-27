@@ -29,6 +29,9 @@ class NkoDefinitionUploadTest extends PostgresTestCase
 
     private User $asman;
 
+    /** workbook yang dimuat setUp; xlsx yang dibangun ulang memuat cap waktu, jadi "berkas yang sama" harus berkas ini */
+    private string $loaded;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -42,7 +45,8 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         $this->ulp->forceFill(['code' => '51453', 'name' => 'ULP Jombang'])->save();
         $this->planner = $this->actor('PERENCANAAN', $this->up3);
         $this->asman = $this->actor('ASMAN_PERENCANAAN', $this->up3);
-        app(NkoDefinitionImportService::class)->import($this->book(), 'nko.xlsx');
+        $this->loaded = $this->book();
+        app(NkoDefinitionImportService::class)->import($this->loaded, 'nko.xlsx');
     }
 
     /** workbook uji yang lolos pemeriksaan unggah (bobot kelompok 100) */
@@ -180,7 +184,7 @@ class NkoDefinitionUploadTest extends PostgresTestCase
     #[Test]
     public function berkas_yang_sama_berkas_rusak_dan_peran_ulp_ditolak(): void
     {
-        $this->upload($this->book())->assertStatus(422);
+        $this->upload($this->loaded)->assertStatus(422);
         $broken = tempnam(sys_get_temp_dir(), 'nko').'.xlsx';
         file_put_contents($broken, 'bukan workbook');
         $this->upload($broken)->assertStatus(422);
@@ -219,11 +223,14 @@ class NkoDefinitionUploadTest extends PostgresTestCase
     public function bobot_target_kosong_dan_rumus_target_tanpa_nilai_menghentikan_unggahan(): void
     {
         $path = $this->edited($this->book(['ULP JOMBANG']), ['ULP JOMBANG' => ['F12' => 14, 'M13' => null, 'N13' => null, 'M11' => "='[2]TARGET'!A1"]]);
-        $errors = array_column($this->check($path)['tabs'], null, 'sheet')['ULP JOMBANG']['errors'];
+        $tab = array_column($this->check($path)['tabs'], null, 'sheet')['ULP JOMBANG'];
+        $errors = $tab['errors'];
 
         $this->assertSame('jumlah bobot kelompok 28, harus 100.', $errors[0]);
         $this->assertStringContainsString('1 sel target berisi rumus tanpa nilai tersimpan', $errors[1]);
-        $this->assertSame('target bulanan (kolom M sampai X) kosong untuk item berbobot: SAIDI.', $errors[2]);
+        // SAIDI sudah punya target di versi aktif, jadi disalin; tanpa versi aktif diwajibkan (lihat template tahun baru)
+        $this->assertCount(2, $errors);
+        $this->assertContains('target kosong di workbook; diambil dari versi aktif: SAIDI.', $tab['warnings']);
     }
 
     #[Test]
@@ -321,7 +328,6 @@ class NkoDefinitionUploadTest extends PostgresTestCase
     #[Test]
     public function kode_yang_tidak_dikenal_diperingatkan_sebagai_item_baru(): void
     {
-        app(NkoDefinitionImportService::class)->import($this->book(), 'awal.xlsx');
 
         $report = $this->check($this->edited($this->book(), ['UP3 MOJOKERTO' => ['J9' => 'KODE', 'J13' => 'saidi-typo']]));
         $up3 = array_column($report['changes'], null, 'level')['UP3'];
@@ -329,6 +335,77 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         $this->assertTrue($report['can_upload']);
         $this->assertSame(['saidi-typo'], array_column($up3['added'], 'code'));
         $this->assertStringContainsString('KODE saidi-typo (SAIDI) tidak ada di versi 2026 v1; dianggap item baru', implode(' ', $up3['alerts']));
+    }
+
+    private function targetTemplate(string $level = 'ULP'): string
+    {
+        $response = $this->as($this->planner)->get("/api/nko/target-template?year=2026&level={$level}")->assertOk();
+        $path = tempnam(sys_get_temp_dir(), 'nko').'.xlsx';
+        rename($response->baseResponse->getFile()->getPathname(), $path);
+
+        return $path;
+    }
+
+    private function saidiTarget(int $month): ?float
+    {
+        $value = DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')
+            ->where('s.status', 'AKTIF')->where('s.unit_level', 'ULP')->where('d.code', 'saidi')->where('t.period', sprintf('2026-%02d-01', $month))->value('t.target_value');
+
+        return $value === null ? null : (float) $value;
+    }
+
+    #[Test]
+    public function target_diubah_lewat_template_target_dan_berlaku_setelah_disetujui(): void
+    {
+        $path = $this->targetTemplate();
+        $this->assertSame(['Target di berkas sama dengan yang berlaku; tidak ada yang berubah.'], $this->upload($path, endpoint: '/api/nko/target-uploads/check')->assertOk()->json('data.errors'));
+
+        // baris 7 = SAIDI, kolom F = Februari, G = Maret
+        $this->edited($path, ['ULP JOMBANG' => ['F7' => 9, 'G7' => 11]]);
+        $report = $this->upload($path, endpoint: '/api/nko/target-uploads/check')->assertOk()->json('data');
+        $this->assertTrue($report['can_upload'], json_encode($report['errors']));
+        $this->assertSame(['saidi', 2], [$report['changes'][0]['items'][0]['code'], $report['changes'][0]['cells']]);
+        $this->assertSame(['from' => 7, 'to' => 9], $report['changes'][0]['items'][0]['months']['2']);
+
+        $id = $this->upload($path, endpoint: '/api/nko/target-uploads')->assertCreated()->json('data.id');
+        $this->assertSame(7.0, $this->saidiTarget(2));
+        $this->as($this->planner)->getJson('/api/nko/definition-uploads')->assertOk()->assertJsonCount(0, 'data');
+        $this->as($this->asman)->postJson("/api/nko/definition-uploads/{$id}/decision", ['decision' => 'approve'])->assertNotFound();
+        $this->upload($this->book(saidiWeight: 8))->assertStatus(409);
+
+        $this->as($this->asman)->postJson("/api/nko/target-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk()->assertJsonPath('data.cells', 2);
+        $this->assertSame([9.0, 11.0], [$this->saidiTarget(2), $this->saidiTarget(3)]);
+        $this->assertSame(['UP3' => 1, 'ULP' => 1], array_reverse($this->activeSets()));
+    }
+
+    #[Test]
+    public function workbook_target_yang_salah_menghentikan_unggahan(): void
+    {
+        $errors = fn (array $cells, int $year = 2026) => implode(' ', $this->upload($this->edited($this->targetTemplate(), ['ULP JOMBANG' => $cells]), year: $year, endpoint: '/api/nko/target-uploads/check')->assertOk()->json('data.errors'));
+
+        $this->assertStringContainsString('KODE tidak ada di definisi aktif: saidi-x (baris 7)', $errors(['A7' => 'saidi-x']));
+        $this->assertStringContainsString('sel bukan angka atau rentang ("95 - 105"): F7', $errors(['F7' => '9,5']));
+        $this->assertStringContainsString('semua target item berbobot dikosongkan: SAIDI', $errors(['E7' => null, 'F7' => null]));
+        $this->assertStringContainsString('tahun 2026 (sel A2), bukan 2027', $errors([], 2027));
+        $this->assertStringContainsString('Sel A4 harus berisi "KODE"', implode(' ', $this->upload($this->book(), endpoint: '/api/nko/target-uploads/check')->assertOk()->json('data.errors')));
+        $this->as($this->viewerOf())->get('/api/nko/target-template?year=2026&level=ULP')->assertForbidden();
+        $this->as($this->planner)->get('/api/nko/target-template?year=2027&level=ULP')->assertNotFound();
+    }
+
+    #[Test]
+    public function target_versi_aktif_disalin_bila_workbook_definisi_tidak_mengisinya(): void
+    {
+        $empty = ['M13' => null, 'N13' => null];
+        $path = $this->edited($this->book(saidiWeight: 8), ['UP3 MOJOKERTO' => $empty, 'ULP JOMBANG' => $empty]);
+
+        $report = $this->check($path);
+        $this->assertStringContainsString('diambil dari versi aktif: SAIDI', implode(' ', $report['tabs'][1]['warnings']), json_encode($report['errors']));
+        $this->assertSame([], $report['changes'][1]['targets_changed']);
+
+        $id = $this->upload($path)->assertCreated()->json('data.id');
+        $this->as($this->asman)->postJson("/api/nko/definition-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk();
+        $this->assertSame(2, $this->activeSets()['ULP']);
+        $this->assertSame(7.0, $this->saidiTarget(2));
     }
 
     private function viewerOf(): User

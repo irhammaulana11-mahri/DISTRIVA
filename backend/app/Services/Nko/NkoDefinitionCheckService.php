@@ -2,6 +2,7 @@
 
 namespace App\Services\Nko;
 
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -49,7 +50,8 @@ class NkoDefinitionCheckService
             $tab['unit_found'] = isset($book['levels'][$sheet['level']]['unit_ids'][$sheet['sheet']]);
             $tab['items'] = count(array_filter($sheet['nodes'], fn (array $n) => $n['polarity'] !== null));
             $tab['total_weight'] = $sheet['total_weight'];
-            [$tab['errors'], $tab['warnings']] = $this->sheetProblems($sheet, $tab['unit_found']);
+            $inherited = $this->inheritedCodes($book['levels'][$sheet['level']], $sheet['sheet']);
+            [$tab['errors'], $tab['warnings']] = $this->sheetProblems($sheet, $tab['unit_found'], $inherited);
             foreach ($tab['errors'] as $error) {
                 $report['errors'][] = "Tab {$tab['sheet']}: {$error}";
             }
@@ -78,10 +80,28 @@ class NkoDefinitionCheckService
     }
 
     /**
+     * Kode item yang targetnya sudah ada di versi aktif untuk unit tab itu, jadi akan disalin bila workbook tidak mengisinya.
+     *
+     * @param  array<string, mixed>  $plan
+     * @return array<string, int>
+     */
+    private function inheritedCodes(array $plan, string $sheet): array
+    {
+        $unitId = $plan['unit_ids'][$sheet] ?? null;
+        if ($plan['active'] === null || $unitId === null) {
+            return [];
+        }
+
+        return array_flip(DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')
+            ->where('d.set_id', $plan['active']->id)->where('t.organizational_unit_id', $unitId)->distinct()->pluck('d.code')->all());
+    }
+
+    /**
      * @param  array<string, mixed>  $sheet
+     * @param  array<string, int>  $inherited
      * @return array{0: list<string>, 1: list<string>} galat dan peringatan
      */
-    private function sheetProblems(array $sheet, bool $unitFound): array
+    private function sheetProblems(array $sheet, bool $unitFound, array $inherited): array
     {
         $errors = [];
         $warnings = [];
@@ -97,6 +117,7 @@ class NkoDefinitionCheckService
 
         $parents = array_flip(array_filter(array_column($sheet['nodes'], 'parent_row')));
         $noTarget = [];
+        $copied = [];
         $partial = [];
         $noPolarity = [];
         foreach ($sheet['nodes'] as $n) {
@@ -105,7 +126,7 @@ class NkoDefinitionCheckService
             }
             $months = count($sheet['targets'][$n['row_no']] ?? []);
             if ($months === 0) {
-                $noTarget[] = $n['name'];
+                isset($inherited[$n['code']]) ? $copied[] = $n['name'] : $noTarget[] = $n['name'];
             } elseif ($months < count($sheet['month_rules'])) {
                 $partial[] = $n['name'];
             }
@@ -118,6 +139,9 @@ class NkoDefinitionCheckService
         }
         if ($noPolarity !== []) {
             $errors[] = 'polaritas (kolom C) kosong untuk item berbobot: '.$this->names($noPolarity).'.';
+        }
+        if ($copied !== []) {
+            $warnings[] = 'target kosong di workbook; diambil dari versi aktif: '.$this->names($copied).'.';
         }
         if ($partial !== []) {
             $warnings[] = 'target sebagian bulan kosong: '.$this->names($partial).'.';

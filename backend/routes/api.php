@@ -36,6 +36,7 @@ use App\Http\Controllers\MtoController;
 use App\Http\Controllers\NkoController;
 use App\Http\Controllers\NkoDefinitionUploadController;
 use App\Http\Controllers\NkoRuleController;
+use App\Http\Controllers\NkoTargetUploadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\OutageAnalysisController;
@@ -359,6 +360,13 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::get('/definition-uploads/{upload}', [NkoDefinitionUploadController::class, 'show'])->whereUuid('upload');
         Route::post('/definition-uploads/{upload}/decision', [NkoDefinitionUploadController::class, 'decide'])->whereUuid('upload');
         Route::delete('/definition-uploads/{upload}', [NkoDefinitionUploadController::class, 'cancel'])->whereUuid('upload');
+        Route::get('/target-template', [NkoTargetUploadController::class, 'template']);
+        Route::get('/target-uploads', [NkoTargetUploadController::class, 'index']);
+        Route::post('/target-uploads/check', [NkoTargetUploadController::class, 'check']);
+        Route::post('/target-uploads', [NkoTargetUploadController::class, 'store']);
+        Route::get('/target-uploads/{upload}', [NkoTargetUploadController::class, 'show'])->whereUuid('upload');
+        Route::post('/target-uploads/{upload}/decision', [NkoTargetUploadController::class, 'decide'])->whereUuid('upload');
+        Route::delete('/target-uploads/{upload}', [NkoTargetUploadController::class, 'cancel'])->whereUuid('upload');
     });
 
     Route::prefix('pengusahaan')->middleware('throttle:admin')->group(function () {

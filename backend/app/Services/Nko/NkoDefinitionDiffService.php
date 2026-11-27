@@ -79,7 +79,7 @@ class NkoDefinitionDiffService
         if ((int) $base->year === $year) {
             $result['targets_changed'] = $this->changedTargets($base->id, $plan, array_intersect_key($new, $old));
         }
-        $result['alerts'] = $this->alerts($result, $base, $old, $new);
+        $result['alerts'] = $this->alerts($result, $base, $old, $new, $year);
 
         return $result;
     }
@@ -92,7 +92,7 @@ class NkoDefinitionDiffService
      * @param  array<string, array<string, mixed>>  $new
      * @return list<string>
      */
-    private function alerts(array $result, object $base, array $old, array $new): array
+    private function alerts(array $result, object $base, array $old, array $new, int $year): array
     {
         $alerts = [];
         $units = DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->join('organizational_units as u', 'u.id', '=', 't.organizational_unit_id')
@@ -100,7 +100,8 @@ class NkoDefinitionDiffService
         $kept = array_map(fn (string $name) => Str::lower($result['level'].' '.$name), $result['units']);
         $missing = array_values(array_filter($units, fn (string $name) => ! in_array(Str::lower($name), $kept, true) && ! in_array(Str::lower($result['level'].' '.$name), $kept, true)));
         if ($missing !== []) {
-            $alerts[] = 'Unit '.implode(', ', $missing)." punya target di versi {$result['compared_with']} tetapi tidak ada di workbook; versi baru tidak akan memuat targetnya.";
+            $alerts[] = 'Unit '.implode(', ', $missing)." punya target di versi {$result['compared_with']} tetapi tidak ada di workbook; "
+                .((int) $base->year === $year ? 'targetnya disalin dari versi itu.' : 'versi baru tidak akan memuat targetnya.');
         }
         $indicators = fn (array $rows) => count(array_filter($rows, fn (mixed $d) => (is_array($d) ? $d['polarity'] : $d->polarity) !== null));
         [$before, $after] = [$indicators($old), $indicators($new)];
@@ -186,13 +187,16 @@ class NkoDefinitionDiffService
             }
             $codes = array_column($sheet['nodes'], 'code', 'row_no');
             $incoming = [];
+            $filled = [];
             foreach ($sheet['targets'] as $row => $months) {
                 $code = $codes[$row] ?? null;
                 foreach ($code !== null && isset($shared[$code]) ? $months : [] as $month => $t) {
                     $incoming[$code.'|'.$month] = $key($t['value'], $t['text']);
+                    $filled[$code] = true;
                 }
             }
-            $before = array_filter($stored[$unitId] ?? [], fn (string $k) => isset($shared[Str::before($k, '|')]), ARRAY_FILTER_USE_KEY);
+            // item yang sama sekali tidak diisi workbook disalin dari versi aktif, jadi bukan perubahan
+            $before = array_filter($stored[$unitId] ?? [], fn (string $k) => isset($filled[Str::before($k, '|')]), ARRAY_FILTER_USE_KEY);
             $count = count(array_filter(array_keys($incoming + $before), fn (string $k) => ($incoming[$k] ?? null) !== ($before[$k] ?? null)));
             if ($count > 0) {
                 $out[$sheet['unit_name']] = $count;
