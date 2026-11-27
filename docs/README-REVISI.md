@@ -17,6 +17,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 | # | Tanggal | Perubahan | Dokumen | Kebutuhan frontend | Status |
 |---|---|---|---|---|---|
+| 74 | 2026-11-27 | **8 tes frontend gagal di HEAD `6e84469`** (669 lulus): `MaximoSyncDrawer.test.jsx` (4: teks "petugas.mx", tombol "Sinkronkan Sekarang" dan "Lihat log" tidak ditemukan), `SubstationPages.test.jsx` (3: "← Kembali" dan "Tarik WO Inspeksi dari Maximo"), `WarehousesMappingOutboxReportsWorkflow.test.jsx` (1: petunjuk ambil token MIMS baru). Komponennya berubah pada penataan halaman sinkron (mis. `fbbc0d8`) | — | Periksa tiap kegagalan: bila tampilannya memang berubah, perbarui tes; bila fungsinya hilang (tombol sinkron, log, petunjuk token ditolak), kembalikan di komponen. Akhiri dengan `npx vitest run` hijau | BARU |
 | 73 | 2026-11-27 | **Sisa #72: tab Stok MIMS dibuka langsung** (`/…?tab=mims` tanpa `up3_id`, atau dimuat ulang): `SyncCenterPage.jsx` tidak memberi `onUp3Context` ke `MimsStockPullPage`, jadi pilihan UP3 kosong dan tidak tampil, daftar gudang berisi semua UP3, dan tarik data memakai UP3 utama. Tab sinkron lain sudah mengisinya. Ditemukan dari pembacaan kode, belum dicoba di browser | docs/94 §5 | Di tab MIMS ambil `up3_id` dan `up3s[]` dari `GET /master-data/stock-sync/settings` (**sudah ditambahkan backend**), lalu panggil `onUp3Context`; jangan memuat daftar gudang atau mengaktifkan tombol tarik sebelum `selectedUp3Id` terisi. Tes: buka `?tab=mims` langsung | BARU |
 
 ## Selesai
