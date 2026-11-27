@@ -180,6 +180,16 @@ class SyncParallelTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_mims_settings_give_the_page_the_up3_choices_like_the_other_sync_pages(): void
+    {
+        $konstruksi = $this->actor('KONSTRUKSI', $this->up3A, 'Gudang A');
+
+        $this->as($konstruksi)->getJson('/api/master-data/stock-sync/settings')->assertOk()->assertJsonPath('data.up3_id', $this->up3A->getKey())->assertJsonCount(1, 'data.up3s');
+        $all = $this->as($this->sysAdmin)->getJson('/api/master-data/stock-sync/settings?up3_id='.$this->up3B->getKey())->assertOk();
+        $all->assertJsonPath('data.up3_id', $this->up3B->getKey())->assertJsonCount(2, 'data.up3s');
+    }
+
+    #[Test]
     public function a_source_runs_no_more_than_its_limit_at_once(): void
     {
         config(['distriva.sync.concurrency.maximo' => 1]);

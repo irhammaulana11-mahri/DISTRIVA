@@ -111,7 +111,7 @@ Satuan progres: EIS permohonan = unit; APKT/AP2T = permintaan (bulan × ULP × l
 | `GET /sync/active` | baru: semua run antre/berjalan yang boleh dilihat pengguna, tertua lebih dulu (`id, status, created_at, started_at` + field tambahan) |
 | `GET /eis-sync`, `GET /outages/sync`, `GET /maximo-sync`, `GET /master-data/customer-connections/sync` | menerima `up3_id`; memuat `up3_id` terpakai dan `up3s[]` |
 | `POST …/runs` (kelima jalur) | menerima `up3_id`; 409 berbentuk seperti §3 |
-| `PUT …/settings`, `GET /master-data/stock-sync/settings` | menerima `up3_id` |
+| `PUT …/settings`, `GET /master-data/stock-sync/settings` | menerima `up3_id`; `GET` pengaturan MIMS juga memuat `up3_id` terpakai dan `up3s[]` |
 | `GET /master-data/stock-sync/runs/active` | menerima `up3_id` |
 | `GET /maximo-sync/runs`, `GET /eis-sync` | menerima `active=1` |
 | `GET /master-data/stock-sync-runs`, `GET /master-data/stock-coverage` | hanya gudang UP3 pengguna |

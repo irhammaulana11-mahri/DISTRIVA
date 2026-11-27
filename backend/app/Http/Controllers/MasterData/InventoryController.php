@@ -1123,7 +1123,8 @@ class InventoryController extends Controller
 
         $up3Id = $this->mimsUp3($request);
 
-        return response()->json(['data' => $this->mims->autoSettings($up3Id) + ['can_manage_settings' => $this->syncScope->coversUp3($request->user(), 'stock.import', $up3Id)]]);
+        return response()->json(['data' => $this->mims->autoSettings($up3Id) + ['can_manage_settings' => $this->syncScope->coversUp3($request->user(), 'stock.import', $up3Id),
+            'up3_id' => $up3Id, 'up3s' => $this->syncScope->options($request->user(), 'stock.import')]]);
     }
 
     /** PUT /stock-sync/settings {auto_enabled, auto_time} */

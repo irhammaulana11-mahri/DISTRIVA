@@ -17,6 +17,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 | # | Tanggal | Perubahan | Dokumen | Kebutuhan frontend | Status |
 |---|---|---|---|---|---|
+| 73 | 2026-11-27 | **Sisa #72: tab Stok MIMS dibuka langsung** (`/…?tab=mims` tanpa `up3_id`, atau dimuat ulang): `SyncCenterPage.jsx` tidak memberi `onUp3Context` ke `MimsStockPullPage`, jadi pilihan UP3 kosong dan tidak tampil, daftar gudang berisi semua UP3, dan tarik data memakai UP3 utama. Tab sinkron lain sudah mengisinya. Ditemukan dari pembacaan kode, belum dicoba di browser | docs/94 §5 | Di tab MIMS ambil `up3_id` dan `up3s[]` dari `GET /master-data/stock-sync/settings` (**sudah ditambahkan backend**), lalu panggil `onUp3Context`; jangan memuat daftar gudang atau mengaktifkan tombol tarik sebelum `selectedUp3Id` terisi. Tes: buka `?tab=mims` langsung | BARU |
 
 ## Selesai
 

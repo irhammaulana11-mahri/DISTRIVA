@@ -27,6 +27,7 @@
         <env name="DB_DATABASE" value="distriva_backend_test" force="true"/>
         <env name="DB_URL" value=""/>
         <env name="DISTRIVA_SURVEY_REQUIRES_KKO" value="false"/>
+        <env name="DISTRIVA_MIMS_SYNC_UP3" value="" force="true"/>     <!-- tes tidak boleh ikut pilihan UP3 di .env -->
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
