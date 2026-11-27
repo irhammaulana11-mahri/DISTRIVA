@@ -3,6 +3,7 @@
 namespace App\Services\EisReports;
 
 use App\Models\User;
+use App\Services\Sync\SyncUnitCodes;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,7 @@ GQL;
         $codes = $run->units === null ? [] : (array) json_decode((string) $run->units, true);
         $ulps = DB::table('organizational_units')->where('unit_type', 'ULP')->where('is_active', true)->when($codes !== [], fn ($q) => $q->whereIn('code', $codes))->orderBy('code')->get(['code', 'name']);
         $months = $this->months((string) $o['from_month'], (string) $o['to_month']);
+        $up3 = SyncUnitCodes::apkt($run->up3_id ?? null);
         $say(sprintf('Penarikan Laporan SAIDI SAIFI SE004 dari APKT: %d ULP x %d bulan (%s s.d. %s).', $ulps->count(), count($months), $months[0] ?? '-', end($months) ?: '-'));
 
         $counts = ['BARU' => 0, 'DIGANTIKAN' => 0, 'DUPLIKAT' => 0, 'SUDAH_DIGANTIKAN' => 0];
@@ -90,8 +92,8 @@ GQL;
                     continue;
                 }
                 try {
-                    $data = $this->fetch($token, (string) $ulp->code, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2));
-                    $res = $this->importData($data, $ulp, $ym, $user);
+                    $data = $this->fetch($token, (string) $ulp->code, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2), $up3['id']);
+                    $res = $this->importData($data, $ulp, $ym, $user, $up3['name']);
                     $counts[$res['status']] = ($counts[$res['status']] ?? 0) + 1;
                     $accepted = true;
                     $say(sprintf('%-11s %s (%d baris)', $res['status'], $label, $res['lines']));
@@ -144,10 +146,10 @@ GQL;
      *
      * @throws ApktTokenRejected token ditolak APKT (HTTP 401/403)
      */
-    public function fetch(string $token, string $ulpCode, int $year, int $month): array
+    public function fetch(string $token, string $ulpCode, int $year, int $month, ?int $up3ApktId = null): array
     {
         $cfg = config('distriva.apkt');
-        $payload = ['query' => self::QUERY, 'variables' => ['cmd' => ['idUid' => [$cfg['id_uid']], 'idUp3' => [$cfg['id_up3']], 'idUlp' => [(int) $ulpCode], 'bulan' => $month, 'tahun' => $year, 'idEquipment' => 0]]];
+        $payload = ['query' => self::QUERY, 'variables' => ['cmd' => ['idUid' => [$cfg['id_uid']], 'idUp3' => [$up3ApktId ?? $cfg['id_up3']], 'idUlp' => [(int) $ulpCode], 'bulan' => $month, 'tahun' => $year, 'idEquipment' => 0]]];
         $http = Http::withHeaders(['Authorization' => 'Bearer '.$token, 'Origin' => $cfg['origin'], 'Referer' => rtrim((string) $cfg['origin'], '/').'/', 'X-Client-UTC' => 'UTC+07:00', 'Accept' => 'application/json'])
             ->timeout((int) $cfg['timeout_seconds'])->retry(2, 1000, fn ($e) => $e instanceof ConnectionException, throw: false);
         $res = $http->post((string) $cfg['graphql_url'], $payload);
@@ -172,13 +174,13 @@ GQL;
     }
 
     /** @param  array<string, mixed>  $data */
-    private function importData(array $data, object $ulp, string $ym, ?User $user): array
+    private function importData(array $data, object $ulp, string $ym, ?User $user, ?string $up3Name = null): array
     {
         $year = (int) substr($ym, 0, 4);
         $month = (int) substr($ym, 5, 2);
         $path = tempnam(sys_get_temp_dir(), 'apkt');
         try {
-            $this->workbook($data, $this->ulpHeader((string) $ulp->name), $month, $year)->save($path);
+            $this->workbook($data, $this->ulpHeader((string) $ulp->name), $month, $year, $up3Name)->save($path);
 
             return $this->importer->import($path, sprintf('DIFI-%s-%02d%04d.xlsx', $ulp->code, $month, $year), $user);
         } finally {
@@ -198,11 +200,11 @@ GQL;
      *
      * @param  array<string, mixed>  $data
      */
-    public function workbook(array $data, string $ulpHeader, int $month, int $year): XlsxFile
+    public function workbook(array $data, string $ulpHeader, int $month, int $year, ?string $up3Name = null): XlsxFile
     {
         $t = $data['totalKeseluruhan'] ?? [];
         $rows = [
-            ['PT. PLN (PERSERO)'], [], ['UNIT INDUK : '.config('distriva.apkt.name_uid')], ['UNIT PELAKSANA PELAYANAN PELANGGAN : '.config('distriva.apkt.name_up3')], ['UNIT LAYANAN PELANGGAN : '.$ulpHeader], [],
+            ['PT. PLN (PERSERO)'], [], ['UNIT INDUK : '.config('distriva.apkt.name_uid')], ['UNIT PELAKSANA PELAYANAN PELANGGAN : '.($up3Name ?? config('distriva.apkt.name_up3'))], ['UNIT LAYANAN PELANGGAN : '.$ulpHeader], [],
             ['LAPORAN SAIDI SAIFI'], [self::MONTHS[$month - 1].' '.$year], [],
             ['Jumlah Pelanggan : ', $this->idNum($t['jumlahTotalPelanggan'] ?? 0, 0), '(Plg)'], [],
             ['SAIDI : ', $this->idNum($t['saidi'] ?? 0, 4), '(Jam/Plg)', $this->idNum($t['saidiPelanggan'] ?? 0, 4), '(Menit/Plg)'],

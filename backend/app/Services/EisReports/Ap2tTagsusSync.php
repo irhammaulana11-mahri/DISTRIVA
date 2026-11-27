@@ -3,6 +3,7 @@
 namespace App\Services\EisReports;
 
 use App\Models\User;
+use App\Services\Sync\SyncUnitCodes;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,7 @@ class Ap2tTagsusSync
                         continue;
                     }
                     try {
-                        $res = $this->pull((string) $ulp->code, $ym, $user, $report);
+                        $res = $this->pull((string) $ulp->code, $ym, $user, $report, SyncUnitCodes::ap2t($run->up3_id ?? null));
                         $counts[$res['status']] = ($counts[$res['status']] ?? 0) + 1;
                         $say(sprintf('%-11s %s (%d baris)', $res['status'], $label, $res['lines']));
                     } catch (EisReportException $e) {
@@ -110,9 +111,9 @@ class Ap2tTagsusSync
      *
      * @return array<string, mixed> hasil {@see EisReportImportService::import()}
      */
-    public function pull(string $ulpCode, string $ym, ?User $user, string $report = 'realisasi'): array
+    public function pull(string $ulpCode, string $ym, ?User $user, string $report = 'realisasi', ?string $unitap = null): array
     {
-        $body = $this->download($ulpCode, $ym, $report);
+        $body = $this->download($ulpCode, $ym, $report, $unitap);
         $path = tempnam(sys_get_temp_dir(), 'ap2t');
         try {
             file_put_contents($path, $body);
@@ -170,9 +171,10 @@ class Ap2tTagsusSync
     }
 
     /** Isi berkas Excel laporan; galat bila respons bukan berkas Excel (mis. halaman galat AP2T). */
-    public function download(string $ulpCode, string $ym, string $report = 'realisasi'): string
+    public function download(string $ulpCode, string $ym, string $report = 'realisasi', ?string $unitap = null): string
     {
         $cfg = config('distriva.ap2t');
+        $cfg['unitap'] = $unitap ?? $cfg['unitap'];
         $def = self::REPORTS[$report];
         if (isset($def['range'])) {                                                                  // pelunasan: tanggal bayar sebulan (bulan berjalan sampai hari ini); userid pada tautan AP2T tidak diperlukan dan tidak dikirim
             $tz = (string) config('distriva.business_timezone', 'Asia/Jakarta');

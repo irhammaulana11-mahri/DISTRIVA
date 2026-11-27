@@ -44,6 +44,9 @@ class EisImportTest extends PostgresTestCase
 
     private User $retailA1;
 
+    /** akun Niaga Retail yang bertugas di UP3: pemilik pengaturan sinkron EIS */
+    private User $retailUp3;
+
     private User $retailA2;
 
     private User $manager;
@@ -69,6 +72,7 @@ class EisImportTest extends PostgresTestCase
             return $u;
         };
         $this->retailA1 = $mk('NIAGA_RETAIL', $this->ulpA1);
+        $this->retailUp3 = $mk('NIAGA_RETAIL', $this->upA);
         $this->retailA2 = $mk('NIAGA_RETAIL', $this->ulpA2);
         $this->manager = $mk('MANAGER_ULP', $this->ulpA1);
         $this->vendor = $mk('VENDOR', $this->ulpA1);
@@ -917,17 +921,20 @@ class EisImportTest extends PostgresTestCase
     {
         $this->as($this->vendor)->getJson('/api/eis-sync')->assertForbidden();
         $this->as($this->manager)->putJson('/api/eis-sync/settings', $this->syncBody())->assertForbidden();
-        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['power_min' => 500, 'power_max' => 100]))->assertStatus(409);
-        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['auto_time' => '25:99']))->assertUnprocessable();
-        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['eis_username' => '', 'eis_password' => '', 'auto_enabled' => true]))->assertStatus(409);   // nothing to log in with yet
+        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody())->assertForbidden();      // pengguna ULP tidak mengubah pengaturan UP3
+        $this->as($this->retailA1)->getJson('/api/eis-sync')->assertOk()->assertJsonPath('data.can_manage_settings', false);
+        $this->as($this->retailUp3)->getJson('/api/eis-sync')->assertOk()->assertJsonPath('data.can_manage_settings', true)->assertJsonCount(2, 'data.units');     // akun UP3 menjangkau semua ULP di bawahnya
+        $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['power_min' => 500, 'power_max' => 100]))->assertStatus(409);
+        $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['auto_time' => '25:99']))->assertUnprocessable();
+        $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['eis_username' => '', 'eis_password' => '', 'auto_enabled' => true]))->assertStatus(409);   // nothing to log in with yet
 
-        $saved = $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['power_min' => 450, 'power_max' => 6600, 'auto_enabled' => true]))->assertOk()->json('data');
+        $saved = $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['power_min' => 450, 'power_max' => 6600, 'auto_enabled' => true]))->assertOk()->json('data');
         $this->assertSame(['petugas.eis', true, 450, 6600, true], [$saved['eis_username'], $saved['has_password'], $saved['power_min'], $saved['power_max'], $saved['auto_enabled']]);
         $this->assertStringNotContainsString('Rahasia#123', json_encode($this->as($this->retailA1)->getJson('/api/eis-sync')->assertOk()->json()));
         $stored = (string) DB::table('eis_sync_settings')->value('eis_password_encrypted');
         $this->assertNotSame('Rahasia#123', $stored);
         $this->assertSame('Rahasia#123', Crypt::decryptString($stored));
-        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['eis_password' => '', 'lookback_days' => 30]))->assertOk();   // an empty password keeps the saved one
+        $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['eis_password' => '', 'lookback_days' => 30]))->assertOk();   // an empty password keeps the saved one
         $this->assertSame($stored, (string) DB::table('eis_sync_settings')->value('eis_password_encrypted'));
     }
 
@@ -1693,7 +1700,7 @@ class EisImportTest extends PostgresTestCase
     {
         $dir = $this->fakeTool();
         $this->as($this->retailA1)->postJson('/api/eis-sync/runs')->assertStatus(409);                    // no EIS account yet
-        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['power_min' => 450, 'power_max' => 6600]))->assertOk();
+        $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['power_min' => 450, 'power_max' => 6600]))->assertOk();
         $this->as($this->vendor)->postJson('/api/eis-sync/runs')->assertForbidden();
 
         $run = $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['from' => '2026-10-01', 'to' => '2026-11-10'])->assertStatus(202)->json('data');
@@ -1709,7 +1716,7 @@ class EisImportTest extends PostgresTestCase
         // the default range when none is given; a failing tool is a FAILED run with its log kept
         $this->as($this->retailA1)->postJson('/api/eis-sync/runs')->assertStatus(202);
         $this->assertNotContains('--dari', json_decode((string) file_get_contents($dir.'/seen.json'), true)['args']);
-        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['eis_username' => 'fail']))->assertOk();
+        $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['eis_username' => 'fail']))->assertOk();
         $bad = $this->as($this->retailA1)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data.id');
         $this->assertSame(['FAILED', 1], [DB::table('eis_sync_runs')->where('id', $bad)->value('status'), (int) DB::table('eis_sync_runs')->where('id', $bad)->value('exit_code')]);
 
@@ -1725,13 +1732,13 @@ class EisImportTest extends PostgresTestCase
         $dir = $this->fakeTool();
         $svc = app(EisSyncService::class);
         $this->assertNull($svc->runScheduledIfDue());                                                      // disabled
-        $this->as($this->retailA1)->putJson('/api/eis-sync/settings', $this->syncBody(['auto_enabled' => true, 'auto_time' => '23:59']))->assertOk();
+        $this->as($this->retailUp3)->putJson('/api/eis-sync/settings', $this->syncBody(['auto_enabled' => true, 'auto_time' => '23:59']))->assertOk();
         $this->travelTo(now(config('distriva.business_timezone'))->setTime(10, 0));
         $this->assertNull($svc->runScheduledIfDue());                                                      // not yet its time
         $this->travelTo(now(config('distriva.business_timezone'))->setTime(23, 59, 30));
         $id = $svc->runScheduledIfDue();
         $this->assertNotNull($id);
-        $this->assertSame(['AUTO', 'OK', $this->retailA1->getKey()], [DB::table('eis_sync_runs')->where('id', $id)->value('trigger'), DB::table('eis_sync_runs')->where('id', $id)->value('status'), DB::table('eis_sync_runs')->where('id', $id)->value('started_by')]);
+        $this->assertSame(['AUTO', 'OK', $this->retailUp3->getKey()], [DB::table('eis_sync_runs')->where('id', $id)->value('trigger'), DB::table('eis_sync_runs')->where('id', $id)->value('status'), DB::table('eis_sync_runs')->where('id', $id)->value('started_by')]);
         $this->assertFileExists($dir.'/seen.json');
         $this->assertContains('--tanpa-lengkapi', json_decode((string) file_get_contents($dir.'/seen.json'), true)['args']);                  // the schedule pulls the configured range and nothing else
         $this->assertFalse((bool) DB::table('eis_sync_runs')->where('id', $id)->value('complete_old'));

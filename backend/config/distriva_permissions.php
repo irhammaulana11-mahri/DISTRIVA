@@ -98,10 +98,11 @@ return [
         // those of every active ULP below the UP3 (see applications_descendant_keys); SYS_ADMIN every unit (MFA). Creating or changing one application by hand stays exact-ULP.
         'applications.import' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
         // EIS sync started and scheduled from DISTRIVA (EIS account, power range, automatic run); the run uses the import grant of whoever starts it / saved the schedule.
+        // A UP3-assigned NIAGA_RETAIL syncs every ULP below it (owner 2026-11-27, in applications_descendant_keys); the UP3 settings are changed only from the UP3 level (docs/94 §7).
         'eis_sync.manage' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
     ],
     'applications_descendant_keys' => [
-        'outages.view', 'eis_reports.view', 'eis_reports.import', 'nko.view', 'nko.calculate', 'nko.input', 'pengusahaan.view', 'pengusahaan.input', 'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
+        'eis_sync.manage', 'outages.view', 'eis_reports.view', 'eis_reports.import', 'nko.view', 'nko.calculate', 'nko.input', 'pengusahaan.view', 'pengusahaan.input', 'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
         'drawings.view', 'drawings.review_perencanaan', 'drawings.review_konstruksi', 'drawings.approve_asman_perencanaan', 'drawings.approve_asman_niaga', 'drawings.approve_asman_konstruksi',
         'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings', 'tasks.view', 'forecast.view',
     ],

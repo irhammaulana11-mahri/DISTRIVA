@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Sinkronisasi paralel multi-UP3 (docs/94): tiap run mencatat UP3, sumber, dataset, antrean, dan progres; kunci "satu run aktif" menjadi indeks unik parsial per
  * (up3_id, sync_source, sync_dataset); pengaturan tiap sumber menjadi satu baris per UP3; peristiwa gangguan dipisahkan per UP3.
- * Data yang sudah ada menjadi milik UP3 yang paling banyak membawahi ULP aktif.
+ * Data yang sudah ada menjadi milik UP3 dengan gardu terbanyak, lalu ULP aktif terbanyak.
  */
 return new class extends Migration
 {
@@ -19,7 +19,8 @@ return new class extends Migration
     public function up(): void
     {
         $default = DB::table('organizational_units as p')->where('p.unit_type', 'UP3')
-            ->orderByRaw("(select count(*) from organizational_units c where c.parent_id = p.id and c.unit_type = 'ULP' and c.is_active) desc, p.code")->value('p.id');
+            ->orderByRaw("(select count(*) from substations s join organizational_units c on c.id = s.organizational_unit_id where c.parent_id = p.id) desc,
+                (select count(*) from organizational_units c where c.parent_id = p.id and c.unit_type = 'ULP' and c.is_active) desc, p.code")->value('p.id');
 
         foreach (self::RUNS as $name) {
             Schema::table($name, function (Blueprint $table) {

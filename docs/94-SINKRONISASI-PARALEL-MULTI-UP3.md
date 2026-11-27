@@ -5,7 +5,7 @@ Berlaku untuk lima jalur tarik data: `eis-sync` (EIS, piutang, APKT, AP2T), `out
 ## 1. Cakupan per UP3
 
 - UP3 yang boleh dipakai seseorang: UP3 tempat ia bertugas, atau induk ULP tempat ia bertugas, bila perannya memegang izin jalur itu (`eis_sync.manage`, `outages.sync` / `outages.view`, `customers.import`, `substations.sync`, `stock.import`). SYS_ADMIN: semua UP3.
-- Semua endpoint jalur itu menerima `up3_id` (query atau body). Tanpa `up3_id`: satu-satunya UP3 pengguna, atau UP3 utama (ULP terbanyak) bila ia mencakup beberapa. UP3 di luar cakupan: 404.
+- Semua endpoint jalur itu menerima `up3_id` (query atau body). Tanpa `up3_id`: satu-satunya UP3 pengguna, atau UP3 utama bila ia mencakup beberapa. UP3 utama = pemilik pengaturan sinkronisasi pertama (data sebelum migrasi); bila belum ada, UP3 dengan gardu terbanyak lalu ULP terbanyak. UP3 di luar cakupan: 404.
 - Riwayat, run aktif, rincian run, pengaturan, peristiwa gangguan, berkas DIL, dan gudang MIMS dibatasi pada UP3 itu. Run UP3 lain: 404.
 
 ## 2. Data per UP3
@@ -138,7 +138,46 @@ Izin `eis_sync.manage` (EIS) atau `substations.sync` (Maximo). Admin UP3 mengelo
 - **EIS:** run akun ULP memakai `--unit` ULP itu; sesi login disimpan per akun.
 - **Jadwal otomatis** mengikuti jadwal UP3 dan menjalankan semua akun.
 
-**Pengaturan UP3** (akun UP3, alamat, jadwal) untuk Maximo, data gangguan, dan tarik otomatis MIMS hanya dapat diubah dari tingkat UP3 atau SYS_ADMIN (403 untuk pengguna ULP). `GET /maximo-sync` dan `GET /master-data/stock-sync/settings` memuat `can_manage_settings`; `GET /outages/sync` memuat `can.settings`.
+**Pengaturan UP3** (akun UP3, alamat, jadwal) untuk EIS, Maximo, data gangguan, dan tarik otomatis MIMS hanya dapat diubah dari tingkat UP3 atau SYS_ADMIN (403 untuk pengguna ULP). `GET /eis-sync`, `GET /maximo-sync`, dan `GET /master-data/stock-sync/settings` memuat `can_manage_settings`; `GET /outages/sync` memuat `can.settings`. SYS_ADMIN tidak dapat mengaktifkan sinkronisasi otomatis EIS (tidak dapat memberi verifikasi MFA); aktifkan dari akun Niaga Retail UP3.
 
-Pengaturan **EIS** belum dibatasi: `eis_sync.manage` tidak berlaku turun dari UP3, sehingga akun Niaga Retail tingkat UP3 ditolak 403 (sudah demikian sebelum pekerjaan ini). Membatasinya sekarang akan membuat sinkronisasi otomatis EIS tidak dapat diaktifkan siapa pun. Menunggu keputusan pemilik.
+`eis_sync.manage` berlaku turun dari UP3 (keputusan pemilik 27 Nov 2026): Niaga Retail tingkat UP3 menyinkronkan semua ULP di bawahnya. Sebelumnya akun itu ditolak 403.
 
+## 8. Memuat daftar UP3 dan ULP
+
+```bash
+php artisan distriva:units-load "../tools/samples/kode up3 dan ulp.txt"                                   # uji coba
+php artisan distriva:units-load "../tools/samples/kode up3 dan ulp.txt" --apply --by=<email SYS_ADMIN>    # simpan
+```
+
+Berkas: unduhan daftar unit (`lUnitAp`, `lUnitUp`); kodenya sama dengan yang dipakai MIMS. Hanya menambah kode yang belum ada; unit lama tidak diubah (beda nama dilaporkan). Nama yang sudah dipakai diberi akhiran nama UP3, karena impor NKO mencocokkan unit menurut nama. Yang diambil: kode, nama, induk, alamat kantor. Tiap unit tercatat di riwayat unit. Di server baru, jalankan `migrate` lebih dulu.
+
+Dimuat ke database dev 27 Nov 2026: 14 UP3 dan 104 ULP baru (total 16 UP3, 114 ULP). Gudang MIMS (plant, storage location) UP3 selain Mojokerto belum ada datanya.
+
+
+## 9. Kode unit di sistem sumber
+
+Kode ULP sama di semua sumber (EIS, AP2T, APKT, MIMS): kode unit. Kode UP3:
+
+| Sumber | Kode UP3 |
+|---|---|
+| EIS, AP2T, MIMS | kode unit (mis. `51MJK`) |
+| APKT | angka tersendiri (Mojokerto `149`), disimpan di `organizational_units.apkt_id`, diisi `distriva:units-load` dari bagian "KODE UNIT APKT" |
+
+Sinkron memakai kode UP3 pemicu: APKT (`idUp3` dan nama UP3), AP2T (`unitap`), alat EIS (`EIS_UP3_CODE`). UP3 utama tetap memakai konfigurasi bila datanya kosong; UP3 lain tanpa id APKT ditolak 409. MIMS tarik stok memakai plant dan storage location gudang (`5118` = plant Mojokerto).
+
+ULP `51309` (Ngantang) dan `51770` (Prenduan) tidak ada di daftar APKT.
+
+Gudang MIMS: dimuat 27 Nov 2026 ke database dev untuk 16 UP3, 130 gudang (satu per UP3 dan ULP). Sumbernya `GET /project-i-agodist-api//func_getstorloc_bylogin/{plant}&8/`, dibaca dengan `php artisan distriva:mims-storloc-probe {plant}` (token tersimpan, hanya baca, hasil di `storage/app/private/mims/`), lalu dimasukkan lewat impor gudang resmi (`POST /master-data/warehouses/import`). MIMS sering lambat: plant yang habis waktu perlu diulang.
+
+| Plant | UP3 | Plant | UP3 |
+|---|---|---|---|
+| 5111 | Pasuruan | 5119 | Madura |
+| 5112 | Situbondo | 5120 | Surabaya Utara |
+| 5113 | Banyuwangi | 5121 | Surabaya Selatan |
+| 5114 | Jember | 5122 | Bojonegoro |
+| 5115 | Malang | 5123 | Sidoarjo |
+| 5116 | Kediri | 5124 | Gresik |
+| 5117 | Madiun | 5125 | Ponorogo |
+| 5118 | Mojokerto | 5127 | Surabaya Barat |
+
+Perintah `distriva:mims-sync-stock` (jadwal harian, memakai token server) menarik **semua** gudang aktif, jadi kini 130 gudang.

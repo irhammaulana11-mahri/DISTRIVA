@@ -125,11 +125,16 @@ class SyncScope
             ->map(fn (object $u) => ['id' => $u->id, 'name' => $u->name])->all();
     }
 
-    /** UP3 dengan ULP aktif terbanyak: pemilik data sebelum sinkronisasi dipisah per UP3. */
+    /**
+     * UP3 utama: pemilik data sebelum sinkronisasi dipisah per UP3, yaitu pemilik pengaturan sinkronisasi pertama. Bila belum ada pemiliknya, UP3 dengan gardu terbanyak,
+     * lalu ULP aktif terbanyak. Pilihannya tidak boleh berpindah hanya karena unit baru ditambahkan.
+     */
     public static function defaultUp3(): ?string
     {
-        return DB::table('organizational_units as p')->where('p.unit_type', 'UP3')
-            ->orderByRaw("(select count(*) from organizational_units c where c.parent_id = p.id and c.unit_type = 'ULP' and c.is_active) desc, p.code")->value('p.id');
+        return DB::table('eis_sync_settings')->where('id', 1)->value('up3_id')
+            ?? DB::table('organizational_units as p')->where('p.unit_type', 'UP3')
+                ->orderByRaw("(select count(*) from substations s join organizational_units c on c.id = s.organizational_unit_id where c.parent_id = p.id) desc,
+                    (select count(*) from organizational_units c where c.parent_id = p.id and c.unit_type = 'ULP' and c.is_active) desc, p.code")->value('p.id');
     }
 
     /** @return list<string> gudang milik UP3 itu: unit gudang adalah UP3 tersebut atau salah satu unit di bawahnya */

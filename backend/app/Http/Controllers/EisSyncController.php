@@ -31,7 +31,7 @@ class EisSyncController extends Controller
             ->orderByDesc('r.created_at')->limit(10)->get(['r.*', 'u.email as started_by_email']);
 
         return response()->json(['data' => ['settings' => $this->sync->settings($up3Id), 'runs' => $runs->map(fn ($r) => $this->run($r, false))->all(), 'units' => $this->units($scope, $up3Id),
-            'up3_id' => $up3Id, 'up3s' => $this->syncScope->options($request->user(), 'eis_sync.manage')]]);
+            'up3_id' => $up3Id, 'up3s' => $this->syncScope->options($request->user(), 'eis_sync.manage'), 'can_manage_settings' => $this->syncScope->coversUp3($request->user(), 'eis_sync.manage', $up3Id)]]);
     }
 
     public function save(Request $request): JsonResponse
@@ -43,7 +43,10 @@ class EisSyncController extends Controller
             'lookback_days' => ['required', 'integer', 'between:1,730'], 'auto_enabled' => ['required', 'boolean'], 'auto_time' => ['required', 'regex:/^([01][0-9]|2[0-3]):[0-5][0-9]$/'],
         ])->validate();
 
-        return response()->json(['data' => $this->sync->save($d, $request->user(), $this->up3($request)), 'message' => 'Pengaturan sinkronisasi EIS disimpan.']);
+        $up3Id = $this->up3($request);
+        $this->syncScope->assertManagesUp3($request->user(), 'eis_sync.manage', $up3Id);
+
+        return response()->json(['data' => $this->sync->save($d, $request->user(), $up3Id), 'message' => 'Pengaturan sinkronisasi EIS disimpan.']);
     }
 
     /**

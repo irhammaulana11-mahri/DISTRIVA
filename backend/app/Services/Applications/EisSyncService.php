@@ -12,6 +12,7 @@ use App\Services\MfaService;
 use App\Services\Sync\SyncAccounts;
 use App\Services\Sync\SyncRuns;
 use App\Services\Sync\SyncScope;
+use App\Services\Sync\SyncUnitCodes;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -83,6 +84,7 @@ class EisSyncService
             'AP2T' => ['ap2t', (string) ($options['dataset'] ?? 'tagsus')],
             default => ['eis', strtolower($kind)],
         };
+        $source === 'apkt' && SyncUnitCodes::apkt($up3Id);     // tolak sejak awal bila id APKT UP3 belum diisi
         $all = SyncScope::ulps($up3Id);
         $chosen = array_values(array_filter($ulps ?? $all, fn (object $u) => $units === null || $units === [] || in_array((string) $u->code, $units, true)));
         if ($units !== null && $units !== []) {     // urutan yang dipilih pengguna dipertahankan
@@ -204,6 +206,9 @@ class EisSyncService
             $env = ['EIS_USERNAME' => $account['username'], 'EIS_PASSWORD' => $account['password'], 'EIS_DAYA_MIN' => (string) $s->power_min, 'EIS_DAYA_MAX' => (string) $s->power_max,
                 'EIS_LOOKBACK_DAYS' => (string) $s->lookback_days, 'EIS_HEADLESS' => '1', 'DISTRIVA_URL' => (string) config('distriva.eis_sync.api_url'), 'DISTRIVA_TOKEN' => $token->plainTextToken,
                 'EIS_DOWNLOAD_DIR' => storage_path('app/private/eis-sync/'.$runId), 'EIS_COOKIE_FILE' => storage_path('app/private/eis-sync/session/'.($run->account_unit_id ?? $run->up3_id).'.json'), 'PYTHONUNBUFFERED' => '1'];
+            // laporan tingkat UP3 (mis. saldo prabayar) memakai kode UP3 pemicu, bukan bawaan alat
+            $up3Code = SyncUnitCodes::otherUp3Code($run->up3_id);
+            $up3Code !== null && $env['EIS_UP3_CODE'] = $up3Code;
             $process = new Process($args, $dir, $env, null, (float) config('distriva.eis_sync.timeout_seconds'));
             $last = 0.0;
             $exit = $process->run(function (string $type, string $buffer) use (&$log, &$last, $runId): void {

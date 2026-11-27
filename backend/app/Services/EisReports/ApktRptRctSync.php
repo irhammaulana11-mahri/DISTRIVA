@@ -2,6 +2,7 @@
 
 namespace App\Services\EisReports;
 
+use App\Services\Sync\SyncUnitCodes;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
@@ -101,7 +102,7 @@ class ApktRptRctSync
                     continue;
                 }
                 try {
-                    $rows = $this->fetch($token, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2), $variant, $dataset);
+                    $rows = $this->fetch($token, (int) substr($ym, 0, 4), (int) substr($ym, 5, 2), $variant, $dataset, SyncUnitCodes::apkt($run->up3_id ?? null)['id']);
                     $n = $this->store($dataset, $rows, $ulps, $ym, $variant, (string) $run->id);
                     $stored += $n;
                     $accepted = true;
@@ -131,12 +132,12 @@ class ApktRptRctSync
      *
      * @throws ApktTokenRejected token ditolak APKT
      */
-    public function fetch(string $token, int $year, int $month, int|string|null $clearTemper = null, string $dataset = 'rpt-rct-gangguan'): array
+    public function fetch(string $token, int $year, int $month, int|string|null $clearTemper = null, string $dataset = 'rpt-rct-gangguan', ?int $up3ApktId = null): array
     {
         $cfg = config('distriva.apkt');
         $anomali = isset(self::ANOMALI_QUERIES[$dataset]);
         $field = $anomali ? self::ANOMALI_QUERIES[$dataset][(string) $clearTemper] : self::DATASETS[$dataset]['field'];
-        $variables = ['namaRegional' => '', 'idUid' => [$cfg['id_uid']], 'idUp3' => [$cfg['id_up3']], 'idUlp' => []];
+        $variables = ['namaRegional' => '', 'idUid' => [$cfg['id_uid']], 'idUp3' => [$up3ApktId ?? $cfg['id_up3']], 'idUlp' => []];
         $anomali ? $variables += ['dateFrom' => sprintf('%04d-%02d-01', $year, $month), 'dateTo' => date('Y-m-t', (int) strtotime(sprintf('%04d-%02d-01', $year, $month)))] : $variables += ['bulan' => $month, 'tahun' => $year];
         $query = $anomali
             ? sprintf('query %1$s($dateFrom: Date!, $dateTo: Date!, $namaRegional: String!, $idUlp: [Int], $idUid: [Int], $idUp3: [Int]) { %1$s(dateFrom: $dateFrom, dateTo: $dateTo, namaRegional: $namaRegional, idUlp: $idUlp, idUid: $idUid, idUp3: $idUp3) { id_uid nama_uid id_up3 nama_up3 id_ulp nama_ulp %2$s } }', $field, implode(' ', self::ANOMALI_FIELDS[$dataset]))
