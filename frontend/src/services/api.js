@@ -1005,6 +1005,13 @@ export const nkoApi = {
   uploadDefinitions: (formData) => request('/nko/definition-uploads', { method: 'POST', body: formData }),
   decideDefinitionUpload: (id, body) => request(`/nko/definition-uploads/${id}/decision`, { method: 'POST', body }),
   cancelDefinitionUpload: (id) => request(`/nko/definition-uploads/${id}`, { method: 'DELETE' }),
+  targetTemplate: (params = {}) => downloadBlob(`/nko/target-template${qs(params)}`),
+  checkTargetUpload: (formData) => request('/nko/target-uploads/check', { method: 'POST', body: formData }),
+  targetUploads: (params = {}) => request(`/nko/target-uploads${qs(params)}`),
+  targetUpload: (id) => request(`/nko/target-uploads/${id}`),
+  uploadTargets: (formData) => request('/nko/target-uploads', { method: 'POST', body: formData }),
+  decideTargetUpload: (id, body) => request(`/nko/target-uploads/${id}/decision`, { method: 'POST', body }),
+  cancelTargetUpload: (id) => request(`/nko/target-uploads/${id}`, { method: 'DELETE' }),
 }
 
 /** Analisa dan Tren Pengusahaan (docs/91): katalog metrik dan tren per ULP / UP3. */

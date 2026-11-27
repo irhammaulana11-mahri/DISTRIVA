@@ -7,15 +7,21 @@ import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import { filterControlCls, filterSelectCls } from '../../components/filterStyles.js'
 import { IconAlertCircle, IconCheckCircle, IconDownload, IconUpload, IconX } from '../../components/icons.jsx'
+import NkoTargetSection from './NkoTargetSection.jsx'
 
-const UPLOAD_STATUS_CLS = {
+const MONTH_NAMES = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+
+export const UPLOAD_STATUS_CLS = {
   MENUNGGU: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   DISETUJUI: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
   DITOLAK: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800',
   DIBATALKAN: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700',
 }
 
-const fmtDate = (d) => {
+export const fmtDate = (d) => {
   if (!d) return '-'
   try {
     return new Date(d).toLocaleDateString('id-ID', {
@@ -30,7 +36,7 @@ const fmtDate = (d) => {
   }
 }
 
-function CheckReportPanel({ report, title = 'Hasil Pemeriksaan Workbook' }) {
+export function CheckReportPanel({ report, title = 'Hasil Pemeriksaan Workbook' }) {
   if (!report) return null
   const tabs = Array.isArray(report.tabs) ? report.tabs : []
   const errors = Array.isArray(report.errors) ? report.errors : []
@@ -302,6 +308,11 @@ function UploadChangesDetail({ detail, onClose }) {
                   {c.compared_with && (
                     <span className="text-[11px] text-slate-500">Dibandingkan dengan: <strong>{c.compared_with}</strong></span>
                   )}
+                  {c.effective_month && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      Berlaku mulai: {MONTH_NAMES[Number(c.effective_month) - 1] || c.effective_month}
+                    </span>
+                  )}
                   {c.total_rule_changed && (
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                       Rumus Total/NKO Berubah
@@ -440,6 +451,7 @@ export default function NkoWorkbookTab({
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
 
   const [uploadYear, setUploadYear] = useState(new Date().getFullYear())
+  const [effectiveMonth, setEffectiveMonth] = useState(1)
   const [file, setFile] = useState(null)
   const [note, setNote] = useState('')
   const [checking, setChecking] = useState(false)
@@ -450,14 +462,17 @@ export default function NkoWorkbookTab({
   const [detailState, setDetailState] = useState({ loading: false, error: '', data: null })
   const [decisionModal, setDecisionModal] = useState({ upload: null, mode: 'approve' })
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = async (format = null) => {
     setDownloadingTemplate(true)
     try {
-      const blob = await nkoApi.definitionTemplate({ year: templateYear })
+      const params = format ? { year: templateYear, format } : { year: templateYear }
+      const blob = await nkoApi.definitionTemplate(params)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `TEMPLATE-DEFINISI-NKO-${templateYear}.xlsx`
+      a.download = format === 'definisi'
+        ? `TEMPLATE-DEFINISI-SAJA-NKO-${templateYear}.xlsx`
+        : `TEMPLATE-DEFINISI-NKO-${templateYear}.xlsx`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -486,6 +501,7 @@ export default function NkoWorkbookTab({
       const fd = new FormData()
       fd.append('file', file)
       fd.append('year', String(uploadYear))
+      fd.append('effective_month', String(effectiveMonth))
       const res = await nkoApi.checkDefinitionUpload(fd)
       setCheckReport(res?.data || null)
     } catch (err) {
@@ -511,6 +527,7 @@ export default function NkoWorkbookTab({
       const fd = new FormData()
       fd.append('file', file)
       fd.append('year', String(uploadYear))
+      fd.append('effective_month', String(effectiveMonth))
       fd.append('note', note.trim())
       const res = await nkoApi.uploadDefinitions(fd)
       notify({
@@ -586,7 +603,7 @@ export default function NkoWorkbookTab({
                 Unduh template dari definisi aktif untuk diubah lalu diunggah kembali.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="number"
                 min="2000"
@@ -598,13 +615,23 @@ export default function NkoWorkbookTab({
               />
               <Button
                 type="button"
+                variant="primary"
+                size="sm"
+                icon={IconDownload}
+                loading={downloadingTemplate}
+                onClick={() => handleDownloadTemplate('definisi')}
+              >
+                Template definisi
+              </Button>
+              <Button
+                type="button"
                 variant="secondary"
                 size="sm"
                 icon={IconDownload}
                 loading={downloadingTemplate}
-                onClick={handleDownloadTemplate}
+                onClick={() => handleDownloadTemplate(null)}
               >
-                Unduh template
+                Workbook lengkap
               </Button>
             </div>
           </div>
@@ -639,7 +666,29 @@ export default function NkoWorkbookTab({
                 />
               </label>
 
-              <label className="block text-xs md:col-span-5">
+              <label className="block text-xs md:col-span-3">
+                <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Berlaku mulai bulan
+                </span>
+                <select
+                  value={effectiveMonth}
+                  onChange={(e) => {
+                    setEffectiveMonth(Number(e.target.value))
+                    setCheckReport(null)
+                  }}
+                  aria-label="Berlaku mulai bulan"
+                  className={`${filterSelectCls} w-full text-xs`}
+                >
+                  {MONTH_NAMES.map((m, idx) => (
+                    <option key={idx + 1} value={idx + 1}>{m}</option>
+                  ))}
+                </select>
+                <span className="block text-[10px] text-slate-400 mt-0.5">
+                  Januari mengganti definisi semua bulan
+                </span>
+              </label>
+
+              <label className="block text-xs md:col-span-3">
                 <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Berkas Excel (.xlsx, maks. 8 MB)</span>
                 <input
                   type="file"
@@ -653,7 +702,7 @@ export default function NkoWorkbookTab({
                 />
               </label>
 
-              <label className="block text-xs md:col-span-5">
+              <label className="block text-xs md:col-span-4">
                 <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Catatan Perubahan <span className="text-rose-600">*</span></span>
                 <input
                   type="text"
@@ -759,6 +808,11 @@ export default function NkoWorkbookTab({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-slate-900 dark:text-slate-100">{u.source_name}</span>
                       <span className="font-mono text-slate-500">({u.year})</span>
+                      {u.effective_month && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          Mulai {MONTH_NAMES[Number(u.effective_month) - 1] || u.effective_month}
+                        </span>
+                      )}
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${UPLOAD_STATUS_CLS[u.status] || ''}`}>
                         {u.status}
                       </span>
@@ -827,6 +881,7 @@ export default function NkoWorkbookTab({
                 <tr>
                   <th className="py-2.5 px-3">Tingkat</th>
                   <th className="py-2.5 px-3 text-center">Versi</th>
+                  <th className="py-2.5 px-3">Berlaku Mulai</th>
                   <th className="py-2.5 px-3 text-center">Status</th>
                   <th className="py-2.5 px-3">Berkas Sumber</th>
                   <th className="py-2.5 px-3 text-right">Total Bobot</th>
@@ -839,6 +894,9 @@ export default function NkoWorkbookTab({
                   <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                     <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">{s.unit_level}</td>
                     <td className="py-2.5 px-3 text-center font-mono">v{s.version}</td>
+                    <td className="py-2.5 px-3 text-xs text-slate-700 dark:text-slate-300">
+                      {MONTH_NAMES[(Number(s.effective_month) || 1) - 1] || 'Januari'}
+                    </td>
                     <td className="py-2.5 px-3 text-center">
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -861,6 +919,14 @@ export default function NkoWorkbookTab({
           </div>
         )}
       </div>
+
+      {/* Kartu Target NKO (terpisah dari definisi) */}
+      <NkoTargetSection
+        year={year}
+        canPropose={canPropose}
+        canApprove={canApprove}
+        currentUserId={currentUserId}
+      />
 
       <UploadDecisionModal
         upload={decisionModal.upload}

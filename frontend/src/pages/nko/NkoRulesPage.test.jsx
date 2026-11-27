@@ -26,6 +26,13 @@ vi.mock('../../services/api.js', () => ({
     uploadDefinitions: vi.fn(),
     decideDefinitionUpload: vi.fn(),
     cancelDefinitionUpload: vi.fn(),
+    targetTemplate: vi.fn(),
+    checkTargetUpload: vi.fn(),
+    targetUploads: vi.fn(),
+    targetUpload: vi.fn(),
+    uploadTargets: vi.fn(),
+    decideTargetUpload: vi.fn(),
+    cancelTargetUpload: vi.fn(),
   },
   notificationsApi: {
     list: vi.fn().mockResolvedValue({ data: [] }),
@@ -128,6 +135,8 @@ describe('NkoRulesPage', () => {
     nkoApi.definitionSets.mockResolvedValue({ data: [] })
     nkoApi.definitionUploads.mockResolvedValue({ data: [] })
     nkoApi.definitionTemplate.mockResolvedValue(new Blob(['xlsx']))
+    nkoApi.targetUploads.mockResolvedValue({ data: [] })
+    nkoApi.targetTemplate.mockResolvedValue(new Blob(['xlsx']))
   })
 
   it('1. menampilkan daftar aturan, item tanpa aturan, dan peringatan item berganti nama', async () => {
@@ -385,13 +394,18 @@ describe('NkoRulesPage', () => {
 
     await user.click(await screen.findByRole('tab', { name: /Versi Workbook/i }))
 
-    // Unduh template
-    await user.click(await screen.findByRole('button', { name: /Unduh template/i }))
+    // Unduh template definisi (format=definisi) & workbook lengkap
+    await user.click(await screen.findByRole('button', { name: /Template definisi/i }))
+    await waitFor(() => {
+      expect(nkoApi.definitionTemplate).toHaveBeenCalledWith({ year: 2026, format: 'definisi' })
+    })
+    await user.click(screen.getByRole('button', { name: /Workbook lengkap/i }))
     await waitFor(() => {
       expect(nkoApi.definitionTemplate).toHaveBeenCalledWith({ year: 2026 })
     })
 
-    // Pilih berkas dan klik Periksa
+    // Pilih berlaku mulai bulan & berkas lalu klik Periksa
+    await user.selectOptions(screen.getByLabelText('Berlaku mulai bulan'), '7')
     const file = new File(['dummy'], 'nko-test.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const fileInput = screen.getByLabelText(/Berkas Excel/i)
     await user.upload(fileInput, file)
@@ -403,5 +417,69 @@ describe('NkoRulesPage', () => {
     expect(screen.getByText('PETUNJUK')).toBeInTheDocument()
     expect(screen.getByText('Total bobot 90')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Unggah Workbook/i })).toBeDisabled()
+  })
+
+  it('6. kartu Target mendukung unduh template target, rincian perubahan sel per unit, dan persetujuan target (Butir 64)', async () => {
+    nkoApi.targetUploads.mockResolvedValue({
+      data: [
+        {
+          id: 'tup-1',
+          year: 2026,
+          source_name: 'target-ulp-2026.xlsx',
+          note: 'Revisi target semester 2',
+          status: 'MENUNGGU',
+          uploaded_by: { id: 'usr-other', name: 'Perencana' },
+          uploaded_at: '2026-11-27T09:00:00Z',
+        },
+      ],
+    })
+    nkoApi.targetUpload.mockResolvedValue({
+      data: {
+        id: 'tup-1',
+        year: 2026,
+        source_name: 'target-ulp-2026.xlsx',
+        status: 'MENUNGGU',
+        uploaded_by: { id: 'usr-other', name: 'Perencana' },
+        changes: [
+          {
+            level: 'ULP',
+            unit_name: 'ULP Jombang',
+            compared_with: '2026 v1',
+            cells: 1,
+            items: [{ code: 'saidi', name: 'SAIDI', months: { '7': { from: 40, to: 38 } } }],
+          },
+        ],
+      },
+    })
+    nkoApi.decideTargetUpload.mockResolvedValue({
+      message: 'Target diperbarui. Hitung ulang NKO untuk memperbarui nilai.',
+      data: { status: 'DISETUJUI', cells: 1 },
+    })
+
+    const user = userEvent.setup()
+    wrap(<NkoRulesPage />, { 'nko.view': true, 'nko.rules.propose': true, 'nko.rules.approve': true }, 'usr-1')
+
+    await user.click(await screen.findByRole('tab', { name: /Versi Workbook/i }))
+
+    // Unduh template target
+    await user.selectOptions(screen.getByLabelText('Tingkat Template Target'), 'UP3')
+    await user.click(screen.getByRole('button', { name: /Unduh Template Target/i }))
+    await waitFor(() => {
+      expect(nkoApi.targetTemplate).toHaveBeenCalledWith({ year: 2026, level: 'UP3' })
+    })
+
+    // Lihat perubahan target
+    await user.click(screen.getByRole('button', { name: /Lihat Perubahan Target/i }))
+    expect(await screen.findByText(/Rincian Perubahan Target: target-ulp-2026.xlsx/i)).toBeInTheDocument()
+    expect(screen.getByText('SAIDI')).toBeInTheDocument()
+    expect(screen.getByText('40')).toBeInTheDocument()
+    expect(screen.getByText('38')).toBeInTheDocument()
+
+    // Setujui target
+    await user.click(screen.getByRole('button', { name: /Setujui Target/i }))
+    await user.click(screen.getByRole('button', { name: /Setujui & Simpan Target/i }))
+    await waitFor(() => {
+      expect(nkoApi.decideTargetUpload).toHaveBeenCalledWith('tup-1', { decision: 'approve', note: null })
+    })
   })
 })
