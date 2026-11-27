@@ -3,7 +3,11 @@
 namespace App\Services\Substations;
 
 use App\Exceptions\AssignmentRuleViolation;
+use App\Exceptions\SyncAlreadyRunning;
 use App\Models\User;
+use App\Services\Sync\SyncAccounts;
+use App\Services\Sync\SyncRuns;
+use App\Services\Sync\SyncScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
@@ -20,12 +24,12 @@ class MaximoSyncService
 {
     private const LOG_LIMIT = 30000;
 
-    public function __construct(private readonly MaximoWoLoadService $load) {}
+    public function __construct(private readonly MaximoWoLoadService $load, private readonly SyncRuns $runs, private readonly SyncAccounts $accounts) {}
 
     /** @return array<string,mixed> */
-    public function settings(): array
+    public function settings(?string $up3Id = null): array
     {
-        $s = DB::table('maximo_sync_settings')->where('id', 1)->first();
+        $s = SyncScope::settings('maximo_sync_settings', $up3Id);
 
         return ['maximo_url' => $s->maximo_url, 'maximo_username' => $s->maximo_username, 'has_password' => $s->maximo_password_encrypted !== null, 'work_type' => $s->work_type,
             'lookback_days' => (int) $s->lookback_days, 'auto_enabled' => (bool) $s->auto_enabled, 'auto_time' => $s->auto_time, 'updated_at' => $s->updated_at];
@@ -35,42 +39,65 @@ class MaximoSyncService
      * @param  array<string,mixed>  $d  maximo_url, maximo_username?, maximo_password? (empty keeps the saved one), work_type, lookback_days, auto_enabled, auto_time
      * @return array<string,mixed>
      */
-    public function save(array $d, User $actor): array
+    public function save(array $d, User $actor, string $up3Id): array
     {
-        $current = DB::table('maximo_sync_settings')->where('id', 1)->first();
+        $current = SyncScope::settings('maximo_sync_settings', $up3Id);
         $username = trim((string) ($d['maximo_username'] ?? $current->maximo_username));
         $password = filled($d['maximo_password'] ?? null) ? Crypt::encryptString((string) $d['maximo_password']) : $current->maximo_password_encrypted;
         if (! empty($d['auto_enabled']) && ($username === '' || $password === null)) {
             throw new AssignmentRuleViolation('Isi user dan password Maximo sebelum mengaktifkan sinkronisasi otomatis.');
         }
-        DB::table('maximo_sync_settings')->where('id', 1)->update(['maximo_url' => rtrim((string) $d['maximo_url'], '/'), 'maximo_username' => $username === '' ? null : $username, 'maximo_password_encrypted' => $password,
+        DB::table('maximo_sync_settings')->where('id', $current->id)->update(['maximo_url' => rtrim((string) $d['maximo_url'], '/'), 'maximo_username' => $username === '' ? null : $username, 'maximo_password_encrypted' => $password,
             'work_type' => mb_strtoupper(trim((string) $d['work_type'])), 'lookback_days' => (int) $d['lookback_days'], 'auto_enabled' => (bool) $d['auto_enabled'], 'auto_time' => $d['auto_time'],
             'updated_by' => $actor->getKey(), 'updated_at' => now()]);
 
-        return $this->settings();
+        return $this->settings($up3Id);
     }
 
-    /** Registers a run (QUEUED); one run at a time. `$since` = work orders finished on or after it (default: the look-back window). @throws AssignmentRuleViolation */
-    public function start(string $trigger, User $actor, ?string $since = null, bool $allWorkOrders = false): string
+    /**
+     * Registers the runs of one request (QUEUED), one per Maximo account: every ULP with its own account, plus one with the UP3 account for the others. The tool cannot be narrowed to a ULP, so the UP3
+     * account run covers every ULP without its own account. All or nothing. `$since` = work orders finished on or after it (default: the look-back window).
+     *
+     * @param  ?list<string>  $ulpIds  ULPs to pull; null = all of the UP3
+     * @return list<string> run ids
+     *
+     * @throws AssignmentRuleViolation|SyncAlreadyRunning
+     */
+    public function start(string $trigger, User $actor, string $up3Id, ?string $since = null, bool $allWorkOrders = false, ?array $ulpIds = null, bool $coversUp3 = true, ?string $scopeUnitId = null): array
     {
-        $s = DB::table('maximo_sync_settings')->where('id', 1)->first();
-        if ($s->maximo_username === null || $s->maximo_password_encrypted === null) {
-            throw new AssignmentRuleViolation('User dan password Maximo belum diisi pada pengaturan sinkronisasi.');
-        }
+        $s = SyncScope::settings('maximo_sync_settings', $up3Id);
         // a run that never finished (the process died) must not block the next one forever
-        DB::table('maximo_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.maximo_sync.timeout_seconds') + 600))
-            ->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => DB::raw("coalesce(log, '') || E'\\nDihentikan: proses tidak selesai.'")]);
-        if (DB::table('maximo_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists()) {
-            throw new AssignmentRuleViolation('Sinkronisasi Maximo sedang berjalan; tunggu sampai selesai.');
+        $this->expireStale();
+        $all = array_column(SyncScope::ulps($up3Id), 'id');
+        $groups = $this->accounts->groups('maximo', $up3Id, $ulpIds ?? $all);
+        $own = DB::table('sync_accounts')->where('source', 'maximo')->whereIn('organizational_unit_id', $all)->pluck('organizational_unit_id')->all();
+        foreach ($groups as &$group) {
+            if ($group['account_unit_id'] !== null) {
+                continue;
+            }
+            if (! $coversUp3) {
+                $names = DB::table('organizational_units')->whereIn('id', $group['ulp_ids'])->pluck('name')->implode(', ');
+                throw new AssignmentRuleViolation("{$names} belum punya akun Maximo sendiri; akun UP3 hanya dapat dipakai dari tingkat UP3.");
+            }
+            $group['ulp_ids'] = array_values(array_diff($all, $own));
         }
+        unset($group);
         $since ??= CarbonImmutable::now((string) config('distriva.business_timezone'))->subDays((int) $s->lookback_days)->toDateString();
-        $id = (string) Str::uuid();
-        DB::table('maximo_sync_runs')->insert(['id' => $id, 'trigger' => $trigger, 'status' => 'QUEUED', 'started_by' => $actor->getKey(), 'since' => $since, 'all_work_orders' => $allWorkOrders, 'created_at' => now()]);
 
-        return $id;
+        return DB::transaction(fn () => array_map(function (array $group) use ($trigger, $actor, $up3Id, $since, $allWorkOrders, $scopeUnitId): string {
+            $id = (string) Str::uuid();
+            $this->runs->register('maximo_sync_runs', ['id' => $id, 'trigger' => $trigger, 'started_by' => $actor->getKey(), 'since' => $since, 'all_work_orders' => $allWorkOrders], $up3Id, 'maximo', 'inspeksi', $group['ulp_ids'], $scopeUnitId, $group['account_unit_id']);
+
+            return $id;
+        }, $groups));
     }
 
-    /** Hands a registered run to a detached process (or runs it inline in tests). */
+    public function expireStale(): void
+    {
+        $this->runs->expire('maximo_sync_runs', (int) config('distriva.maximo_sync.timeout_seconds') + 600, 'log');
+    }
+
+    /** Hands a registered run to the queue (or runs it inline in tests). */
     public function launch(string $runId): void
     {
         if (config('distriva.maximo_sync.run_inline')) {
@@ -78,33 +105,33 @@ class MaximoSyncService
 
             return;
         }
-        $cmd = sprintf('nohup %s artisan distriva:maximo-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId));
-        Process::fromShellCommandline($cmd, base_path())->run();
+        $this->runs->dispatch('maximo_sync_runs', $runId, (int) config('distriva.maximo_sync.timeout_seconds'));
     }
 
-    /** Called every minute by the scheduler: starts the automatic run when it is due (once per business day, even if it failed). */
+    /** Called every minute by the scheduler: starts the automatic run of every UP3 whose time has come (once per business day, even if it failed). */
     public function runScheduledIfDue(): ?string
     {
-        $s = DB::table('maximo_sync_settings')->where('id', 1)->first();
-        if (! $s->auto_enabled || $s->updated_by === null) {
-            return null;
-        }
         $now = now(config('distriva.business_timezone'));
-        if ($now->format('H:i') < $s->auto_time || DB::table('maximo_sync_runs')->where('trigger', 'AUTO')->where('created_at', '>=', $now->copy()->startOfDay()->utc())->exists()) {
-            return null;
+        $first = null;
+        foreach (DB::table('maximo_sync_settings')->where('auto_enabled', true)->whereNotNull('updated_by')->orderBy('id')->get() as $s) {
+            $up3Id = $s->up3_id ?? SyncScope::defaultUp3();
+            $user = User::query()->find($s->updated_by);
+            if ($up3Id === null || $user === null || $now->format('H:i') < $s->auto_time
+                || DB::table('maximo_sync_runs')->where('up3_id', $up3Id)->where('trigger', 'AUTO')->where('created_at', '>=', $now->copy()->startOfDay()->utc())->exists()) {
+                continue;
+            }
+            try {
+                $ids = $this->start('AUTO', $user, $up3Id);
+            } catch (AssignmentRuleViolation|SyncAlreadyRunning) {
+                continue;
+            }
+            foreach ($ids as $id) {
+                $this->launch($id);
+                $first ??= $id;
+            }
         }
-        $user = User::query()->find($s->updated_by);
-        if ($user === null) {
-            return null;
-        }
-        try {
-            $id = $this->start('AUTO', $user);
-        } catch (AssignmentRuleViolation) {
-            return null;
-        }
-        $this->launch($id);
 
-        return $id;
+        return $first;
     }
 
     /** Runs the registered run to the end (inside the detached process): the log is kept up to date while it goes, the CSV is loaded when the tool ended well. */
@@ -119,12 +146,18 @@ class MaximoSyncService
         $exit = 1;
         $summary = null;
         try {
-            $s = DB::table('maximo_sync_settings')->where('id', 1)->first();
+            $s = SyncScope::settings('maximo_sync_settings', $run->up3_id);
             $user = User::query()->findOrFail($run->started_by);
             $dir = (string) config('distriva.maximo_sync.dir');
             $args = [(string) config('distriva.maximo_sync.python'), 'main.py', 'ambil', '--sejak', CarbonImmutable::parse((string) $run->since)->format('d/m/Y'), '--tipe', (string) $s->work_type, '--tambah'];
             $run->all_work_orders && $args[] = '--semua';
-            $env = ['MAXIMO_URL' => $s->maximo_url, 'MAXIMO_USERNAME' => $s->maximo_username, 'MAXIMO_PASSWORD' => Crypt::decryptString($s->maximo_password_encrypted), 'PYTHONUNBUFFERED' => '1'];
+            // daftar mentah dan CSV kumulatif milik tiap UP3; UP3 utama tetap memakai folder bawaan alat agar riwayatnya tersambung
+            $data = $run->account_unit_id === null && $run->up3_id === SyncScope::defaultUp3() ? null : storage_path('app/private/maximo-sync/'.($run->account_unit_id ?? $run->up3_id));
+            if ($data !== null) {
+                array_push($args, '--raw', $data.'/raw', '--out', $data.'/out');
+            }
+            $account = $this->accounts->credentials('maximo', $run->up3_id, $run->account_unit_id);
+            $env = ['MAXIMO_URL' => $s->maximo_url, 'MAXIMO_USERNAME' => $account['username'], 'MAXIMO_PASSWORD' => $account['password'], 'PYTHONUNBUFFERED' => '1'];
             $process = new Process($args, $dir, $env, null, (float) config('distriva.maximo_sync.timeout_seconds'));
             $last = 0.0;
             $exit = $process->run(function (string $type, string $buffer) use (&$log, &$last, $runId): void {
@@ -135,7 +168,7 @@ class MaximoSyncService
                 }
             });
             $summary = $this->summaryOf($log);
-            $csv = $dir.'/out/maximo-wo-pengukuran.csv';
+            $csv = ($data ?? $dir).'/out/maximo-wo-pengukuran.csv';
             if ($exit === 0 && is_file($csv)) {
                 $r = $this->load->load($csv, $user);
                 $summary['load'] = $r['counts'];
@@ -145,7 +178,9 @@ class MaximoSyncService
             $log = $this->tail($log."\nGAGAL: ".$e->getMessage());
             $exit = 1;
         } finally {
-            DB::table('maximo_sync_runs')->where('id', $runId)->update(['status' => $exit === 0 ? 'OK' : 'FAILED', 'exit_code' => $exit, 'log' => $log, 'summary' => $summary === null ? null : json_encode($summary), 'finished_at' => now()]);
+            DB::table('maximo_sync_runs')->where('id', $runId)->update(['status' => $exit === 0 ? 'OK' : 'FAILED', 'exit_code' => $exit, 'log' => $log, 'summary' => $summary === null ? null : json_encode($summary), 'finished_at' => now(),
+                'done_units' => $summary['fetched'] ?? null, 'total_units' => $summary['chosen'] ?? null]);
+            $this->runs->notifyFinished('maximo_sync_runs', $runId);
         }
     }
 

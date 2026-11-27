@@ -86,6 +86,7 @@ class ApktRptRctSync
         $stored = 0;
         $accepted = false;
         $deadline = microtime(true) + (float) config('distriva.eis_sync.timeout_seconds');
+        DB::table('eis_sync_runs')->where('id', $run->id)->update(['done_units' => 0, 'total_units' => count($months) * count($variants)]);
         foreach ($months as $ym) {
             foreach ($variants as $variant) {      // gangguan: parameter APKT 0 = "Semua Laporan" (dengan clear temper), 1 = "Laporan Tanpa Clear Tamper"; keluhan: tanpa varian; anomali: jenis BERULANG atau NEGATIF
                 $label = match (true) {
@@ -115,6 +116,7 @@ class ApktRptRctSync
                     $failed++;
                     $say("GAGAL  {$label}: {$e->getMessage()}");
                 }
+                DB::table('eis_sync_runs')->where('id', $run->id)->increment('done_units');
                 usleep((int) config('distriva.apkt.pause_ms') * 1000);
             }
         }

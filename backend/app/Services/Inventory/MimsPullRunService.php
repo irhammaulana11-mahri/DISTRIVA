@@ -2,13 +2,13 @@
 
 namespace App\Services\Inventory;
 
-use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Notifications\WorkflowNotifier;
+use App\Services\Sync\SyncRuns;
+use App\Services\Sync\SyncScope;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Symfony\Component\Process\Process;
 
 /**
  * One manual MIMS pull (stock, issues, receipts of the chosen warehouses) as a run in a detached process, so the dialog does not wait for minutes (docs/82 §19.15). The pasted token reaches the process through its
@@ -16,7 +16,7 @@ use Symfony\Component\Process\Process;
  */
 class MimsPullRunService
 {
-    public function __construct(private readonly MimsStockSyncService $stock, private readonly MimsIssueSyncService $issues, private readonly MimsReceiptSyncService $receipts, private readonly MimsReservationSyncService $reservations, private readonly WorkflowNotifier $flow) {}
+    public function __construct(private readonly MimsStockSyncService $stock, private readonly MimsIssueSyncService $issues, private readonly MimsReceiptSyncService $receipts, private readonly MimsReservationSyncService $reservations, private readonly WorkflowNotifier $flow, private readonly SyncRuns $runs) {}
 
     /**
      * Pulls what was asked for ONE warehouse. $o = {stock, issues, receipts, dry_run, date}.
@@ -56,20 +56,23 @@ class MimsPullRunService
     }
 
     /** @param array<string,mixed> $options */
-    public function start(User $actor, array $options): string
+    public function start(User $actor, array $options, string $up3Id, ?string $scopeUnitId = null): string
     {
-        DB::table('mims_pull_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subHours(3))
-            ->update(['status' => 'FAILED', 'finished_at' => now(), 'message' => 'Dihentikan: proses tidak selesai.']);
-        if (DB::table('mims_pull_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists()) {
-            throw new AssignmentRuleViolation('Penarikan MIMS sedang berjalan; tunggu sampai selesai.');
-        }
+        $this->expireStale();
         $id = (string) Str::uuid();
-        DB::table('mims_pull_runs')->insert(['id' => $id, 'status' => 'QUEUED', 'options' => json_encode($options), 'started_by' => $actor->getKey(), 'created_at' => now()]);
+        $this->runs->register('mims_pull_runs', ['id' => $id, 'options' => json_encode($options), 'started_by' => $actor->getKey()], $up3Id, 'mims', 'pull', $options['warehouse_ids'] ?? SyncScope::warehouseIds([$up3Id]), $scopeUnitId);
 
         return $id;
     }
 
-    /** Hands a registered run to a detached process (inline in tests). The token travels in the process environment. */
+    /** Lets a stuck run stop blocking the next one. */
+    public function expireStale(): void
+    {
+        DB::statement("update mims_pull_runs set options = options - 'token_encrypted' where jsonb_exists(options, 'token_encrypted') and created_at < ?", [now()->subDays(2)]);
+        $this->runs->expire('mims_pull_runs', 3 * 3600, 'message');
+    }
+
+    /** Hands a registered run to the queue (inline in tests). A pasted token waits encrypted in the run and is wiped when the run ends; it never enters the queue table. */
     public function launch(string $runId, ?string $token): void
     {
         if (config('distriva.mims.run_inline')) {
@@ -77,11 +80,23 @@ class MimsPullRunService
 
             return;
         }
-        $cmd = sprintf('nohup %s artisan distriva:mims-pull-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId));
-        Process::fromShellCommandline($cmd, base_path(), $token === null ? null : ['DISTRIVA_MIMS_PULL_TOKEN' => $token])->run();
+        if ($token !== null) {
+            DB::statement("update mims_pull_runs set options = options || jsonb_build_object('token_encrypted', ?::text) where id = ?", [Crypt::encryptString($token), $runId]);
+        }
+        $this->runs->dispatch('mims_pull_runs', $runId, 3 * 3600);
     }
 
     public function execute(string $runId, ?string $token = null): void
+    {
+        try {
+            $this->perform($runId, $token);
+        } finally {
+            DB::statement("update mims_pull_runs set options = options - 'token_encrypted' where id = ?", [$runId]);
+            $this->runs->notifyFinished('mims_pull_runs', $runId);
+        }
+    }
+
+    private function perform(string $runId, ?string $token): void
     {
         $run = DB::table('mims_pull_runs')->where('id', $runId)->where('status', 'QUEUED')->first();
         if ($run === null) {
@@ -106,17 +121,24 @@ class MimsPullRunService
                 $token = null;
             }
         }
+        if (($token === null || $token === '') && isset($o['token_encrypted'])) {
+            try {
+                $token = Crypt::decryptString($o['token_encrypted']);
+            } catch (\Throwable) {
+                $token = null;
+            }
+        }
         if ($token === null || $token === '') {
             $fail('Token MIMS tidak tersedia; tempel token sesi dan coba lagi.');
 
             return;
         }
-        $q = DB::table('warehouses')->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code');
+        $q = DB::table('warehouses')->whereIn('id', SyncScope::warehouseIds([$run->up3_id]))->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code');
         if (! empty($o['warehouse_ids'])) {
             $q->whereIn('id', $o['warehouse_ids']);
         }
         $warehouses = $q->get();
-        DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => 'RUNNING', 'warehouses_total' => $warehouses->count(), 'started_at' => now()]);
+        DB::table('mims_pull_runs')->where('id', $runId)->update(['status' => 'RUNNING', 'warehouses_total' => $warehouses->count(), 'started_at' => now(), 'done_units' => 0, 'total_units' => $warehouses->count()]);
         $opts = ['stock' => (bool) $o['sync_stock'], 'issues' => (bool) $o['sync_issues'], 'receipts' => (bool) $o['sync_receipts'], 'reservations' => (bool) ($o['sync_reservations'] ?? false), 'dry_run' => (bool) $o['dry_run'], 'date' => $o['date'] ?? null, 'from' => $o['issues_from'] ?? null, 'to' => $o['issues_to'] ?? null];
         $results = [];
         $rejected = false;
@@ -125,7 +147,7 @@ class MimsPullRunService
                 $label = mb_substr(trim("{$wh->code} - {$wh->name}"), 0, 200);
                 $row = $this->pullOne($wh, $actor, $token, $opts, fn (string $name) => DB::table('mims_pull_runs')->where('id', $runId)->update(['current_warehouse' => $label, 'current_step' => $name]));
                 $results[] = $row;
-                DB::table('mims_pull_runs')->where('id', $runId)->update(['results' => json_encode($results)]);
+                DB::table('mims_pull_runs')->where('id', $runId)->update(['results' => json_encode($results), 'done_units' => count($results)]);
                 if ($this->rejected($row)) {
                     $rejected = true;
                     break;
@@ -152,14 +174,15 @@ class MimsPullRunService
         $r = DB::table('mims_pull_runs')->where('id', $runId)->first();
 
         return $r === null ? null : ['id' => $r->id, 'status' => $r->status, 'message' => $r->message, 'warehouses_total' => (int) $r->warehouses_total, 'results' => json_decode((string) $r->results, true) ?? [],
-            'options' => json_decode((string) $r->options, true), 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at,
-            'warehouses_done' => count(json_decode((string) $r->results, true) ?? []), 'current_warehouse' => $r->current_warehouse, 'current_step' => $r->current_step];
+            'options' => array_diff_key((array) json_decode((string) $r->options, true), ['token_encrypted' => 1]), 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at,
+            'warehouses_done' => count(json_decode((string) $r->results, true) ?? []), 'current_warehouse' => $r->current_warehouse, 'current_step' => $r->current_step] + $this->runs->describe($r);
     }
 
-    /** The run in progress, if any (so a page opened later, or by someone else, can show it). @return array<string,mixed>|null */
-    public function active(): ?array
+    /** The run of the UP3 in progress, if any (so a page opened later, or by someone else, can show it). @return array<string,mixed>|null */
+    public function active(string $up3Id): ?array
     {
-        $id = DB::table('mims_pull_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '>=', now()->subHours(3))->orderByDesc('created_at')->value('id');
+        $this->expireStale();
+        $id = DB::table('mims_pull_runs')->where('up3_id', $up3Id)->whereIn('status', ['QUEUED', 'RUNNING'])->orderByDesc('created_at')->value('id');
 
         return $id === null ? null : $this->show($id);
     }

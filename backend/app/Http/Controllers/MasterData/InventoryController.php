@@ -13,6 +13,8 @@ use App\Services\Inventory\MimsPullRunService;
 use App\Services\Inventory\MimsStockSyncService;
 use App\Services\Inventory\PoleContractService;
 use App\Services\Inventory\StockService;
+use App\Services\Sync\SyncRuns;
+use App\Services\Sync\SyncScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +29,7 @@ use Illuminate\Validation\Rule;
 /** Warehouses, stock snapshots and pole contracts / Kontrak Rinci (docs/62 §30). Violations -> 409, authorization -> 403/404. */
 class InventoryController extends Controller
 {
-    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims, private readonly MimsPullRunService $pulls) {}
+    public function __construct(private readonly CatalogAuthorizer $authorizer, private readonly StockService $stock, private readonly PoleContractService $poles, private readonly KhsMaterialMapService $map, private readonly MimsStockSyncService $mims, private readonly MimsPullRunService $pulls, private readonly SyncScope $syncScope, private readonly SyncRuns $syncRuns) {}
 
     public function warehouses(Request $request): JsonResponse
     {
@@ -779,14 +781,15 @@ class InventoryController extends Controller
         $this->authorizer->authorize($request->user(), 'master_data.view');
         $d = $request->validate(['kind' => ['nullable', Rule::in(['stock', 'issues', 'receipts', 'reservations'])], 'warehouse_id' => ['nullable', 'uuid'], 'trigger' => ['nullable', Rule::in(['AUTO', 'MANUAL', 'CLI', 'FILE'])],
             'status' => ['nullable', Rule::in(['OK', 'FAILED', 'SKIPPED'])], 'month' => ['nullable', 'date_format:Y-m'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $visible = SyncScope::warehouseIds($this->syncScope->up3Ids($request->user(), 'master_data.view'));
         if (($d['kind'] ?? 'stock') !== 'stock') {
-            return $this->mirrorRuns($d);
+            return $this->mirrorRuns($d, $visible);
         }
         $runs = DB::table('stock_sync_runs as r')->selectRaw('r.id, r.warehouse_id, r.trigger_kind, r.status, r.message, r.snapshot_id, r.materials_total, r.materials_mapped, r.triggered_by, r.started_at, r.finished_at, r.as_of');
         $files = DB::table('stock_snapshots as s')->whereRaw("coalesce(s.source_reference, '') not like 'MIMS API%'")->whereNotExists(fn ($q) => $q->from('stock_sync_runs as x')->whereColumn('x.snapshot_id', 's.id'))
             ->selectRaw("s.id, s.warehouse_id, 'FILE' as trigger_kind, 'OK' as status, s.source_reference as message, s.id as snapshot_id, s.materials_total, s.materials_mapped, s.created_by as triggered_by, s.created_at as started_at, s.created_at as finished_at, s.as_of");
         $q = DB::query()->fromSub($runs->unionAll($files), 'u')->join('warehouses as w', 'w.id', '=', 'u.warehouse_id')->leftJoin('users as us', 'us.id', '=', 'u.triggered_by')
-            ->orderByDesc('u.started_at')->select('u.*', 'w.code as warehouse_code', 'w.name as warehouse_name', 'us.name as triggered_by_name');
+            ->whereIn('u.warehouse_id', $visible)->orderByDesc('u.started_at')->select('u.*', 'w.code as warehouse_code', 'w.name as warehouse_name', 'us.name as triggered_by_name');
         isset($d['warehouse_id']) && $q->where('u.warehouse_id', $d['warehouse_id']);
         isset($d['trigger']) && $q->where('u.trigger_kind', $d['trigger']);
         isset($d['status']) && $q->where('u.status', $d['status']);
@@ -810,11 +813,11 @@ class InventoryController extends Controller
     ];
 
     /** @param array<string,mixed> $d the validated filters of syncRuns @return JsonResponse the history of the issue / receipt / reservation pulls */
-    private function mirrorRuns(array $d): JsonResponse
+    private function mirrorRuns(array $d, array $visible): JsonResponse
     {
         $kind = $d['kind'];
         $m = self::MIRRORS[$kind];
-        $q = DB::table("{$m['runs']} as r")->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->leftJoin('users as us', 'us.id', '=', 'r.triggered_by')->orderByDesc('r.started_at')
+        $q = DB::table("{$m['runs']} as r")->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->leftJoin('users as us', 'us.id', '=', 'r.triggered_by')->whereIn('r.warehouse_id', $visible)->orderByDesc('r.started_at')
             ->select('r.id', 'r.trigger_kind', 'r.status', 'r.message', 'r.documents_new', 'r.started_at', 'r.finished_at', 'r.range_from', 'r.range_to', 'r.range_estimated', 'w.code as warehouse_code', 'w.name as warehouse_name', 'us.name as triggered_by_name')
             ->selectRaw($kind === 'reservations' ? 'null::int as lines, r.matched' : ($kind === 'receipts' ? 'r.lines, null::int as matched' : 'r.lines, r.matched'));
         isset($d['warehouse_id']) && $q->where('r.warehouse_id', $d['warehouse_id']);
@@ -875,7 +878,7 @@ class InventoryController extends Controller
                 isset($exact[$warehouseId][$day]) || ($estimated[$warehouseId][$day] = true);
             }
         }
-        $warehouses = DB::table('warehouses')->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'plant', 'stor_loc'])->map(function ($w) use ($exact, $estimated, $docs, $last) {
+        $warehouses = DB::table('warehouses')->whereIn('id', SyncScope::warehouseIds($this->syncScope->up3Ids($request->user(), 'master_data.view')))->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name', 'plant', 'stor_loc'])->map(function ($w) use ($exact, $estimated, $docs, $last) {
             $taken = array_keys($exact[$w->id] ?? []);
             sort($taken);
             $guess = array_values(array_diff(array_keys($estimated[$w->id] ?? []), $taken));
@@ -1001,7 +1004,8 @@ class InventoryController extends Controller
         $actor = $request->user();
         $this->authorizer->authorize($actor, 'stock.import'); // grant first, then validate
         @set_time_limit(600);   // up to one call per warehouse, each with its own timeout: the default web limit (30 s) would cut the request mid-way
-        [$d, $token, $useSaved, $opts, $warehouses] = $this->pullInput($request, $actor);
+        [$d, $token, $useSaved, $opts, $warehouses, $up3Id] = $this->pullInput($request, $actor);
+        $this->syncRuns->assertIdle('mims', 'pull', $warehouses->pluck('id')->all());
         $results = [];
         foreach ($warehouses as $wh) {
             $row = $this->pulls->pullOne($wh, $actor, $token, $opts);
@@ -1024,29 +1028,32 @@ class InventoryController extends Controller
     {
         $actor = $request->user();
         $this->authorizer->authorize($actor, 'stock.import');
-        [$d, $token, $useSaved, $opts, $warehouses] = $this->pullInput($request, $actor);
+        [$d, $token, $useSaved, $opts, $warehouses, $up3Id] = $this->pullInput($request, $actor);
         if (! $useSaved && $request->boolean('save_token')) {
             $this->rememberToken($request, $actor, false, $token, false, true);
         }
-        $id = $this->pulls->start($actor, ['sync_stock' => $opts['stock'], 'sync_issues' => $opts['issues'], 'sync_receipts' => $opts['receipts'], 'sync_reservations' => $opts['reservations'], 'dry_run' => $opts['dry_run'], 'date' => $opts['date'], 'issues_from' => $opts['from'], 'issues_to' => $opts['to'], 'warehouse_ids' => $warehouses->pluck('id')->all(), 'use_saved_token' => $useSaved]);
+        $id = $this->pulls->start($actor, ['sync_stock' => $opts['stock'], 'sync_issues' => $opts['issues'], 'sync_receipts' => $opts['receipts'], 'sync_reservations' => $opts['reservations'], 'dry_run' => $opts['dry_run'], 'date' => $opts['date'], 'issues_from' => $opts['from'], 'issues_to' => $opts['to'], 'warehouse_ids' => $warehouses->pluck('id')->all(), 'use_saved_token' => $useSaved], $up3Id, $this->syncScope->level($actor, 'stock.import', $up3Id));
         $this->pulls->launch($id, $useSaved ? null : $token);
 
         return response()->json(['data' => $this->pulls->show($id)], 202);
     }
 
-    /** GET /stock-sync/runs/active: the pull in progress, or null. */
+    /** GET /stock-sync/runs/active?up3_id=: the pull of the UP3 in progress, or null. */
     public function mimsRunActive(Request $request): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'stock.import');
 
-        return response()->json(['data' => $this->pulls->active()]);
+        return response()->json(['data' => $this->pulls->active($this->mimsUp3($request))]);
     }
 
     /** GET /stock-sync/runs/{run} */
     public function mimsRunShow(Request $request, string $run): JsonResponse
     {
         $this->authorizer->authorize($request->user(), 'stock.import');
-        $data = $this->pulls->show($run) ?? throw new AdministrationDenied('Penarikan tidak ditemukan.', 404);
+        $data = $this->pulls->show($run);
+        if ($data === null || ! in_array($data['up3']['id'] ?? null, $this->syncScope->up3Ids($request->user(), 'stock.import'), true)) {
+            throw new AdministrationDenied('Penarikan tidak ditemukan.', 404);
+        }
 
         return response()->json(['data' => $data]);
     }
@@ -1054,7 +1061,7 @@ class InventoryController extends Controller
     /**
      * Validates a pull request and returns [validated, token, useSaved, options, warehouses].
      *
-     * @return array{0:array<string,mixed>,1:string,2:bool,3:array<string,mixed>,4:Collection<int,object>}
+     * @return array{0:array<string,mixed>,1:string,2:bool,3:array<string,mixed>,4:Collection<int,object>,5:string}
      */
     private function pullInput(Request $request, User $actor): array
     {
@@ -1075,7 +1082,12 @@ class InventoryController extends Controller
         }
         $useSaved = $request->boolean('use_saved_token');
         $token = $useSaved ? $this->savedToken($actor->getKey()) : (string) $d['token'];
-        $q = DB::table('warehouses')->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code');
+        $up3Id = $this->mimsUp3($request);
+        $q = DB::table('warehouses')->whereIn('id', SyncScope::warehouseIds([$up3Id]))->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code');
+        // pengguna ULP hanya menarik gudang ULP-nya
+        if (! $this->syncScope->coversUp3($actor, 'stock.import', $up3Id)) {
+            $q->whereIn('organizational_unit_id', array_column($this->syncScope->ulpsFor($actor, 'stock.import', $up3Id), 'id'));
+        }
         if (! empty($d['warehouse_ids'])) {
             $q->whereIn('id', $d['warehouse_ids']);
         }
@@ -1084,7 +1096,14 @@ class InventoryController extends Controller
             throw new AdministrationDenied('Tidak ada gudang ERP yang dapat ditarik (impor daftar gudang dan pastikan plant/storage location terisi).', 404);
         }
 
-        return [$d, $token, $useSaved, $opts, $warehouses];
+        return [$d, $token, $useSaved, $opts, $warehouses, $up3Id];
+    }
+
+    private function mimsUp3(Request $request): string
+    {
+        $requested = Validator::make($request->all(), ['up3_id' => ['nullable', 'uuid']])->validate()['up3_id'] ?? null;
+
+        return $this->syncScope->resolve($request->user(), 'stock.import', $requested);
     }
 
     /** Keeps the token the user chose to save (encrypted), or records how the saved one fared. */
@@ -1102,7 +1121,9 @@ class InventoryController extends Controller
     {
         $this->authorizer->authorize($request->user(), 'stock.import');
 
-        return response()->json(['data' => $this->mims->autoSettings()]);
+        $up3Id = $this->mimsUp3($request);
+
+        return response()->json(['data' => $this->mims->autoSettings($up3Id) + ['can_manage_settings' => $this->syncScope->coversUp3($request->user(), 'stock.import', $up3Id)]]);
     }
 
     /** PUT /stock-sync/settings {auto_enabled, auto_time} */
@@ -1113,7 +1134,10 @@ class InventoryController extends Controller
         $d = Validator::make($request->all(), ['auto_enabled' => ['required', 'boolean'], 'auto_time' => ['required', 'date_format:H:i'], 'auto_stock' => ['sometimes', 'boolean'], 'auto_issues' => ['sometimes', 'boolean'], 'auto_receipts' => ['sometimes', 'boolean']])->validate();
         $what = array_filter(['stock' => $d['auto_stock'] ?? null, 'issues' => $d['auto_issues'] ?? null, 'receipts' => $d['auto_receipts'] ?? null], fn ($v) => $v !== null);
 
-        return response()->json(['data' => $this->mims->saveAutoSettings($actor, (bool) $d['auto_enabled'], $d['auto_time'], $what ?: null)]);
+        $up3Id = $this->mimsUp3($request);
+        $this->syncScope->assertManagesUp3($actor, 'stock.import', $up3Id);
+
+        return response()->json(['data' => $this->mims->saveAutoSettings($actor, (bool) $d['auto_enabled'], $d['auto_time'], $what ?: null, $up3Id)]);
     }
 
     /** GET /stock-sync/token — whether the user keeps a MIMS token (never the token itself). */

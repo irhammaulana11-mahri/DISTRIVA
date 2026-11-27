@@ -52,6 +52,8 @@ use App\Http\Controllers\ScopedUnitController;
 use App\Http\Controllers\ServiceSlaController;
 use App\Http\Controllers\SubstationController;
 use App\Http\Controllers\SurveyController;
+use App\Http\Controllers\SyncAccountController;
+use App\Http\Controllers\SyncStatusController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\WhatsAppSettingsController;
 use App\Http\Controllers\WorkOrderController;
@@ -177,6 +179,10 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::post('/applications/{application}/kko/decision', [KkoController::class, 'decide'])->whereUuid('application')->middleware('throttle:admin');
     Route::get('/planning/access', [PlanningAccessController::class, 'access']);
     // EIS sync started and scheduled from DISTRIVA (account, Range Daya, automatic run, history)
+    Route::get('/sync/active', [SyncStatusController::class, 'active']);
+    Route::get('/sync/accounts', [SyncAccountController::class, 'index']);
+    Route::put('/sync/accounts', [SyncAccountController::class, 'save']);
+    Route::delete('/sync/accounts/{source}/{unit}', [SyncAccountController::class, 'destroy'])->whereIn('source', ['eis', 'maximo'])->whereUuid('unit');
     Route::get('/eis-sync', [EisSyncController::class, 'show']);
     Route::put('/eis-sync/settings', [EisSyncController::class, 'save']);
     Route::post('/eis-sync/runs', [EisSyncController::class, 'start']);

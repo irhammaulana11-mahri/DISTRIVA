@@ -3,14 +3,19 @@
 namespace App\Services\Applications;
 
 use App\Exceptions\AssignmentRuleViolation;
+use App\Exceptions\SyncAlreadyRunning;
 use App\Models\User;
 use App\Services\EisReports\Ap2tTagsusSync;
 use App\Services\EisReports\ApktRptRctSync;
 use App\Services\EisReports\ApktSaidiSaifiSync;
 use App\Services\MfaService;
+use App\Services\Sync\SyncAccounts;
+use App\Services\Sync\SyncRuns;
+use App\Services\Sync\SyncScope;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 
@@ -23,10 +28,12 @@ class EisSyncService
 {
     private const LOG_LIMIT = 30000;
 
+    public function __construct(private readonly SyncRuns $runs, private readonly SyncAccounts $accounts) {}
+
     /** @return array<string,mixed> */
-    public function settings(): array
+    public function settings(?string $up3Id = null): array
     {
-        $s = DB::table('eis_sync_settings')->where('id', 1)->first();
+        $s = SyncScope::settings('eis_sync_settings', $up3Id);
 
         return ['eis_username' => $s->eis_username, 'has_password' => $s->eis_password_encrypted !== null, 'power_min' => (int) $s->power_min, 'power_max' => (int) $s->power_max,
             'lookback_days' => (int) $s->lookback_days, 'auto_enabled' => (bool) $s->auto_enabled, 'auto_time' => $s->auto_time, 'updated_at' => $s->updated_at];
@@ -36,9 +43,9 @@ class EisSyncService
      * @param  array<string,mixed>  $d  eis_username?, eis_password? (empty keeps the saved one), power_min, power_max, lookback_days, auto_enabled, auto_time
      * @return array<string,mixed>
      */
-    public function save(array $d, User $actor): array
+    public function save(array $d, User $actor, string $up3Id): array
     {
-        $current = DB::table('eis_sync_settings')->where('id', 1)->first();
+        $current = SyncScope::settings('eis_sync_settings', $up3Id);
         $username = trim((string) ($d['eis_username'] ?? $current->eis_username));
         $password = filled($d['eis_password'] ?? null) ? Crypt::encryptString((string) $d['eis_password']) : $current->eis_password_encrypted;
         if ((int) $d['power_min'] > (int) $d['power_max']) {
@@ -52,35 +59,60 @@ class EisSyncService
                 throw new AssignmentRuleViolation('Sinkronisasi otomatis dijalankan atas nama penyimpannya dan tidak dapat memberi verifikasi MFA; simpan dari akun Niaga Retail UP3.');
             }
         }
-        DB::table('eis_sync_settings')->where('id', 1)->update(['eis_username' => $username === '' ? null : $username, 'eis_password_encrypted' => $password, 'power_min' => (int) $d['power_min'], 'power_max' => (int) $d['power_max'],
+        DB::table('eis_sync_settings')->where('id', $current->id)->update(['eis_username' => $username === '' ? null : $username, 'eis_password_encrypted' => $password, 'power_min' => (int) $d['power_min'], 'power_max' => (int) $d['power_max'],
             'lookback_days' => (int) $d['lookback_days'], 'auto_enabled' => (bool) $d['auto_enabled'], 'auto_time' => $d['auto_time'], 'updated_by' => $actor->getKey(), 'updated_at' => now()]);
 
-        return $this->settings();
+        return $this->settings($up3Id);
     }
 
-    /** Registers a run (QUEUED); one run at a time. @throws AssignmentRuleViolation */
-    public function start(string $trigger, User $actor, ?string $from = null, ?string $to = null, ?array $units = null, bool $completeOld = false, string $kind = 'PERMOHONAN', ?array $options = null): string
+    /**
+     * Registers the runs of one request (QUEUED). EIS pulls are split by account: every ULP with its own account gets a run, the others share one with the UP3 account; APKT and AP2T (session token) are one run.
+     * All or nothing: when any ULP is already being synced, none is registered.
+     *
+     * @param  ?list<string>  $units  ULP codes; null = every ULP the caller may pull
+     * @param  ?list<object>  $ulps  ULPs the caller may pull (id, code); null = every ULP of the UP3
+     * @return list<string> run ids
+     *
+     * @throws AssignmentRuleViolation|SyncAlreadyRunning
+     */
+    public function start(string $trigger, User $actor, string $up3Id, ?string $from = null, ?string $to = null, ?array $units = null, bool $completeOld = false, string $kind = 'PERMOHONAN', ?array $options = null, ?array $ulps = null, ?string $scopeUnitId = null): array
     {
-        $s = DB::table('eis_sync_settings')->where('id', 1)->first();
-        if (! in_array($kind, ['APKT', 'AP2T'], true) && ($s->eis_username === null || $s->eis_password_encrypted === null)) {
-            throw new AssignmentRuleViolation('User dan password EIS belum diisi pada pengaturan sinkronisasi.');
-        }
         $this->expireStale();
-        if (DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists()) {
-            throw new AssignmentRuleViolation('Sinkronisasi EIS atau APKT sedang berjalan; tunggu sampai selesai.');
+        [$source, $dataset] = match ($kind) {
+            'APKT' => ['apkt', (string) ($options['dataset'] ?? 'saidi-saifi')],
+            'AP2T' => ['ap2t', (string) ($options['dataset'] ?? 'tagsus')],
+            default => ['eis', strtolower($kind)],
+        };
+        $all = SyncScope::ulps($up3Id);
+        $chosen = array_values(array_filter($ulps ?? $all, fn (object $u) => $units === null || $units === [] || in_array((string) $u->code, $units, true)));
+        if ($units !== null && $units !== []) {     // urutan yang dipilih pengguna dipertahankan
+            $position = array_flip(array_values(array_unique($units)));
+            usort($chosen, fn (object $a, object $b) => $position[(string) $a->code] <=> $position[(string) $b->code]);
         }
-        $id = (string) Str::uuid();
-        DB::table('eis_sync_runs')->insert(['id' => $id, 'trigger' => $trigger, 'status' => 'QUEUED', 'started_by' => $actor->getKey(), 'range_from' => $from, 'range_to' => $to, 'units' => $units === null || $units === [] ? null : json_encode(array_values($units)), 'mfa_verified_at' => $actor->currentAccessToken()?->mfa_verified_at, 'complete_old' => $trigger === 'MANUAL' && $completeOld, 'kind' => $kind, 'options' => $options === null ? null : json_encode($options), 'created_at' => now()]);
+        $codeOf = [];
+        foreach ($chosen as $u) {
+            $codeOf[$u->id] = (string) $u->code;
+        }
+        $groups = $source === 'eis' ? $this->accounts->groups('eis', $up3Id, array_keys($codeOf)) : [['account_unit_id' => null, 'ulp_ids' => array_keys($codeOf)]];
+        // satu run akun UP3 untuk seluruh UP3 tidak membawa daftar unit: alat menjalankan semua unit pada akun itu
+        $wholeAccount = $source === 'eis' && ($units === null || $units === []) && count($groups) === 1 && $groups[0]['account_unit_id'] === null && count($codeOf) === count($all);
 
-        return $id;
+        return DB::transaction(fn () => array_map(function (array $group) use ($trigger, $actor, $up3Id, $from, $to, $completeOld, $kind, $options, $source, $dataset, $codeOf, $wholeAccount, $scopeUnitId): string {
+            $codes = $wholeAccount ? [] : array_map(fn (string $id) => $codeOf[$id], $group['ulp_ids']);
+            $id = (string) Str::uuid();
+            $this->runs->register('eis_sync_runs', ['id' => $id, 'trigger' => $trigger, 'started_by' => $actor->getKey(), 'range_from' => $from, 'range_to' => $to, 'units' => $codes === [] ? null : json_encode($codes),
+                'mfa_verified_at' => $actor->currentAccessToken()?->mfa_verified_at, 'complete_old' => $trigger === 'MANUAL' && $completeOld, 'kind' => $kind, 'options' => $options === null ? null : json_encode($options)],
+                $up3Id, $source, $dataset, $group['ulp_ids'], $scopeUnitId, $group['account_unit_id']);
+
+            return $id;
+        }, $groups));
     }
 
     /** A run that never finished (the process died or never started) must not block the next one, or lock the button, forever. Called when a run starts and when the status is read. */
     public function expireStale(): void
     {
-        DB::statement("update eis_sync_runs set options = options - 'token_encrypted' where jsonb_exists(options, 'token_encrypted') and status in ('QUEUED','RUNNING') and created_at < ?", [now()->subSeconds((int) config('distriva.eis_sync.timeout_seconds') + 600)]);
-        DB::table('eis_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.eis_sync.timeout_seconds') + 600))
-            ->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => DB::raw("coalesce(log, '') || E'\\nDihentikan: proses tidak selesai.'")]);
+        $this->runs->expire('eis_sync_runs', (int) config('distriva.eis_sync.timeout_seconds') + 600, 'log');
+        DB::statement("update eis_sync_runs set options = options - 'token_encrypted' where jsonb_exists(options, 'token_encrypted') and status = 'FAILED'");
     }
 
     /** Hands a registered run to a detached process (or runs it inline in tests). A process that cannot be started marks the run FAILED instead of leaving it waiting, and the error is passed on. */
@@ -92,8 +124,7 @@ class EisSyncService
 
                 return;
             }
-            $cmd = sprintf('nohup %s artisan distriva:eis-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId));
-            Process::fromShellCommandline($cmd, base_path())->run();
+            $this->runs->dispatch('eis_sync_runs', $runId, (int) config('distriva.eis_sync.timeout_seconds'));
         } catch (\Throwable $e) {
             $this->wipeToken($runId);
             DB::table('eis_sync_runs')->where('id', $runId)->whereIn('status', ['QUEUED', 'RUNNING'])->update(['status' => 'FAILED', 'finished_at' => now(), 'log' => mb_substr('Proses sinkronisasi tidak dapat dimulai: '.$e->getMessage(), 0, 500)]);
@@ -102,32 +133,30 @@ class EisSyncService
         }
     }
 
-    /** Called every minute by the scheduler: starts the automatic run when it is due (once per business day, even if it failed). */
+    /** Called every minute by the scheduler: starts the automatic run of every UP3 whose time has come (once per business day, even if it failed). */
     public function runScheduledIfDue(): ?string
     {
-        $s = DB::table('eis_sync_settings')->where('id', 1)->first();
-        if (! $s->auto_enabled || $s->updated_by === null) {
-            return null;
-        }
         $now = now(config('distriva.business_timezone'));
-        if ($now->format('H:i') < $s->auto_time) {
-            return null;
+        $first = null;
+        foreach (DB::table('eis_sync_settings')->where('auto_enabled', true)->whereNotNull('updated_by')->orderBy('id')->get() as $s) {
+            $up3Id = $s->up3_id ?? SyncScope::defaultUp3();
+            $user = User::query()->find($s->updated_by);
+            if ($up3Id === null || $user === null || $now->format('H:i') < $s->auto_time
+                || DB::table('eis_sync_runs')->where('up3_id', $up3Id)->where('trigger', 'AUTO')->where('created_at', '>=', $now->copy()->startOfDay()->utc())->exists()) {
+                continue;
+            }
+            try {
+                $ids = $this->start('AUTO', $user, $up3Id);
+            } catch (AssignmentRuleViolation|SyncAlreadyRunning) {
+                continue;
+            }
+            foreach ($ids as $id) {
+                $this->launch($id);
+                $first ??= $id;
+            }
         }
-        if (DB::table('eis_sync_runs')->where('trigger', 'AUTO')->where('created_at', '>=', $now->copy()->startOfDay()->utc())->exists()) {
-            return null;
-        }
-        $user = User::query()->find($s->updated_by);
-        if ($user === null) {
-            return null;
-        }
-        try {
-            $id = $this->start('AUTO', $user);
-        } catch (AssignmentRuleViolation) {
-            return null;
-        }
-        $this->launch($id);
 
-        return $id;
+        return $first;
     }
 
     /** Runs the registered run to the end (inside the detached process): the log is kept up to date while it goes. */
@@ -153,7 +182,7 @@ class EisSyncService
 
                 return;
             }
-            $s = DB::table('eis_sync_settings')->where('id', 1)->first();
+            $s = SyncScope::settings('eis_sync_settings', $run->up3_id);
             $user = User::query()->findOrFail($run->started_by);
             $token = $user->createToken('eis-sync', ['*'], now()->addMinutes((int) config('distriva.token_idle_minutes')));
             $token->accessToken->forceFill(['mfa_verified_at' => $run->mfa_verified_at])->save();
@@ -171,13 +200,18 @@ class EisSyncService
                 $run->complete_old || $args[] = '--tanpa-lengkapi';                       // the older range for running applications is only pulled when the user asked for it; the scheduled run pulls the configured range and nothing else
                 $units !== [] && array_push($args, '--unit', implode(',', $units));          // only these units (ULP codes); without it every unit of the EIS combo runs
             }
-            $env = ['EIS_USERNAME' => $s->eis_username, 'EIS_PASSWORD' => Crypt::decryptString($s->eis_password_encrypted), 'EIS_DAYA_MIN' => (string) $s->power_min, 'EIS_DAYA_MAX' => (string) $s->power_max,
+            $account = $this->accounts->credentials('eis', $run->up3_id, $run->account_unit_id);
+            $env = ['EIS_USERNAME' => $account['username'], 'EIS_PASSWORD' => $account['password'], 'EIS_DAYA_MIN' => (string) $s->power_min, 'EIS_DAYA_MAX' => (string) $s->power_max,
                 'EIS_LOOKBACK_DAYS' => (string) $s->lookback_days, 'EIS_HEADLESS' => '1', 'DISTRIVA_URL' => (string) config('distriva.eis_sync.api_url'), 'DISTRIVA_TOKEN' => $token->plainTextToken,
-                'EIS_DOWNLOAD_DIR' => storage_path('app/private/eis-sync/'.$runId), 'PYTHONUNBUFFERED' => '1'];
+                'EIS_DOWNLOAD_DIR' => storage_path('app/private/eis-sync/'.$runId), 'EIS_COOKIE_FILE' => storage_path('app/private/eis-sync/session/'.($run->account_unit_id ?? $run->up3_id).'.json'), 'PYTHONUNBUFFERED' => '1'];
             $process = new Process($args, $dir, $env, null, (float) config('distriva.eis_sync.timeout_seconds'));
             $last = 0.0;
             $exit = $process->run(function (string $type, string $buffer) use (&$log, &$last, $runId): void {
                 $log = $this->tail($this->foldFinishedUnits($log.$buffer));
+                if (preg_match_all('/=== Unit (\d+)\/(\d+):/', $buffer, $m, PREG_SET_ORDER) > 0) {
+                    $unit = end($m);
+                    $this->runs->progress('eis_sync_runs', $runId, (int) $unit[1] - 1, (int) $unit[2]);
+                }
                 if (microtime(true) - $last > 2) {
                     $last = microtime(true);
                     DB::table('eis_sync_runs')->where('id', $runId)->update(['log' => $log]);
@@ -189,6 +223,9 @@ class EisSyncService
             $this->wipeToken($runId);
             $token?->accessToken->delete();
             DB::table('eis_sync_runs')->where('id', $runId)->update(['status' => $exit === 0 ? 'OK' : 'FAILED', 'exit_code' => $exit, 'log' => $log, 'finished_at' => now()]);
+            $exit === 0 && DB::statement('update eis_sync_runs set done_units = total_units where id = ?', [$runId]);
+            File::deleteDirectory(storage_path('app/private/eis-sync/'.$runId));     // berkas unduhan sementara milik run ini
+            $this->runs->notifyFinished('eis_sync_runs', $runId);
         }
     }
 

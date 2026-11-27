@@ -44,6 +44,16 @@ return [
             'after_commit' => false,
         ],
 
+        // run sinkronisasi (docs/94): retry_after harus melebihi batas waktu run terpanjang (Maximo 24 jam) agar tidak diambil worker lain saat masih berjalan
+        'sync_jobs' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'sync-light',
+            'retry_after' => (int) env('DISTRIVA_SYNC_RETRY_AFTER', 90000),
+            'after_commit' => true,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

@@ -33,7 +33,7 @@ class ProcessImportTest extends TestCase
             }
         }
 
-        $this->assertGreaterThan(5, $users, 'Pemindaian tidak menemukan layanan yang memakai proses terpisah.');
+        $this->assertGreaterThan(1, $users, 'Pemindaian tidak menemukan layanan yang memakai proses terpisah.');
         $this->assertSame([], $bad, 'Gunakan Symfony\Component\Process\Process untuk fromShellCommandline().');
     }
 }

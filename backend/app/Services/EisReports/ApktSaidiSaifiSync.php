@@ -79,6 +79,7 @@ GQL;
         $failed = 0;
         $accepted = false;
         $deadline = microtime(true) + (float) config('distriva.eis_sync.timeout_seconds');
+        DB::table('eis_sync_runs')->where('id', $run->id)->update(['done_units' => 0, 'total_units' => count($months) * $ulps->count()]);
         foreach ($months as $ym) {
             foreach ($ulps as $ulp) {
                 $label = sprintf('%s %s', $ulp->name, $ym);
@@ -107,6 +108,7 @@ GQL;
                     $failed++;
                     $say("GAGAL  {$label}: {$e->getMessage()}");
                 }
+                DB::table('eis_sync_runs')->where('id', $run->id)->increment('done_units');
                 usleep((int) config('distriva.apkt.pause_ms') * 1000);
             }
         }

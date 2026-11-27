@@ -1001,6 +1001,7 @@ class EisImportTest extends PostgresTestCase
         $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs', ['kind' => 'lain'])->assertUnprocessable();
         $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['kind' => 'piutang', 'to_month' => '2026-10', 'units' => ['51454']])->assertStatus(409);     // a unit outside the scope
 
+        $this->travel(2)->seconds();     // riwayat diurutkan menurut created_at yang hanya sampai detik
         $this->assertSame('permohonan', $this->as($this->sysAdmin)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data.kind'));                         // the application pull is unchanged
         $this->assertContains('--per-unit', $args());
         $this->assertSame('piutang', $this->as($this->sysAdmin)->getJson('/api/eis-sync')->json('data.runs.1.kind'));
@@ -1649,7 +1650,7 @@ class EisImportTest extends PostgresTestCase
         $this->fakeTool();
         $this->as($this->sysAdmin)->putJson('/api/eis-sync/settings', $this->syncBody())->assertOk();
         $stale = (string) Str::uuid();
-        DB::table('eis_sync_runs')->insert(['id' => $stale, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'kind' => 'PIUTANG', 'created_at' => now()->subHours(5)]);
+        DB::table('eis_sync_runs')->insert(['id' => $stale, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'kind' => 'PIUTANG', 'up3_id' => $this->upA->getKey(), 'sync_source' => 'eis', 'sync_dataset' => 'piutang', 'created_at' => now()->subHours(5)]);
 
         $runs = collect($this->as($this->sysAdmin)->getJson('/api/eis-sync')->assertOk()->json('data.runs'))->keyBy('id');
         $this->assertSame('FAILED', $runs[$stale]['status']);                                                                // dibersihkan saat status dibaca: tombol tidak terkunci
@@ -1697,7 +1698,7 @@ class EisImportTest extends PostgresTestCase
 
         $run = $this->as($this->retailA1)->postJson('/api/eis-sync/runs', ['from' => '2026-10-01', 'to' => '2026-11-10'])->assertStatus(202)->json('data');
         $seen = json_decode((string) file_get_contents($dir.'/seen.json'), true);
-        $this->assertSame(['sync', '--metode', 'http', '--konfirmasi', '--per-unit', '--dari', '2026-10-01', '--sampai', '2026-11-10', '--tanpa-lengkapi'], $seen['args']);
+        $this->assertSame(['sync', '--metode', 'http', '--konfirmasi', '--per-unit', '--dari', '2026-10-01', '--sampai', '2026-11-10', '--tanpa-lengkapi', '--unit', '51453'], $seen['args']);   // pengguna ULP hanya menarik ULP-nya
         $this->assertSame(['petugas.eis', 'Rahasia#123', '450', '6600', '90', true], [$seen['user'], $seen['pw'], $seen['min'], $seen['max'], $seen['lookback'], $seen['token']]);
         $done = $this->as($this->retailA1)->getJson("/api/eis-sync/runs/{$run['id']}")->assertOk()->json('data');
         $this->assertSame(['OK', 0, 'MANUAL'], [$done['status'], $done['exit_code'], $done['trigger']]);
@@ -1712,8 +1713,9 @@ class EisImportTest extends PostgresTestCase
         $bad = $this->as($this->retailA1)->postJson('/api/eis-sync/runs')->assertStatus(202)->json('data.id');
         $this->assertSame(['FAILED', 1], [DB::table('eis_sync_runs')->where('id', $bad)->value('status'), (int) DB::table('eis_sync_runs')->where('id', $bad)->value('exit_code')]);
 
-        // one run at a time
-        DB::table('eis_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'RUNNING', 'started_by' => $this->retailA1->getKey(), 'created_at' => now()]);
+        // one run at a time per UP3 and dataset
+        DB::table('eis_sync_runs')->insert(['id' => $busy = (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'RUNNING', 'started_by' => $this->retailA1->getKey(), 'up3_id' => $this->upA->getKey(), 'sync_source' => 'eis', 'sync_dataset' => 'permohonan', 'created_at' => now()]);
+        DB::table('sync_locks')->insert(['source' => 'eis', 'dataset' => 'permohonan', 'target_id' => $this->ulpA1->getKey(), 'run_table' => 'eis_sync_runs', 'run_id' => $busy]);
         $this->as($this->retailA1)->postJson('/api/eis-sync/runs')->assertStatus(409);
     }
 

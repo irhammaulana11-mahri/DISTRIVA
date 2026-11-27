@@ -3,11 +3,13 @@
 namespace App\Services\Outages;
 
 use App\Exceptions\AssignmentRuleViolation;
+use App\Exceptions\SyncAlreadyRunning;
 use App\Models\User;
+use App\Services\Sync\SyncRuns;
+use App\Services\Sync\SyncScope;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Symfony\Component\Process\Process;
 
 /**
  * Sinkronisasi data gangguan dari Google Sheet (docs/87). Satu proses pendek: unduh CSV tiap tab, rapikan, cocokkan penyulang dan ULP, lalu upsert idempoten menurut kunci sumber.
@@ -15,13 +17,13 @@ use Symfony\Component\Process\Process;
  */
 class OutageSyncService
 {
-    public function __construct(private readonly OutageSheetClient $client, private readonly OutageSheetParser $parser) {}
+    public function __construct(private readonly OutageSheetClient $client, private readonly OutageSheetParser $parser, private readonly SyncRuns $runs) {}
 
     /** @return array<string,mixed> */
-    public function settings(): array
+    public function settings(?string $up3Id = null): array
     {
-        $s = DB::table('outage_sync_settings')->where('id', 1)->first();
-        $last = DB::table('outage_sync_runs')->orderByDesc('created_at')->first();
+        $s = SyncScope::settings('outage_sync_settings', $up3Id);
+        $last = DB::table('outage_sync_runs')->when($up3Id !== null, fn ($q) => $q->where('up3_id', $up3Id))->orderByDesc('created_at')->first();
 
         return ['sheet_id_set' => $s->sheet_id !== null, 'sheet_id_hint' => $s->sheet_id === null ? null : substr($s->sheet_id, 0, 4).'…'.substr($s->sheet_id, -4), 'gids' => array_map('intval', (array) json_decode((string) $s->gids, true)),
             'auto_enabled' => (bool) $s->auto_enabled, 'auto_time' => $s->auto_time, 'saidi_min_minutes' => (int) $s->saidi_min_minutes, 'saidi_only_permanent' => (bool) $s->saidi_only_permanent,
@@ -32,9 +34,9 @@ class OutageSyncService
      * @param  array<string,mixed>  $d  sheet_url? (alamat atau ID; kosong = tidak diubah), gids? (list of int), auto_enabled, auto_time, saidi_min_minutes, saidi_only_permanent
      * @return array<string,mixed>
      */
-    public function save(array $d, User $actor): array
+    public function save(array $d, User $actor, string $up3Id): array
     {
-        $cur = DB::table('outage_sync_settings')->where('id', 1)->first();
+        $cur = SyncScope::settings('outage_sync_settings', $up3Id);
         $sheetId = $cur->sheet_id;
         $gids = (array) json_decode((string) $cur->gids, true);
         if (filled($d['sheet_url'] ?? null)) {
@@ -48,25 +50,22 @@ class OutageSyncService
         if (! empty($d['auto_enabled']) && ($sheetId === null || $gids === [])) {
             throw new AssignmentRuleViolation('Isi alamat Google Sheet dan tab (gid) sebelum mengaktifkan sinkronisasi harian.');
         }
-        DB::table('outage_sync_settings')->where('id', 1)->update(['sheet_id' => $sheetId, 'gids' => json_encode($gids), 'auto_enabled' => (bool) $d['auto_enabled'], 'auto_time' => $d['auto_time'],
+        DB::table('outage_sync_settings')->where('id', $cur->id)->update(['sheet_id' => $sheetId, 'gids' => json_encode($gids), 'auto_enabled' => (bool) $d['auto_enabled'], 'auto_time' => $d['auto_time'],
             'saidi_min_minutes' => (int) $d['saidi_min_minutes'], 'saidi_only_permanent' => (bool) $d['saidi_only_permanent'], 'updated_by' => $actor->getKey(), 'updated_at' => now()]);
 
-        return $this->settings();
+        return $this->settings($up3Id);
     }
 
     /** Registers a run; a run that never finished must not block the next one forever. */
-    public function start(string $trigger, ?User $actor): string
+    public function start(string $trigger, ?User $actor, string $up3Id): string
     {
-        $s = DB::table('outage_sync_settings')->where('id', 1)->first();
+        $s = SyncScope::settings('outage_sync_settings', $up3Id);
         if ($s->sheet_id === null || (array) json_decode((string) $s->gids, true) === []) {
             throw new AssignmentRuleViolation('Alamat Google Sheet dan tab (gid) belum diisi pada pengaturan.');
         }
         $this->expireStale();
-        if (DB::table('outage_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->exists()) {
-            throw new AssignmentRuleViolation('Sinkronisasi gangguan sedang berjalan; tunggu sampai selesai.');
-        }
         $id = (string) Str::uuid();
-        DB::table('outage_sync_runs')->insert(['id' => $id, 'trigger' => $trigger, 'status' => 'QUEUED', 'started_by' => $actor?->getKey(), 'created_at' => now()]);
+        $this->runs->register('outage_sync_runs', ['id' => $id, 'trigger' => $trigger, 'started_by' => $actor?->getKey()], $up3Id, 'gangguan', 'events', [$up3Id]);
 
         return $id;
     }
@@ -76,8 +75,7 @@ class OutageSyncService
      */
     public function expireStale(): void
     {
-        DB::table('outage_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subSeconds((int) config('distriva.outage.timeout_seconds') * 4 + 300))
-            ->update(['status' => 'FAILED', 'finished_at' => now(), 'message' => 'Dihentikan: proses tidak selesai.']);
+        $this->runs->expire('outage_sync_runs', (int) config('distriva.outage.timeout_seconds') * 4 + 300, 'message');
     }
 
     /** Menyerahkan run terdaftar ke proses terpisah. Bila proses tidak dapat dimulai, run ditandai gagal (bukan dibiarkan Menunggu) dan galatnya diteruskan. */
@@ -89,7 +87,7 @@ class OutageSyncService
 
                 return;
             }
-            Process::fromShellCommandline(sprintf('nohup %s artisan distriva:outage-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($runId)), base_path())->run();
+            $this->runs->dispatch('outage_sync_runs', $runId, (int) config('distriva.outage.timeout_seconds') * 4);
         } catch (\Throwable $e) {
             DB::table('outage_sync_runs')->where('id', $runId)->whereIn('status', ['QUEUED', 'RUNNING'])->update(['status' => 'FAILED', 'finished_at' => now(), 'message' => mb_substr('Proses sinkronisasi tidak dapat dimulai: '.$e->getMessage(), 0, 500)]);
 
@@ -97,25 +95,27 @@ class OutageSyncService
         }
     }
 
-    /** Dipanggil tiap menit oleh penjadwal: menjalankan sinkronisasi harian bila sudah waktunya (sekali sehari, juga bila gagal). */
+    /** Dipanggil tiap menit oleh penjadwal: menjalankan sinkronisasi harian tiap UP3 yang sudah waktunya (sekali sehari, juga bila gagal). */
     public function runScheduledIfDue(): ?string
     {
-        $s = DB::table('outage_sync_settings')->where('id', 1)->first();
-        if (! $s->auto_enabled || $s->sheet_id === null) {
-            return null;
-        }
         $now = now(config('distriva.business_timezone'));
-        if ($now->format('H:i') < $s->auto_time || DB::table('outage_sync_runs')->where('trigger', 'AUTO')->where('created_at', '>=', $now->copy()->startOfDay()->utc())->exists()) {
-            return null;
+        $first = null;
+        foreach (DB::table('outage_sync_settings')->where('auto_enabled', true)->whereNotNull('sheet_id')->orderBy('id')->get() as $s) {
+            $up3Id = $s->up3_id ?? SyncScope::defaultUp3();
+            if ($up3Id === null || $now->format('H:i') < $s->auto_time
+                || DB::table('outage_sync_runs')->where('up3_id', $up3Id)->where('trigger', 'AUTO')->where('created_at', '>=', $now->copy()->startOfDay()->utc())->exists()) {
+                continue;
+            }
+            try {
+                $id = $this->start('AUTO', null, $up3Id);
+            } catch (AssignmentRuleViolation|SyncAlreadyRunning) {
+                continue;
+            }
+            $this->launch($id);
+            $first ??= $id;
         }
-        try {
-            $id = $this->start('AUTO', null);
-        } catch (AssignmentRuleViolation) {
-            return null;
-        }
-        $this->launch($id);
 
-        return $id;
+        return $first;
     }
 
     public function execute(string $runId): void
@@ -126,7 +126,7 @@ class OutageSyncService
         }
         DB::table('outage_sync_runs')->where('id', $runId)->update(['status' => 'RUNNING', 'started_at' => now()]);
         try {
-            $counts = $this->sync($runId);
+            $counts = $this->sync($runId, $run->up3_id);
             DB::table('outage_sync_runs')->where('id', $runId)->update(['status' => 'OK', 'finished_at' => now(), 'counts' => json_encode($counts),
                 'message' => sprintf('%d baris dibaca: %d baru, %d berubah, %d tetap, %d ditolak, %d ditandai hilang.', $counts['read'], $counts['inserted'], $counts['updated'], $counts['unchanged'], $counts['invalid'], $counts['removed'])]);
         } catch (AssignmentRuleViolation $e) {
@@ -135,21 +135,23 @@ class OutageSyncService
             DB::table('outage_sync_runs')->where('id', $runId)->update(['status' => 'FAILED', 'finished_at' => now(), 'message' => 'Sinkronisasi gagal karena kesalahan tak terduga (lihat log server).']);
             report(new \RuntimeException('Sinkronisasi gangguan gagal.'));
         }
+        $this->runs->notifyFinished('outage_sync_runs', $runId);
     }
 
     /** @return array<string,mixed> */
-    private function sync(string $runId): array
+    private function sync(string $runId, string $up3Id): array
     {
-        $s = DB::table('outage_sync_settings')->where('id', 1)->first();
+        $s = SyncScope::settings('outage_sync_settings', $up3Id);
         $tz = (string) config('distriva.business_timezone');
         $gids = array_map('intval', (array) json_decode((string) $s->gids, true));
         $feeders = $this->feederIndex();
-        $units = $this->unitIndex();
+        $units = $this->unitIndex($up3Id);
+        $this->runs->progress('outage_sync_runs', $runId, 0, count($gids));
         $aliases = DB::table('outage_feeder_aliases')->get()->mapWithKeys(fn ($a) => [$a->gi_key.'|'.$a->feeder_key => $a->feeder_id])->all();
         $counts = ['read' => 0, 'inserted' => 0, 'updated' => 0, 'unchanged' => 0, 'invalid' => 0, 'removed' => 0, 'unmatched_feeders' => 0, 'invalid_samples' => []];
         $seenAll = [];
         $unmatched = [];
-        foreach ($gids as $gid) {
+        foreach ($gids as $index => $gid) {
             $parsed = $this->parser->parse($this->client->fetchCsv((string) $s->sheet_id, $gid), $tz);
             $counts['read'] += $parsed['read'];
             $counts['invalid'] += count($parsed['invalid']);
@@ -166,35 +168,38 @@ class OutageSyncService
                 $fid === null && $unmatched[$this->norm($row['gi_name']).'|'.$this->norm($row['feeder_name'])] = true;
                 $uid = $units['rayon'][$this->norm((string) $row['rayon'])] ?? ($fid !== null ? ($feeders['unit'][$fid] ?? null) : null);
                 $values = array_merge($row, ['occurred_at' => $row['occurred_at']->utc()->toDateTimeString(), 'restored_at' => $row['restored_at']?->utc()->toDateTimeString(), 'feeder_id' => $fid, 'organizational_unit_id' => $uid, 'sheet_gid' => $gid]);
+                // up3_id tidak ikut hash agar data lama tidak terbaca berubah
                 $prepared[$key] = ['key' => $key, 'values' => $values, 'hash' => sha1(json_encode($values))];
             }
+            ksort($prepared);     // urutan kunci tetap agar upsert serentak tidak saling mengunci silang
             foreach (array_chunk($prepared, 400, true) as $chunk) {
-                $existing = DB::table('outage_events')->whereIn('source_key', array_keys($chunk))->pluck('row_hash', 'source_key')->all();
+                $existing = DB::table('outage_events')->where('up3_id', $up3Id)->whereIn('source_key', array_keys($chunk))->pluck('row_hash', 'source_key')->all();
                 $rows = [];
                 foreach ($chunk as $key => $p) {
                     $same = ($existing[$key] ?? null) === $p['hash'];
                     isset($existing[$key]) ? ($same ? $counts['unchanged']++ : $counts['updated']++) : $counts['inserted']++;
-                    $rows[] = $p['values'] + ['id' => (string) Str::uuid(), 'source_key' => $key, 'row_hash' => $p['hash'], 'last_run_id' => $runId, 'source_removed_at' => null, 'created_at' => now(), 'updated_at' => now()];
+                    $rows[] = $p['values'] + ['id' => (string) Str::uuid(), 'up3_id' => $up3Id, 'source_key' => $key, 'row_hash' => $p['hash'], 'last_run_id' => $runId, 'source_removed_at' => null, 'created_at' => now(), 'updated_at' => now()];
                 }
-                DB::table('outage_events')->upsert($rows, ['source_key'], array_merge(array_keys($chunk[array_key_first($chunk)]['values']), ['row_hash', 'last_run_id', 'source_removed_at', 'updated_at']));
+                DB::table('outage_events')->upsert($rows, ['up3_id', 'source_key'], array_merge(array_keys($chunk[array_key_first($chunk)]['values']), ['row_hash', 'last_run_id', 'source_removed_at', 'updated_at']));
             }
             $seenAll[$gid] = count($prepared);
+            $this->runs->progress('outage_sync_runs', $runId, $index + 1);
         }
         $counts['unmatched_feeders'] = count($unmatched);
-        $counts['removed'] = $this->markRemoved($runId, $gids, array_sum($seenAll));
+        $counts['removed'] = $this->markRemoved($runId, $up3Id, $gids, array_sum($seenAll));
 
         return $counts;
     }
 
     /** Menandai peristiwa yang tidak terlihat pada sinkron ini; dilewati bila bacaan tampak rusak (kosong atau jauh lebih sedikit dari yang tersimpan). */
-    private function markRemoved(string $runId, array $gids, int $seen): int
+    private function markRemoved(string $runId, string $up3Id, array $gids, int $seen): int
     {
-        $stored = DB::table('outage_events')->whereIn('sheet_gid', $gids)->whereNull('source_removed_at')->count();
+        $stored = DB::table('outage_events')->where('up3_id', $up3Id)->whereIn('sheet_gid', $gids)->whereNull('source_removed_at')->count();
         if ($seen === 0 || $seen < $stored * 0.5) {
             throw new AssignmentRuleViolation("Hasil bacaan sheet ({$seen} peristiwa) jauh lebih sedikit dari yang tersimpan ({$stored}); sinkronisasi dibatalkan agar data tidak ikut hilang. Periksa sheet dan tab (gid).");
         }
 
-        return DB::table('outage_events')->whereIn('sheet_gid', $gids)->whereNull('source_removed_at')->where(fn ($q) => $q->whereNull('last_run_id')->orWhere('last_run_id', '<>', $runId))->update(['source_removed_at' => now(), 'updated_at' => now()]);
+        return DB::table('outage_events')->where('up3_id', $up3Id)->whereIn('sheet_gid', $gids)->whereNull('source_removed_at')->where(fn ($q) => $q->whereNull('last_run_id')->orWhere('last_run_id', '<>', $runId))->update(['source_removed_at' => now(), 'updated_at' => now()]);
     }
 
     /** @return array{name:array<string,list<string>>,code:array<string,list<string>>,gi:array<string,string>,unit:array<string,string>} */
@@ -228,10 +233,10 @@ class OutageSyncService
     }
 
     /** @return array{rayon:array<string,string>} */
-    private function unitIndex(): array
+    private function unitIndex(string $up3Id): array
     {
         $r = [];
-        foreach (DB::table('organizational_units')->where('unit_type', 'ULP')->get(['id', 'name', 'code']) as $u) {
+        foreach (DB::table('organizational_units')->where('unit_type', 'ULP')->where('parent_id', $up3Id)->get(['id', 'name', 'code']) as $u) {
             $r[$this->norm(preg_replace('/^ULP\s+/i', '', (string) $u->name) ?? '')] = $u->id;
         }
 
@@ -246,22 +251,22 @@ class OutageSyncService
     /** @return array<string,mixed> */
     public function run(object $r): array
     {
-        return ['id' => $r->id, 'trigger' => $r->trigger, 'status' => $r->status, 'counts' => $r->counts === null ? null : json_decode((string) $r->counts, true), 'message' => $r->message, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at];
+        return ['id' => $r->id, 'trigger' => $r->trigger, 'status' => $r->status, 'counts' => $r->counts === null ? null : json_decode((string) $r->counts, true), 'message' => $r->message, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at] + $this->runs->describe($r);
     }
 
     /** @return list<array<string,mixed>> penyulang di sheet yang belum terpetakan, dengan jumlah peristiwanya */
-    public function unmatched(): array
+    public function unmatched(?string $up3Id = null): array
     {
-        return DB::table('outage_events')->whereNull('feeder_id')->whereNull('source_removed_at')->selectRaw('gi_name, feeder_name, count(*) as events, min(occurred_at) as first_at, max(occurred_at) as last_at')->groupBy('gi_name', 'feeder_name')->orderByDesc('events')->get()
+        return DB::table('outage_events')->when($up3Id !== null, fn ($q) => $q->where('up3_id', $up3Id))->whereNull('feeder_id')->whereNull('source_removed_at')->selectRaw('gi_name, feeder_name, count(*) as events, min(occurred_at) as first_at, max(occurred_at) as last_at')->groupBy('gi_name', 'feeder_name')->orderByDesc('events')->get()
             ->map(fn ($x) => ['gi_name' => $x->gi_name, 'feeder_name' => $x->feeder_name, 'events' => (int) $x->events, 'first_at' => $x->first_at, 'last_at' => $x->last_at])->all();
     }
 
     /** Memetakan nama sheet ke penyulang master dan menerapkannya ke peristiwa yang sudah ada. */
-    public function alias(string $gi, string $feeder, string $feederId, User $actor): int
+    public function alias(string $gi, string $feeder, string $feederId, User $actor, string $up3Id): int
     {
         DB::table('distribution_feeders')->where('id', $feederId)->exists() || throw new AssignmentRuleViolation('Penyulang tidak ditemukan.');
         DB::table('outage_feeder_aliases')->updateOrInsert(['gi_key' => $this->norm($gi), 'feeder_key' => $this->norm($feeder)], ['id' => (string) Str::uuid(), 'gi_name' => $gi, 'feeder_name' => $feeder, 'feeder_id' => $feederId, 'created_by' => $actor->getKey(), 'created_at' => now()]);
 
-        return DB::table('outage_events')->where('gi_name', $gi)->where('feeder_name', $feeder)->whereNull('feeder_id')->update(['feeder_id' => $feederId, 'updated_at' => now()]);
+        return DB::table('outage_events')->where('up3_id', $up3Id)->where('gi_name', $gi)->where('feeder_name', $feeder)->whereNull('feeder_id')->update(['feeder_id' => $feederId, 'updated_at' => now()]);
     }
 }

@@ -7,7 +7,8 @@ from playwright.sync_api import sync_playwright
 
 from app.config import LOGIN_URL, USERNAME, PASSWORD
 
-COOKIE_FILE = "eis_session.json"
+# DISTRIVA mengisi EIS_COOKIE_FILE per UP3 agar sesi akun satu UP3 tidak menimpa yang lain
+COOKIE_FILE = os.getenv("EIS_COOKIE_FILE", "eis_session.json")
 
 
 def load_cookies():
@@ -23,6 +24,7 @@ def load_cookies():
 
 def save_cookies(cookies):
     path = Path(COOKIE_FILE)
+    path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
     with open(temporary, "w", encoding="utf-8") as file:
         json.dump(cookies, file)

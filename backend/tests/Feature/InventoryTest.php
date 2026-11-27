@@ -482,7 +482,8 @@ class InventoryTest extends PostgresTestCase
 
         $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync/runs', ['use_saved_token' => true, 'sync_stock' => false, 'sync_receipts' => true])->assertStatus(202)->assertJsonPath('data.status', 'OK');   // the saved token works with no token in the request
         $running = (string) Str::uuid();
-        DB::table('mims_pull_runs')->insert(['id' => $running, 'status' => 'RUNNING', 'options' => '{}', 'warehouses_total' => 11, 'current_warehouse' => '5118-2810 - Gd Ry Jombang', 'current_step' => 'ISSUES', 'started_by' => $this->konstruksi->getKey(), 'created_at' => now()]);
+        DB::table('mims_pull_runs')->insert(['id' => $running, 'status' => 'RUNNING', 'options' => '{}', 'warehouses_total' => 11, 'current_warehouse' => '5118-2810 - Gd Ry Jombang', 'current_step' => 'ISSUES', 'started_by' => $this->konstruksi->getKey(), 'up3_id' => $this->up3->getKey(), 'sync_source' => 'mims', 'sync_dataset' => 'pull', 'created_at' => now()]);
+        DB::table('sync_locks')->insert(['source' => 'mims', 'dataset' => 'pull', 'target_id' => DB::table('warehouses')->value('id'), 'run_table' => 'mims_pull_runs', 'run_id' => $running]);
         $this->as($this->konstruksi)->getJson('/api/master-data/stock-sync/runs/active')->assertOk()->assertJsonPath('data.id', $running)->assertJsonPath('data.current_step', 'ISSUES')->assertJsonPath('data.warehouses_total', 11);
         $this->as($this->viewer)->getJson('/api/master-data/stock-sync/runs/active')->assertForbidden();
         $this->as($this->konstruksi)->postJson('/api/master-data/stock-sync/runs', ['token' => $secret, 'sync_issues' => true])->assertStatus(409);   // one at a time

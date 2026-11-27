@@ -131,7 +131,8 @@ PY;
         $bad = $this->as($this->planning)->postJson('/api/maximo-sync/runs')->assertStatus(202)->json('data.id');
         $this->assertSame(['FAILED', 1], [DB::table('maximo_sync_runs')->where('id', $bad)->value('status'), (int) DB::table('maximo_sync_runs')->where('id', $bad)->value('exit_code')]);
 
-        DB::table('maximo_sync_runs')->insert(['id' => (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'RUNNING', 'started_by' => $this->planning->getKey(), 'created_at' => now()]);   // one run at a time
+        DB::table('maximo_sync_runs')->insert(['id' => $busy = (string) Str::uuid(), 'trigger' => 'MANUAL', 'status' => 'RUNNING', 'started_by' => $this->planning->getKey(), 'up3_id' => DB::table('organizational_units')->where('unit_type', 'UP3')->value('id'), 'sync_source' => 'maximo', 'sync_dataset' => 'inspeksi', 'created_at' => now()]);   // one run at a time
+        DB::table('sync_locks')->insert(['source' => 'maximo', 'dataset' => 'inspeksi', 'target_id' => DB::table('organizational_units')->where('unit_type', 'ULP')->value('id'), 'run_table' => 'maximo_sync_runs', 'run_id' => $busy]);
         $this->as($this->planning)->postJson('/api/maximo-sync/runs')->assertStatus(409);
     }
 

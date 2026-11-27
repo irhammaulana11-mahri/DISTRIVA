@@ -7,6 +7,7 @@ use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\MfaService;
 use App\Services\Substations\ConnectionService;
 use App\Services\Substations\DilSyncService;
+use App\Services\Sync\SyncScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Validator;
 /** Master pelanggan (docs/81). Grant (403/404) -> validation (422) -> rule (409). SYS_ADMIN writes need MFA. */
 class ConnectionController extends Controller
 {
-    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ConnectionService $connections, private readonly DilSyncService $dilSync) {}
+    public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly ConnectionService $connections, private readonly DilSyncService $dilSync, private readonly SyncScope $syncScope) {}
 
     /** GET /master-data/customer-connections */
     public function index(Request $request): JsonResponse
@@ -83,7 +84,9 @@ class ConnectionController extends Controller
     {
         $this->authorizer->authorizeScope($request->user(), 'customers.import');
 
-        return response()->json(['data' => $this->dilSync->info()]);
+        $up3Id = $this->dilUp3($request);
+
+        return response()->json(['data' => $this->dilSync->info($up3Id) + ['up3_id' => $up3Id, 'up3s' => $this->syncScope->options($request->user(), 'customers.import')]]);
     }
 
     /** POST /master-data/customer-connections/sync/runs — load the files now in the inbox (detached process). */
@@ -91,7 +94,14 @@ class ConnectionController extends Controller
     {
         $this->write($request, 'customers.import');
         $d = Validator::make($request->all(), ['units' => ['sometimes', 'array', 'min:1', 'max:40'], 'units.*' => ['string', 'regex:/^\\d{5}$/']])->validate();
-        $id = $this->dilSync->start($request->user(), $d['units'] ?? null);
+        $actor = $request->user();
+        $up3Id = $this->dilUp3($request);
+        $units = $d['units'] ?? null;
+        if (! $this->syncScope->coversUp3($actor, 'customers.import', $up3Id)) {     // pengguna ULP hanya memuat berkas ULP-nya
+            $own = array_map(fn (object $u) => (string) $u->code, $this->syncScope->ulpsFor($actor, 'customers.import', $up3Id));
+            $units = $units === null ? $own : array_values(array_intersect($units, $own));
+        }
+        $id = $this->dilSync->start($actor, $up3Id, $units, $this->syncScope->level($actor, 'customers.import', $up3Id));
 
         return response()->json(['data' => $this->dilSync->show($id), 'message' => 'Sinkron DIL dimulai di latar belakang.'], 202);
     }
@@ -101,7 +111,19 @@ class ConnectionController extends Controller
     {
         $this->authorizer->authorizeScope($request->user(), 'customers.import');
 
-        return response()->json(['data' => $this->dilSync->show($run) ?? throw new AdministrationDenied('Data tidak ditemukan.', 404)]);
+        $data = $this->dilSync->show($run);
+        if ($data === null || ! in_array($data['up3']['id'] ?? null, $this->syncScope->up3Ids($request->user(), 'customers.import'), true)) {
+            throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        }
+
+        return response()->json(['data' => $data]);
+    }
+
+    private function dilUp3(Request $request): string
+    {
+        $requested = Validator::make($request->all(), ['up3_id' => ['nullable', 'uuid']])->validate()['up3_id'] ?? null;
+
+        return $this->syncScope->resolve($request->user(), 'customers.import', $requested);
     }
 
     /** @return array{unrestricted: bool, units: list<string>} */

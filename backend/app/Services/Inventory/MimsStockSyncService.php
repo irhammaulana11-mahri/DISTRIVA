@@ -5,6 +5,7 @@ namespace App\Services\Inventory;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Notifications\WorkflowNotifier;
+use App\Services\Sync\SyncScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Client\PendingRequest;
@@ -77,9 +78,9 @@ class MimsStockSyncService
     }
 
     /** @return array{auto_enabled:bool,auto_time:string,auto_user_id:?string,auto_user_name:?string,last_auto_date:?string} */
-    public function autoSettings(): array
+    public function autoSettings(?string $up3Id = null): array
     {
-        $s = DB::table('mims_sync_settings')->where('id', 1)->first();
+        $s = SyncScope::settings('mims_sync_settings', $up3Id);
         $name = $s->auto_user_id ? DB::table('users')->where('id', $s->auto_user_id)->value('name') : null;
 
         return ['auto_enabled' => (bool) $s->auto_enabled, 'auto_time' => (string) $s->auto_time, 'auto_user_id' => $s->auto_user_id, 'auto_user_name' => $name, 'last_auto_date' => $s->last_auto_date, 'auto_stock' => (bool) $s->auto_stock, 'auto_issues' => (bool) $s->auto_issues, 'auto_receipts' => (bool) $s->auto_receipts];
@@ -87,9 +88,10 @@ class MimsStockSyncService
 
     /** Turning it on needs a MIMS token saved by the actor (it is the one used every day). */
     /** @param array{stock?:bool,issues?:bool,receipts?:bool}|null $what what to pull each day (null = keep the current choice; at least one must stay on) */
-    public function saveAutoSettings(User $actor, bool $enabled, string $time, ?array $what = null): array
+    public function saveAutoSettings(User $actor, bool $enabled, string $time, ?array $what = null, ?string $up3Id = null): array
     {
-        $current = $this->autoSettings();
+        $row = SyncScope::settings('mims_sync_settings', $up3Id);
+        $current = $this->autoSettings($up3Id);
         $pick = ['auto_stock' => (bool) ($what['stock'] ?? $current['auto_stock']), 'auto_issues' => (bool) ($what['issues'] ?? $current['auto_issues']), 'auto_receipts' => (bool) ($what['receipts'] ?? $current['auto_receipts'])];
         if (! in_array(true, $pick, true)) {
             throw new AssignmentRuleViolation('Pilih minimal satu data untuk tarik otomatis: stok, pengeluaran, atau penerimaan.');
@@ -97,15 +99,27 @@ class MimsStockSyncService
         if ($enabled && ! DB::table('user_mims_tokens')->where('user_id', $actor->getKey())->exists()) {
             throw new AssignmentRuleViolation('Simpan token MIMS Anda lebih dulu (tarik stok sekali dengan centang "Simpan token"); token itu dipakai untuk tarik otomatis.');
         }
-        DB::table('mims_sync_settings')->where('id', 1)->update(['auto_enabled' => $enabled, 'auto_time' => $time, 'auto_user_id' => $enabled ? $actor->getKey() : DB::raw('auto_user_id'), 'updated_at' => now()] + $pick);
+        DB::table('mims_sync_settings')->where('id', $row->id)->update(['auto_enabled' => $enabled, 'auto_time' => $time, 'auto_user_id' => $enabled ? $actor->getKey() : DB::raw('auto_user_id'), 'updated_at' => now()] + $pick);
 
-        return $this->autoSettings();
+        return $this->autoSettings($up3Id);
     }
 
     /** Called every minute: pulls every ERP warehouse once per business day, from the set time, with the token saved by the user who switched it on. Returns the number of warehouses processed (null = nothing due). */
     public function runAutoIfDue(): ?int
     {
-        $s = DB::table('mims_sync_settings')->where('id', 1)->first();
+        $total = null;
+        foreach (DB::table('mims_sync_settings')->where('auto_enabled', true)->orderBy('id')->get() as $s) {
+            $n = $this->runAuto($s);
+            $total = $n === null ? $total : (int) $total + $n;
+        }
+
+        return $total;
+    }
+
+    /** Tarik otomatis satu UP3 (satu baris pengaturan). */
+    private function runAuto(object $s): ?int
+    {
+        $up3Id = $s->up3_id ?? SyncScope::defaultUp3();
         if (! $s->auto_enabled || $s->auto_user_id === null || ! $this->baseUrlConfigured()) {
             return null;
         }
@@ -113,7 +127,7 @@ class MimsStockSyncService
         if ($now->format('H:i') < $s->auto_time || $s->last_auto_date === $now->toDateString()) {
             return null;
         }
-        DB::table('mims_sync_settings')->where('id', 1)->update(['last_auto_date' => $now->toDateString()]);   // once a day, even when it fails: the failure is reported, not retried every minute
+        DB::table('mims_sync_settings')->where('id', $s->id)->update(['last_auto_date' => $now->toDateString()]);   // once a day, even when it fails: the failure is reported, not retried every minute
         $user = User::query()->find($s->auto_user_id);
         $enc = DB::table('user_mims_tokens')->where('user_id', $s->auto_user_id)->value('token_encrypted');
         $token = null;
@@ -128,7 +142,7 @@ class MimsStockSyncService
         }
         $count = 0;
         $rejected = false;
-        foreach (DB::table('warehouses')->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code')->get() as $wh) {
+        foreach (DB::table('warehouses')->whereIn('id', SyncScope::warehouseIds([$up3Id]))->where('is_active', true)->whereNotNull('plant')->whereNotNull('stor_loc')->orderBy('code')->get() as $wh) {
             $count++;
             if ($s->auto_stock) {
                 $r = $this->syncWarehouse($wh, $user, null, false, $token, $user, 'AUTO');

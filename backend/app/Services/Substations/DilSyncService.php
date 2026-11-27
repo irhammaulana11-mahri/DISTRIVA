@@ -6,6 +6,8 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Sync\SyncRuns;
+use App\Services\Sync\SyncScope;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -32,7 +34,7 @@ class DilSyncService
 
     private const STALE_HOURS = 8;
 
-    public function __construct(private readonly ConnectionService $connections, private readonly ApplicationAuthorizer $authorizer) {}
+    public function __construct(private readonly ConnectionService $connections, private readonly ApplicationAuthorizer $authorizer, private readonly SyncRuns $runs) {}
 
     public function inbox(): string
     {
@@ -83,15 +85,29 @@ class DilSyncService
         }
     }
 
-    /** @return array<string,mixed> */
-    public function info(): array
+    /**
+     * Berkas di folder yang menjadi urusan satu UP3: kode ULP-nya milik UP3 itu. Berkas tanpa kode ULP yang dikenal menjadi urusan UP3 utama.
+     *
+     * @return list<array{name:string,size:int,modified:string,kind:string,ulp_code:?string,month:?string}>
+     */
+    public function filesFor(string $up3Id): array
     {
-        $this->expireStale();
-        $recent = DB::table('dil_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->orderByDesc('r.created_at')->limit(15)->get(['r.*', 'u.name as started_by_name'])->map(fn ($r) => $this->present($r))->all();
-        $files = $this->files();
+        $owner = DB::table('organizational_units')->where('unit_type', 'ULP')->pluck('parent_id', 'code')->all();
+        $default = SyncScope::defaultUp3();
 
-        return ['inbox' => $this->inboxLabel(), 'files' => $files, 'mdbtools' => $this->mdbtoolsAvailable(), 'needs_mdbtools' => (bool) array_filter($files, fn ($f) => $f['kind'] === 'mdb'), 'units' => $this->units($files, $recent), 'unrecognised_files' => array_values(array_filter($files, fn ($f) => $f['ulp_code'] === null)),
-            'accepted' => ['.mdb', '.csv'], 'naming' => 'DIL_SALDO_MASK_UP_<YYYYMM>_<kode ULP 5 digit>.mdb', 'active' => collect($recent)->first(fn ($r) => in_array($r['status'], ['QUEUED', 'RUNNING'], true)), 'recent' => array_slice($recent, 0, 5), 'history' => array_map(fn ($r) => $this->summary($r), array_slice($recent, 0, 10)), 'monitor' => $this->monitor($recent)];
+        return array_values(array_filter($this->files(), fn (array $f) => ($owner[(string) $f['ulp_code']] ?? $default) === $up3Id));
+    }
+
+    /** @return array<string,mixed> */
+    public function info(?string $up3Id = null): array
+    {
+        $up3Id ??= (string) SyncScope::defaultUp3();
+        $this->expireStale();
+        $recent = DB::table('dil_sync_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.started_by')->where('r.up3_id', $up3Id)->orderByDesc('r.created_at')->limit(15)->get(['r.*', 'u.name as started_by_name'])->map(fn ($r) => $this->present($r))->all();
+        $files = $this->filesFor($up3Id);
+
+        return ['inbox' => $this->inboxLabel(), 'files' => $files, 'mdbtools' => $this->mdbtoolsAvailable(), 'needs_mdbtools' => (bool) array_filter($files, fn ($f) => $f['kind'] === 'mdb'), 'units' => $this->units($files, $recent, $up3Id), 'unrecognised_files' => array_values(array_filter($files, fn ($f) => $f['ulp_code'] === null)),
+            'accepted' => ['.mdb', '.csv'], 'naming' => 'DIL_SALDO_MASK_UP_<YYYYMM>_<kode ULP 5 digit>.mdb', 'active' => collect($recent)->first(fn ($r) => in_array($r['status'], ['QUEUED', 'RUNNING'], true)), 'recent' => array_slice($recent, 0, 5), 'history' => array_map(fn ($r) => $this->summary($r), array_slice($recent, 0, 10)), 'monitor' => $this->monitor($recent, $up3Id)];
     }
 
     /**
@@ -117,7 +133,7 @@ class DilSyncService
      * @param  list<array<string,mixed>>  $recent
      * @return array<string,int>
      */
-    private function monitor(array $recent): array
+    private function monitor(array $recent, string $up3Id): array
     {
         $latest = [];
         foreach (array_reverse($recent) as $run) {
@@ -125,7 +141,7 @@ class DilSyncService
                 isset($r['ulp_code']) && $latest[$r['ulp_code']] = $r['status'];
             }
         }
-        $units = DB::table('organizational_units')->where('unit_type', 'ULP')->where('is_active', true)->pluck('code')->all();
+        $units = array_column(SyncScope::ulps($up3Id), 'code');
         $ok = count(array_filter($units, fn ($c) => ($latest[$c] ?? null) === 'OK'));
         $failed = count(array_filter($units, fn ($c) => isset($latest[$c]) && $latest[$c] !== 'OK'));
 
@@ -139,9 +155,9 @@ class DilSyncService
      * @param  list<array<string,mixed>>  $recent  runs as presented (newest first)
      * @return list<array<string,mixed>>
      */
-    public function units(array $files, array $recent): array
+    public function units(array $files, array $recent, string $up3Id): array
     {
-        $names = DB::table('organizational_units')->where('unit_type', 'ULP')->where('is_active', true)->orderBy('code')->pluck('name', 'code')->all();
+        $names = array_column(SyncScope::ulps($up3Id), 'name', 'code');
         foreach ($files as $f) {
             $f['ulp_code'] !== null && ! isset($names[$f['ulp_code']]) && $names[$f['ulp_code']] = null;
         }
@@ -164,10 +180,10 @@ class DilSyncService
     }
 
     /** Registers a run for the files now in the inbox and starts the detached process. */
-    public function start(User $actor, ?array $units = null): string
+    public function start(User $actor, string $up3Id, ?array $units = null, ?string $scopeUnitId = null): string
     {
         $this->expireStale();
-        $files = $this->files();
+        $files = $this->filesFor($up3Id);
         if ($units !== null) {                                                      // a loop over the chosen units only; the other files stay in the inbox
             $files = array_values(array_filter($files, fn ($f) => $f['ulp_code'] !== null && in_array($f['ulp_code'], $units, true)));
         }
@@ -178,15 +194,10 @@ class DilSyncService
             throw new AssignmentRuleViolation('Berkas .mdb perlu mdbtools di server: jalankan "sudo apt install mdbtools", atau taruh berkas dalam bentuk .csv.');
         }
         $id = (string) Str::uuid();
-        DB::transaction(function () use ($id, $actor, $files): void {
-            if (DB::table('dil_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->lockForUpdate()->exists()) {
-                throw new AssignmentRuleViolation('Masih ada sinkron DIL yang berjalan; tunggu sampai selesai.');
-            }
-            DB::table('dil_sync_runs')->insert(['id' => $id, 'status' => 'QUEUED', 'files' => json_encode(array_map(fn ($f) => ['name' => $f['name'], 'size' => $f['size'], 'ulp_code' => $f['ulp_code']], $files)), 'started_by' => $actor->getKey(), 'created_at' => now()]);
-        });
+        $ulpIds = DB::table('organizational_units')->where('unit_type', 'ULP')->where('parent_id', $up3Id)->pluck('id', 'code')->all();
+        $this->runs->register('dil_sync_runs', ['id' => $id, 'files' => json_encode(array_map(fn ($f) => ['name' => $f['name'], 'size' => $f['size'], 'ulp_code' => $f['ulp_code']], $files)), 'started_by' => $actor->getKey(), 'total_units' => count($files), 'done_units' => 0], $up3Id, 'dil', 'pelanggan', array_map(fn (array $f) => $ulpIds[(string) $f['ulp_code']] ?? $up3Id, $files), $scopeUnitId);
         if (config('distriva.dil.detach')) {
-            $cmd = sprintf('nohup %s artisan distriva:dil-sync-execute %s > /dev/null 2>&1 &', escapeshellarg((string) config('distriva.backup.php')), escapeshellarg($id));
-            SymfonyProcess::fromShellCommandline($cmd, base_path())->run();
+            $this->runs->dispatch('dil_sync_runs', $id, self::STALE_HOURS * 3600);
         }
 
         return $id;
@@ -226,7 +237,7 @@ class DilSyncService
                 } catch (Throwable $e) {
                     $results[] = ['file' => $f['name'], 'status' => 'FAILED', 'rows' => 0, 'message' => Str::limit($e instanceof AssignmentRuleViolation || $e instanceof AdministrationDenied ? $e->getMessage() : 'Gagal membaca berkas: '.class_basename($e), 200, '…'), 'seconds' => (int) round(microtime(true) - $began)] + $meta;
                 }
-                DB::table('dil_sync_runs')->where('id', $runId)->update(['results' => json_encode($results), 'rows_done' => $rows]);
+                DB::table('dil_sync_runs')->where('id', $runId)->update(['results' => json_encode($results), 'rows_done' => $rows, 'done_units' => count($results)]);
             }
             $ok = count(array_filter($results, fn ($r) => $r['status'] === 'OK'));
             $status = $ok === count($results) ? 'OK' : ($ok > 0 ? 'PARTIAL' : 'FAILED');
@@ -235,6 +246,7 @@ class DilSyncService
         } catch (Throwable $e) {
             DB::table('dil_sync_runs')->where('id', $runId)->update(['status' => 'FAILED', 'results' => json_encode($results), 'current_file' => null, 'finished_at' => now(), 'message' => Str::limit($e->getMessage(), 300, '…')]);
         }
+        $this->runs->notifyFinished('dil_sync_runs', $runId);
     }
 
     /** @return array<string,mixed>|null */
@@ -375,8 +387,7 @@ class DilSyncService
 
     private function expireStale(): void
     {
-        DB::table('dil_sync_runs')->whereIn('status', ['QUEUED', 'RUNNING'])->where('created_at', '<', now()->subHours(self::STALE_HOURS))
-            ->update(['status' => 'FAILED', 'message' => 'Dihentikan: proses tidak selesai.', 'finished_at' => now(), 'current_file' => null]);
+        $this->runs->expire('dil_sync_runs', self::STALE_HOURS * 3600, 'message', ['current_file' => null]);
     }
 
     /** @return array<string,mixed> */
@@ -394,6 +405,6 @@ class DilSyncService
         return ['id' => $r->id, 'status' => $r->status, 'files' => $files, 'results' => $results, 'current_file' => $r->current_file, 'rows_done' => (int) $r->rows_done,
             'bytes_total' => $bytesTotal, 'bytes_done' => $bytesDone, 'units_total' => count($units), 'units_done' => count($doneUnits),
             'eta_seconds' => $running && $bytesDone > 0 && $bytesTotal > $bytesDone ? (int) round($elapsed * ($bytesTotal - $bytesDone) / $bytesDone) : null,
-            'message' => $r->message, 'started_by_name' => $r->started_by_name ?? null, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at];
+            'message' => $r->message, 'started_by_name' => $r->started_by_name ?? null, 'created_at' => $r->created_at, 'started_at' => $r->started_at, 'finished_at' => $r->finished_at] + $this->runs->describe($r);
     }
 }

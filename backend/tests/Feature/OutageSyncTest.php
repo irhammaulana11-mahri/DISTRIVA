@@ -149,6 +149,7 @@ class OutageSyncTest extends PostgresTestCase
         $edited = str_replace('99', '120', $this->csv());                                         // the ENS of line 1
         $without = array_slice(explode("\n", trim($edited)), 0, -2);
         $this->fake(implode("\n", $without)."\n");
+        $this->travel(2)->seconds();     // riwayat diurutkan menurut created_at yang hanya sampai detik
         $this->as($this->admin)->postJson('/api/outages/sync/runs')->assertStatus(202);
         $run = json_decode(DB::table('outage_sync_runs')->orderByDesc('created_at')->first()->counts, true);
         $this->assertGreaterThanOrEqual(1, $run['updated']);
@@ -157,6 +158,7 @@ class OutageSyncTest extends PostgresTestCase
         $this->assertSame($run['removed'], DB::table('outage_events')->whereNotNull('source_removed_at')->count());
 
         $this->fake("NO,TANGGAL,PENYULANG\n");                                                    // an (almost) empty sheet must not wipe the data
+        $this->travel(2)->seconds();
         $this->as($this->admin)->postJson('/api/outages/sync/runs')->assertStatus(202);
         $last = DB::table('outage_sync_runs')->orderByDesc('created_at')->first();
         $this->assertSame('FAILED', $last->status);
@@ -184,15 +186,17 @@ class OutageSyncTest extends PostgresTestCase
         $this->configure();
         // sisa klik yang gagal memulai proses: terdaftar tetapi tidak pernah berjalan
         $stale = (string) Str::uuid();
-        DB::table('outage_sync_runs')->insert(['id' => $stale, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'created_at' => now()->subMinutes(30)]);
+        $lock = ['trigger' => 'MANUAL', 'status' => 'QUEUED', 'up3_id' => $this->ulpA->parent_id, 'sync_source' => 'gangguan', 'sync_dataset' => 'events'];
+        DB::table('outage_sync_runs')->insert(['id' => $stale, 'status' => 'FAILED', 'created_at' => now()] + $lock);
+        DB::table('outage_sync_runs')->where('id', $stale)->update(['status' => 'QUEUED', 'created_at' => now()->subMinutes(30)]);
         $fresh = (string) Str::uuid();
-        DB::table('outage_sync_runs')->insert(['id' => $fresh, 'trigger' => 'MANUAL', 'status' => 'QUEUED', 'created_at' => now()->subMinute()]);
-
         $runs = $this->as($this->admin)->getJson('/api/outages/sync')->assertOk()->json('data.runs');                      // membaca status membersihkan yang macet
         $byId = collect($runs)->keyBy('id');
         $this->assertSame('FAILED', $byId[$stale]['status']);
         $this->assertStringContainsString('proses tidak selesai', $byId[$stale]['message']);
-        $this->assertSame('QUEUED', $byId[$fresh]['status']);                                                                // yang baru masih boleh menunggu
+        DB::table('outage_sync_runs')->insert(['id' => $fresh, 'created_at' => now()->subMinute()] + $lock);
+        DB::table('sync_locks')->insert(['source' => 'gangguan', 'dataset' => 'events', 'target_id' => $this->ulpA->parent_id, 'run_table' => 'outage_sync_runs', 'run_id' => $fresh]);
+        $this->assertSame('QUEUED', $this->as($this->admin)->getJson('/api/outages/sync/runs/'.$fresh)->assertOk()->json('data.status'));   // yang baru masih boleh menunggu
         $this->assertSame('FAILED', $this->as($this->admin)->getJson('/api/outages/sync/runs/'.$stale)->assertOk()->json('data.status'));
         $this->as($this->admin)->postJson('/api/outages/sync/runs')->assertStatus(409);                                      // masih ada yang berjalan: tidak ditumpuk
 

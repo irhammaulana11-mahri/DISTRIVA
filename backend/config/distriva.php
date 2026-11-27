@@ -219,6 +219,20 @@ return [
      * DIL sync started from Master Pelanggan: the .mdb / .csv files of the DIL are placed in `inbox` (outside the web root) and read there by a detached process.
      * `mdb-export` / `mdb-tables` are the mdbtools programs (apt install mdbtools); only the columns the master needs are read, and names are masked.
      */
+    // Sinkronisasi paralel multi-UP3 (docs/94): run diserahkan ke antrean `sync-light` / `sync-heavy`; worker-nya harus berjalan di server.
+    'sync' => [
+        'queue_connection' => env('DISTRIVA_SYNC_QUEUE_CONNECTION', 'sync_jobs'),
+        // run sekaligus per sistem sumber, lintas UP3; batas resmi sumber belum diketahui, jadi angkanya sengaja kecil
+        'concurrency' => [
+            'eis' => (int) env('DISTRIVA_SYNC_LIMIT_EIS', 2),
+            'maximo' => (int) env('DISTRIVA_SYNC_LIMIT_MAXIMO', 2),
+            'dil' => (int) env('DISTRIVA_SYNC_LIMIT_DIL', 2),
+            'apkt' => (int) env('DISTRIVA_SYNC_LIMIT_APKT', 3),
+            'ap2t' => (int) env('DISTRIVA_SYNC_LIMIT_AP2T', 3),
+            'mims' => (int) env('DISTRIVA_SYNC_LIMIT_MIMS', 3),
+            'gangguan' => (int) env('DISTRIVA_SYNC_LIMIT_GANGGUAN', 3),
+        ],
+    ],
     'dil' => [
         'inbox' => env('DISTRIVA_DIL_INBOX', storage_path('app/dil-inbox')),
         'mdb_export' => env('DISTRIVA_DIL_MDB_EXPORT', 'mdb-export'),

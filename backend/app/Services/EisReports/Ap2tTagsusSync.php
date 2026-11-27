@@ -72,6 +72,7 @@ class Ap2tTagsusSync
         $counts = ['BARU' => 0, 'DIGANTIKAN' => 0, 'DUPLIKAT' => 0, 'SUDAH_DIGANTIKAN' => 0];
         $failed = 0;
         $deadline = microtime(true) + (float) config('distriva.eis_sync.timeout_seconds');
+        DB::table('eis_sync_runs')->where('id', $run->id)->update(['done_units' => 0, 'total_units' => count($months) * $ulps->count() * count($reports)]);
         foreach ($months as $ym) {
             foreach ($ulps as $ulp) {
                 foreach ($reports as $report) {
@@ -93,6 +94,7 @@ class Ap2tTagsusSync
                         $failed++;
                         $say("GAGAL  {$label}: {$e->getMessage()}");
                     }
+                    DB::table('eis_sync_runs')->where('id', $run->id)->increment('done_units');
                     usleep((int) config('distriva.ap2t.pause_ms') * 1000);
                 }
             }

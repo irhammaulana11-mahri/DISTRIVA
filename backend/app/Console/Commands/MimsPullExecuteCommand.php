@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use App\Services\Inventory\MimsPullRunService;
 use Illuminate\Console\Command;
 
-/** Internal: runs a registered manual MIMS pull in a detached process (the pasted token arrives in the environment). */
+/** Internal: runs a registered manual MIMS pull by hand (normally the queue does, see docs/94); a token may be given in the environment. */
 class MimsPullExecuteCommand extends Command
 {
     protected $signature = 'distriva:mims-pull-execute {id}';
