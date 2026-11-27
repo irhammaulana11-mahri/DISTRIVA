@@ -678,6 +678,37 @@ class InventoryTest extends PostgresTestCase
     }
 
     #[Test]
+    public function the_daily_mims_pull_reads_only_the_warehouses_of_the_main_up3_unless_configured(): void
+    {
+        $other = $this->makeUnit('UP3');
+        $other->forceFill(['code' => '51LAIN'])->save();
+        foreach ([[$this->up3, '5118', '2810'], [$other, '5115', '2100']] as [$up3, $plant, $loc]) {
+            DB::table('warehouses')->insert(['id' => (string) Str::uuid(), 'code' => "{$plant}-{$loc}", 'name' => "Gd {$loc}", 'organizational_unit_id' => $up3->getKey(), 'plant' => $plant, 'stor_loc' => $loc, 'kind' => 'GO', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        DB::table('eis_sync_settings')->where('id', 1)->update(['up3_id' => $this->up3->getKey()]);     // UP3 utama
+        $this->makeUser(email: 'sinkron@example.test');
+        config(['distriva.mims.base_url' => 'https://mims.test/api', 'distriva.mims.auth_token' => 'token-uji', 'distriva.mims.sync_user_email' => 'sinkron@example.test', 'distriva.mims.sync_up3' => null]);
+        Http::fake(['mims.test/*' => Http::response(['data' => []])]);
+
+        $this->artisan('distriva:mims-sync-stock', ['--dry-run' => true])->assertSuccessful();
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($r) => str_contains($r->url(), '&5118&2810&'));
+
+        config(['distriva.mims.sync_up3' => '51lain']);
+        $this->artisan('distriva:mims-sync-stock', ['--dry-run' => true])->assertSuccessful();
+        Http::assertSent(fn ($r) => str_contains($r->url(), '&5115&2100&'));
+        Http::assertSentCount(2);
+
+        config(['distriva.mims.sync_up3' => 'SALAH']);
+        $this->artisan('distriva:mims-sync-stock', ['--dry-run' => true])->assertFailed();
+        Http::assertSentCount(2);
+
+        config(['distriva.mims.sync_up3' => 'SEMUA']);
+        $this->artisan('distriva:mims-sync-stock', ['--dry-run' => true])->assertSuccessful();
+        Http::assertSentCount(4);
+    }
+
+    #[Test]
     public function the_automatic_mims_pull_stores_the_days_snapshot_reports_failures_and_never_records_the_token(): void
     {
         $secret = 'rahasia-token-uji';

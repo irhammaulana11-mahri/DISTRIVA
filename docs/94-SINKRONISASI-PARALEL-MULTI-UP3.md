@@ -180,4 +180,4 @@ Gudang MIMS: dimuat 27 Nov 2026 ke database dev untuk 16 UP3, 130 gudang (satu p
 | 5117 | Madiun | 5125 | Ponorogo |
 | 5118 | Mojokerto | 5127 | Surabaya Barat |
 
-Perintah `distriva:mims-sync-stock` (jadwal harian, memakai token server) menarik **semua** gudang aktif, jadi kini 130 gudang.
+Perintah `distriva:mims-sync-stock` (jadwal harian, token server) **sementara hanya menarik gudang UP3 utama** (Mojokerto; keputusan pemilik 27 Nov 2026). Atur lewat `DISTRIVA_MIMS_SYNC_UP3`: kosong = UP3 utama, kode UP3, atau `SEMUA` (130 gudang). Kode yang tidak dikenal menghentikan perintah. `--warehouse=` tetap dapat menunjuk gudang mana pun. Tarik otomatis per UP3 (`mims-sync-auto`) tidak berubah.

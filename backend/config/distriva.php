@@ -303,5 +303,7 @@ return [
         'mirror_timeout_seconds' => (int) env('DISTRIVA_MIMS_MIRROR_TIMEOUT', 180),   // the document lists (issues, receipts) are slower than the stock call
         'sync_user_email' => env('DISTRIVA_MIMS_SYNC_USER_EMAIL'),       // the account recorded as the creator of automatic snapshots
         'sync_time' => env('DISTRIVA_MIMS_SYNC_TIME', '02:00'),
+        // UP3 yang gudangnya ditarik tarik harian dengan token server: kosong = UP3 utama (sementara hanya Mojokerto, keputusan pemilik 27 Nov 2026), kode UP3 (mis. 51MLG), atau SEMUA
+        'sync_up3' => env('DISTRIVA_MIMS_SYNC_UP3'),
     ],
 ];
