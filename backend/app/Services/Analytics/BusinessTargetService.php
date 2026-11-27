@@ -4,6 +4,7 @@ namespace App\Services\Analytics;
 
 use App\Services\Nko\NkoCalculationService;
 use App\Services\Nko\NkoCalculator;
+use App\Services\Nko\NkoDefinitionSets;
 use App\Services\Nko\NkoRealizationResolver;
 use App\Services\Nko\NkoRealizationRules;
 use Illuminate\Support\Facades\DB;
@@ -57,7 +58,7 @@ class BusinessTargetService
         $links = self::LINKS[$code] ?? [];
         $year = (int) substr($to, 0, 4);
         $month = (int) substr($to, 5, 2);
-        $set = $links === [] ? null : DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $unit->unit_type)->where('status', 'AKTIF')->first(['id']);
+        $set = $links === [] ? null : NkoDefinitionSets::forMonth($year, $unit->unit_type, $month);
         if ($set === null) {
             return [];
         }
@@ -67,6 +68,7 @@ class BusinessTargetService
         $definitions = DB::table('kpi_definitions')->where('set_id', $set->id)->whereIn('code', array_column($links, 'code'))->get(['id', 'code', 'name'])->keyBy('code');
         $resolved = $this->resolver->resolve($unit->id, $year, $month);
         $rules = $this->rules->forPeriod($year, $month);
+        $yearEndSet = NkoDefinitionSets::forMonth($year, $unit->unit_type, 12);
         $out = [];
         foreach ($links as $link) {
             $node = $nodes->get($link['code']);
@@ -74,10 +76,11 @@ class BusinessTargetService
             if ($node === null || $definition === null) {
                 continue;
             }
-            $targets = DB::table('kpi_targets')->where('definition_id', $definition->id)->where('organizational_unit_id', $unit->id)
-                ->whereIn('period', [sprintf('%04d-%02d-01', $year, $month), "{$year}-12-01"])->get(['period', 'target_value', 'target_text'])->keyBy(fn ($t) => (int) substr((string) $t->period, 5, 2));
-            $target = $targets->get($month);
-            $yearEnd = $targets->get(12);
+            $target = DB::table('kpi_targets')->where('definition_id', $definition->id)->where('organizational_unit_id', $unit->id)
+                ->where('period', sprintf('%04d-%02d-01', $year, $month))->first(['target_value', 'target_text']);
+            // target akhir tahun diambil dari versi yang berlaku di Desember
+            $yearEnd = $yearEndSet === null ? null : DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->where('d.set_id', $yearEndSet->id)->where('d.code', $link['code'])
+                ->where('t.organizational_unit_id', $unit->id)->where('t.period', "{$year}-12-01")->first(['t.target_value', 't.target_text']);
             $real = $resolved[$link['code']] ?? null;
             if ($real === null && $link['series'] !== null && ($metricYtd[$link['series']] ?? null) !== null) {
                 $real = ['value' => (float) $metricYtd[$link['series']], 'source' => 'METRIK'];

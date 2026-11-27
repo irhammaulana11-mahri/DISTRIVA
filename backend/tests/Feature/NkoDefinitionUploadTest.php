@@ -6,6 +6,8 @@ use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Nko\NkoDefinitionImportService;
+use App\Services\Nko\NkoDefinitionSets;
+use App\Services\Nko\NkoSnapshotService;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\NkoPermissionSeeder;
 use Illuminate\Http\UploadedFile;
@@ -72,9 +74,9 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         return $this->withToken($token->plainTextToken);
     }
 
-    private function upload(string $path, ?User $user = null, int $year = 2026, string $endpoint = '/api/nko/definition-uploads')
+    private function upload(string $path, ?User $user = null, int $year = 2026, string $endpoint = '/api/nko/definition-uploads', array $extra = [])
     {
-        return $this->as($user ?? $this->planner)->post($endpoint, ['file' => new UploadedFile($path, 'nko-rev.xlsx', null, null, true), 'year' => $year, 'note' => 'Revisi kontrak'], ['Accept' => 'application/json']);
+        return $this->as($user ?? $this->planner)->post($endpoint, ['file' => new UploadedFile($path, 'nko-rev.xlsx', null, null, true), 'year' => $year, 'note' => 'Revisi kontrak'] + $extra, ['Accept' => 'application/json']);
     }
 
     private function check(string $path, int $year = 2026): array
@@ -490,6 +492,66 @@ class NkoDefinitionUploadTest extends PostgresTestCase
         $book->addSheet($copy);
         $this->save($book, $mixed);
         $this->assertStringContainsString('Tab "DEFINISI ULP" tidak boleh digabung dengan tab unit ULP', implode(' ', $this->check($mixed)['errors']));
+    }
+
+    private function approveDefinition(string $path, int $effectiveMonth = 1): void
+    {
+        $id = $this->upload($path, extra: ['effective_month' => $effectiveMonth])->assertCreated()->json('data.id');
+        $this->as($this->asman)->postJson("/api/nko/definition-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk();
+    }
+
+    /** @return array<int, float> versi => target SAIDI ULP Jombang bulan itu pada tiap versi */
+    private function saidiByVersion(int $month): array
+    {
+        return DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')
+            ->where('s.unit_level', 'ULP')->where('d.code', 'saidi')->where('t.period', sprintf('2026-%02d-01', $month))->orderBy('s.version')->pluck('t.target_value', 's.version')->map(fn ($v) => (float) $v)->all();
+    }
+
+    #[Test]
+    public function versi_yang_berlaku_mulai_bulan_tertentu_tidak_mengubah_bulan_sebelumnya(): void
+    {
+        $report = $this->upload($this->book(saidiWeight: 8), endpoint: '/api/nko/definition-uploads/check', extra: ['effective_month' => 2])->assertOk()->json('data');
+        $this->assertSame('Versi baru berlaku mulai Februari; bulan sebelumnya tetap memakai versi lama.', array_column($report['changes'], null, 'level')['ULP']['alerts'][0]);
+
+        $this->approveDefinition($this->book(saidiWeight: 8), 2);
+
+        $this->assertSame([1, 2], [(int) NkoDefinitionSets::forMonth(2026, 'ULP', 1)->version, (int) NkoDefinitionSets::forMonth(2026, 'ULP', 2)->version]);
+        $weight = fn (int $month) => collect($this->as($this->planner)->getJson("/api/nko/definitions?year=2026&level=ULP&month={$month}")->assertOk()->json('data.definitions'))->firstWhere('code', 'saidi')['weight'];
+        $this->assertEquals([6, 8], [$weight(1), $weight(2)]);
+        foreach ([1, 2] as $month) {
+            $snapshot = app(NkoSnapshotService::class)->calculate($this->ulp->id, 2026, $month);
+            $this->assertSame(NkoDefinitionSets::forMonth(2026, 'ULP', $month)->id, DB::table('kpi_snapshots')->where('id', $snapshot['snapshot_id'])->value('set_id'));
+        }
+        $this->as($this->planner)->getJson('/api/nko/definition-sets?year=2026')->assertOk()->assertJsonPath('data.0.effective_month', 2);
+    }
+
+    #[Test]
+    public function target_diterapkan_pada_versi_yang_berlaku_di_bulan_itu_dan_dibawa_ke_versi_berikutnya(): void
+    {
+        $this->approveDefinition($this->book(saidiWeight: 8), 2);
+
+        // E = Januari (versi 1), F = Februari (versi 2)
+        $path = $this->edited($this->targetTemplate(), ['ULP JOMBANG' => ['E7' => 4, 'F7' => 9]]);
+        $id = $this->upload($path, endpoint: '/api/nko/target-uploads')->assertCreated()->json('data.id');
+        $this->as($this->asman)->postJson("/api/nko/target-uploads/{$id}/decision", ['decision' => 'approve'])->assertOk()->assertJsonPath('data.cells', 2);
+        $this->assertSame([1 => 4.0, 2 => 3.7], $this->saidiByVersion(1));
+        $this->assertSame([1 => 7.0, 2 => 9.0], $this->saidiByVersion(2));
+
+        // versi berikutnya (berlaku sejak Januari) tanpa target di workbook mengambil tiap bulan dari versi yang berlaku
+        $empty = ['M13' => null, 'N13' => null];
+        $this->approveDefinition($this->edited($this->book(saidiWeight: 9), ['UP3 MOJOKERTO' => $empty, 'ULP JOMBANG' => $empty]));
+        $this->assertSame(4.0, $this->saidiByVersion(1)[3]);
+        $this->assertSame(9.0, $this->saidiByVersion(2)[3]);
+    }
+
+    #[Test]
+    public function versi_pertama_suatu_tahun_harus_berlaku_sejak_januari(): void
+    {
+        DB::table('kpi_definition_sets')->delete();
+
+        $errors = $this->upload($this->book(), endpoint: '/api/nko/definition-uploads/check', extra: ['effective_month' => 2])->assertOk()->json('data.errors');
+
+        $this->assertContains('Belum ada definisi ULP 2026; versi pertama harus berlaku sejak Januari.', $errors);
     }
 
     private function viewerOf(): User

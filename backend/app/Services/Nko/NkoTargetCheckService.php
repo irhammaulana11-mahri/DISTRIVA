@@ -63,8 +63,9 @@ class NkoTargetCheckService
         foreach (DB::table('organizational_units')->whereIn('unit_type', ['ULP', 'UP3'])->get(['id', 'name']) as $u) {
             $units[Str::lower(trim($u->name))] = $u->id;
         }
-        $sets = DB::table('kpi_definition_sets')->where('year', $year)->where('status', 'AKTIF')->get(['id', 'unit_level', 'version'])->keyBy('unit_level');
+        $versions = [];
         $definitions = [];
+        $current = [];
         $bySheet = array_column($read['sheets'], null, 'sheet');
 
         foreach ($report['tabs'] as &$tab) {
@@ -74,7 +75,8 @@ class NkoTargetCheckService
             }
             $level = $sheet['level'];
             $unitId = $units[Str::lower($level.' '.$sheet['unit_name'])] ?? null;
-            $set = $sets[$level] ?? null;
+            $versions[$level] ??= NkoDefinitionSets::byMonth($year, $level);
+            $set = $versions[$level][12] ?? null;
             $tab['unit_found'] = $unitId !== null;
             $tab['items'] = count($sheet['rows']);
             if ($unitId === null) {
@@ -84,12 +86,17 @@ class NkoTargetCheckService
                 $tab['errors'][] = "belum ada definisi NKO {$level} aktif tahun {$year}.";
             }
             if ($unitId !== null && $set !== null) {
-                $definitions[$level] ??= $this->definitions($set->id);
-                $baseSets[$level] = $set->id;
-                [$cells, $items] = $this->sheet($tab, $sheet, $definitions[$level], $unitId, $year);
+                foreach ($versions[$level] as $month => $version) {
+                    $definitions[$version->id] ??= $this->definitions($version->id);
+                }
+                $current[$level] ??= NkoDefinitionSets::targets($year, $level);
+                $byMonth = array_map(fn (object $v) => $definitions[$v->id], $versions[$level]);
+                $baseSets[$level] = implode(',', array_unique(array_column($versions[$level], 'id')));
+                [$cells, $items] = $this->sheet($tab, $sheet, $byMonth, $current[$level][$unitId] ?? [], $unitId, $year);
                 $writes = [...$writes, ...$cells];
                 if ($items !== []) {
-                    $report['changes'][] = ['level' => $level, 'unit_name' => $sheet['unit_name'], 'compared_with' => "{$year} v{$set->version}", 'cells' => count($cells), 'items' => $items];
+                    $used = implode(', ', array_unique(array_map(fn (object $v) => "v{$v->version}", $versions[$level])));
+                    $report['changes'][] = ['level' => $level, 'unit_name' => $sheet['unit_name'], 'compared_with' => "{$year} {$used}", 'cells' => count($cells), 'items' => $items];
                 }
             }
             foreach ($tab['errors'] as $error) {
@@ -125,10 +132,11 @@ class NkoTargetCheckService
      *
      * @param  array<string, mixed>  $tab
      * @param  array<string, mixed>  $sheet
-     * @param  array<string, object>  $definitions
+     * @param  array<int, array<string, object>>  $byMonth  bulan => kode => definisi versi yang berlaku
+     * @param  array<string, array<int, array{value: ?float, text: ?string}>>  $stored  kode => bulan => target berlaku
      * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>} sel yang diterapkan dan rincian per item
      */
-    private function sheet(array &$tab, array $sheet, array $definitions, string $unitId, int $year): array
+    private function sheet(array &$tab, array $sheet, array $byMonth, array $stored, string $unitId, int $year): array
     {
         if ($sheet['invalid'] !== []) {
             $tab['errors'][] = 'sel bukan angka atau rentang ("95 - 105"): '.$this->names($sheet['invalid']).'.';
@@ -137,13 +145,9 @@ class NkoTargetCheckService
             $tab['errors'][] = 'sel berisi rumus tanpa nilai tersimpan: '.$this->names($sheet['uncached']).'. Buka di Excel, perbarui tautan, simpan, lalu unggah lagi.';
         }
 
-        $stored = [];
-        foreach (DB::table('kpi_targets')->whereIn('definition_id', array_column($definitions, 'id'))->where('organizational_unit_id', $unitId)->get() as $t) {
-            $stored[$t->definition_id][(int) substr($t->period, 5, 2)] = ['value' => $t->target_value === null ? null : (float) $t->target_value, 'text' => $t->target_text];
-        }
-
         $seen = [];
         $unknown = [];
+        $absent = [];
         $duplicate = [];
         $cleared = [];
         $empty = [];
@@ -152,7 +156,11 @@ class NkoTargetCheckService
         $writes = [];
         $items = [];
         foreach ($sheet['rows'] as $row) {
-            $d = $definitions[$row['code']] ?? null;
+            // definisi versi terbaru yang memuat kode ini
+            $d = null;
+            foreach ($byMonth as $definitions) {
+                $d = $definitions[$row['code']] ?? $d;
+            }
             if ($d === null) {
                 $unknown[] = "{$row['code']} (baris {$row['row']})";
 
@@ -164,7 +172,7 @@ class NkoTargetCheckService
                 continue;
             }
             $seen[$row['code']] = true;
-            $before = $stored[$d->id] ?? [];
+            $before = $stored[$row['code']] ?? [];
             if ($d->leaf && (float) $d->weight > 0) {
                 if ($row['months'] === []) {
                     $before === [] ? $empty[] = $d->name : $cleared[] = $d->name;
@@ -179,9 +187,15 @@ class NkoTargetCheckService
                 if ($this->same($from, $to)) {
                     continue;
                 }
+                $target = $byMonth[$month][$row['code']] ?? null;     // target ditulis pada versi yang berlaku di bulan itu
+                if ($target === null) {
+                    $absent[] = "{$d->name} bulan {$month}";
+
+                    continue;
+                }
                 $removed += $to === null ? 1 : 0;
                 $months[$month] = ['from' => $from === null ? null : $from['text'] ?? $from['value'], 'to' => $to === null ? null : $to['text'] ?? $to['value']];
-                $writes[] = ['definition_id' => $d->id, 'organizational_unit_id' => $unitId, 'period' => sprintf('%04d-%02d-01', $year, $month),
+                $writes[] = ['definition_id' => $target->id, 'organizational_unit_id' => $unitId, 'period' => sprintf('%04d-%02d-01', $year, $month),
                     'target_value' => $to['value'] ?? null, 'target_text' => $to['text'] ?? null];
             }
             if ($months !== []) {
@@ -191,6 +205,9 @@ class NkoTargetCheckService
 
         if ($unknown !== []) {
             $tab['errors'][] = 'KODE tidak ada di definisi aktif: '.$this->names($unknown).'. Item baru ditambahkan lewat workbook definisi.';
+        }
+        if ($absent !== []) {
+            $tab['errors'][] = 'item belum ada pada definisi yang berlaku di bulan itu, kosongkan selnya: '.$this->names($absent).'.';
         }
         if ($duplicate !== []) {
             $tab['errors'][] = 'KODE dipakai lebih dari satu baris: '.$this->names($duplicate).'.';

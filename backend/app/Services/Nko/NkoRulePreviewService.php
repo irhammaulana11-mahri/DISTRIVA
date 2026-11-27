@@ -21,11 +21,13 @@ class NkoRulePreviewService
     {
         $proposed = (object) ['formula' => $formula, 'inputs' => $inputs, 'mode' => 'SISTEM_BOLEH_KOREKSI'];
         // acuan workbook dan daftar unit: hanya unit yang tingkatnya memuat indikator ini
-        $definitions = DB::table('kpi_definitions as d')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')->where('s.year', $year)->where('s.status', 'AKTIF')->where('d.code', $code)->get(['d.id', 's.unit_level']);
+        $inForce = NkoDefinitionSets::months($year, 'UP3') + NkoDefinitionSets::months($year, 'ULP');
+        $definitions = DB::table('kpi_definitions as d')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')->whereIn('s.id', array_keys($inForce))->where('d.code', $code)->get(['d.id', 's.id as set_id', 's.unit_level']);
         $units = DB::table('organizational_units')->whereIn('unit_type', $definitions->pluck('unit_level'))->when($unitIds !== null, fn ($q) => $q->whereIn('id', $unitIds))
             ->orderByDesc('unit_type')->orderBy('name')->get(['id', 'name', 'unit_type']);
-        $reference = DB::table('kpi_reference_values')->whereIn('definition_id', $definitions->pluck('id'))->whereBetween('period', ["{$year}-01-01", "{$year}-12-01"])
-            ->get(['organizational_unit_id', 'period', 'realisasi'])->keyBy(fn ($r) => $r->organizational_unit_id.'|'.(int) substr((string) $r->period, 5, 2));
+        $query = DB::table('kpi_reference_values as v')->join('kpi_definitions as d', 'd.id', '=', 'v.definition_id')->whereIn('v.definition_id', $definitions->pluck('id'))->whereBetween('v.period', ["{$year}-01-01", "{$year}-12-01"]);
+        NkoDefinitionSets::scope($query, $inForce, 'd.set_id', 'v.period');
+        $reference = $query->get(['v.organizational_unit_id', 'v.period', 'v.realisasi'])->keyBy(fn ($r) => $r->organizational_unit_id.'|'.(int) substr((string) $r->period, 5, 2));
 
         $rows = [];
         $summary = ['with_value' => 0, 'compared' => 0, 'matched' => 0, 'tolerance_pct' => self::TOLERANCE_PCT];

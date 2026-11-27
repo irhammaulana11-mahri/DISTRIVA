@@ -11,6 +11,8 @@ use Illuminate\Support\Str;
  */
 class NkoDefinitionDiffService
 {
+    private const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
     private const FIELDS = ['name', 'level', 'polarity', 'unit_label', 'weight', 'weight_note', 'formula_text', 'source_sheet', 'scoring_rule', 'nilai_rule'];
 
     /** skor minimal agar pasangan item hilang dan item baru disarankan sebagai ganti nama */
@@ -33,7 +35,7 @@ class NkoDefinitionDiffService
         $out = [];
         foreach ($book['levels'] as $level => $plan) {
             $base = $plan['active'] ?? DB::table('kpi_definition_sets')->where('unit_level', $level)->where('year', '<', $book['year'])->where('status', 'AKTIF')->orderByDesc('year')->first();
-            $result = ['level' => $level, 'status' => $plan['status'], 'compared_with' => $base === null ? null : "{$base->year} v{$base->version}", 'items' => count($plan['canon']['nodes']),
+            $result = ['level' => $level, 'status' => $plan['status'], 'effective_month' => $book['effective_month'] ?? 1, 'compared_with' => $base === null ? null : "{$base->year} v{$base->version}", 'items' => count($plan['canon']['nodes']),
                 'added' => [], 'removed' => [], 'possible_renames' => [], 'changed' => [], 'total_rule_changed' => false, 'targets_changed' => [], 'alerts' => [],
                 'units' => array_values(array_map(fn (array $s) => $s['unit_name'], array_filter($plan['sheets'], fn (array $s) => isset($plan['unit_ids'][$s['sheet']])))), 'warnings' => $plan['warnings']];
             if ($base !== null && in_array($plan['status'], ['BARU', 'DIGANTIKAN'], true)) {
@@ -77,7 +79,7 @@ class NkoDefinitionDiffService
         $result['total_rule_changed'] = $formulas($oldMonths) != $formulas($plan['canon']['month_rules']);
 
         if ((int) $base->year === $year) {
-            $result['targets_changed'] = $this->changedTargets($base->id, $plan, array_intersect_key($new, $old));
+            $result['targets_changed'] = $this->changedTargets($year, $result['level'], $result['effective_month'], $plan, array_intersect_key($new, $old));
         }
         $result['alerts'] = $this->alerts($result, $base, $old, $new, $year, $plan['definition_only']);
         if ($plan['definition_only'] && (int) $base->year === $year) {
@@ -86,7 +88,29 @@ class NkoDefinitionDiffService
             }
         }
 
+        if ((int) $base->year === $year && in_array($plan['status'], ['BARU', 'DIGANTIKAN'], true)) {
+            $result['alerts'] = [...$this->periodAlerts($year, $result['level'], $result['effective_month']), ...$result['alerts']];
+        }
+
         return $result;
+    }
+
+    /**
+     * Bulan mana yang memakai versi baru, dan hitungan NKO yang sudah ada pada bulan-bulan itu.
+     *
+     * @return list<string>
+     */
+    private function periodAlerts(int $year, string $level, int $effectiveMonth): array
+    {
+        $alerts = $effectiveMonth > 1 ? ['Versi baru berlaku mulai '.self::MONTHS[$effectiveMonth - 1].'; bulan sebelumnya tetap memakai versi lama.'] : [];
+        $months = DB::table('kpi_snapshots as s')->join('organizational_units as u', 'u.id', '=', 's.organizational_unit_id')->where('u.unit_type', $level)->where('s.is_current', true)
+            ->whereBetween('s.period', [sprintf('%04d-%02d-01', $year, $effectiveMonth), "{$year}-12-01"])->distinct()->orderBy('s.period')->pluck('s.period')
+            ->map(fn (string $p) => self::MONTHS[(int) substr($p, 5, 2) - 1])->all();
+        if ($months !== []) {
+            $alerts[] = 'Sudah ada hitungan NKO '.implode(', ', $months).'; hitungan itu tidak berubah sampai dihitung ulang, dan hitung ulang memakai versi baru.';
+        }
+
+        return $alerts;
     }
 
     /**
@@ -176,12 +200,19 @@ class NkoDefinitionDiffService
      * @param  array<string, array<string, mixed>>  $shared  item lama dan baru, menurut kode
      * @return array<string, int> nama unit => jumlah
      */
-    private function changedTargets(string $setId, array $plan, array $shared): array
+    private function changedTargets(int $year, string $level, int $effectiveMonth, array $plan, array $shared): array
     {
         $key = fn (mixed $value, ?string $text) => ($value === null ? '' : number_format((float) $value, 6, '.', '')).'|'.$text;
+        // hanya bulan yang akan memakai versi baru yang dibandingkan
         $stored = [];
-        foreach (DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->where('d.set_id', $setId)->get(['d.code', 't.organizational_unit_id', 't.period', 't.target_value', 't.target_text']) as $t) {
-            $stored[$t->organizational_unit_id][$t->code.'|'.(int) substr($t->period, 5, 2)] = $key($t->target_value, $t->target_text);
+        foreach (NkoDefinitionSets::targets($year, $level) as $unitId => $codes) {
+            foreach ($codes as $code => $months) {
+                foreach ($months as $month => $t) {
+                    if ($month >= $effectiveMonth) {
+                        $stored[$unitId][$code.'|'.$month] = $key($t['value'], $t['text']);
+                    }
+                }
+            }
         }
 
         $out = [];
@@ -196,7 +227,9 @@ class NkoDefinitionDiffService
             foreach ($sheet['targets'] as $row => $months) {
                 $code = $codes[$row] ?? null;
                 foreach ($code !== null && isset($shared[$code]) ? $months : [] as $month => $t) {
-                    $incoming[$code.'|'.$month] = $key($t['value'], $t['text']);
+                    if ($month >= $effectiveMonth) {
+                        $incoming[$code.'|'.$month] = $key($t['value'], $t['text']);
+                    }
                     $filled[$code] = true;
                 }
             }

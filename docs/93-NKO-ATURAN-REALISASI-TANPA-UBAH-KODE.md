@@ -273,3 +273,22 @@ Pemeriksaan: tab DEFINISI yang berisi target ditolak; item berbobot yang belum p
 
 Diuji pada data dev 2026 (berkas asli dan hasil simpan ulang LibreOffice): nol perubahan; 4.260 target, 31 aturan khusus unit, dan 3.096 realisasi acuan tetap; 33 hitungan NKO (11 unit, bulan 3, 6, 9) identik sebelum dan sesudah.
 
+## 14. Versi definisi berlaku mulai bulan (tahap 4)
+
+Tiap versi definisi punya `effective_month` (bawaan 1). **Untuk suatu bulan dipakai versi bernomor tertinggi yang `effective_month`-nya tidak melewati bulan itu.** Contoh: v2 berlaku mulai Juli membuat Januari–Juni tetap memakai v1; v3 berlaku mulai Januari menggantikan semua bulan. Status `AKTIF` berarti versi terbaru (dasar perubahan berikutnya); versi `ARSIP` tetap dipakai untuk bulan sebelum versi terbaru berlaku. Versi pertama suatu tahun dan tingkat wajib berlaku sejak Januari.
+
+| Pemakai | Versi yang dipakai |
+|---|---|
+| Hitung NKO, isian manual, daftar kekurangan data | bulan yang dihitung. Snapshot lama tetap menunjuk versi saat dihitung |
+| Target di menu pengusahaan dan analisis susut | bulan yang ditampilkan; target akhir tahun dari versi Desember |
+| Template dan unggah target (§12) | tiap sel bulan dibaca dan ditulis pada versi bulan itu; item yang belum ada di versi bulan itu harus dikosongkan |
+| Template definisi lengkap | struktur dari versi terbaru; target dan realisasi tiap bulan dari versi bulan itu |
+| Penyalinan saat versi baru dimuat (§12, §13) | tiap bulan dari versi yang berlaku sebelum versi baru |
+| Pratinjau rumus (§9) dan rekonsiliasi (docs/90) | versi bulan itu |
+| `GET /definitions` | `month` bila diisi; selain itu versi terbaru |
+| Aturan realisasi, usulan, dan pencocokan (§8, §9) | versi terbaru |
+
+Unggah: `effective_month` pada `POST /definition-uploads[/check]` berlaku untuk semua tingkat di berkas, disimpan pada unggahan, dan dipakai saat disetujui. Peringatan penyetuju: bulan mulai berlaku (bila bukan Januari) dan bulan yang sudah punya hitungan NKO. `targets_changed` hanya menghitung bulan sejak versi berlaku; angka workbook untuk bulan sebelumnya tidak dipakai. Perintah impor dari terminal selalu berlaku sejak Januari.
+
+Diuji pada data dev 2026 dalam transaksi yang dibatalkan: versi baru berlaku mulai Juli (bobot ULP diubah) tidak mengubah hitungan Maret dan Juni; template target dan template lengkap sesudahnya tanpa perubahan.
+

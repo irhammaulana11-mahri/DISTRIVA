@@ -36,7 +36,7 @@ class NkoSnapshotService
         if ($unit === null || ! in_array($unit->unit_type, ['ULP', 'UP3'], true)) {
             throw new NkoCalculationException('Unit tidak ditemukan atau bukan ULP/UP3.');
         }
-        $set = DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $unit->unit_type)->where('status', 'AKTIF')->first();
+        $set = NkoDefinitionSets::forMonth($year, $unit->unit_type, $month);
         if ($set === null) {
             throw new NkoCalculationException("Definisi NKO {$year} untuk tingkat {$unit->unit_type} belum diimpor.");
         }

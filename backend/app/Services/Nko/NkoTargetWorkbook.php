@@ -47,9 +47,15 @@ class NkoTargetWorkbook
         }
         $definitions = DB::table('kpi_definitions')->where('set_id', $set->id)->orderBy('sort_order')->get()->all();
         $parents = array_flip(array_filter(array_column($definitions, 'parent_id')));
+        // baris dari versi terbaru; angka tiap bulan dari versi yang berlaku di bulan itu
+        $idByCode = array_column($definitions, 'id', 'code');
         $targets = [];
-        foreach (DB::table('kpi_targets')->whereIn('definition_id', array_column($definitions, 'id'))->get() as $t) {
-            $targets[$t->organizational_unit_id][$t->definition_id][(int) substr($t->period, 5, 2)] = $t->target_text ?? (float) $t->target_value;
+        foreach (NkoDefinitionSets::targets($year, $level) as $unitId => $codes) {
+            foreach ($codes as $code => $months) {
+                foreach (isset($idByCode[$code]) ? $months : [] as $month => $t) {
+                    $targets[$unitId][$idByCode[$code]][$month] = $t['text'] ?? $t['value'];
+                }
+            }
         }
         // unit yang punya target; bila belum ada satu pun, semua unit aktif tingkat itu
         $units = DB::table('organizational_units')->where('unit_type', $level)->when($targets !== [], fn ($q) => $q->whereIn('id', array_keys($targets)), fn ($q) => $q->where('is_active', true))

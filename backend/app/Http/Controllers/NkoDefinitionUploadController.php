@@ -35,10 +35,10 @@ class NkoDefinitionUploadController extends Controller
         $d = $request->validate(['year' => ['nullable', 'integer', 'between:2000,2100']]);
         $rows = DB::table('kpi_definition_sets as s')->leftJoin('users as u', 'u.id', '=', 's.imported_by')->when(! empty($d['year']), fn ($q) => $q->where('s.year', $d['year']))
             ->orderByDesc('s.year')->orderByDesc('s.unit_level')->orderByDesc('s.version')->limit(200)
-            ->get(['s.id', 's.year', 's.unit_level', 's.version', 's.status', 's.source_name', 's.total_weight', 's.warnings', 's.imported_at', 's.imported_by', 'u.name as importer_name']);
+            ->get(['s.id', 's.year', 's.unit_level', 's.version', 's.status', 's.effective_month', 's.source_name', 's.total_weight', 's.warnings', 's.imported_at', 's.imported_by', 'u.name as importer_name']);
 
         return response()->json(['data' => $rows->map(fn ($s) => [
-            'id' => $s->id, 'year' => (int) $s->year, 'unit_level' => $s->unit_level, 'version' => (int) $s->version, 'status' => $s->status, 'source_name' => $s->source_name,
+            'id' => $s->id, 'year' => (int) $s->year, 'unit_level' => $s->unit_level, 'version' => (int) $s->version, 'status' => $s->status, 'effective_month' => (int) $s->effective_month, 'source_name' => $s->source_name,
             'total_weight' => $s->total_weight === null ? null : (float) $s->total_weight, 'warnings' => json_decode($s->warnings ?? '[]', true), 'imported_at' => $s->imported_at,
             'imported_by' => $s->imported_by === null ? null : ['id' => $s->imported_by, 'name' => $s->importer_name],
         ])->all()]);
@@ -83,24 +83,24 @@ class NkoDefinitionUploadController extends Controller
         return response()->download($path, ($definitionOnly ? 'TEMPLATE-DEFINISI-SAJA-NKO' : 'TEMPLATE-DEFINISI-NKO')."-{$d['year']}.xlsx", ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
     }
 
-    /** POST /nko/definition-uploads/check (multipart: file, year): hasil pemeriksaan tanpa menyimpan. */
+    /** POST /nko/definition-uploads/check (multipart: file, year, effective_month?): hasil pemeriksaan tanpa menyimpan. */
     public function check(Request $request): JsonResponse
     {
         $this->authorizeChange($request, 'nko.rules.propose');
         $d = $request->validate($this->fileRules());
         @set_time_limit(300);
 
-        return response()->json(['data' => $this->uploads->check($request->file('file'), (int) $d['year'])]);
+        return response()->json(['data' => $this->uploads->check($request->file('file'), (int) $d['year'], (int) ($d['effective_month'] ?? 1))]);
     }
 
-    /** POST /nko/definition-uploads (multipart: file, year, note); 422 dengan `data` = hasil pemeriksaan bila workbook tidak lolos. */
+    /** POST /nko/definition-uploads (multipart: file, year, note, effective_month?); 422 dengan `data` = hasil pemeriksaan bila workbook tidak lolos. */
     public function store(Request $request): JsonResponse
     {
         $this->authorizeChange($request, 'nko.rules.propose');
         $d = $request->validate($this->fileRules() + ['note' => ['required', 'string', 'max:500']]);
         @set_time_limit(300);
         try {
-            $id = $this->uploads->upload($request->file('file'), (int) $d['year'], $d['note'], $request->user());
+            $id = $this->uploads->upload($request->file('file'), (int) $d['year'], $d['note'], $request->user(), (int) ($d['effective_month'] ?? 1));
         } catch (NkoRuleException $e) {
             return $this->failure($e);
         }
@@ -139,7 +139,7 @@ class NkoDefinitionUploadController extends Controller
 
     private function present(object $p): array
     {
-        return ['id' => $p->id, 'year' => (int) $p->year, 'source_name' => $p->source_name, 'note' => $p->note, 'status' => $p->status,
+        return ['id' => $p->id, 'year' => (int) $p->year, 'effective_month' => (int) $p->effective_month, 'source_name' => $p->source_name, 'note' => $p->note, 'status' => $p->status,
             'uploaded_by' => $p->uploaded_by === null ? null : ['id' => $p->uploaded_by, 'name' => $p->uploader_name], 'uploaded_at' => $p->uploaded_at,
             'decided_by' => $p->decided_by === null ? null : ['id' => $p->decided_by, 'name' => $p->decider_name], 'decided_at' => $p->decided_at, 'decision_note' => $p->decision_note];
     }
@@ -147,7 +147,7 @@ class NkoDefinitionUploadController extends Controller
     /** @return array<string, list<string>> */
     private function fileRules(): array
     {
-        return ['file' => ['required', 'file', 'extensions:xlsx', 'max:'.self::MAX_KB], 'year' => ['required', 'integer', 'between:2000,2100']];
+        return ['file' => ['required', 'file', 'extensions:xlsx', 'max:'.self::MAX_KB], 'year' => ['required', 'integer', 'between:2000,2100'], 'effective_month' => ['nullable', 'integer', 'between:1,12']];
     }
 
     private function failure(NkoRuleException $e): JsonResponse

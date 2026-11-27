@@ -2,6 +2,7 @@
 
 namespace App\Services\Analytics;
 
+use App\Services\Nko\NkoDefinitionSets;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -118,8 +119,8 @@ class LossInsights
     /** @return array<string, mixed> */
     private function ulps(array $units, $names, array $cells, string $yearStart, string $to): array
     {
-        $targets = DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->join('kpi_definition_sets as s', 's.id', '=', 'd.set_id')->where('d.code', LossEstimator::CODE)->where('s.status', 'AKTIF')
-            ->where('s.year', (int) substr($to, 0, 4))->whereIn('t.organizational_unit_id', $units)->where('t.period', $to.'-01')->pluck('t.target_value', 't.organizational_unit_id');
+        $sets = array_filter(array_map(fn (string $level) => NkoDefinitionSets::forMonth((int) substr($to, 0, 4), $level, (int) substr($to, 5, 2))?->id, ['ULP', 'UP3']));
+        $targets = DB::table('kpi_targets as t')->join('kpi_definitions as d', 'd.id', '=', 't.definition_id')->where('d.code', LossEstimator::CODE)->whereIn('d.set_id', $sets)->whereIn('t.organizational_unit_id', $units)->where('t.period', $to.'-01')->pluck('t.target_value', 't.organizational_unit_id');
         $rows = [];
         foreach ($units as $u) {
             $ytd = ['beli' => 0.0, 'susut' => 0.0];

@@ -143,11 +143,19 @@ class NkoDefinitionTemplateService
         $targets = [];
         $reference = [];
         if ($sameYear && $unit !== null) {
-            foreach (DB::table('kpi_targets')->whereIn('definition_id', $ids)->where('organizational_unit_id', $unit->id)->get() as $t) {
-                $targets[$t->definition_id][(int) substr($t->period, 5, 2)] = $t->target_text ?? (float) $t->target_value;
+            // target dan realisasi tiap bulan dari versi yang berlaku di bulan itu, dicocokkan menurut kode
+            $idByCode = array_column($definitions, 'id', 'code');
+            foreach (NkoDefinitionSets::targets($year, $level)[$unit->id] ?? [] as $code => $values) {
+                foreach (isset($idByCode[$code]) ? $values : [] as $month => $t) {
+                    $targets[$idByCode[$code]][$month] = $t['text'] ?? $t['value'];
+                }
             }
-            foreach (DB::table('kpi_reference_values')->whereIn('definition_id', $ids)->where('organizational_unit_id', $unit->id)->whereNotNull('realisasi')->get(['definition_id', 'period', 'realisasi']) as $r) {
-                $reference[$r->definition_id][(int) substr($r->period, 5, 2)] = (float) $r->realisasi;
+            $query = DB::table('kpi_reference_values as v')->join('kpi_definitions as d', 'd.id', '=', 'v.definition_id')->where('v.organizational_unit_id', $unit->id)->whereNotNull('v.realisasi');
+            NkoDefinitionSets::scope($query, NkoDefinitionSets::months($year, $level), 'd.set_id', 'v.period');
+            foreach ($query->get(['d.code', 'v.period', 'v.realisasi']) as $r) {
+                if (isset($idByCode[$r->code])) {
+                    $reference[$idByCode[$r->code]][(int) substr($r->period, 5, 2)] = (float) $r->realisasi;
+                }
             }
         }
         $unitRules = DB::table('kpi_unit_rules')->whereIn('definition_id', $ids)->where('organizational_unit_id', $unit?->id)->pluck('rules', 'definition_id')->map(fn (string $r) => json_decode($r, true))->all();

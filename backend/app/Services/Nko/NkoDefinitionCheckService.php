@@ -16,13 +16,13 @@ class NkoDefinitionCheckService
     public function __construct(private readonly NkoWorkbookReader $reader, private readonly NkoDefinitionImportService $importer, private readonly NkoDefinitionDiffService $differ) {}
 
     /**
-     * @return array{report: array{year: int, year_found: ?int, can_upload: bool, errors: list<string>, warnings: list<string>,
+     * @return array{report: array{year: int, effective_month: int, year_found: ?int, can_upload: bool, errors: list<string>, warnings: list<string>,
      *     tabs: list<array{sheet: string, status: string, level: ?string, unit_name: ?string, unit_found: ?bool, reason: ?string, items: ?int, total_weight: ?float, errors: list<string>, warnings: list<string>}>,
      *     changes: list<array<string, mixed>>}, book: ?array<string, mixed>}
      */
-    public function check(string $path, int $year): array
+    public function check(string $path, int $year, int $effectiveMonth = 1): array
     {
-        $report = ['year' => $year, 'year_found' => null, 'can_upload' => false, 'errors' => [], 'warnings' => [], 'tabs' => [], 'changes' => []];
+        $report = ['year' => $year, 'effective_month' => $effectiveMonth, 'year_found' => null, 'can_upload' => false, 'errors' => [], 'warnings' => [], 'tabs' => [], 'changes' => []];
         try {
             $read = $this->reader->read($path);
         } catch (Throwable $e) {
@@ -41,6 +41,12 @@ class NkoDefinitionCheckService
         }
 
         $book = $this->importer->analyze($path, $read);
+        $book['effective_month'] = $effectiveMonth;
+        foreach ($book['levels'] as $level => $plan) {
+            if ($effectiveMonth > 1 && $plan['active'] === null) {
+                $report['errors'][] = "Belum ada definisi {$level} {$year}; versi pertama harus berlaku sejak Januari.";
+            }
+        }
         $bySheet = array_column($read['sheets'], null, 'sheet');
         foreach ($report['tabs'] as &$tab) {
             $sheet = $bySheet[$tab['sheet']] ?? null;

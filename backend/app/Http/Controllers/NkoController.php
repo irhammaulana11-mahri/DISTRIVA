@@ -7,6 +7,7 @@ use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\MfaService;
 use App\Services\Nko\NkoCalculationException;
 use App\Services\Nko\NkoCalculationService;
+use App\Services\Nko\NkoDefinitionSets;
 use App\Services\Nko\NkoRealizationResolver;
 use App\Services\Nko\NkoRealizationRules;
 use App\Services\Nko\NkoSnapshotService;
@@ -65,15 +66,16 @@ class NkoController extends Controller
     public function definitions(Request $request): JsonResponse
     {
         $this->visibleUnits($request);
-        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100'], 'level' => ['required', 'in:ULP,UP3']]);
-        $set = DB::table('kpi_definition_sets')->where('year', $d['year'])->where('unit_level', $d['level'])->where('status', 'AKTIF')->first();
+        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100'], 'level' => ['required', 'in:ULP,UP3'], 'month' => ['nullable', 'integer', 'between:1,12']]);
+        // tanpa bulan: versi terbaru; dengan bulan: versi yang berlaku di bulan itu
+        $set = NkoDefinitionSets::forMonth((int) $d['year'], $d['level'], (int) ($d['month'] ?? 12));
         if ($set === null) {
             throw new AdministrationDenied('Definisi NKO belum diimpor.', 404);
         }
         $defs = DB::table('kpi_definitions as d')->leftJoin('kpi_definitions as p', 'p.id', '=', 'd.parent_id')->where('d.set_id', $set->id)->orderBy('d.sort_order')
             ->get(['d.id', 'd.code', 'd.number', 'd.name', 'd.level', 'd.polarity', 'd.unit_label', 'd.weight', 'd.weight_note', 'd.formula_text', 'd.source_sheet', 'd.scoring_rule', 'p.code as parent_code']);
 
-        return response()->json(['data' => ['set' => ['id' => $set->id, 'year' => (int) $set->year, 'level' => $set->unit_level, 'version' => (int) $set->version, 'source_name' => $set->source_name, 'total_weight' => $set->total_weight !== null ? (float) $set->total_weight : null],
+        return response()->json(['data' => ['set' => ['id' => $set->id, 'year' => (int) $set->year, 'level' => $set->unit_level, 'version' => (int) $set->version, 'effective_month' => (int) $set->effective_month, 'source_name' => $set->source_name, 'total_weight' => $set->total_weight !== null ? (float) $set->total_weight : null],
             'definitions' => $defs->map(fn ($x) => ['id' => $x->id, 'code' => $x->code, 'number' => $x->number, 'name' => $x->name, 'level' => (int) $x->level, 'parent_code' => $x->parent_code, 'polarity' => $x->polarity !== null ? (int) $x->polarity : null,
                 'unit_label' => $x->unit_label, 'weight' => $x->weight !== null ? (float) $x->weight : null, 'weight_note' => $x->weight_note, 'formula_text' => $x->formula_text, 'source_sheet' => $x->source_sheet, 'scoring_rule' => $x->scoring_rule])->all()]]);
     }
@@ -184,7 +186,7 @@ class NkoController extends Controller
     /** @return array{0: object, 1: list<array<string, mixed>>} unit dan butir masukan (indikator butuh realisasi + masukan pembantu) bulan itu */
     private function inputItems(string $unitId, int $year, int $month): array
     {
-        [$unit, $set, $nodes] = $this->context($unitId, $year);
+        [$unit, $set, $nodes] = $this->context($unitId, $year, $month);
         $resolved = $this->resolver->resolve($unitId, $year, $month);
         $rules = $this->rules->forPeriod($year, $month);
         $meta = DB::table('kpi_definitions as d')->leftJoin('kpi_definitions as p', 'p.id', '=', 'd.parent_id')->where('d.set_id', $set->id)->get(['d.id', 'd.name', 'd.source_sheet', 'p.name as parent_name'])->keyBy('id');
@@ -225,7 +227,7 @@ class NkoController extends Controller
         $d = $request->validate(['unit_id' => ['required', 'uuid'], 'year' => ['required', 'integer', 'between:2000,2100'], 'month' => ['required', 'integer', 'between:1,12'],
             'items' => ['required', 'array', 'min:1', 'max:100'], 'items.*.code' => ['required', 'string', 'max:80'], 'items.*.value' => ['nullable', 'numeric'], 'items.*.note' => ['nullable', 'string', 'max:300']]);
         $this->assertUnit($allowed, $d['unit_id']);
-        [, , $nodes] = $this->context($d['unit_id'], (int) $d['year']);
+        [, , $nodes] = $this->context($d['unit_id'], (int) $d['year'], (int) $d['month']);
         $rules = $this->rules->forPeriod((int) $d['year'], (int) $d['month']);
         $editable = [];
         foreach ($nodes as $n) {
@@ -299,10 +301,10 @@ class NkoController extends Controller
     }
 
     /** @return array{0: object, 1: object, 2: list<array<string, mixed>>} */
-    private function context(string $unitId, int $year): array
+    private function context(string $unitId, int $year, int $month): array
     {
         $unit = DB::table('organizational_units')->where('id', $unitId)->whereIn('unit_type', ['ULP', 'UP3'])->first(['id', 'name', 'unit_type']);
-        $set = $unit === null ? null : DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $unit->unit_type)->where('status', 'AKTIF')->first();
+        $set = $unit === null ? null : NkoDefinitionSets::forMonth($year, $unit->unit_type, $month);
         if ($unit === null || $set === null) {
             throw new AdministrationDenied('Definisi NKO belum diimpor untuk unit dan tahun ini.', 404);
         }

@@ -20,12 +20,15 @@ class NkoDefinitionImportService
     /**
      * @return array{year: int, sets: list<array{level: string, status: string, version: int, set_id: string, definitions: int, targets: int, units: list<string>, warnings: list<string>}>}
      */
-    public function import(string $path, string $originalName, ?User $user = null, ?array $analyzed = null): array
+    public function import(string $path, string $originalName, ?User $user = null, ?array $analyzed = null, int $effectiveMonth = 1): array
     {
         $book = $analyzed ?? $this->analyze($path);
         $sets = [];
         foreach ($book['levels'] as $level => $plan) {
-            $sets[] = $this->importLevel($level, $plan, $book['year'], $book['sha'], $originalName, $user);
+            if ($effectiveMonth > 1 && $plan['active'] === null) {
+                throw new NkoImportException("Belum ada definisi {$level} {$book['year']}; versi pertama harus berlaku sejak Januari.");
+            }
+            $sets[] = $this->importLevel($level, $plan, $book['year'], $book['sha'], $originalName, $user, $effectiveMonth);
         }
 
         return ['year' => $book['year'], 'sets' => $sets];
@@ -140,21 +143,22 @@ class NkoDefinitionImportService
      * @param  array<string, mixed>  $plan  hasil `analyze()` untuk satu tingkat
      * @return array{level: string, status: string, version: int, set_id: string, definitions: int, targets: int, units: list<string>, warnings: list<string>}
      */
-    private function importLevel(string $level, array $plan, int $year, string $sha, string $originalName, ?User $user): array
+    private function importLevel(string $level, array $plan, int $year, string $sha, string $originalName, ?User $user, int $effectiveMonth): array
     {
         if (in_array($plan['status'], ['DUPLIKAT', 'SUDAH_DIGANTIKAN'], true)) {
             return $this->summary($level, $plan['status'], (int) $plan['previous']->version, $plan['previous']->id, [], $plan['warnings']);
         }
         ['active' => $active, 'canon' => $canon, 'sheets' => $sheets, 'unit_ids' => $unitIds, 'warnings' => $warnings, 'definition_only' => $definitionOnly] = $plan;
 
-        return DB::transaction(function () use ($level, $year, $sha, $originalName, $user, $active, $canon, $sheets, $unitIds, $warnings, $definitionOnly) {
+        return DB::transaction(function () use ($level, $year, $sha, $originalName, $user, $active, $canon, $sheets, $unitIds, $warnings, $definitionOnly, $effectiveMonth) {
+            $inForce = NkoDefinitionSets::months($year, $level);     // versi yang berlaku per bulan sebelum versi baru dimuat
             $version = (int) (DB::table('kpi_definition_sets')->where('year', $year)->where('unit_level', $level)->max('version')) + 1;
             if ($active !== null) {
                 DB::table('kpi_definition_sets')->where('id', $active->id)->update(['status' => 'ARSIP', 'updated_at' => now()]);
             }
             $setId = (string) Str::uuid7();
             DB::table('kpi_definition_sets')->insert([
-                'id' => $setId, 'year' => $year, 'unit_level' => $level, 'version' => $version, 'status' => 'AKTIF',
+                'id' => $setId, 'year' => $year, 'unit_level' => $level, 'version' => $version, 'status' => 'AKTIF', 'effective_month' => $effectiveMonth,
                 'source_name' => mb_substr($originalName, 0, 200), 'source_sha256' => $sha, 'total_weight' => $canon['total_weight'],
                 // tab DEFINISI tidak menunjuk unit acuan; nama tab acuan versi sebelumnya dipertahankan agar urutan template lengkap tetap
                 'month_rules' => json_encode(['canonical_sheet' => $definitionOnly && $active !== null ? (json_decode($active->month_rules ?? '[]', true)['canonical_sheet'] ?? $canon['sheet']) : $canon['sheet']] + ['months' => $canon['month_rules']]),
@@ -205,9 +209,9 @@ class NkoDefinitionImportService
                 }
             }
 
-            $copied = $active === null ? 0 : $this->copyTargets($active->id, $setId);
+            $copied = $active === null ? 0 : $this->copyTargets($inForce, $setId);
             if ($definitionOnly && $active !== null) {
-                $this->copyUnitData($active->id, $setId, $canon['nodes'], $idByCode);
+                $this->copyUnitData($active->id, $inForce, $setId, $canon['nodes'], $idByCode);
             }
 
             return $this->summary($level, $active !== null ? 'DIGANTIKAN' : 'BARU', $version, $setId, ['definitions' => count($rows), 'targets' => $targets, 'targets_copied' => $copied, 'units' => $unitNames], $warnings);
@@ -215,39 +219,41 @@ class NkoDefinitionImportService
     }
 
     /**
-     * Target versi sebelumnya disalin menurut kode item untuk pasangan item dan unit yang sama sekali tidak diisi workbook (docs/93 §12),
-     * sehingga mengubah definisi tidak menghapus target yang diunggah terpisah.
+     * Target yang berlaku disalin menurut kode item untuk pasangan item dan unit yang sama sekali tidak diisi workbook (docs/93 §12),
+     * tiap bulan dari versi yang berlaku di bulan itu, sehingga mengubah definisi tidak menghapus target yang diunggah terpisah.
+     *
+     * @param  array<string, list<int>>  $inForce
      */
-    private function copyTargets(string $fromSetId, string $toSetId): int
+    private function copyTargets(array $inForce, string $toSetId): int
     {
-        return DB::table('kpi_targets')->insertUsing(
-            ['definition_id', 'organizational_unit_id', 'period', 'target_value', 'target_text'],
-            DB::table('kpi_targets as t')->join('kpi_definitions as o', 'o.id', '=', 't.definition_id')->join('kpi_definitions as n', 'n.code', '=', 'o.code')
-                ->where('o.set_id', $fromSetId)->where('n.set_id', $toSetId)
-                ->whereNotExists(fn ($q) => $q->from('kpi_targets as x')->whereColumn('x.definition_id', 'n.id')->whereColumn('x.organizational_unit_id', 't.organizational_unit_id'))
-                ->select(['n.id', 't.organizational_unit_id', 't.period', 't.target_value', 't.target_text']),
-        );
+        $rows = DB::table('kpi_targets as t')->join('kpi_definitions as o', 'o.id', '=', 't.definition_id')->join('kpi_definitions as n', 'n.code', '=', 'o.code')
+            ->where('n.set_id', $toSetId)
+            ->whereNotExists(fn ($q) => $q->from('kpi_targets as x')->whereColumn('x.definition_id', 'n.id')->whereColumn('x.organizational_unit_id', 't.organizational_unit_id'));
+        NkoDefinitionSets::scope($rows, $inForce, 'o.set_id', 't.period');
+
+        return DB::table('kpi_targets')->insertUsing(['definition_id', 'organizational_unit_id', 'period', 'target_value', 'target_text'],
+            $rows->select(['n.id', 't.organizational_unit_id', 't.period', 't.target_value', 't.target_text']));
     }
 
     /**
      * Definisi tanpa tab unit: aturan khusus unit yang masih berlaku dan angka realisasi acuan (dipakai pratinjau rumus) dibawa dari versi sebelumnya.
      * Angka pencapaian, nilai, dan total acuan tidak dibawa karena bergantung pada rumus versi lama.
      *
+     * @param  array<string, list<int>>  $inForce
      * @param  list<array<string, mixed>>  $nodes
      * @param  array<string, string>  $idByCode
      */
-    private function copyUnitData(string $fromSetId, string $toSetId, array $nodes, array $idByCode): void
+    private function copyUnitData(string $fromSetId, array $inForce, string $toSetId, array $nodes, array $idByCode): void
     {
         $rows = array_map(fn (array $r) => ['definition_id' => $idByCode[$r['code']], 'organizational_unit_id' => $r['organizational_unit_id'], 'rules' => json_encode($r['rules'], JSON_UNESCAPED_UNICODE)],
             $this->unitRules->plan($fromSetId, $nodes)['keep']);
         if ($rows !== []) {
             DB::table('kpi_unit_rules')->insert($rows);
         }
-        DB::table('kpi_reference_values')->insertUsing(
-            ['definition_id', 'organizational_unit_id', 'period', 'realisasi'],
-            DB::table('kpi_reference_values as v')->join('kpi_definitions as o', 'o.id', '=', 'v.definition_id')->join('kpi_definitions as n', 'n.code', '=', 'o.code')
-                ->where('o.set_id', $fromSetId)->where('n.set_id', $toSetId)->whereNotNull('v.realisasi')->select(['n.id', 'v.organizational_unit_id', 'v.period', 'v.realisasi']),
-        );
+        $reference = DB::table('kpi_reference_values as v')->join('kpi_definitions as o', 'o.id', '=', 'v.definition_id')->join('kpi_definitions as n', 'n.code', '=', 'o.code')
+            ->where('n.set_id', $toSetId)->whereNotNull('v.realisasi');
+        NkoDefinitionSets::scope($reference, $inForce, 'o.set_id', 'v.period');
+        DB::table('kpi_reference_values')->insertUsing(['definition_id', 'organizational_unit_id', 'period', 'realisasi'], $reference->select(['n.id', 'v.organizational_unit_id', 'v.period', 'v.realisasi']));
     }
 
     /**

@@ -26,20 +26,20 @@ class NkoDefinitionUploadService
      *
      * @return array<string, mixed>
      */
-    public function check(UploadedFile $file, int $year): array
+    public function check(UploadedFile $file, int $year, int $effectiveMonth = 1): array
     {
-        return $this->inspect($file->getRealPath(), $year)['report'];
+        return $this->inspect($file->getRealPath(), $year, $effectiveMonth)['report'];
     }
 
     /** @throws NkoRuleException 422 beserta hasil pemeriksaan bila workbook tidak lolos */
-    public function upload(UploadedFile $file, int $year, string $note, User $actor): string
+    public function upload(UploadedFile $file, int $year, string $note, User $actor, int $effectiveMonth = 1): string
     {
-        ['report' => $report, 'book' => $book] = $this->inspect($file->getRealPath(), $year);
+        ['report' => $report, 'book' => $book] = $this->inspect($file->getRealPath(), $year, $effectiveMonth);
         if (! $report['can_upload']) {
             throw new NkoRuleException('Workbook belum dapat diunggah: '.$report['errors'][0].(count($report['errors']) > 1 ? ' (dan '.(count($report['errors']) - 1).' masalah lain)' : ''), 422, $report);
         }
 
-        return $this->store('DEFINISI', $file, $year, $note, $actor, $this->baseSets($book), $report);
+        return $this->store('DEFINISI', $file, $year, $note, $actor, $this->baseSets($book), $report, $effectiveMonth);
     }
 
     /**
@@ -93,14 +93,14 @@ class NkoDefinitionUploadService
 
                     return ['status' => 'DISETUJUI', 'sets' => [], 'mapping' => null, 'cells' => $cells];
                 }
-                ['report' => $report, 'book' => $book] = $this->inspect($path, (int) $upload->year);
+                ['report' => $report, 'book' => $book] = $this->inspect($path, (int) $upload->year, (int) $upload->effective_month);
                 if (! $report['can_upload']) {
                     throw new NkoRuleException('Workbook tidak lolos pemeriksaan ulang: '.implode(' ', $report['errors']), 409, $report);
                 }
                 if ($this->baseSets($book) != json_decode($upload->base_sets, true)) {
                     throw new NkoRuleException('Definisi aktif sudah berubah sejak pratinjau dibuat. Batalkan lalu unggah ulang.', 409);
                 }
-                $result = $this->importer->import($path, $upload->source_name, $actor, $book);
+                $result = $this->importer->import($path, $upload->source_name, $actor, $book, (int) $upload->effective_month);
             } finally {
                 @unlink($path);
             }
@@ -125,7 +125,7 @@ class NkoDefinitionUploadService
      * @param  array<string, ?string>  $baseSets
      * @param  array<string, mixed>  $report
      */
-    private function store(string $kind, UploadedFile $file, int $year, string $note, User $actor, array $baseSets, array $report): string
+    private function store(string $kind, UploadedFile $file, int $year, string $note, User $actor, array $baseSets, array $report, int $effectiveMonth = 1): string
     {
         if (DB::table('kpi_definition_uploads')->where('year', $year)->where('status', 'MENUNGGU')->exists()) {
             throw new NkoRuleException("Masih ada unggahan definisi atau target {$year} yang menunggu persetujuan. Putuskan atau batalkan dulu.", 409);
@@ -135,7 +135,7 @@ class NkoDefinitionUploadService
         $key = "nko-workbooks/{$id}.xlsx";
         $this->disk()->put($key, $file->getContent());
         DB::table('kpi_definition_uploads')->insert([
-            'id' => $id, 'kind' => $kind, 'year' => $year, 'source_name' => mb_substr($file->getClientOriginalName(), 0, 200), 'file_key' => $key,
+            'id' => $id, 'kind' => $kind, 'year' => $year, 'effective_month' => $effectiveMonth, 'source_name' => mb_substr($file->getClientOriginalName(), 0, 200), 'file_key' => $key,
             'base_sets' => json_encode($baseSets), 'changes' => json_encode($report['changes'], JSON_UNESCAPED_UNICODE),
             'check_report' => json_encode(array_diff_key($report, ['changes' => true]), JSON_UNESCAPED_UNICODE), 'note' => $note,
             'uploaded_by' => $actor->id, 'uploaded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
@@ -190,11 +190,11 @@ class NkoDefinitionUploadService
     }
 
     /** @return array{report: array<string, mixed>, book: ?array<string, mixed>} */
-    private function inspect(string $path, int $year): array
+    private function inspect(string $path, int $year, int $effectiveMonth): array
     {
         $this->raiseMemoryLimit();
 
-        return $this->checker->check($path, $year);
+        return $this->checker->check($path, $year, $effectiveMonth);
     }
 
     /** @return array<string, mixed> */

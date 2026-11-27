@@ -41,7 +41,9 @@ class NkoCalculationService
     public function reconcile(int $year, ?int $month = null, ?string $unitCode = null, float $tolerance = 0.0001): array
     {
         $out = ['compared_units' => 0, 'rows_compared' => 0, 'rows_mismatch' => 0, 'totals_mismatch' => 0, 'mismatches' => []];
-        $sets = DB::table('kpi_definition_sets')->where('year', $year)->where('status', 'AKTIF')->get();
+        // tiap bulan direkonsiliasi pada versi yang berlaku di bulan itu
+        $inForce = NkoDefinitionSets::months($year, 'UP3') + NkoDefinitionSets::months($year, 'ULP');
+        $sets = DB::table('kpi_definition_sets')->whereIn('id', array_keys($inForce))->get();
         foreach ($sets as $set) {
             $rules = json_decode($set->month_rules, true)['months'] ?? [];
             $totals = DB::table('kpi_reference_totals as t')->join('organizational_units as u', 'u.id', '=', 't.organizational_unit_id')
@@ -50,7 +52,7 @@ class NkoCalculationService
             foreach ($totals as $t) {
                 $m = (int) substr($t->period, 5, 2);
                 $rule = $rules[(string) $m] ?? null;
-                if ($rule === null) {
+                if ($rule === null || ! in_array($m, $inForce[$set->id], true)) {
                     continue;
                 }
                 $nodes = $this->nodes($set->id, $t->organizational_unit_id);
