@@ -35,6 +35,8 @@ export default function SrReservationsPage() {
   // Pending tab state
   const [pUp3Id, setPUp3Id] = useState('')
   const [pUnitId, setPUnitId] = useState('')
+  const [pPhase, setPPhase] = useState('')
+  const [pReserved, setPReserved] = useState('')
   const [pSearch, setPSearch] = useState('')
   const pDebounced = useDebounce(pSearch, 300)
   const [pPage, setPPage] = useState(1)
@@ -55,6 +57,10 @@ export default function SrReservationsPage() {
   const [rPerPage, setRPerPage] = useState(25)
   const [plansState, setPlansState] = useState({ loading: false, error: '', rows: [], meta: null })
   const [detailId, setDetailId] = useState(null)
+  const [selectedPlanIds, setSelectedPlanIds] = useState([])
+  const [batchActionBusy, setBatchActionBusy] = useState(false)
+  const [batchMimsNo, setBatchMimsNo] = useState('')
+  const [batchResult, setBatchResult] = useState(null)
 
   const loadPending = useCallback(async () => {
     if (!canView) return
@@ -62,6 +68,8 @@ export default function SrReservationsPage() {
     try {
       const res = await srReservationsApi.pending({
         unit_id: pUnitId || undefined,
+        phase: pPhase || undefined,
+        reserved: pReserved !== '' ? pReserved : undefined,
         search: pDebounced.trim() || undefined,
         page: pPage,
         per_page: pPerPage,
@@ -70,7 +78,7 @@ export default function SrReservationsPage() {
     } catch (err) {
       setPendingState({ loading: false, error: err?.message || 'Gagal memuat daftar menunggu reservasi.', rows: [], meta: null })
     }
-  }, [canView, pUnitId, pDebounced, pPage, pPerPage])
+  }, [canView, pUnitId, pPhase, pReserved, pDebounced, pPage, pPerPage])
 
   const loadPlans = useCallback(async () => {
     if (!canView) return
@@ -106,10 +114,15 @@ export default function SrReservationsPage() {
   }, [pendingState, plansState])
 
   const selectedAgendas = useMemo(() => Object.values(selectedMap), [selectedMap])
+  const selectablePendingRows = useMemo(
+    () => pendingState.rows.filter((r) => !r.already_reserved),
+    [pendingState.rows],
+  )
   const allCurrentPageSelected =
-    pendingState.rows.length > 0 && pendingState.rows.every((r) => Boolean(selectedMap[r.application_id]))
+    selectablePendingRows.length > 0 && selectablePendingRows.every((r) => Boolean(selectedMap[r.application_id]))
 
   const toggleSelectRow = (row) => {
+    if (row.already_reserved) return
     setSelectedMap((prev) => {
       if (prev[row.application_id]) {
         const next = { ...prev }
@@ -124,12 +137,52 @@ export default function SrReservationsPage() {
     setSelectedMap((prev) => {
       const next = { ...prev }
       if (allCurrentPageSelected) {
-        pendingState.rows.forEach((r) => { delete next[r.application_id] })
+        selectablePendingRows.forEach((r) => { delete next[r.application_id] })
       } else {
-        pendingState.rows.forEach((r) => { next[r.application_id] = r })
+        selectablePendingRows.forEach((r) => { next[r.application_id] = r })
       }
       return next
     })
+  }
+
+  const allPlansPageSelected =
+    plansState.rows.length > 0 && plansState.rows.every((r) => selectedPlanIds.includes(r.id))
+
+  const togglePlanRow = (id) => {
+    setSelectedPlanIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  const toggleAllPlansPage = () => {
+    if (allPlansPageSelected) {
+      const pageIds = new Set(plansState.rows.map((r) => r.id))
+      setSelectedPlanIds((prev) => prev.filter((id) => !pageIds.has(id)))
+    } else {
+      const merged = new Set([...selectedPlanIds, ...plansState.rows.map((r) => r.id)])
+      setSelectedPlanIds(Array.from(merged))
+    }
+  }
+
+  const runBatchAction = async (action) => {
+    if (selectedPlanIds.length === 0) return
+    if (action === 'mims' && !batchMimsNo.trim()) return
+    setBatchActionBusy(true)
+    setBatchResult(null)
+    try {
+      const res = await srReservationsApi.batchActions({
+        ids: selectedPlanIds,
+        action,
+        ...(action === 'mims' ? { reservation_no: batchMimsNo.trim() } : {}),
+      })
+      setBatchResult(res || null)
+      if (action === 'mims') setBatchMimsNo('')
+      setSelectedPlanIds([])
+      loadPending()
+      loadPlans()
+    } catch (err) {
+      setBatchResult({ summary: { succeeded: 0, failed: selectedPlanIds.length }, error: err?.message || 'Gagal menjalankan aksi massal.' })
+    } finally {
+      setBatchActionBusy(false)
+    }
   }
 
   const handleRefresh = () => {
@@ -329,6 +382,26 @@ export default function SrReservationsPage() {
                 unitId={pUnitId}
                 onUnitChange={(v) => { setPUnitId(v); setPPage(1) }}
               />
+              <select
+                aria-label="Filter fasa"
+                value={pPhase}
+                onChange={(e) => { setPPhase(e.target.value); setPPage(1) }}
+                className={filterSelectCls}
+              >
+                <option value="">Semua Fasa</option>
+                <option value="1">1 Phasa</option>
+                <option value="3">3 Phasa</option>
+              </select>
+              <select
+                aria-label="Filter status reservasi MIMS"
+                value={pReserved}
+                onChange={(e) => { setPReserved(e.target.value); setPPage(1) }}
+                className={filterSelectCls}
+              >
+                <option value="">Semua Status MIMS</option>
+                <option value="0">Belum Direservasi</option>
+                <option value="1">Sudah Direservasi</option>
+              </select>
             </div>
           </div>
 
@@ -389,12 +462,17 @@ export default function SrReservationsPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {pendingState.rows.map((row) => {
-                      const checked = Boolean(selectedMap[row.application_id])
+                      const isReserved = Boolean(row.already_reserved)
+                      const checked = !isReserved && Boolean(selectedMap[row.application_id])
                       return (
                         <tr
                           key={row.application_id}
                           className={`transition-colors ${
-                            checked ? 'bg-blue-50/40 dark:bg-blue-950/20' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
+                            isReserved
+                              ? 'bg-slate-50/60 dark:bg-slate-850/40 opacity-85'
+                              : checked
+                                ? 'bg-blue-50/40 dark:bg-blue-950/20'
+                                : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                           }`}
                         >
                           <td className="py-3 pl-4 pr-2">
@@ -402,15 +480,28 @@ export default function SrReservationsPage() {
                               type="checkbox"
                               aria-label={`Pilih ${row.application_number}`}
                               checked={checked}
+                              disabled={isReserved}
                               onChange={() => toggleSelectRow(row)}
-                              className="rounded border-slate-300"
+                              className="rounded border-slate-300 disabled:opacity-40"
                             />
                           </td>
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-slate-900 dark:text-slate-100">{row.customer_name}</div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-slate-900 dark:text-slate-100">{row.customer_name}</span>
+                              {isReserved && (
+                                <span className="rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0 text-[10px] font-semibold">
+                                  Sudah direservasi
+                                </span>
+                              )}
+                            </div>
                             <div className="font-mono text-[11px] text-slate-500">
                               {row.application_number} · {row.application_type} · {row.status}
                             </div>
+                            {isReserved && Array.isArray(row.mims_reservation_numbers) && row.mims_reservation_numbers.length > 0 && (
+                              <div className="font-mono text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5">
+                                No. MIMS: {row.mims_reservation_numbers.join(', ')}
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
                             {row.unit?.code ? `${row.unit.code} - ` : ''}{row.unit?.name || '-'}
@@ -431,8 +522,14 @@ export default function SrReservationsPage() {
                             )}
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <Button size="sm" variant="primary" icon={IconPlus} onClick={() => setPlanAppTarget(row)}>
-                              Buat Rencana
+                            <Button
+                              size="sm"
+                              variant={isReserved ? 'secondary' : 'primary'}
+                              icon={IconPlus}
+                              disabled={isReserved}
+                              onClick={() => setPlanAppTarget(row)}
+                            >
+                              {isReserved ? 'Sudah Direservasi' : 'Buat Rencana'}
                             </Button>
                           </td>
                         </tr>
@@ -504,6 +601,66 @@ export default function SrReservationsPage() {
             </div>
           )}
 
+          {/* Bilah Aksi Massal Daftar Rencana */}
+          {selectedPlanIds.length > 0 && (
+            <div className="px-4 py-3 bg-indigo-50/70 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-900/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <span className="font-semibold text-indigo-900 dark:text-indigo-200">
+                {selectedPlanIds.length} rencana dipilih
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="secondary" loading={batchActionBusy} onClick={() => runBatchAction('submit')}>
+                  Ajukan Sekaligus
+                </Button>
+                <Button size="sm" variant="primary" loading={batchActionBusy} onClick={() => runBatchAction('approve')}>
+                  Setujui Sekaligus
+                </Button>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    aria-label="Nomor MIMS massal"
+                    value={batchMimsNo}
+                    onChange={(e) => setBatchMimsNo(e.target.value)}
+                    placeholder="No. MIMS untuk semua terpilih…"
+                    className="rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-mono text-slate-900 dark:text-slate-100 focus-ring w-48"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={batchActionBusy}
+                    disabled={!batchMimsNo.trim()}
+                    onClick={() => runBatchAction('mims')}
+                  >
+                    Catat No. MIMS
+                  </Button>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedPlanIds([])}>
+                  Batal
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {batchResult && (
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+              <Alert variant={batchResult.error || (batchResult.summary?.failed || 0) > 0 ? 'warning' : 'success'}>
+                <div className="space-y-1 text-xs">
+                  <div className="font-bold">
+                    {batchResult.error
+                      ? batchResult.error
+                      : `Hasil aksi massal: ${batchResult.summary?.succeeded ?? 0} berhasil, ${batchResult.summary?.failed ?? 0} gagal.`}
+                  </div>
+                  {Array.isArray(batchResult.data) && batchResult.data.some((x) => !x.ok) && (
+                    <ul className="list-disc pl-5">
+                      {batchResult.data.filter((x) => !x.ok).slice(0, 5).map((x) => (
+                        <li key={x.id || x.application_id}>{x.message || 'Gagal memproses baris.'}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </Alert>
+            </div>
+          )}
+
           {plansState.loading ? (
             <div className="py-16 flex justify-center"><Spinner label="Memuat daftar rencana reservasi..." /></div>
           ) : plansState.rows.length === 0 ? (
@@ -520,6 +677,15 @@ export default function SrReservationsPage() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800/70 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                     <tr>
+                      <th className="py-3 pl-4 pr-2 w-8">
+                        <input
+                          type="checkbox"
+                          aria-label="Pilih semua rencana di halaman ini"
+                          checked={allPlansPageSelected}
+                          onChange={toggleAllPlansPage}
+                          className="rounded border-slate-300"
+                        />
+                      </th>
                       <th className="py-3 px-4">Permohonan &amp; Pelanggan</th>
                       <th className="py-3 px-4">Gudang &amp; Pelaksana</th>
                       <th className="py-3 px-4">Status</th>
@@ -530,8 +696,18 @@ export default function SrReservationsPage() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {plansState.rows.map((r) => {
                       const agendaCount = r.applications_count ?? r.agendas?.length ?? 1
+                      const planChecked = selectedPlanIds.includes(r.id)
                       return (
-                        <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <tr key={r.id} className={`transition-colors ${planChecked ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'}`}>
+                          <td className="py-3 pl-4 pr-2">
+                            <input
+                              type="checkbox"
+                              aria-label={`Pilih rencana ${r.application?.number || r.id}`}
+                              checked={planChecked}
+                              onChange={() => togglePlanRow(r.id)}
+                              className="rounded border-slate-300"
+                            />
+                          </td>
                           <td className="py-3 px-4">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span className="font-semibold text-slate-900 dark:text-slate-100">

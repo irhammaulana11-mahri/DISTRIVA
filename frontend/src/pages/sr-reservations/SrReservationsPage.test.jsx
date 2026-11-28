@@ -15,6 +15,9 @@ vi.mock('../../services/api.js', () => ({
     forApplication: vi.fn(),
     create: vi.fn(),
     createBatch: vi.fn(),
+    batchActions: vi.fn(),
+    reportExtension: vi.fn(),
+    cancelExtension: vi.fn(),
     get: vi.fn(),
     update: vi.fn(),
     submit: vi.fn(),
@@ -44,6 +47,7 @@ const ALL_CAN = {
   'sr_reservations.prepare_up3': true,
   'sr_reservations.approve_up3': true,
   'sr_vendor_contracts.manage': true,
+  'sr_reservations.report_extension': true,
 }
 
 function wrap(ui, can = ALL_CAN, isSysAdmin = false) {
@@ -338,6 +342,80 @@ describe('SrReservationsPage (docs/95)', () => {
 
     await waitFor(() => {
       expect(srReservationsApi.sendSap).toHaveBeenCalledWith('res-1')
+    })
+  })
+
+  it('menandai baris already_reserved dan menonaktifkan pilihannya, serta mendukung filter phase/reserved dan aksi massal daftar rencana (#76)', async () => {
+    srReservationsApi.pending.mockResolvedValue({
+      data: [
+        {
+          application_id: 'app-res',
+          application_number: 'PB-2026-099',
+          application_type: 'PB',
+          status: 'PAID',
+          customer_name: 'Pelanggan Sudah MIMS',
+          unit: { id: 'ulp-1', code: '51453', name: 'ULP Jombang' },
+          power_va: 2200,
+          phase: 1,
+          already_reserved: true,
+          mims_reservation_numbers: ['514532611196444'],
+          default_vendor: { id: 'v-1', name: 'PT Pelaksana 1Ph' },
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1, per_page: 25 },
+    })
+    srReservationsApi.batchActions.mockResolvedValue({
+      data: [{ id: 'res-1', ok: true }],
+      summary: { succeeded: 1, failed: 0 },
+    })
+
+    wrap(<SrReservationsPage />)
+
+    expect(await screen.findByText('Sudah direservasi')).toBeInTheDocument()
+    expect(screen.getByText(/No\. MIMS: 514532611196444/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Pilih PB-2026-099')).toBeDisabled()
+
+    await userEvent.selectOptions(screen.getByLabelText('Filter fasa'), '1')
+    await userEvent.selectOptions(screen.getByLabelText('Filter status reservasi MIMS'), '0')
+    await waitFor(() => {
+      expect(srReservationsApi.pending).toHaveBeenCalledWith(expect.objectContaining({ phase: '1', reserved: '0' }))
+    })
+
+    await userEvent.click(screen.getByRole('tab', { name: /Daftar Rencana Reservasi/i }))
+    await userEvent.click(await screen.findByLabelText('Pilih rencana PB-2026-001'))
+    await userEvent.click(screen.getByRole('button', { name: /Setujui Sekaligus/i }))
+
+    await waitFor(() => {
+      expect(srReservationsApi.batchActions).toHaveBeenCalledWith({ ids: ['res-1'], action: 'approve' })
+    })
+    expect(await screen.findByText(/Hasil aksi massal: 1 berhasil, 0 gagal/i)).toBeInTheDocument()
+  })
+
+  it('mendukung catat temuan Perlu Perluasan dan Batalkan Tanda Perluasan untuk Teknik ULP (#76 & #77)', async () => {
+    srReservationsApi.forApplication.mockResolvedValue({
+      data: {
+        power_va: 2200,
+        phase: 1,
+        blockers: [],
+        default_sr_length_m: 35,
+        survey_sr_length_m: null,
+        contract: { id: 'c-1', contract_number: 'KTR-001', vendor: { id: 'v-1', code: 'V01', name: 'PT Pelaksana 1Ph' } },
+        warehouses: [{ id: 'wh-1', code: 'GD-51453', name: 'Gudang ULP Jombang', level: 'ULP' }],
+        reservations: [],
+      },
+    })
+    srReservationsApi.reportExtension.mockResolvedValue({ data: { ok: true } })
+
+    wrap(<SrReservationsPage />)
+    await userEvent.click(await screen.findByRole('button', { name: /Buat Rencana/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Perlu Perluasan/i }))
+
+    fireEvent.change(screen.getByLabelText(/Alasan \/ Kondisi Lapangan/i), { target: { value: 'Jarak tiang 95 m' } })
+    fireEvent.change(screen.getByLabelText(/Perkiraan Jarak/i), { target: { value: '95' } })
+    await userEvent.click(screen.getByRole('button', { name: /Simpan Temuan/i }))
+
+    await waitFor(() => {
+      expect(srReservationsApi.reportExtension).toHaveBeenCalledWith('app-1', { reason: 'Jarak tiang 95 m', distance_m: 95 })
     })
   })
 })

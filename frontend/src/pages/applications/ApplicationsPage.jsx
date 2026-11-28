@@ -1603,7 +1603,12 @@ export function ApplicationDetailDrawer({
   const [error, setError] = useState('')
 
   const missingFields = getMissingFields(app)
-  const canStartSurvey = Boolean(app && !['DRAFT', 'SUBMITTED'].includes(app.status) && missingFields.hasAgenda)
+  const canStartSurvey = Boolean(
+    app &&
+      !['DRAFT', 'SUBMITTED'].includes(app.status) &&
+      missingFields.hasAgenda &&
+      (app.survey_required !== false || Boolean(app.extension_finding)),
+  )
 
   // Usulan yang memuat permohonan ini (docs/62 §37, docs/82 §11): datang dari detail permohonan. `issued` false = masih permintaan survei kolektif (nomor usulan belum terbit).
   const proposalInfo = useMemo(() => {
@@ -2031,7 +2036,10 @@ export function ApplicationDetailDrawer({
                 <span>SPK / Work Order</span>
               </button>
             )}
-            {(accessCan?.['sr_reservations.view'] || isSysAdmin) && Boolean(app?.ready_to_install || app?.survey?.ready_to_install) && (
+            {(accessCan?.['sr_reservations.view'] || accessCan?.['sr_reservations.report_extension'] || isSysAdmin) &&
+              (Boolean(app?.ready_to_install ?? app?.survey?.ready_to_install) ||
+                Boolean(app?.extension_finding) ||
+                app?.status === 'CONNECTION_IN_PROGRESS') && (
               <button
                 type="button"
                 onClick={() => setActiveTab('sr-reservations')}
@@ -2153,7 +2161,7 @@ export function ApplicationDetailDrawer({
 
               {/* Status Banner */}
               {(() => {
-                const isReadyToInstall = Boolean(app.ready_to_install || app.survey?.ready_to_install)
+                const isReadyToInstall = Boolean(app.ready_to_install ?? app.survey?.ready_to_install)
                 return (
                   <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
                     <div>
@@ -2516,6 +2524,12 @@ export function ApplicationDetailDrawer({
                         Daftar riwayat survei teknis dan pengukuran tiang/trafo.
                       </p>
                     </div>
+
+                    {app?.survey_required === false && !app?.extension_finding && surveys.length === 0 && (
+                      <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 text-[11px]">
+                        Sambungan 1 phasa langsung dipasang tanpa survei dan KKO. Survei baru diperlukan bila Teknik ULP mencatat temuan perlu perluasan di tab Reservasi SR.
+                      </div>
+                    )}
 
                     {canExecuteSurvey && !surveys.some((s) => s.status === 'ACTIVE') && (
                       isNonRepresentative ? (

@@ -5,8 +5,10 @@ import { useNotifications } from '../../features/notifications/NotificationConte
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
+import Modal from '../../components/Modal.jsx'
+import ReasonDialog from '../../components/ReasonDialog.jsx'
 import SrReservationDetailDrawer, { SrStatusBadge } from './SrReservationDetailDrawer.jsx'
-import { IconAlertCircle, IconCheckCircle, IconLock, IconPlus, IconEye } from '../../components/icons.jsx'
+import { IconAlertCircle, IconCheckCircle, IconLock, IconPlus, IconEye, IconX } from '../../components/icons.jsx'
 
 export default function ApplicationSrReservationPanel({ applicationId, onChanged }) {
   const { can, isSysAdmin } = useAccess()
@@ -23,11 +25,20 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
   const [vendors, setVendors] = useState([])
   const [creating, setCreating] = useState(false)
 
+  // Extension finding (docs/95 #76 & #77)
+  const [extOpen, setExtOpen] = useState(false)
+  const [extReason, setExtReason] = useState('')
+  const [extDistance, setExtDistance] = useState('')
+  const [extBusy, setExtBusy] = useState(false)
+  const [cancelExtOpen, setCancelExtOpen] = useState(false)
+  const [cancelExtError, setCancelExtError] = useState('')
+
   const [detailId, setDetailId] = useState(null)
 
   const canPrepareUlp = Boolean(isSysAdmin || can?.['sr_reservations.prepare_ulp'])
   const canPrepareUp3 = Boolean(isSysAdmin || can?.['sr_reservations.prepare_up3'])
   const canPrepareAny = canPrepareUlp || canPrepareUp3
+  const canReportExtension = Boolean(isSysAdmin || can?.['sr_reservations.report_extension'])
 
   const load = useCallback(async () => {
     if (!applicationId) return
@@ -68,7 +79,7 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
 
   const handleCreate = async (e) => {
     e.preventDefault()
-    if (!warehouseId) {
+    if (!warehouseId && (info?.warehouses?.length || 0) > 1) {
       notify({ type: 'error', title: 'Gudang belum dipilih', desc: 'Pilih gudang sumber material terlebih dahulu.', tag: 'Reservasi SR' })
       return
     }
@@ -80,7 +91,7 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
     setCreating(true)
     try {
       const body = {
-        warehouse_id: warehouseId,
+        ...(warehouseId ? { warehouse_id: warehouseId } : {}),
         ...(info?.phase === 3 ? { vendor_company_id: vendorId } : {}),
         ...(srLength !== '' ? { sr_length_m: Number(srLength) } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
@@ -96,6 +107,56 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
       notify({ type: 'error', title: 'Gagal membuat rencana', desc: err?.message || 'Periksa syarat dan penghalang (blockers).', tag: 'Reservasi SR' })
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleReportExtension = async (e) => {
+    e.preventDefault()
+    if (!extReason.trim()) return
+    setExtBusy(true)
+    try {
+      await srReservationsApi.reportExtension(applicationId, {
+        reason: extReason.trim(),
+        ...(extDistance !== '' ? { distance_m: Number(extDistance) } : {}),
+      })
+      notify({
+        type: 'warning',
+        title: 'Temuan perlu perluasan dicatat',
+        desc: 'Alur survei dan KKO kini terbuka untuk permohonan ini.',
+        tag: 'Reservasi SR',
+      })
+      setExtOpen(false)
+      setExtReason('')
+      setExtDistance('')
+      await load()
+      onChanged?.()
+    } catch (err) {
+      notify({ type: 'error', title: 'Gagal mencatat temuan', desc: err?.message || 'Terjadi kesalahan.', tag: 'Reservasi SR' })
+    } finally {
+      setExtBusy(false)
+    }
+  }
+
+  const handleCancelExtension = async (reason) => {
+    setExtBusy(true)
+    setCancelExtError('')
+    try {
+      await srReservationsApi.cancelExtension(applicationId, { reason })
+      notify({
+        type: 'success',
+        title: 'Tanda perlu perluasan dibatalkan',
+        desc: 'Permohonan kembali ke jalur sambungan langsung tanpa survei.',
+        tag: 'Reservasi SR',
+      })
+      setCancelExtOpen(false)
+      await load()
+      onChanged?.()
+    } catch (err) {
+      const msg = err?.message || 'Tidak dapat membatalkan tanda perluasan.'
+      setCancelExtError(msg)
+      notify({ type: 'error', title: 'Pembatalan ditolak', desc: msg, tag: 'Reservasi SR' })
+    } finally {
+      setExtBusy(false)
     }
   }
 
@@ -117,6 +178,7 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
   const reservations = info.reservations || []
   const hasRunningPlan = reservations.some((r) => r.status !== 'CANCELLED')
   const warehouses = info.warehouses || []
+  const finding = info.extension_finding || null
 
   return (
     <div className="space-y-4">
@@ -131,13 +193,47 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
               {info.phase} Phasa
             </span>
           )}
+          {Array.isArray(info.mims_reservation_numbers) && info.mims_reservation_numbers.length > 0 && (
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+              MIMS: {info.mims_reservation_numbers.join(', ')}
+            </span>
+          )}
         </div>
-        {info.survey_sr_length_m != null && (
-          <span className="text-slate-600 dark:text-slate-300">
-            Panjang SR hasil survei: <strong>{Number(info.survey_sr_length_m).toLocaleString('id-ID')} m</strong>
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {info.survey_sr_length_m != null && (
+            <span className="text-slate-600 dark:text-slate-300">
+              Panjang SR hasil survei: <strong>{Number(info.survey_sr_length_m).toLocaleString('id-ID')} m</strong>
+            </span>
+          )}
+          {info.phase === 1 && canReportExtension && !finding && (
+            <Button type="button" size="sm" variant="secondary" onClick={() => setExtOpen(true)}>
+              Perlu Perluasan
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Temuan Perlu Perluasan (1 Phasa) */}
+      {finding && (
+        <Alert variant="warning">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1 text-xs">
+              <div className="font-bold">Temuan Lapangan: Perlu Perluasan Jaringan</div>
+              <p>{finding.reason}</p>
+              <p className="text-[11px] opacity-80">
+                {finding.distance_m != null ? `Perkiraan jarak: ${finding.distance_m} m · ` : ''}
+                Dicatat oleh {typeof finding.reported_by === 'string' ? finding.reported_by : finding.reported_by?.name || '-'}
+                {finding.reported_at ? ` pada ${new Date(finding.reported_at).toLocaleString('id-ID')}` : ''}
+              </p>
+            </div>
+            {canReportExtension && (
+              <Button type="button" size="sm" variant="danger" icon={IconX} onClick={() => { setCancelExtError(''); setCancelExtOpen(true) }}>
+                Batalkan Tanda Perluasan
+              </Button>
+            )}
+          </div>
+        </Alert>
+      )}
 
       {/* Blockers */}
       {blockers.length > 0 && (
@@ -256,7 +352,7 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" variant="primary" size="sm" icon={IconPlus} loading={creating} disabled={blockers.length > 0 || !warehouseId || (info.phase === 3 && !vendorId)}>
+            <Button type="submit" variant="primary" size="sm" icon={IconPlus} loading={creating} disabled={blockers.length > 0 || (!warehouseId && warehouses.length > 1) || (info.phase === 3 && !vendorId)}>
               Buat Rencana Reservasi
             </Button>
           </div>
@@ -291,6 +387,69 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
           </ul>
         </div>
       )}
+
+      {/* Modal Catat Temuan Perlu Perluasan */}
+      <Modal
+        open={extOpen}
+        onClose={() => setExtOpen(false)}
+        size="max-w-md"
+        title="Catat Temuan Perlu Perluasan"
+        subtitle="Gunakan bila sambungan 1 phasa ternyata membutuhkan perluasan jaringan. Alur survei dan KKO akan dibuka."
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setExtOpen(false)}>Batal</Button>
+            <Button type="submit" form="sr-ext-form" variant="primary" loading={extBusy} disabled={!extReason.trim()}>
+              Simpan Temuan
+            </Button>
+          </>
+        }
+      >
+        <form id="sr-ext-form" onSubmit={handleReportExtension} className="space-y-3 text-xs">
+          <div>
+            <label htmlFor="sr-ext-reason" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Alasan / Kondisi Lapangan <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              id="sr-ext-reason"
+              rows={3}
+              required
+              value={extReason}
+              onChange={(e) => setExtReason(e.target.value)}
+              placeholder="Contoh: Jarak tiang terdekat 95 meter, perlu tambah 2 tiang JTR…"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            />
+          </div>
+          <div>
+            <label htmlFor="sr-ext-dist" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Perkiraan Jarak (meter, opsional)
+            </label>
+            <input
+              id="sr-ext-dist"
+              type="number"
+              min="1"
+              step="1"
+              value={extDistance}
+              onChange={(e) => setExtDistance(e.target.value)}
+              placeholder="Mis. 95"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+            />
+          </div>
+        </form>
+      </Modal>
+
+      <ReasonDialog
+        open={cancelExtOpen}
+        title="Batalkan Tanda Perlu Perluasan?"
+        description={
+          cancelExtError ||
+          'Tanda perlu perluasan hanya dapat dibatalkan bila belum ada survei, usulan, gambar, atau alokasi sesudah temuan.'
+        }
+        confirmLabel="Batalkan Tanda"
+        variant="danger"
+        loading={extBusy}
+        onClose={() => setCancelExtOpen(false)}
+        onConfirm={handleCancelExtension}
+      />
 
       <SrReservationDetailDrawer
         open={Boolean(detailId)}

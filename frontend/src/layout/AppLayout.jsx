@@ -1345,7 +1345,10 @@ export default function AppLayout() {
                             type="button"
                             onClick={() => {
                               markRead(item.id)
-                              if (
+                              if (item.tag === 'Reservasi') {
+                                navigate('/reservasi-sr')
+                                setNotifOpen(false)
+                              } else if (
                                 typeof item.link === 'string' &&
                                 item.link.startsWith('/') &&
                                 !item.link.startsWith('//')

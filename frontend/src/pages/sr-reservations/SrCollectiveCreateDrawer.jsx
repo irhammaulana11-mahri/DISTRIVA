@@ -148,14 +148,41 @@ export default function SrCollectiveCreateDrawer({
         ...(srLength !== '' ? { sr_length_m: Number(srLength) } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       })
-      notify({
-        type: 'success',
-        title: 'Reservasi kolektif dibuat',
-        desc: `Rencana kolektif untuk ${agendas.length} agenda berhasil dibuat sebagai Draf.`,
-        tag: 'Reservasi SR',
-      })
-      onCreated?.(res?.data?.id)
-      onClose?.()
+      const results = Array.isArray(res?.data) ? res.data : null
+      const summary = res?.summary
+      if (results && summary) {
+        const failedRows = results.filter((r) => !r.ok)
+        if (failedRows.length > 0) {
+          notify({
+            type: summary.succeeded > 0 ? 'warning' : 'error',
+            title: `Reservasi kolektif: ${summary.succeeded} berhasil, ${summary.failed} gagal`,
+            desc: failedRows.slice(0, 3).map((r) => r.message || r.application_id).join('; '),
+            tag: 'Reservasi SR',
+          })
+          if (summary.succeeded > 0) {
+            onCreated?.(results.find((r) => r.ok)?.id)
+            onClose?.()
+          }
+        } else {
+          notify({
+            type: 'success',
+            title: 'Reservasi kolektif dibuat',
+            desc: `Rencana kolektif untuk ${summary.succeeded} agenda berhasil dibuat sebagai Draf.`,
+            tag: 'Reservasi SR',
+          })
+          onCreated?.(results[0]?.id)
+          onClose?.()
+        }
+      } else {
+        notify({
+          type: 'success',
+          title: 'Reservasi kolektif dibuat',
+          desc: `Rencana kolektif untuk ${agendas.length} agenda berhasil dibuat sebagai Draf.`,
+          tag: 'Reservasi SR',
+        })
+        onCreated?.(res?.data?.id)
+        onClose?.()
+      }
     } catch (err) {
       const msg = err?.status === 404 || err?.status === 405
         ? 'Endpoint kolektif backend (/sr-reservations/batch) belum tersedia. Pastikan agen backend sudah menerapkannya.'
