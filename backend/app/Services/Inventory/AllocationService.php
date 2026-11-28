@@ -44,8 +44,14 @@ class AllocationService
     /** Material already allocated by the OTHER confirmed (not cancelled) allocations of the application — the base and earlier top-ups — per KHS item. @return array<string,float> */
     private function heldByOthers(string $applicationId, string $exceptId): array
     {
-        return DB::table('allocation_lines as l')->join('allocations as a', 'a.id', '=', 'l.allocation_id')->where('a.application_id', $applicationId)->where('a.id', '<>', $exceptId)
+        $held = DB::table('allocation_lines as l')->join('allocations as a', 'a.id', '=', 'l.allocation_id')->where('a.application_id', $applicationId)->where('a.id', '<>', $exceptId)
             ->whereNotNull('a.materials_confirmed_at')->where('a.status', '<>', 'CANCELLED')->selectRaw('l.khs_item_id, sum(l.quantity) q')->groupBy('l.khs_item_id')->pluck('q', 'khs_item_id')->map(fn ($q) => (float) $q)->all();
+        // APP material already reserved when the 1-phase connection started (docs/95) is not allocated again
+        foreach (SrReservationService::reservedFor($applicationId) as $item => $q) {
+            $held[$item] = ($held[$item] ?? 0.0) + $q;
+        }
+
+        return $held;
     }
 
     /** @param list<array{khs_code:string,warehouse_id:string,quantity:numeric}> $materials */
@@ -133,12 +139,13 @@ class AllocationService
         $supplier = $this->suppliers($pkg->id, $need->pluck('khs_item_id')->all());
         $held = DB::table('allocation_lines as l')->join('allocations as a', 'a.id', '=', 'l.allocation_id')->where('a.application_id', $applicationId)->whereNotNull('a.materials_confirmed_at')->where('a.status', '<>', 'CANCELLED')
             ->selectRaw('l.khs_item_id, sum(l.quantity) q')->groupBy('l.khs_item_id')->pluck('q', 'khs_item_id');
+        $reserved = SrReservationService::reservedFor($applicationId);
         $out = [];
         foreach ($need as $n) {
             if (($supplier[$n->khs_item_id] ?? null) === 'VENDOR') {
                 continue;
             }
-            $allocated = (float) ($held[$n->khs_item_id] ?? 0);
+            $allocated = (float) ($held[$n->khs_item_id] ?? 0) + ($reserved[$n->khs_item_id] ?? 0.0);
             $remaining = round((float) $n->q - $allocated, 3);
             if ($remaining > 1e-9) {
                 $out[] = ['khs_code' => $n->khs_code, 'khs_name' => $n->khs_name, 'unit_text' => $n->unit_text, 'need' => (float) $n->q, 'allocated' => $allocated, 'remaining' => $remaining];

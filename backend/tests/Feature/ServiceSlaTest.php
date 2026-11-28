@@ -102,6 +102,14 @@ class ServiceSlaTest extends PostgresTestCase
         return $id;
     }
 
+    private function threePhaseWithoutMto(): string
+    {
+        $id = $this->application([]);
+        DB::table('applications')->where('id', $id)->update(['new_power_value' => 6600]);
+
+        return $id;
+    }
+
     private function sla(string $app, ?User $by = null)
     {
         return $this->as($by ?? $this->teknik)->getJson("/api/applications/{$app}/service-sla");
@@ -118,7 +126,7 @@ class ServiceSlaTest extends PostgresTestCase
         $this->assertSame(24, $this->sla($this->application(['SUTM']))->json('data.working_days'));
         $this->assertSame(100, $this->sla($this->application(['SUTR', 'SUTM', 'KUBIKEL']))->json('data.working_days'));
         $this->assertSame(['LAYANAN_TANPA_PERLUASAN', 4], [$this->sla($this->application(['PBPD_6_41', 'SR1PH']))->json('data.category'), $this->sla($this->application(['PBPD_6_41', 'SR1PH']))->json('data.working_days')]);   // MTO without extension: the 4-day SLA
-        $this->assertNull($this->sla($this->application([]))->json('data'));                          // no MTO yet
+        $this->assertNull($this->sla($this->threePhaseWithoutMto())->json('data'));                   // no MTO yet (1 phasa has the 4-day SLA instead, docs/95)
         $this->assertSame(24, $this->sla($this->application(['SUTM'], mto: 'DRAFT'))->json('data.working_days'));   // a draft MTO already shows the expected category
     }
 
@@ -197,7 +205,7 @@ class ServiceSlaTest extends PostgresTestCase
 
         $fine = $this->application(['SUTR'], 'PAID', '2026-11-12');
         $this->as($this->teknik)->postJson("/api/applications/{$fine}/service-sla/notes", ['note' => 'x'])->assertCreated();   // a note may be written before the deadline too
-        $none = $this->application([]);                                                                    // no MTO yet: no category, no service SLA
+        $none = $this->threePhaseWithoutMto();                                                             // no MTO yet: no category, no service SLA
         $this->as($this->teknik)->postJson("/api/applications/{$none}/service-sla/notes", ['note' => 'x'])->assertStatus(409);
     }
 

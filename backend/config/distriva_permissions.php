@@ -176,6 +176,7 @@ return [
         'sr_reservations.prepare_up3' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'sr_reservations.approve_up3' => ['ASMAN_KONSTRUKSI', 'SYS_ADMIN'],
         'sr_vendor_contracts.manage' => ['KONSTRUKSI', 'SYS_ADMIN'],
+        'sr_reservations.report_extension' => ['TEKNIK', 'SYS_ADMIN'],   // field finding of a 1-phase connection: the network must be extended
         'rkm.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'rkm.plan' => ['PERENCANAAN', 'SYS_ADMIN'],
         'rkm.prepare' => ['TEKNIK', 'SYS_ADMIN'],

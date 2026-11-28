@@ -5,6 +5,7 @@ namespace App\Services\Tasks;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Inventory\AllocationService;
+use App\Services\Inventory\SrReservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -45,6 +46,7 @@ class ServiceSlaService
             ->pluck('p.representative_application_id', 'pa.application_id')->all();
         $categories = $this->categories(array_values(array_unique(array_map(fn ($id) => $owner[$id] ?? $id, $ids))));
         $sla = DB::table('sla_configurations')->where('kind', 'SERVICE')->get()->keyBy('task_type');
+        $direct = $this->directInstalls($ids);
         $bayar = DB::table('application_external_status_histories')->whereIn('application_id', $ids)->whereIn(DB::raw('upper(external_status_code)'), ['BAYAR', 'SUDAH BAYAR'])->whereNotNull('observed_at')
             ->groupBy('application_id')->selectRaw('application_id, min(observed_at) as at')->pluck('at', 'application_id')->all();
         $done = DB::table('application_external_status_histories')->whereIn('application_id', $ids)->whereRaw("upper(external_status_code) = 'PEREMAJAAN'")->whereNotNull('observed_at')
@@ -52,7 +54,7 @@ class ServiceSlaService
 
         $out = [];
         foreach ($apps as $id => $a) {
-            $category = $categories[$owner[$id] ?? $id] ?? null;
+            $category = $categories[$owner[$id] ?? $id] ?? (isset($direct[$id]) ? 'LAYANAN_TANPA_PERLUASAN' : null);
             $cfg = $category === null ? null : $sla->get($category);
             if ($cfg === null || ! $cfg->is_active || $cfg->working_days === null) {
                 continue;
@@ -75,6 +77,31 @@ class ServiceSlaService
                 : ($this->calendar->workingDaysLeft($due, $now) <= (int) config('distriva.tasks.due_soon_days') ? 'DUE_SOON' : 'ON_TRACK'));
             $out[$id] = $this->row($id, $a, $category, $cfg, CarbonImmutable::parse($start, config('distriva.business_timezone')), $basis, $due, $status,
                 $finished === null ? null : CarbonImmutable::parse($finished), $late ? $this->calendar->workingDaysBetween($due, $end) : 0);
+            // overdue notices skip the backlog that was already late when the rule came in
+            $out[$id]['announce'] = ! isset($direct[$id]) || isset($categories[$owner[$id] ?? $id]) || CarbonImmutable::parse($start)->toDateString() >= (string) config('distriva.sr_reservation.sla_since');
+        }
+
+        return $out;
+    }
+
+    /**
+     * 1-phase applications installed without survey and without MTO (docs/95): only APP / SR, so the service SLA without extension. Finished ones count only when paid from `sla_since`,
+     * so the history connected before this rule is not judged by it.
+     *
+     * @param  list<string>  $ids
+     * @return array<string,true>
+     */
+    private function directInstalls(array $ids): array
+    {
+        $since = (string) config('distriva.sr_reservation.sla_since');
+        $out = [];
+        foreach (array_chunk($ids, 5000) as $part) {
+            $found = DB::table('applications as a')->whereIn('a.id', $part)->whereIn('a.current_status', self::PAID_STATUSES)->whereRaw(SrReservationService::directInstallSql())
+                ->where(fn ($q) => $q->whereNotIn('a.current_status', self::FINISHED)->orWhereRaw('coalesce(a.paid_at, a.source_created_at, a.created_at) >= ?', [$since]))
+                ->pluck('a.id');
+            foreach ($found as $id) {
+                $out[$id] = true;
+            }
         }
 
         return $out;

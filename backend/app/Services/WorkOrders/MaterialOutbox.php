@@ -3,6 +3,7 @@
 namespace App\Services\WorkOrders;
 
 use App\Services\Inventory\MaterialSupplier;
+use App\Services\Inventory\SrReservationService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -45,10 +46,11 @@ class MaterialOutbox
         $ids = $need->keys()->merge($shipped->keys())->unique()->values();
         $skus = $ids->isEmpty() ? collect() : DB::table('khs_material_map')->whereIn('khs_item_id', $ids)->orderBy('material_no')->get()->groupBy('khs_item_id');
 
+        $reserved = SrReservationService::reservedFor($applicationId);     // reserved when the 1-phase connection started (docs/95)
         $rows = [];
         foreach ($ids as $id) {
             $n = $need[$id] ?? null;
-            $needQty = $n === null ? 0.0 : (float) $n->q;
+            $needQty = $n === null ? 0.0 : max(0.0, (float) $n->q - ($reserved[$id] ?? 0.0));
             $a = ($allocated[$id] ?? collect())->keyBy('warehouse_id');
             $s = ($shipped[$id] ?? collect())->keyBy('warehouse_id');
             $allocatedQty = (float) $a->sum(fn ($x) => (float) $x->q);

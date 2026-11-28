@@ -3,6 +3,7 @@
 namespace App\Services\Notifications;
 
 use App\Models\User;
+use App\Services\Inventory\SrReservationService;
 use App\Services\Inventory\StockService;
 use App\Services\WorkOrders\BastpService;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,7 @@ class WorkflowNotifier
 
     // ---- permohonan --------------------------------------------------------------------------------------
 
-    /** New customer applications of a ULP: the people who start surveys (MANAGER_ULP assigns, TEKNIK executes) are told. */
+    /** New customer applications of a ULP that are surveyed: the people who start surveys (MANAGER_ULP assigns, TEKNIK executes) are told. */
     public function applicationsArrived(string $unitId, int $count, User $actor, ?string $number = null): void
     {
         $this->safely(function () use ($unitId, $count, $actor, $number): void {
@@ -48,15 +49,43 @@ class WorkflowNotifier
         });
     }
 
-    /** After an EIS import batch was applied: one notice per ULP with the number of NEW applications it received that can be surveyed (history is not announced). */
+    /** Paid 1-phase customers of a ULP are installed without survey (docs/95): the people who prepare their material reservation (Niaga) are told. */
+    public function reservationsWaiting(string $unitId, int $count, User $actor): void
+    {
+        $this->safely(function () use ($unitId, $count, $actor): void {
+            if ($count < 1) {
+                return;
+            }
+            $to = $this->others($this->inbox->holdersOf('sr_reservations.prepare_ulp', $unitId), $actor);
+            $this->inbox->toUsers($to, 'info', "{$count} pelanggan 1 phasa menunggu reservasi", 'Sudah dibayar dan siap disambung. Buat rencana reservasi materialnya.', 'Reservasi', '/permohonan');
+        });
+    }
+
+    /**
+     * After an EIS import batch was applied, per ULP: NEW applications that will be surveyed (not 1 phasa; history is not announced), and 1-phase applications that arrived paid or turned paid
+     * in this batch and now wait for their reservation.
+     */
     public function importApplied(string $batchId, User $actor): void
     {
         $this->safely(function () use ($batchId, $actor): void {
-            $rows = DB::table('application_import_staging as s')->join('applications as a', fn ($j) => $j->on('a.source_reference_id', '=', 's.source_reference_id')->where('a.source_type', 'BOT_DAFTUNG'))   // staging keeps no application_id for a NEW row: the agenda links them
-                ->where('s.batch_id', $batchId)->where('s.action', 'NEW')->where('s.apply_status', 'APPLIED')->whereIn('a.current_status', ['APPROVED', 'PAID', 'PK_PRINTED'])   // history (done, cancelled, refunded) is not news
+            $new = fn () => DB::table('application_import_staging as s')->join('applications as a', fn ($j) => $j->on('a.source_reference_id', '=', 's.source_reference_id')->where('a.source_type', 'BOT_DAFTUNG'))   // staging keeps no application_id for a NEW row: the agenda links them
+                ->where('s.batch_id', $batchId)->where('s.action', 'NEW')->where('s.apply_status', 'APPLIED');
+            $surveyed = $new()->whereIn('a.current_status', ['APPROVED', 'PAID', 'PK_PRINTED'])->whereRaw('not '.SrReservationService::onePhaseSql())
                 ->groupBy('a.organizational_unit_id')->selectRaw('a.organizational_unit_id as unit, count(*) as n')->get();
-            foreach ($rows as $r) {
+            foreach ($surveyed as $r) {
                 $this->applicationsArrived((string) $r->unit, (int) $r->n, $actor);
+            }
+
+            $since = DB::table('application_import_batches')->where('id', $batchId)->value('created_at');
+            $turnedPaid = DB::table('application_import_staging as s')->join('application_status_histories as h', 'h.application_id', '=', 's.application_id')
+                ->where('s.batch_id', $batchId)->where('s.action', 'MATCHED')->where('s.apply_status', 'APPLIED')->where('h.changed_at', '>=', $since)
+                ->whereIn('h.to_status', SrReservationService::ONE_PHASE_STATUSES)->where(fn ($q) => $q->whereNull('h.from_status')->orWhereNotIn('h.from_status', SrReservationService::ONE_PHASE_STATUSES))
+                ->pluck('s.application_id');
+            $ids = $new()->pluck('a.id')->merge($turnedPaid)->unique()->values()->all();
+            $waiting = DB::table('applications as a')->whereIn('a.id', $ids)->whereIn('a.current_status', SrReservationService::ONE_PHASE_STATUSES)->whereRaw(SrReservationService::directInstallSql())
+                ->groupBy('a.organizational_unit_id')->selectRaw('a.organizational_unit_id as unit, count(*) as n')->get();
+            foreach ($waiting as $r) {
+                $this->reservationsWaiting((string) $r->unit, (int) $r->n, $actor);
             }
         });
     }

@@ -6,21 +6,68 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Bom\BomCalculator;
+use App\Services\Proposals\ProposalService;
 use App\Services\Surveys\SurveyService;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Connection WITHOUT network extension (docs/95): after the survey is accepted as "no extension" the executor is set (1 phase: the contract of the ULP; 3 phase: chosen by the preparer)
- * and the material is planned from the approved APP BOM, without drawing, MTO, RAB, KKF or SPK. DRAFT -> SUBMITTED -> APPROVED -> RECORDED (the MIMS reservation number is typed in).
+ * Connection WITHOUT network extension (docs/95). 1 phase is installed directly once paid, without survey, from ULP stock only; when the connection finds that the network must be extended,
+ * TEKNIK records a finding and the application follows the extension path (the reserved APP material stays and is not allocated again). 3 phase needs a survey accepted as "no extension".
+ * The executor is set (1 phase: the contract of the ULP; 3 phase: chosen by the preparer) and the material is planned from the approved APP BOM, without drawing, MTO, RAB, KKF or SPK. DRAFT -> SUBMITTED -> APPROVED -> RECORDED (the MIMS reservation number is typed in).
  * Who prepares/approves follows the source warehouse (ULP or UP3); callers authorize the actor for that level first.
  */
 class SrReservationService
 {
-    /** Application statuses that are still waiting for the connection (the "siap pasang" statuses). */
+    /** Statuses of a 3-phase application still waiting for the connection (the "siap pasang" statuses of the survey). */
     public const WAITING_STATUSES = ['APPROVED', 'PAID', 'PK_PRINTED'];
 
+    /** A 1-phase application is installed once it is paid. */
+    public const ONE_PHASE_STATUSES = ['PAID', 'PK_PRINTED'];
+
+    /** The status in which a field finding keeps the extension path open although EIS already moved on to the connection. */
+    private const CONNECTING = 'CONNECTION_IN_PROGRESS';
+
+    /**
+     * May survey, drawing, MTO and proposal work proceed for the application? Their usual statuses, or "connection in progress" with a field finding.
+     *
+     * @param  list<string>  $open
+     */
+    public static function openForWork(object $application, array $open): bool
+    {
+        return in_array($application->current_status, $open, true)
+            || ($application->current_status === self::CONNECTING && self::activeFinding($application->id)->exists());
+    }
+
     public function __construct(private readonly BomCalculator $calculator, private readonly StockService $stock) {}
+
+    /** The field finding in force ("the network must be extended"); a withdrawn one stays as history only. */
+    public static function activeFinding(string $applicationId): Builder
+    {
+        return DB::table('sr_extension_findings')->where('application_id', $applicationId)->whereNull('cancelled_at');
+    }
+
+    /** SQL: the application row `$alias` has a finding in force. */
+    public static function hasFindingSql(string $alias = 'a'): string
+    {
+        return "exists (select 1 from sr_extension_findings f where f.application_id = {$alias}.id and f.cancelled_at is null)";
+    }
+
+    /** SQL: the power of the application row `$alias` is a 1-phase step (the SQL form of phaseOf). */
+    public static function onePhaseSql(string $alias = 'a'): string
+    {
+        $va = "({$alias}.new_power_value * (case when upper({$alias}.new_power_unit) = 'KVA' then 1000 else 1 end))";
+        $steps = implode(',', array_map('intval', (array) config('distriva.sr_reservation.one_phase_va')));
+
+        return "coalesce({$va} < 6600 or {$va} in ({$steps}), false)";
+    }
+
+    /** SQL: `$alias` is a 1-phase application that goes straight to installation: no survey of its own and no finding, so no survey is expected. */
+    public static function directInstallSql(string $alias = 'a'): string
+    {
+        return '('.self::onePhaseSql($alias)." and not exists (select 1 from application_surveys sx where sx.application_id = {$alias}.id and sx.status <> 'CANCELLED') and not ".self::hasFindingSql($alias).')';
+    }
 
     /** PLN power steps: below 6600 VA, 7700 and 11000 VA are 1 phase; 6600, 10600, 13200 VA and the rest are 3 phase (owner). */
     public static function phaseOf(int $powerVa): int
@@ -47,31 +94,54 @@ class SrReservationService
             ->first(['k.id', 'k.vendor_company_id', 'k.contract_number', 'k.valid_from', 'k.valid_until', 'c.code as vendor_code', 'c.name as vendor_name']);
     }
 
-    /** Warehouses that may supply the application: its ULP's own and its UP3's. @return list<object> */
-    public function warehousesFor(string $unitId): array
+    /** Warehouses that may supply the application: 1 phase only its ULP's own; 3 phase also its UP3's. @return list<object> */
+    public function warehousesFor(string $unitId, ?int $phase): array
     {
-        $parent = DB::table('organizational_units')->where('id', $unitId)->value('parent_id');
+        $parent = $phase === 1 ? null : DB::table('organizational_units')->where('id', $unitId)->value('parent_id');
 
         return DB::table('warehouses as w')->join('organizational_units as u', 'u.id', '=', 'w.organizational_unit_id')->where('w.is_active', true)
             ->whereIn('w.organizational_unit_id', array_filter([$unitId, $parent]))->orderBy('u.unit_type')->orderBy('w.code')
             ->get(['w.id', 'w.code', 'w.name', 'w.plant', 'w.stor_loc', 'u.unit_type as level'])->all();
     }
 
-    /** Why a plan cannot be opened now; empty = it can. @return list<string> */
-    public function blockers(object $application): array
+    /**
+     * Why a plan cannot be opened (or, with `$existingPlan`, carried on) now; empty = it can.
+     *
+     * @return list<string>
+     */
+    public function blockers(object $application, bool $existingPlan = false): array
     {
         $out = [];
+        $power = self::powerVa($application);
+        if ($power === null) {
+            return ['Daya baru permohonan belum diisi.'];
+        }
         $survey = SurveyService::latestOutcome($application->id);
-        if ($survey === null || $survey['status'] !== 'ACCEPTED') {
-            $out[] = 'Survei belum disetujui: hasil survei menentukan perlu atau tidaknya perluasan.';
-        } elseif ($survey['outcome'] !== 'NO_EXTENSION') {
-            $out[] = "Survei {$survey['survey_number']} menyatakan perlu perluasan: reservasi mengikuti jalur gambar, MTO, dan alokasi.";
+        if (self::phaseOf($power) === 1) {
+            $statuses = $existingPlan ? [...self::ONE_PHASE_STATUSES, self::CONNECTING] : self::ONE_PHASE_STATUSES;
+            if (self::activeFinding($application->id)->exists()) {
+                $out[] = 'Saat penyambungan ditemukan perlu perluasan: lanjutkan lewat survei, usulan, dan alokasi.';
+            } elseif ($survey !== null && $survey['status'] !== 'ACCEPTED') {
+                $out[] = "Survei {$survey['survey_number']} sedang berjalan: tunggu hasilnya.";
+            } elseif ($survey !== null && $survey['outcome'] === 'EXTENSION') {
+                $out[] = "Survei {$survey['survey_number']} menyatakan perlu perluasan: reservasi mengikuti jalur gambar, MTO, dan alokasi.";
+            }
+            if (ProposalService::liveFor($application->id) !== null) {
+                $out[] = 'Permohonan berada dalam usulan perluasan yang berjalan.';
+            }
+        } else {
+            $statuses = self::WAITING_STATUSES;
+            if ($survey === null || $survey['status'] !== 'ACCEPTED') {
+                $out[] = 'Survei belum disetujui: sambungan 3 phasa wajib disurvei untuk menentukan perlu atau tidaknya perluasan.';
+            } elseif ($survey['outcome'] !== 'NO_EXTENSION') {
+                $out[] = "Survei {$survey['survey_number']} menyatakan perlu perluasan: reservasi mengikuti jalur gambar, MTO, dan alokasi.";
+            }
         }
-        if (! in_array($application->current_status, self::WAITING_STATUSES, true)) {
-            $out[] = "Status permohonan {$application->current_status}: tidak lagi menunggu pemasangan.";
+        if (! in_array($application->current_status, $statuses, true)) {
+            $out[] = "Status permohonan {$application->current_status}: tidak menunggu pemasangan.";
         }
-        if (self::powerVa($application) === null) {
-            $out[] = 'Daya baru permohonan belum diisi.';
+        if (DB::table('allocations')->where('application_id', $application->id)->where('status', '<>', 'CANCELLED')->exists()) {
+            $out[] = 'Permohonan sudah memiliki alokasi material.';
         }
         $mims = $this->mimsReservationNumbers($application->id);
         if ($mims !== []) {
@@ -82,14 +152,64 @@ class SrReservationService
     }
 
     /** MIMS reservation numbers already tied to the application's agenda, except the ones DISTRIVA itself recorded. @return list<string> */
-    private function mimsReservationNumbers(string $applicationId): array
+    public function mimsReservationNumbers(string $applicationId): array
     {
         $agendas = DB::table('application_external_references')->where('application_id', $applicationId)->where('reference_type', 'AGENDA')->where('is_active', true)->pluck('reference_number')->all();
-        $numbers = DB::table('mims_reservation_customers')->where('application_id', $applicationId)->when($agendas !== [], fn ($q) => $q->orWhereIn('agenda_no', $agendas))->pluck('reservation_no')
+        $numbers = DB::table('mims_reservation_customers')->where('application_id', $applicationId)->pluck('reservation_no')
+            ->merge($agendas === [] ? [] : DB::table('mims_reservation_customers')->whereIn('agenda_no', $agendas)->pluck('reservation_no'))
             ->merge($agendas === [] ? [] : DB::table('mims_issue_customers')->whereIn('agenda_no', $agendas)->pluck('reservation_no'))->unique();
         $own = DB::table('sr_reservations')->where('application_id', $applicationId)->whereNotNull('mims_reservation_no')->pluck('mims_reservation_no');
 
         return $numbers->diff($own)->values()->all();
+    }
+
+    /** The connection of a 1-phase customer found that the network must be extended: unreserved plans are cancelled, approved or recorded ones stay (owner: the APP material is still used). */
+    public function reportExtension(string $applicationId, string $reason, ?float $distance, User $actor): void
+    {
+        DB::transaction(function () use ($applicationId, $reason, $distance, $actor): void {
+            $app = DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $power = self::powerVa($app);
+            if ($power === null || self::phaseOf($power) !== 1) {
+                throw new AssignmentRuleViolation('Temuan lapangan ini hanya untuk sambungan 1 phasa; 3 phasa ditentukan oleh survei.');
+            }
+            if (! in_array($app->current_status, [...self::ONE_PHASE_STATUSES, self::CONNECTING], true)) {
+                throw new AssignmentRuleViolation("Status permohonan {$app->current_status}: tidak sedang dalam penyambungan.");
+            }
+            if (self::activeFinding($applicationId)->exists()) {
+                throw new AssignmentRuleViolation('Permohonan sudah dilaporkan perlu perluasan.');
+            }
+            DB::table('sr_extension_findings')->insert(['id' => (string) Str::uuid(), 'application_id' => $applicationId, 'reason' => $reason, 'distance_m' => $distance, 'reported_by' => $actor->getKey(), 'reported_at' => now()]);
+            foreach (DB::table('sr_reservations')->where('application_id', $applicationId)->whereIn('status', ['DRAFT', 'SUBMITTED'])->pluck('id') as $id) {
+                $this->cancel($id, 'Saat penyambungan ditemukan perlu perluasan.', $actor);
+            }
+        });
+    }
+
+    /** A finding recorded by mistake is withdrawn, as long as no extension work followed it. Plans cancelled by the finding stay cancelled; a new one can be made. */
+    public function withdrawExtension(string $applicationId, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($applicationId, $reason, $actor): void {
+            DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $finding = self::activeFinding($applicationId)->first() ?? throw new AssignmentRuleViolation('Permohonan ini tidak sedang ditandai perlu perluasan.');
+            $followed = match (true) {
+                DB::table('application_surveys')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->where('created_at', '>=', $finding->reported_at)->exists() => 'survei (batalkan surveinya dulu)',
+                ProposalService::liveFor($applicationId) !== null => 'usulan perluasan',
+                DB::table('application_drawings')->where('application_id', $applicationId)->exists() => 'gambar',
+                DB::table('allocations')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->exists() => 'alokasi',
+                default => null,
+            };
+            if ($followed !== null) {
+                throw new AssignmentRuleViolation("Tanda perlu perluasan tidak dapat dibatalkan karena sudah ada {$followed}.");
+            }
+            DB::table('sr_extension_findings')->where('id', $finding->id)->update(['cancelled_by' => $actor->getKey(), 'cancelled_at' => now(), 'cancel_reason' => $reason]);
+        });
+    }
+
+    /** Material already reserved for the application by its approved or recorded plan, per KHS item: an extension allocation does not repeat it. @return array<string,float> */
+    public static function reservedFor(string $applicationId): array
+    {
+        return DB::table('sr_reservation_lines as l')->join('sr_reservations as r', 'r.id', '=', 'l.sr_reservation_id')->where('r.application_id', $applicationId)->whereIn('r.status', ['APPROVED', 'RECORDED'])
+            ->groupBy('l.khs_item_id')->selectRaw('l.khs_item_id, sum(l.quantity) q')->pluck('q', 'khs_item_id')->map(fn ($q) => (float) $q)->all();
     }
 
     /**
@@ -159,7 +279,7 @@ class SrReservationService
         return DB::table('price_book_items')->where('price_book_id', $book)->whereIn('khs_item_id', $khsIds)->where('material_status', 'PRICED')->pluck('khs_item_id')->mapWithKeys(fn ($id) => [$id => true])->all();
     }
 
-    /** @param array{warehouse_id:string,vendor_company_id?:?string,sr_length_m?:mixed,notes?:?string} $in */
+    /** @param array{warehouse_id?:?string,vendor_company_id?:?string,sr_length_m?:mixed,notes?:?string} $in */
     public function create(string $applicationId, array $in, User $actor): string
     {
         return DB::transaction(function () use ($applicationId, $in, $actor): string {
@@ -171,10 +291,9 @@ class SrReservationService
             if (DB::table('sr_reservations')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->exists()) {
                 throw new AssignmentRuleViolation('Permohonan sudah punya rencana reservasi yang berjalan; batalkan dulu untuk membuat yang baru.');
             }
-            $warehouse = collect($this->warehousesFor($app->organizational_unit_id))->firstWhere('id', $in['warehouse_id'])
-                ?? throw new AssignmentRuleViolation('Gudang sumber harus gudang aktif milik ULP permohonan atau UP3 induknya.');
             $power = (int) self::powerVa($app);
             $phase = self::phaseOf($power);
+            $warehouse = $this->pickWarehouse($app->organizational_unit_id, $phase, $in['warehouse_id'] ?? null);
             [$vendorId, $contractId] = $this->executor($app->organizational_unit_id, $phase, $in['vendor_company_id'] ?? null);
             $length = (float) ($in['sr_length_m'] ?? config('distriva.sr_reservation.default_sr_length_m'));
             $need = $this->bomNeed($app, $power, $length);
@@ -190,6 +309,17 @@ class SrReservationService
 
             return $id;
         });
+    }
+
+    /** The chosen warehouse, or the only one there is when none is named. */
+    public function pickWarehouse(string $unitId, int $phase, ?string $chosen): object
+    {
+        $warehouses = collect($this->warehousesFor($unitId, $phase));
+        $warehouse = $chosen === null ? ($warehouses->count() === 1 ? $warehouses->first() : null) : $warehouses->firstWhere('id', $chosen);
+
+        return $warehouse ?? throw new AssignmentRuleViolation($phase === 1
+            ? 'Sambungan 1 phasa hanya mengambil stok ULP: pilih gudang aktif milik ULP permohonan.'
+            : 'Gudang sumber harus gudang aktif milik ULP permohonan atau UP3 induknya.');
     }
 
     /** 1 phase: the contracted company, never chosen by hand. 3 phase: the preparer's choice among active network companies. @return array{0:string,1:?string} */
@@ -338,7 +468,7 @@ class SrReservationService
     private function assertStillValid(object $reservation): void
     {
         $app = DB::table('applications')->where('id', $reservation->application_id)->first();
-        $blockers = $this->blockers($app);
+        $blockers = $this->blockers($app, existingPlan: true);
         if (self::powerVa($app) !== (int) $reservation->power_va) {
             $blockers[] = 'Daya permohonan sudah berubah sejak rencana dibuat; batalkan dan buat ulang.';
         }

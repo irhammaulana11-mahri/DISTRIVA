@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
+use App\Exceptions\AssignmentRuleViolation;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Inventory\SrReservationService;
 use App\Services\Proposals\ProposalService;
@@ -19,18 +20,34 @@ class SrReservationController extends Controller
 {
     public function __construct(private readonly ApplicationAuthorizer $authorizer, private readonly SrReservationService $reservations) {}
 
-    /** GET /sr-reservations/pending — applications ready to install (survey "no extension") that have no running plan yet, oldest first. */
+    /**
+     * GET /sr-reservations/pending — the work list: paid 1-phase applications (no survey needed) and 3-phase ones surveyed "no extension" that have no running plan, oldest first.
+     * `already_reserved` marks those whose agenda already has a reservation (or issue) in the MIMS mirror; they are not to be planned again.
+     */
     public function pending(Request $request): JsonResponse
     {
-        $filters = $request->validate(['unit_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $filters = $request->validate(['unit_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:100'], 'phase' => ['nullable', 'in:1,3'], 'reserved' => ['nullable', 'boolean'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
         $owner = ApplicationController::SURVEY_OWNER_SQL;
+        $onePhase = SrReservationService::onePhaseSql();
+        $surveyStatus = "(select s.status from application_surveys s where s.application_id = {$owner} and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1)";
+        $extends = "(select sv.requires_network_extension from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = {$owner} and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1)";
+        $reserved = $this->reservedInMimsSql();
+
         $query = $this->scoped($request, DB::table('applications as a')->join('customers as c', 'c.id', '=', 'a.customer_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id'))
-            ->whereIn('a.current_status', SrReservationService::WAITING_STATUSES)
-            ->whereRaw("(select s.status from application_surveys s where s.application_id = {$owner} and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) = 'ACCEPTED'")
-            ->whereRaw("(select sv.requires_network_extension from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = {$owner} and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1) is false")
+            ->whereNotNull('a.new_power_value')
+            ->where(fn (Builder $w) => $w
+                ->where(fn (Builder $one) => $one->whereRaw($onePhase)->whereIn('a.current_status', SrReservationService::ONE_PHASE_STATUSES)
+                    ->whereRaw("({$surveyStatus} is null or ({$surveyStatus} = 'ACCEPTED' and {$extends} is false))")
+                    ->whereRaw('not '.SrReservationService::hasFindingSql())
+                    ->whereNotExists(fn ($q) => $q->from('proposal_applications as pa')->join('proposals as p', 'p.id', '=', 'pa.proposal_id')->whereColumn('pa.application_id', 'a.id')->whereNull('pa.released_at')->where('p.status', 'OPEN')))
+                ->orWhere(fn (Builder $three) => $three->whereRaw("not {$onePhase}")->whereIn('a.current_status', SrReservationService::WAITING_STATUSES)
+                    ->whereRaw("{$surveyStatus} = 'ACCEPTED'")->whereRaw("{$extends} is false")))
             ->whereNotExists(fn ($q) => $q->from('sr_reservations as r')->whereColumn('r.application_id', 'a.id')->where('r.status', '<>', 'CANCELLED'))
+            ->whereNotExists(fn ($q) => $q->from('allocations as al')->whereColumn('al.application_id', 'a.id')->where('al.status', '<>', 'CANCELLED'))
             ->when($filters['unit_id'] ?? null, fn ($q, $unit) => $q->where('a.organizational_unit_id', $unit))
             ->when($filters['search'] ?? null, fn ($q, $search) => $q->where(fn ($w) => $w->where('a.application_number', 'ilike', "%{$search}%")->orWhere('c.name', 'ilike', "%{$search}%")))
+            ->when(isset($filters['phase']), fn ($q) => $q->whereRaw(($filters['phase'] === '1' ? '' : 'not ').$onePhase))
+            ->when(isset($filters['reserved']), fn ($q) => $q->whereRaw(($request->boolean('reserved') ? '' : 'not ').$reserved))
             ->orderBy('a.created_at')->orderBy('a.id');
         $page = $query->select(['a.id', 'a.application_number', 'a.application_type', 'a.current_status', 'a.new_power_value', 'a.new_power_unit', 'a.organizational_unit_id', 'c.name as customer_name', 'u.code as unit_code', 'u.name as unit_name'])
             ->paginate($filters['per_page'] ?? 25);
@@ -38,16 +55,94 @@ class SrReservationController extends Controller
 
         return response()->json([
             'data' => collect($page->items())->map(function ($a) use (&$contracts): array {
-                $va = SrReservationService::powerVa($a);
-                $phase = $va === null ? null : SrReservationService::phaseOf($va);
+                $power = (int) SrReservationService::powerVa($a);
+                $phase = SrReservationService::phaseOf($power);
                 $contract = $phase === 1 ? ($contracts[$a->organizational_unit_id] ??= $this->reservations->contractFor($a->organizational_unit_id)) : null;
+                $numbers = $this->reservations->mimsReservationNumbers($a->id);
 
                 return ['application_id' => $a->id, 'application_number' => $a->application_number, 'application_type' => $a->application_type, 'status' => $a->current_status, 'customer_name' => $a->customer_name,
-                    'unit' => ['id' => $a->organizational_unit_id, 'code' => $a->unit_code, 'name' => $a->unit_name], 'power_va' => $va, 'phase' => $phase,
-                    'default_vendor' => $contract === null ? null : ['id' => $contract->vendor_company_id, 'name' => $contract->vendor_name]];
+                    'unit' => ['id' => $a->organizational_unit_id, 'code' => $a->unit_code, 'name' => $a->unit_name], 'power_va' => $power, 'phase' => $phase,
+                    'default_vendor' => $contract === null ? null : ['id' => $contract->vendor_company_id, 'name' => $contract->vendor_name],
+                    'already_reserved' => $numbers !== [], 'mims_reservation_numbers' => $numbers];
             })->all(),
             'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()],
         ]);
+    }
+
+    /** The SQL form of SrReservationService::mimsReservationNumbers() being non-empty, for filtering the work list. */
+    private function reservedInMimsSql(): string
+    {
+        $notOwn = 'not in (select s.mims_reservation_no from sr_reservations s where s.application_id = a.id and s.mims_reservation_no is not null)';
+        $agenda = "from application_external_references e join %s m on m.agenda_no = e.reference_number where e.application_id = a.id and e.reference_type = 'AGENDA' and e.is_active and m.reservation_no {$notOwn}";
+
+        return "(exists (select 1 from mims_reservation_customers m where m.application_id = a.id and m.reservation_no {$notOwn})"
+            .' or exists (select 1 '.sprintf($agenda, 'mims_reservation_customers').')'
+            .' or exists (select 1 '.sprintf($agenda, 'mims_issue_customers').'))';
+    }
+
+    /** POST /sr-reservations/batch — one 1-phase plan per application; each succeeds or fails on its own. */
+    public function storeBatch(Request $request): JsonResponse
+    {
+        $in = $request->validate(['application_ids' => ['required', 'array', 'min:1', 'max:100'], 'application_ids.*' => ['required', 'uuid', 'distinct'], 'warehouse_id' => ['nullable', 'uuid'], 'sr_length_m' => ['nullable', 'numeric', 'gt:0', 'max:10000']]);
+
+        return $this->each($in['application_ids'], 'application_id', function (string $applicationId) use ($request, $in): array {
+            $app = $this->application($applicationId);
+            $this->viewable($request, $app->organizational_unit_id);
+            $power = SrReservationService::powerVa($app);
+            if ($power === null || SrReservationService::phaseOf($power) !== 1) {
+                throw new AssignmentRuleViolation('Pembuatan sekaligus hanya untuk 1 phasa; 3 phasa dibuat satu per satu karena pelaksananya dipilih.');
+            }
+            $warehouse = $this->reservations->pickWarehouse($app->organizational_unit_id, 1, $in['warehouse_id'] ?? null);
+            $this->authorizeLevel($request, 'prepare', $warehouse->level, $app->organizational_unit_id);
+
+            return ['id' => $this->reservations->create($applicationId, ['warehouse_id' => $warehouse->id] + array_intersect_key($in, ['sr_length_m' => 1]), $request->user())];
+        });
+    }
+
+    /** POST /sr-reservations/batch-actions — submit, approve or record the same MIMS number on many plans; each succeeds or fails on its own. */
+    public function batchAction(Request $request): JsonResponse
+    {
+        $in = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:100'], 'ids.*' => ['required', 'uuid', 'distinct'], 'action' => ['required', 'in:submit,approve,mims'], 'reservation_no' => ['required_if:action,mims', 'string', 'max:30']]);
+
+        return $this->each($in['ids'], 'id', function (string $id) use ($request, $in): array {
+            match ($in['action']) {
+                'submit' => $this->submitOne($request, $id),
+                'approve' => $this->decideOne($request, $id, 'APPROVE', null),
+                'mims' => $this->recordOne($request, $id, $in['reservation_no']),
+            };
+
+            return [];
+        });
+    }
+
+    /**
+     * @param  list<string>  $ids
+     * @param  callable(string): array<string,mixed>  $action
+     */
+    private function each(array $ids, string $key, callable $action): JsonResponse
+    {
+        $results = [];
+        foreach ($ids as $id) {
+            try {
+                $results[] = [$key => $id, 'ok' => true] + $action($id);
+            } catch (AssignmentRuleViolation|AdministrationDenied $e) {
+                $results[] = [$key => $id, 'ok' => false, 'message' => $e->getMessage()];
+            }
+        }
+        $done = count(array_filter($results, fn (array $r): bool => $r['ok']));
+
+        return response()->json(['data' => $results, 'summary' => ['succeeded' => $done, 'failed' => count($results) - $done]]);
+    }
+
+    /** POST /applications/{id}/sr-extension — TEKNIK: the 1-phase connection found that the network must be extended. */
+    public function reportExtension(Request $request, string $application): JsonResponse
+    {
+        $app = $this->application($application);
+        $this->authorizer->authorizeOnUnit($request->user(), 'sr_reservations.report_extension', $app->organizational_unit_id);
+        $in = $request->validate(['reason' => ['required', 'string', 'max:1000'], 'distance_m' => ['nullable', 'numeric', 'gt:0', 'max:100000']]);
+        $this->reservations->reportExtension($application, $in['reason'], isset($in['distance_m']) ? (float) $in['distance_m'] : null, $request->user());
+
+        return response()->json(['message' => 'Dicatat perlu perluasan: lanjutkan dengan survei, lalu usulan.'], 201);
     }
 
     /** GET /applications/{id}/sr-reservations — what the form needs (phase, executor, warehouses, blockers) and the plans so far. */
@@ -59,6 +154,7 @@ class SrReservationController extends Controller
         $phase = $va === null ? null : SrReservationService::phaseOf($va);
         $contract = $phase === 1 ? $this->reservations->contractFor($app->organizational_unit_id) : null;
         $blockers = $this->reservations->blockers($app);
+        $finding = DB::table('sr_extension_findings as f')->join('users as x', 'x.id', '=', 'f.reported_by')->where('f.application_id', $application)->whereNull('f.cancelled_at')->first(['f.reason', 'f.distance_m', 'f.reported_at', 'x.name']);
         if ($phase === 1 && $contract === null) {
             $blockers[] = 'ULP ini belum punya kontrak pelaksana 1 phasa yang berlaku hari ini.';
         }
@@ -69,7 +165,9 @@ class SrReservationController extends Controller
             'power_va' => $va, 'phase' => $phase, 'blockers' => $blockers,
             'default_sr_length_m' => (float) config('distriva.sr_reservation.default_sr_length_m'), 'survey_sr_length_m' => $surveyLength === null ? null : (float) $surveyLength,
             'contract' => $contract === null ? null : ['id' => $contract->id, 'contract_number' => $contract->contract_number, 'vendor' => ['id' => $contract->vendor_company_id, 'code' => $contract->vendor_code, 'name' => $contract->vendor_name]],
-            'warehouses' => array_map(fn ($w) => ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'level' => $w->level], $this->reservations->warehousesFor($app->organizational_unit_id)),
+            'warehouses' => array_map(fn ($w) => ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'level' => $w->level], $this->reservations->warehousesFor($app->organizational_unit_id, $phase)),
+            'mims_reservation_numbers' => $this->reservations->mimsReservationNumbers($application),
+            'extension_finding' => $finding === null ? null : ['reason' => $finding->reason, 'distance_m' => $finding->distance_m === null ? null : (float) $finding->distance_m, 'reported_by' => $finding->name, 'reported_at' => $finding->reported_at],
             'reservations' => $this->listQuery()->where('r.application_id', $application)->orderByDesc('r.version_number')->get()->map(fn ($r) => $this->summary($r))->all(),
         ]]);
     }
@@ -108,10 +206,11 @@ class SrReservationController extends Controller
     public function store(Request $request, string $application): JsonResponse
     {
         $app = $this->application($application);
-        $in = $request->validate(['warehouse_id' => ['required', 'uuid'], 'vendor_company_id' => ['nullable', 'uuid'], 'sr_length_m' => ['nullable', 'numeric', 'gt:0', 'max:10000'], 'notes' => ['nullable', 'string', 'max:2000']]);
-        $warehouse = collect($this->reservations->warehousesFor($app->organizational_unit_id))->firstWhere('id', $in['warehouse_id']);
+        $in = $request->validate(['warehouse_id' => ['nullable', 'uuid'], 'vendor_company_id' => ['nullable', 'uuid'], 'sr_length_m' => ['nullable', 'numeric', 'gt:0', 'max:10000'], 'notes' => ['nullable', 'string', 'max:2000']]);
         $this->viewable($request, $app->organizational_unit_id);
-        if ($warehouse !== null) {
+        $power = SrReservationService::powerVa($app);
+        if ($power !== null) {
+            $warehouse = $this->reservations->pickWarehouse($app->organizational_unit_id, SrReservationService::phaseOf($power), $in['warehouse_id'] ?? null);
             $this->authorizeLevel($request, 'prepare', $warehouse->level, $app->organizational_unit_id);
         }
 
@@ -130,32 +229,47 @@ class SrReservationController extends Controller
 
     public function submit(Request $request, string $reservation): JsonResponse
     {
-        $this->authorizeOn($request, $reservation, 'prepare');
-        $this->reservations->submit($reservation, $request->user());
+        $this->submitOne($request, $reservation);
 
         return response()->json(['message' => 'Rencana reservasi diajukan.']);
     }
 
     public function decide(Request $request, string $reservation): JsonResponse
     {
-        $r = $this->authorizeOn($request, $reservation, 'approve');
         $in = $request->validate(['decision' => ['required', 'in:APPROVE,RETURN'], 'reason' => ['nullable', 'string', 'max:1000']]);
-        $actor = $request->user();
-        if ($r->source_level === 'UP3' && $r->submitted_by === $actor->getKey() && $this->authorizer->roleFor($actor, 'sr_reservations.approve_up3') !== 'SYS_ADMIN') {
-            throw new AdministrationDenied('Pengaju tidak dapat memutus rencananya sendiri.', 403);
-        }
-        $this->reservations->decide($reservation, $in['decision'], $in['reason'] ?? null, $actor);
+        $this->decideOne($request, $reservation, $in['decision'], $in['reason'] ?? null);
 
         return response()->json(['message' => $in['decision'] === 'APPROVE' ? 'Rencana reservasi disetujui.' : 'Rencana reservasi dikembalikan.']);
     }
 
     public function recordMims(Request $request, string $reservation): JsonResponse
     {
-        $this->authorizeEither($request, $reservation);
         $in = $request->validate(['reservation_no' => ['required', 'string', 'max:30']]);
-        $this->reservations->recordMims($reservation, $in['reservation_no'], $request->user());
+        $this->recordOne($request, $reservation, $in['reservation_no']);
 
         return response()->json(['message' => 'Nomor reservasi MIMS dicatat.']);
+    }
+
+    private function submitOne(Request $request, string $reservation): void
+    {
+        $this->authorizeOn($request, $reservation, 'prepare');
+        $this->reservations->submit($reservation, $request->user());
+    }
+
+    private function decideOne(Request $request, string $reservation, string $decision, ?string $reason): void
+    {
+        $r = $this->authorizeOn($request, $reservation, 'approve');
+        $actor = $request->user();
+        if ($r->source_level === 'UP3' && $r->submitted_by === $actor->getKey() && $this->authorizer->roleFor($actor, 'sr_reservations.approve_up3') !== 'SYS_ADMIN') {
+            throw new AdministrationDenied('Pengaju tidak dapat memutus rencananya sendiri.', 403);
+        }
+        $this->reservations->decide($reservation, $decision, $reason, $actor);
+    }
+
+    private function recordOne(Request $request, string $reservation, string $number): void
+    {
+        $this->authorizeEither($request, $reservation);
+        $this->reservations->recordMims($reservation, $number, $request->user());
     }
 
     public function cancel(Request $request, string $reservation): JsonResponse
@@ -165,6 +279,17 @@ class SrReservationController extends Controller
         $this->reservations->cancel($reservation, $in['reason'], $request->user());
 
         return response()->json(['message' => 'Rencana reservasi dibatalkan.']);
+    }
+
+    /** POST /applications/{id}/sr-extension/cancel — the same key withdraws a finding recorded by mistake. */
+    public function withdrawExtension(Request $request, string $application): JsonResponse
+    {
+        $app = $this->application($application);
+        $this->authorizer->authorizeOnUnit($request->user(), 'sr_reservations.report_extension', $app->organizational_unit_id);
+        $in = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        $this->reservations->withdrawExtension($application, $in['reason'], $request->user());
+
+        return response()->json(['message' => 'Tanda perlu perluasan dibatalkan.']);
     }
 
     private function authorizeOn(Request $request, string $reservation, string $action): object

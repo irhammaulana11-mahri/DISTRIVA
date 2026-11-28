@@ -5,6 +5,7 @@ namespace App\Services\Drawings;
 use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
+use App\Services\Inventory\SrReservationService;
 use App\Services\Mto\MtoService;
 use App\Services\Proposals\ProposalService;
 use Illuminate\Database\QueryException;
@@ -31,7 +32,7 @@ class DrawingService
             return DB::transaction(function () use ($applicationId, $authorId, $actor): string {
                 $app = DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
                 ProposalService::assertNotNonRepresentativeMember($applicationId);
-                if (! in_array($app->current_status, self::OPEN_APPLICATION, true)) {
+                if (! SrReservationService::openForWork($app, self::OPEN_APPLICATION)) {
                     throw new AssignmentRuleViolation("Permohonan berstatus {$app->current_status}; gambar hanya dapat dibuat pada status APPROVED, PAID, atau PK_PRINTED.");
                 }
                 if (DB::table('application_drawings')->where('application_id', $applicationId)->exists()) {

@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Drawings\DrawingService;
+use App\Services\Inventory\SrReservationService;
 use App\Services\Proposals\ProposalService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,7 @@ class SurveyService
             return DB::transaction(function () use ($applicationId, $surveyorId, $scheduledAt, $actor): string {
                 $app = DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
                 ProposalService::assertNotNonRepresentativeMember($applicationId);
-                if (! in_array($app->current_status, self::OPEN_APPLICATION, true)) {
+                if (! SrReservationService::openForWork($app, self::OPEN_APPLICATION)) {
                     throw new AssignmentRuleViolation("Permohonan berstatus {$app->current_status}; survey hanya dapat dibuat pada status APPROVED, PAID, atau PK_PRINTED.");
                 }
                 if (DB::table('application_surveys')->where('application_id', $applicationId)->where('status', 'ACTIVE')->exists()) {

@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Services\Applications\ApplicationService;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Authorization\ScopedUnitOptions;
+use App\Services\Inventory\SrReservationService;
 use App\Services\Notifications\WorkflowNotifier;
 use App\Services\Proposals\ProposalService;
 use App\Services\Surveys\SurveyService;
@@ -140,10 +141,13 @@ class ApplicationController extends Controller
             $closed = ['CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
             $request->query('lifecycle') === 'active' ? $q->whereNotIn('a.current_status', $closed) : $q->whereIn('a.current_status', $closed);
         }
-        if ($request->boolean('ready_to_install')) {          // survey accepted as "no extension" and the application not moved on yet (docs/82)
-            $q->whereIn('a.current_status', ['APPROVED', 'PAID', 'PK_PRINTED'])
-                ->whereRaw('(select s.status from application_surveys s where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) = 'ACCEPTED'")
-                ->whereRaw('(select sv.requires_network_extension from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1) is false");
+        if ($request->boolean('ready_to_install')) {          // see readyToInstall(): surveyed "no extension" (docs/82), or a paid 1-phase application without survey (docs/95)
+            $latestStatus = '(select s.status from application_surveys s where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1)";
+            $extends = '(select sv.requires_network_extension from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1)";
+            $q->whereRaw('not '.SrReservationService::hasFindingSql())->where(fn ($w) => $w
+                ->where(fn ($surveyed) => $surveyed->whereIn('a.current_status', SrReservationService::WAITING_STATUSES)->whereRaw("{$latestStatus} = 'ACCEPTED'")->whereRaw("{$extends} is false"))
+                ->orWhere(fn ($direct) => $direct->whereIn('a.current_status', SrReservationService::ONE_PHASE_STATUSES)->whereRaw(SrReservationService::onePhaseSql())->whereRaw("{$latestStatus} is null")
+                    ->whereNotExists(fn ($p) => $p->from('proposal_applications as pa')->join('proposals as p', 'p.id', '=', 'pa.proposal_id')->whereColumn('pa.application_id', 'a.id')->whereNull('pa.released_at')->where('p.status', 'OPEN'))));
         }
         if ($request->filled('search')) {
             $term = '%'.str_replace(['%', '_'], ['\%', '\_'], $request->query('search')).'%';
@@ -160,6 +164,7 @@ class ApplicationController extends Controller
             ->selectRaw('(select s.survey_number from application_surveys s where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) as survey_number")
             ->selectRaw('(select s.status from application_surveys s where s.application_id = '.self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc limit 1) as survey_status")
             ->selectRaw("(select case when sv.requires_network_extension is true then 'EXTENSION' when sv.requires_network_extension is false then 'NO_EXTENSION' end from application_surveys s join application_survey_versions sv on sv.survey_id = s.id where s.application_id = ".self::SURVEY_OWNER_SQL." and s.status <> 'CANCELLED' order by s.sequence_number desc, sv.version_number desc limit 1) as survey_outcome")
+            ->selectRaw(SrReservationService::hasFindingSql().' as extension_finding')
             ->paginate(max(1, min((int) $request->query('per_page', 25), 100)));
 
         return response()->json([
@@ -167,7 +172,8 @@ class ApplicationController extends Controller
                 'status' => $r->current_status, 'source_type' => $r->source_type, 'proposal_number' => $r->proposal_number, 'service_address' => $r->service_address, 'delta_power_kva' => $r->delta_power_kva === null ? null : (float) $r->delta_power_kva,
                 'old_tariff_code' => $r->old_tariff_code, 'new_tariff_code' => $r->new_tariff_code, 'new_power_value' => $r->new_power_value === null ? null : (float) $r->new_power_value, 'new_power_unit' => $r->new_power_unit,
                 'service_days' => $r->service_days, 'service_days_observed_at' => $r->service_days_observed_at, 'survey_number' => $r->survey_number, 'survey_status' => $r->survey_status, 'survey_outcome' => $r->survey_outcome,
-                'ready_to_install' => self::readyToInstall($r->current_status, $r->survey_status, $r->survey_outcome), 'agenda_number' => $r->agenda_number, 'register_number' => $r->register_number, 'idpel' => $r->idpel, 'created_at' => $r->created_at, 'submitted_at' => $r->submitted_at, 'eis_updated_at' => $r->last_external_status_at,
+                'ready_to_install' => self::readyToInstall($r, $r->survey_status, $r->survey_outcome, (bool) $r->extension_finding, $r->proposal_number !== null),
+                'survey_required' => self::surveyRequired($r, (bool) $r->extension_finding), 'extension_finding' => (bool) $r->extension_finding, 'agenda_number' => $r->agenda_number, 'register_number' => $r->register_number, 'idpel' => $r->idpel, 'created_at' => $r->created_at, 'submitted_at' => $r->submitted_at, 'eis_updated_at' => $r->last_external_status_at,
                 'customer' => ['id' => $r->customer_id, 'name' => $r->customer_name], 'unit' => ['id' => $r->unit_id, 'code' => $r->unit_code, 'name' => $r->unit_name]])->all(),
             'meta' => ['current_page' => $page->currentPage(), 'per_page' => $page->perPage(), 'total' => $page->total(), 'last_page' => $page->lastPage()],
         ]);
@@ -212,7 +218,10 @@ class ApplicationController extends Controller
         $app = $this->findOrHide($id);
         $this->authorizer->authorizeOnUnit($actor, 'applications.submit', $app->organizational_unit_id);
         $this->service->submit($id, $actor);
-        $this->flow->applicationsArrived((string) $app->organizational_unit_id, 1, $actor, $app->application_number);
+        $power = SrReservationService::powerVa($app);
+        if ($power === null || SrReservationService::phaseOf($power) !== 1) {       // 1 phasa needs no survey; Niaga is told once it is paid (docs/95)
+            $this->flow->applicationsArrived((string) $app->organizational_unit_id, 1, $actor, $app->application_number);
+        }
 
         return response()->json(['data' => $this->detail($this->find($id))]);
     }
@@ -281,10 +290,28 @@ class ApplicationController extends Controller
         ];
     }
 
-    /** Customer ready to be installed (owner 2026-11-14): the survey was accepted as "no extension" and the application has not moved on yet (what follows comes from the EIS import). */
-    private static function readyToInstall(string $status, ?string $surveyStatus, ?string $outcome): bool
+    /**
+     * Customer ready to be installed: the survey was accepted as "no extension" (docs/82), or a paid 1-phase application that needs no survey (docs/95); never while a field finding says
+     * the network must be extended. What follows comes from the EIS import.
+     */
+    private static function readyToInstall(object $application, ?string $surveyStatus, ?string $outcome, bool $finding, bool $inProposal): bool
     {
-        return $surveyStatus === 'ACCEPTED' && $outcome === 'NO_EXTENSION' && in_array($status, ['APPROVED', 'PAID', 'PK_PRINTED'], true);
+        if ($finding) {
+            return false;
+        }
+        if ($surveyStatus === null) {
+            return ! $inProposal && ! self::surveyRequired($application, false) && in_array($application->current_status, SrReservationService::ONE_PHASE_STATUSES, true);
+        }
+
+        return $surveyStatus === 'ACCEPTED' && $outcome === 'NO_EXTENSION' && in_array($application->current_status, SrReservationService::WAITING_STATUSES, true);
+    }
+
+    /** 1 phase is installed without survey unless a field finding asks for the extension; everything else is surveyed. */
+    private static function surveyRequired(object $application, bool $finding): bool
+    {
+        $power = SrReservationService::powerVa($application);
+
+        return $finding || $power === null || SrReservationService::phaseOf($power) !== 1;
     }
 
     /** The live proposal the application belongs to, as the drawer needs it: `issued` is false while it is only a collective survey request (no usulan number yet). @return array<string,mixed>|null */
@@ -306,12 +333,15 @@ class ApplicationController extends Controller
     {
         $s = SurveyService::latestOutcome($a->id);
 
-        return $s === null ? null : $s + ['ready_to_install' => self::readyToInstall($a->current_status, $s['status'], $s['outcome'])];
+        return $s === null ? null : $s + ['ready_to_install' => self::readyToInstall($a, $s['status'], $s['outcome'], SrReservationService::activeFinding($a->id)->exists(), false)];
     }
 
     /** @return array<string,mixed> */
     private function detail(object $a): array
     {
+        $finding = SrReservationService::activeFinding($a->id)->exists();
+        $survey = $this->surveySummary($a);
+        $proposal = $this->proposalSummary($a->id);
         $c = DB::table('customers')->where('id', $a->customer_id)->first();
         $idpel = DB::table('customer_external_references')->where('customer_id', $a->customer_id)->whereNull('valid_until')->where('reference_type', 'IDPEL')->get(['reference_value', 'is_primary', 'source_system']);
         $refs = DB::table('application_external_references')->where('application_id', $a->id)->orderBy('received_at')->get(['id', 'external_system', 'reference_type', 'reference_number', 'registration_source', 'received_at', 'is_active']);
@@ -325,7 +355,8 @@ class ApplicationController extends Controller
             'new_power' => $a->new_power_value === null ? null : ['value' => (float) $a->new_power_value, 'unit' => $a->new_power_unit],
             'delta_power_kva' => $a->delta_power_kva === null ? null : (float) $a->delta_power_kva, 'sar_package' => $a->sar_package, 'total_cost' => $a->total_cost === null ? null : (float) $a->total_cost,
             'service_criteria' => $a->service_criteria, 'requires_drawing' => $a->requires_drawing, 'requires_feasibility_study' => $a->requires_feasibility_study, 'requires_network_extension' => $a->requires_network_extension,
-            'service_days' => $a->service_days, 'service_days_observed_at' => $a->service_days_observed_at, 'survey' => $this->surveySummary($a), 'proposal' => $this->proposalSummary($a->id), 'created_at' => $a->created_at, 'submitted_at' => $a->submitted_at,
+            'service_days' => $a->service_days, 'service_days_observed_at' => $a->service_days_observed_at, 'survey' => $survey, 'proposal' => $proposal,
+            'ready_to_install' => self::readyToInstall($a, $survey['status'] ?? null, $survey['outcome'] ?? null, $finding, $proposal !== null), 'survey_required' => self::surveyRequired($a, $finding), 'extension_finding' => $finding, 'created_at' => $a->created_at, 'submitted_at' => $a->submitted_at,
             'unit' => ['id' => $unit->id, 'code' => $unit->code, 'name' => $unit->name],
             'customer' => ['id' => $c->id, 'customer_number' => $c->customer_number, 'name' => $c->name, 'phone' => $c->phone, 'email' => $c->email,
                 'idpel' => $idpel->map(fn ($r) => ['value' => $r->reference_value, 'is_primary' => (bool) $r->is_primary])->all()],

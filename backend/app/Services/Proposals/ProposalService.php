@@ -6,6 +6,7 @@ use App\Exceptions\AdministrationDenied;
 use App\Exceptions\AssignmentRuleViolation;
 use App\Models\User;
 use App\Services\Drawings\DrawingService;
+use App\Services\Inventory\SrReservationService;
 use App\Services\Surveys\SurveyService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -269,10 +270,10 @@ class ProposalService
             throw new AssignmentRuleViolation('Semua pelanggan dalam satu usulan harus berasal dari ULP yang sama.');
         }
         foreach ($apps as $a) {
-            if ($surveyOpen && ! in_array($a->current_status, ['APPROVED', 'PAID', 'PK_PRINTED'], true)) {
+            if ($surveyOpen && ! SrReservationService::openForWork($a, ['APPROVED', 'PAID', 'PK_PRINTED'])) {
                 throw new AssignmentRuleViolation("Permohonan {$a->application_number} berstatus {$a->current_status}; survei hanya dapat dimulai pada status APPROVED, PAID, atau PK_PRINTED.");
             }
-            if (! in_array($a->current_status, self::OPEN_APPLICATION, true)) {
+            if (! SrReservationService::openForWork($a, self::OPEN_APPLICATION)) {
                 throw new AssignmentRuleViolation("Permohonan {$a->application_number} berstatus {$a->current_status}; usulan hanya memuat permohonan SUBMITTED (mohon), APPROVED, PAID, atau PK_PRINTED.");
             }
             if (DB::table('application_surveys')->where('application_id', $a->id)->exists() && ! ($firstMaySurvey && $a->id === $ids[0])) {

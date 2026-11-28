@@ -807,7 +807,7 @@ class SurveysTest extends PostgresTestCase
         $before = [$this->manager, $this->teknik, $this->teknikB];
         $counts = array_map(fn ($u) => count($this->inbox($u)), $before);
         $id = $this->as($this->retail)->postJson('/api/applications', ['application_type' => 'PB', 'transaction_type' => 'PASANG BARU', 'organizational_unit_id' => $this->ulpA->getKey(),
-            'customer' => ['name' => 'Budi', 'phone' => '081234567891'], 'service_address' => 'Jl. B', 'new_power_value' => 900, 'new_power_unit' => 'VA'])->assertCreated()->json('data.id');
+            'customer' => ['name' => 'Budi', 'phone' => '081234567891'], 'service_address' => 'Jl. B', 'new_power_value' => 6600, 'new_power_unit' => 'VA'])->assertCreated()->json('data.id');
         $this->as($this->retail)->postJson("/api/applications/{$id}/submit")->assertSuccessful();
         $this->assertSame($counts[0] + 1, count($this->inbox($this->manager)));
         $this->assertSame($counts[1] + 1, count($this->inbox($this->teknik)));

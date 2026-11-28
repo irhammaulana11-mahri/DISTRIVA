@@ -36,7 +36,7 @@ class TasksRemindCommand extends Command
         $announced = 0;
         $ids = DB::table('applications')->whereIn('current_status', ['PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS'])->pluck('id')->all();
         foreach ($service->compute($ids) as $id => $row) {
-            if ($row['status'] === 'OVERDUE' && ! DB::table('application_sla_alerts')->where('application_id', $id)->exists()) {
+            if ($row['status'] === 'OVERDUE' && ($row['announce'] ?? true) && ! DB::table('application_sla_alerts')->where('application_id', $id)->exists()) {
                 $flow->serviceSlaOverdue($id, (string) $row['unit_id'], (string) DB::table('applications')->where('id', $id)->value('application_number'), (string) $row['category_label']);
                 DB::table('application_sla_alerts')->insert(['application_id' => $id, 'notified_at' => now()]);
                 $announced++;

@@ -8,6 +8,7 @@ use App\Formula\FormulaException;
 use App\Models\User;
 use App\Services\Bom\BomCalculator;
 use App\Services\Documents\DocumentService;
+use App\Services\Inventory\SrReservationService;
 use App\Services\WorkOrders\MaterialOutbox;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -444,7 +445,7 @@ class MtoService
         $drawing = DB::table('application_drawings')->where('id', $drawingId)->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
         $version = DB::table('application_drawing_versions')->where('id', $versionId)->where('drawing_id', $drawingId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
         $app = DB::table('applications')->where('id', $drawing->application_id)->first();
-        if (! in_array($app->current_status, self::OPEN_APPLICATION, true)) {
+        if (! SrReservationService::openForWork($app, self::OPEN_APPLICATION)) {
             throw new AssignmentRuleViolation("Permohonan berstatus {$app->current_status}; MTO tidak dapat dilanjutkan.");
         }
 

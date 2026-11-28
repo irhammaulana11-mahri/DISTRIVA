@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\AdministrationDenied;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Drawings\DrawingService;
+use App\Services\Inventory\SrReservationService;
 use App\Services\Notifications\WorkflowNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -199,7 +200,7 @@ class DrawingController extends Controller
         };
         $can = ['assign' => false, 'execute' => false, 'revise' => false, 'escalate' => false, 'decide' => []];
         $can['assign'] = $on('drawings.assign') && $open !== null && $open->status === 'DRAFT';
-        $can['revise'] = $open === null && $on('drawings.execute') && in_array($app->current_status, ['APPROVED', 'PAID', 'PK_PRINTED'], true);
+        $can['revise'] = $open === null && $on('drawings.execute') && SrReservationService::openForWork($app, ['APPROVED', 'PAID', 'PK_PRINTED']);
         if ($open !== null) {
             $can['execute'] = $open->status === 'DRAFT' && $on('drawings.execute');
             $can['escalate'] = $open->survey_version_id === null && ! $open->extended_approval && $on('drawings.escalate') && $this->mayEscalateAt($actor, $open);

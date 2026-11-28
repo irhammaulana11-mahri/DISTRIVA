@@ -189,6 +189,10 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::post('/applications/{application}/sr-reservations', [SrReservationController::class, 'store'])->whereUuid('application');
         Route::get('/sr-reservations', [SrReservationController::class, 'index']);
         Route::get('/sr-reservations/pending', [SrReservationController::class, 'pending']);
+        Route::post('/sr-reservations/batch', [SrReservationController::class, 'storeBatch']);
+        Route::post('/sr-reservations/batch-actions', [SrReservationController::class, 'batchAction']);
+        Route::post('/applications/{application}/sr-extension', [SrReservationController::class, 'reportExtension'])->whereUuid('application');
+        Route::post('/applications/{application}/sr-extension/cancel', [SrReservationController::class, 'withdrawExtension'])->whereUuid('application');
         Route::get('/sr-reservations/{reservation}', [SrReservationController::class, 'show'])->whereUuid('reservation');
         Route::put('/sr-reservations/{reservation}', [SrReservationController::class, 'update'])->whereUuid('reservation');
         Route::post('/sr-reservations/{reservation}/submit', [SrReservationController::class, 'submit'])->whereUuid('reservation');

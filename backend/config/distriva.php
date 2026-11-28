@@ -249,6 +249,8 @@ return [
     /** Connection without network extension (docs/95): reservation planned from the APP BOM. `drawing_row` = the GAMBAR row whose quantity each BOM reads; `cable_codes` = SR cable, set to the planned length. */
     'sr_reservation' => [
         'default_sr_length_m' => 35,
+        // SLA "layanan tanpa perluasan" of 1 phasa installed without survey: applies to every running one; finished ones and overdue notices only when paid from this date (the older backlog is listed, not announced).
+        'sla_since' => '2026-11-28',
         'one_phase_va' => [7700, 11000],                                   // besides every power below 6600 VA
         'drawing_row' => ['SR1PH' => 1, 'PBPD_6_41' => 3, 'PBPD_53_197' => 4],
         'cable_codes' => ['JTMR938', 'JTMR764', 'JTMR830'],

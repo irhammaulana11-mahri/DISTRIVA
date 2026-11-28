@@ -5,6 +5,7 @@ namespace App\Services\Reports;
 use App\Exceptions\AdministrationDenied;
 use App\Models\User;
 use App\Services\Authorization\ApplicationAuthorizer;
+use App\Services\Inventory\SrReservationService;
 use App\Services\Inventory\StockService;
 use App\Services\Rkm\RkmService;
 use App\Services\Tasks\ServiceSlaService;
@@ -134,7 +135,7 @@ class ReportService
                 'u.code as unit_code',
                 'u.name as unit_name',
                 'c.name as customer_name',
-            ])->get();
+            ])->selectRaw(SrReservationService::directInstallSql().' as direct_install')->get();
 
         $appIds = $apps->pluck('id')->all();
 
@@ -234,7 +235,7 @@ class ReportService
             $isOverdue = false;
             if ($svc !== null) {                                              // TMP: the clock starts at payment; an unpaid application is on track
                 $isOverdue = $isActive && $svc['status'] === 'OVERDUE';
-            } elseif ($isActive && ($ageDays > 25 || ($srv === null && $ageDays > 3))) {
+            } elseif ($isActive && ($ageDays > 25 || ($srv === null && ! $app->direct_install && $ageDays > 3))) {
                 $isOverdue = true;
             }
             $isOverdue && $overdueCount++;
@@ -244,7 +245,9 @@ class ReportService
 
             $currentStage = match ($app->current_status) {
                 'DRAFT', 'SUBMITTED' => 'Pendaftaran / Agenda',
-                'APPROVED', 'PAID', 'PK_PRINTED' => $srv ? ($drw ? ($wo ? 'Konstruksi Fisik' : 'Penerbitan SPK') : 'Desain Gambar & RAB') : 'Survei Lapangan',
+                // 1 phasa is installed without survey (docs/95)
+                'APPROVED' => $app->direct_install ? 'Menunggu Pembayaran' : ($srv ? ($drw ? ($wo ? 'Konstruksi Fisik' : 'Penerbitan SPK') : 'Desain Gambar & RAB') : 'Survei Lapangan'),
+                'PAID', 'PK_PRINTED' => $app->direct_install ? 'Penyambungan' : ($srv ? ($drw ? ($wo ? 'Konstruksi Fisik' : 'Penerbitan SPK') : 'Desain Gambar & RAB') : 'Survei Lapangan'),
                 'COMPLETED' => 'Selesai / Nyala',
                 'CANCELLED' => 'Dibatalkan',
                 default => $app->current_status,
@@ -471,7 +474,8 @@ class ReportService
             'summary_kpis' => [
                 'total_applications' => $overview['applications']['total'],
                 'draft_applications' => $appsByStatus['DRAFT'] ?? 0,
-                'waiting_survey' => max(0, (($appsByStatus['APPROVED'] ?? 0) + ($appsByStatus['PAID'] ?? 0) + ($appsByStatus['PK_PRINTED'] ?? 0)) - ($overview['surveys']['by_status']['ACTIVE'] ?? 0)),
+                'waiting_survey' => max(0, (($appsByStatus['APPROVED'] ?? 0) + ($appsByStatus['PAID'] ?? 0) + ($appsByStatus['PK_PRINTED'] ?? 0)) - ($overview['surveys']['by_status']['ACTIVE'] ?? 0)
+                    - DB::table('applications as a')->whereIn('a.organizational_unit_id', $units)->whereIn('a.current_status', ['APPROVED', 'PAID', 'PK_PRINTED'])->whereRaw(SrReservationService::directInstallSql())->count()),
                 'active_surveys' => $overview['surveys']['by_status']['ACTIVE'] ?? 0,
                 'drawings_under_review' => $drawingsByStatus['UNDER_REVIEW'] ?? 0,
                 'drawings_submitted' => $drawingsByStatus['SUBMITTED'] ?? 0,

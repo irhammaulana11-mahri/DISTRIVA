@@ -10,6 +10,7 @@ use App\Services\EisReports\Ap2tTagsusSync;
 use App\Services\EisReports\ApktSaidiSaifiSync;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\EisReportPermissionSeeder;
+use Database\Seeders\PlanningPermissionSeeder;
 use Database\Seeders\SurveyPermissionSeeder;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\UploadedFile;
@@ -792,7 +793,7 @@ class EisImportTest extends PostgresTestCase
         $this->seed(SurveyPermissionSeeder::class);      // the survey grants decide who is told
         $teknik = $this->makeUser();
         $this->assign($teknik, Role::query()->where('name', 'TEKNIK')->firstOrFail(), $this->ulpA1);
-        $open = $this->row(['NOAGENDA' => '514539912610278201', 'IDPEL' => '514530000201', 'NAMA' => 'PELANGGAN A', 'STATUS_PERMOHONAN' => 'DISETUJUI']);
+        $open = $this->row(['NOAGENDA' => '514539912610278201', 'IDPEL' => '514530000201', 'NAMA' => 'PELANGGAN A', 'DAYA' => '6600', 'STATUS_PERMOHONAN' => 'DISETUJUI']);
         $done = $this->row(['NOAGENDA' => '514539912610278202', 'IDPEL' => '514530000202', 'NAMA' => 'PELANGGAN B', 'STATUS_PERMOHONAN' => 'PEREMAJAAN']);
         $this->confirm($this->stage([$open, $done])['id'])->assertOk();
         $inbox = fn (User $u) => DB::table('user_notifications')->where('user_id', $u->getKey())->get();
@@ -803,6 +804,26 @@ class EisImportTest extends PostgresTestCase
         $this->assertCount(0, $inbox($this->retailA1));                                                    // the one who imported
         $this->confirm($this->stage([$done])['id'])->assertOk();
         $this->assertCount(1, $inbox($this->manager));                                                     // an unchanged history row announces nothing
+    }
+
+    #[Test]
+    public function a_paid_one_phase_customer_is_announced_to_niaga_for_reservation_and_not_to_the_survey_people(): void
+    {
+        $this->seed(SurveyPermissionSeeder::class);
+        $this->seed(PlanningPermissionSeeder::class);
+        $teknik = $this->makeUser();
+        $this->assign($teknik, Role::query()->where('name', 'TEKNIK')->firstOrFail(), $this->ulpA1);
+        $niaga = $this->makeUser();
+        $this->assign($niaga, Role::query()->where('name', 'NIAGA_RETAIL')->firstOrFail(), $this->ulpA1);
+        $titles = fn (User $u) => DB::table('user_notifications')->where('user_id', $u->getKey())->pluck('title')->all();
+        $customer = fn (string $status, string $updated) => $this->row(['NOAGENDA' => '514539912610278251', 'IDPEL' => '514530000251', 'NAMA' => 'KECIL', 'DAYA' => '900', 'STATUS_PERMOHONAN' => $status, 'TGL_UPDATE_PERMOHONAN' => $updated]);
+
+        $this->confirm($this->stage([$customer('DISETUJUI', '5/11/2026')])['id'])->assertOk();
+        $this->assertSame([], $titles($niaga));                                   // not paid yet: nothing to reserve
+        $this->confirm($this->stage([$customer('BAYAR', '6/11/2026')])['id'])->assertOk();
+
+        $this->assertSame(['1 pelanggan 1 phasa menunggu reservasi'], $titles($niaga));
+        $this->assertSame([], $titles($teknik));
     }
 
     #[Test]
