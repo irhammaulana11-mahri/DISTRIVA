@@ -60,6 +60,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
   const [vendorId, setVendorId] = useState('')
   const [notes, setNotes] = useState('')
   const [edits, setEdits] = useState({}) // { [khs_code]: { quantity, reason } }
+  const [materialEdits, setMaterialEdits] = useState({}) // { [khs_code]: { [material_no]: quantityStr } }
   const [vendors, setVendors] = useState([])
   const [saving, setSaving] = useState(false)
 
@@ -67,7 +68,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
   const [mimsNo, setMimsNo] = useState('')
   const [requestingMims, setRequestingMims] = useState(false)
 
-  // Realization per Agenda: { [appId]: { cable_m, sealsText, serials: { [khs_code]: serial_number } } }
+  // Realization per Agenda: { [appId]: { cable_m, sealsText, serials: { [khs_code]: { serial_number, material_no } } } }
   const [agendaInputs, setAgendaInputs] = useState({})
   const [savingRealization, setSavingRealization] = useState(false)
   const [matching, setMatching] = useState(false)
@@ -86,15 +87,19 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
     [applications],
   )
 
+  const linesByCode = useMemo(
+    () => Object.fromEntries((detail?.lines || []).map((l) => [l.khs_code, l])),
+    [detail],
+  )
+
   const serialKhsCodes = useMemo(() => {
     const kwh = Array.isArray(detail?.serial_codes?.kwh) ? detail.serial_codes.kwh : []
     const mcb = Array.isArray(detail?.serial_codes?.mcb) ? detail.serial_codes.mcb : []
-    const lineNameMap = Object.fromEntries((detail?.lines || []).map((l) => [l.khs_code, l.khs_name || l.khs_code]))
     const list = []
-    kwh.forEach((code) => list.push({ khs_code: code, group: 'kWh Meter', label: lineNameMap[code] || code }))
-    mcb.forEach((code) => list.push({ khs_code: code, group: 'MCB / MCCB', label: lineNameMap[code] || code }))
+    kwh.forEach((code) => list.push({ khs_code: code, group: 'kWh Meter', label: linesByCode[code]?.khs_name || code }))
+    mcb.forEach((code) => list.push({ khs_code: code, group: 'MCB / MCCB', label: linesByCode[code]?.khs_name || code }))
     return list
-  }, [detail])
+  }, [detail, linesByCode])
 
   const load = useCallback(async () => {
     if (!open || !reservationId) return
@@ -112,19 +117,36 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
         setSapRef(d.sap_reference || '')
 
         const nextEdits = {}
+        const nextMatEdits = {}
         ;(d.lines || []).forEach((ln) => {
           nextEdits[ln.khs_code] = {
             quantity: ln.quantity != null ? String(ln.quantity) : '0',
             reason: ln.correction_reason || '',
           }
+          const matMap = {}
+          const opts = ln.material_options || []
+          if (Array.isArray(ln.materials) && ln.materials.length > 0) {
+            ln.materials.forEach((m) => {
+              if (m?.material_no) matMap[m.material_no] = m.quantity != null ? String(m.quantity) : '0'
+            })
+          } else if (opts.length === 1 && opts[0]?.material_no) {
+            matMap[opts[0].material_no] = ln.quantity != null ? String(ln.quantity) : '0'
+          }
+          nextMatEdits[ln.khs_code] = matMap
         })
         setEdits(nextEdits)
+        setMaterialEdits(nextMatEdits)
 
         const nextInputs = {}
         ;(d.applications || []).forEach((ag) => {
           const serialMap = {}
           ;(ag.serials || []).forEach((s) => {
-            if (s?.khs_code) serialMap[s.khs_code] = s.serial_number || ''
+            if (s?.khs_code) {
+              serialMap[s.khs_code] = {
+                serial_number: s.serial_number || '',
+                material_no: s.material_no || '',
+              }
+            }
           })
           nextInputs[ag.application_id] = {
             cable_m: ag.cable_m != null ? String(ag.cable_m) : (d.sr_length_m != null ? String(d.sr_length_m) : '35'),
@@ -165,6 +187,8 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
     e?.preventDefault?.()
     if (!detail) return
     const corrections = []
+    const materialsPayload = []
+
     for (const ln of detail.lines || []) {
       const ed = edits[ln.khs_code]
       if (!ed) continue
@@ -192,6 +216,32 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
           reason: (ed.reason || '').trim() || undefined,
         })
       }
+
+      const opts = ln.material_options || []
+      if (opts.length === 1 && opts[0]?.material_no) {
+        materialsPayload.push({
+          khs_code: ln.khs_code,
+          items: [{ material_no: opts[0].material_no, quantity: qtyNum }],
+        })
+      } else if (opts.length > 1) {
+        const matMap = materialEdits[ln.khs_code] || {}
+        const items = opts
+          .map((o) => ({ material_no: o.material_no, quantity: Number(matMap[o.material_no] || 0) }))
+          .filter((it) => !Number.isNaN(it.quantity) && it.quantity > 0)
+        if (items.length > 0) {
+          const sumMat = items.reduce((s, it) => s + it.quantity, 0)
+          if (Math.abs(sumMat - qtyNum) > 1e-6) {
+            notify({
+              type: 'error',
+              title: 'Jumlah nomor material belum cocok',
+              desc: `Total pilihan nomor material untuk ${ln.khs_code} (${fmtNum(sumMat)}) harus sama dengan total baris (${fmtNum(qtyNum)}).`,
+              tag: 'Reservasi SR',
+            })
+            return
+          }
+          materialsPayload.push({ khs_code: ln.khs_code, items })
+        }
+      }
     }
 
     setSaving(true)
@@ -208,8 +258,11 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
       if (corrections.length > 0) {
         body.corrections = corrections
       }
+      if (materialsPayload.length > 0) {
+        body.materials = materialsPayload
+      }
       await srReservationsApi.update(detail.id, body)
-      notify({ type: 'success', title: 'Perubahan tersimpan', desc: 'Total material dan catatan reservasi diperbarui.', tag: 'Reservasi SR' })
+      notify({ type: 'success', title: 'Perubahan tersimpan', desc: 'Total material, pilihan nomor material SAP, dan catatan diperbarui.', tag: 'Reservasi SR' })
       await load()
       onUpdated?.()
     } catch (err) {
@@ -234,7 +287,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
       await load()
       onUpdated?.()
     } catch (err) {
-      notify({ type: 'error', title: 'Gagal mencatat nomor MIMS', desc: err?.message || 'Stok tidak mencukupi atau nomor tidak valid.', tag: 'Reservasi SR' })
+      notify({ type: 'error', title: 'Gagal mencatat nomor MIMS', desc: err?.message || 'Stok tidak mencukupi atau pilihan nomor material belum lengkap.', tag: 'Reservasi SR' })
     } finally {
       setRequestingMims(false)
     }
@@ -250,8 +303,16 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
         .map((s) => s.trim())
         .filter(Boolean)
       const serials = Object.entries(entry.serials || {})
-        .filter(([, sn]) => String(sn || '').trim() !== '')
-        .map(([khs_code, serial_number]) => ({ khs_code, serial_number: String(serial_number).trim() }))
+        .filter(([, val]) => String(val?.serial_number || '').trim() !== '')
+        .map(([khs_code, val]) => {
+          const activeMats = (linesByCode[khs_code]?.materials || []).filter((m) => Number(m.quantity) > 0)
+          const matNo = (val?.material_no || '').trim() || (activeMats.length === 1 ? activeMats[0].material_no : '')
+          return {
+            khs_code,
+            serial_number: String(val.serial_number).trim(),
+            ...(matNo ? { material_no: matNo } : {}),
+          }
+        })
       return {
         application_id: ag.application_id,
         ...(entry.cable_m !== '' ? { cable_m: Number(entry.cable_m) } : {}),
@@ -341,6 +402,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
     }
   }
 
+  const materialBlockers = detail?.material_blockers || []
   const sapBlockers = detail?.sap_blockers || []
 
   return (
@@ -431,7 +493,21 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
             </div>
           </div>
 
-          {/* Langkah 1: Total Material PLN (BOM) & Koreksi Beralasan */}
+          {materialBlockers.length > 0 && (
+            <Alert variant="warning">
+              <div className="space-y-1 text-xs">
+                <div className="font-bold flex items-center gap-1.5">
+                  <IconAlertCircle className="h-4 w-4 shrink-0" />
+                  Pilihan Nomor Material SAP Belum Lengkap:
+                </div>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  {materialBlockers.map((b, idx) => <li key={idx}>{b}</li>)}
+                </ul>
+              </div>
+            </Alert>
+          )}
+
+          {/* Langkah 1: Total Material PLN (BOM) & Pilihan Nomor Material SAP */}
           <form onSubmit={handleSaveTotals} className="space-y-4">
             {canEditLines && (
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -491,7 +567,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
               <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Total Material PLN (BOM Kolektif)</h4>
-                  <p className="text-[11px] text-slate-500">Nomor material ERP, plant, dan SLoc dipakai untuk input ke MIMS. Koreksi jumlah wajib disertai alasan.</p>
+                  <p className="text-[11px] text-slate-500">Pilih nomor material ERP beserta jumlahnya per baris (harus sama dengan Total Rencana) sebelum mencatat nomor permohonan MIMS.</p>
                 </div>
                 <span className="text-xs font-semibold text-slate-500">{(detail.lines || []).length} item</span>
               </div>
@@ -501,7 +577,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                   <thead className="bg-slate-50 dark:bg-slate-850 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="px-3 py-2">KHS &amp; Material</th>
-                      <th className="px-3 py-2">Nomor Material ERP</th>
+                      <th className="px-3 py-2 min-w-64">Nomor Material ERP</th>
                       <th className="px-3 py-2 text-right">Qty BOM</th>
                       <th className="px-3 py-2 text-right">Total Rencana</th>
                       <th className="px-3 py-2 text-right">Realisasi</th>
@@ -511,7 +587,13 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {(detail.lines || []).map((ln) => {
                       const ed = edits[ln.khs_code] || { quantity: String(ln.quantity ?? 0), reason: ln.correction_reason || '' }
-                      const differsFromBom = Number(ed.quantity) !== Number(ln.quantity_bom ?? 0)
+                      const targetQty = Number(ed.quantity || 0)
+                      const differsFromBom = targetQty !== Number(ln.quantity_bom ?? 0)
+                      const opts = ln.material_options || []
+                      const matMap = materialEdits[ln.khs_code] || {}
+                      const sumMat = opts.reduce((s, o) => s + (Number(matMap[o.material_no] || 0) || 0), 0)
+                      const matMatched = opts.length <= 1 || Math.abs(sumMat - targetQty) <= 1e-6
+
                       return (
                         <tr key={ln.khs_code} className="align-top">
                           <td className="px-3 py-2.5">
@@ -519,16 +601,75 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                             <div className="font-mono text-[10px] text-slate-400">{ln.khs_code} · {ln.unit_text || '-'}</div>
                           </td>
                           <td className="px-3 py-2.5">
-                            {Array.isArray(ln.material_numbers) && ln.material_numbers.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {ln.material_numbers.map((num) => (
-                                  <span key={num} className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200">
-                                    {num}
+                            {opts.length === 0 ? (
+                              Array.isArray(ln.material_numbers) && ln.material_numbers.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {ln.material_numbers.map((num) => (
+                                    <span key={num} className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200">
+                                      {num}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 italic">belum dipetakan</span>
+                              )
+                            ) : opts.length === 1 ? (
+                              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 px-2.5 py-1.5 space-y-0.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-mono text-[11px] font-bold text-slate-800 dark:text-slate-100">{opts[0].material_no}</span>
+                                  <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                    Otomatis: {fmtNum(targetQty)} {opts[0].unit_text || ln.unit_text || ''}
                                   </span>
-                                ))}
+                                </div>
+                                {opts[0].name && <div className="text-[10px] text-slate-500">{opts[0].name}</div>}
+                                <div className="text-[10px] text-slate-500">
+                                  Stok tersedia: <strong>{fmtNum(opts[0].available ?? opts[0].stock_ready)}</strong> {opts[0].unit_text || ln.unit_text || ''}
+                                </div>
                               </div>
                             ) : (
-                              <span className="text-slate-400">-</span>
+                              <div className="space-y-1.5">
+                                {opts.map((opt) => {
+                                  const stockVal = opt.available ?? opt.stock_ready
+                                  const savedQty = (ln.materials || []).find((m) => m.material_no === opt.material_no)?.quantity ?? 0
+                                  return (
+                                    <div key={opt.material_no} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 px-2 py-1.5">
+                                      <div className="min-w-0">
+                                        <div className="font-mono text-[11px] font-bold text-slate-800 dark:text-slate-100">{opt.material_no}</div>
+                                        {opt.name && <div className="text-[10px] text-slate-500 truncate max-w-44" title={opt.name}>{opt.name}</div>}
+                                        <div className="text-[10px] text-slate-500">
+                                          Stok: <strong>{fmtNum(stockVal)}</strong> {opt.unit_text || ln.unit_text || ''}
+                                        </div>
+                                      </div>
+                                      {canEditLines ? (
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          aria-label={`Qty ${opt.material_no} ${ln.khs_code}`}
+                                          value={matMap[opt.material_no] ?? ''}
+                                          onChange={(e) =>
+                                            setMaterialEdits((prev) => ({
+                                              ...prev,
+                                              [ln.khs_code]: { ...(prev[ln.khs_code] || {}), [opt.material_no]: e.target.value },
+                                            }))
+                                          }
+                                          placeholder="0"
+                                          className="w-20 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-right text-xs font-mono text-slate-900 dark:text-slate-100 focus-ring"
+                                        />
+                                      ) : (
+                                        <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">
+                                          {fmtNum(savedQty)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                                {canEditLines && (
+                                  <div className={`text-[10px] font-semibold text-right ${matMatched ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                                    Terpilih: {fmtNum(sumMat)} / {fmtNum(targetQty)}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-slate-600 dark:text-slate-400">
@@ -601,7 +742,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                 {detail.status === 'DRAFT' ? 'Catat Nomor Permohonan MIMS (Tahan Stok)' : 'Koreksi Nomor Permohonan MIMS'}
               </div>
               <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300/80">
-                Setelah mengirim total pemakaian material di MIMS, catat nomor permohonan MIMS di sini untuk menahan stok dan membuka isian realisasi per agenda.
+                Setelah memilih nomor material SAP dan mengirim total pemakaian material di MIMS, catat nomor permohonan MIMS di sini untuk menahan stok dan membuka isian realisasi per agenda.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -619,7 +760,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
             </form>
           )}
 
-          {/* Langkah 3: Realisasi per Agenda (Serial Number, Panjang Kabel, Segel, Keluarkan Agenda) */}
+          {/* Langkah 3: Realisasi per Agenda (Serial Number + material_no, Panjang Kabel, Segel, Keluarkan Agenda) */}
           {applications.length > 0 && (
             <form onSubmit={handleSaveRealization} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/60 dark:bg-slate-850/40">
@@ -628,7 +769,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                     Realisasi per No. Agenda ({activeApplications.length} aktif)
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    Isi nomor seri kWh meter &amp; MCB, panjang kabel SR aktual (m), dan nomor segel (pisahkan dengan koma bila lebih dari satu). Dapat disimpan bertahap.
+                    Isi nomor seri kWh meter &amp; MCB (beserta pilihan nomor material bila dibagi ke beberapa nomor), panjang kabel SR aktual (m), dan nomor segel. Dapat disimpan bertahap.
                   </p>
                 </div>
                 {detail.status === 'REQUESTED' && canOperate && (
@@ -681,26 +822,61 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                           </td>
                           {serialKhsCodes.map((m) => {
                             const usesMaterial = !neededCodes || neededCodes.has(m.khs_code)
+                            const ln = linesByCode[m.khs_code]
+                            const activeMats = (ln?.materials || []).filter((mt) => Number(mt.quantity) > 0)
+                            const snEntry = entry.serials?.[m.khs_code] || { serial_number: '', material_no: '' }
                             return (
-                              <td key={m.khs_code} className="px-3 py-2.5">
+                              <td key={m.khs_code} className="px-3 py-2.5 space-y-1">
                                 {usesMaterial ? (
-                                  <input
-                                    type="text"
-                                    aria-label={`SN ${m.khs_code} ${agendaLabel}`}
-                                    disabled={readOnly}
-                                    value={entry.serials?.[m.khs_code] || ''}
-                                    onChange={(e) =>
-                                      setAgendaInputs((prev) => ({
-                                        ...prev,
-                                        [ag.application_id]: {
-                                          ...entry,
-                                          serials: { ...(entry.serials || {}), [m.khs_code]: e.target.value },
-                                        },
-                                      }))
-                                    }
-                                    placeholder="Nomor seri…"
-                                    className="w-36 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-mono text-slate-900 dark:text-slate-100 focus-ring disabled:opacity-60"
-                                  />
+                                  <>
+                                    <input
+                                      type="text"
+                                      aria-label={`SN ${m.khs_code} ${agendaLabel}`}
+                                      disabled={readOnly}
+                                      value={snEntry.serial_number || ''}
+                                      onChange={(e) =>
+                                        setAgendaInputs((prev) => ({
+                                          ...prev,
+                                          [ag.application_id]: {
+                                            ...entry,
+                                            serials: {
+                                              ...(entry.serials || {}),
+                                              [m.khs_code]: { ...snEntry, serial_number: e.target.value },
+                                            },
+                                          },
+                                        }))
+                                      }
+                                      placeholder="Nomor seri…"
+                                      className="w-36 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-mono text-slate-900 dark:text-slate-100 focus-ring disabled:opacity-60"
+                                    />
+                                    {activeMats.length > 1 && (
+                                      <select
+                                        aria-label={`Material ${m.khs_code} ${agendaLabel}`}
+                                        disabled={readOnly}
+                                        value={snEntry.material_no || ''}
+                                        onChange={(e) =>
+                                          setAgendaInputs((prev) => ({
+                                            ...prev,
+                                            [ag.application_id]: {
+                                              ...entry,
+                                              serials: {
+                                                ...(entry.serials || {}),
+                                                [m.khs_code]: { ...snEntry, material_no: e.target.value },
+                                              },
+                                            },
+                                          }))
+                                        }
+                                        className="w-36 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px] font-mono text-slate-900 dark:text-slate-100 focus-ring disabled:opacity-60"
+                                      >
+                                        <option value="">Pilih no. material…</option>
+                                        {activeMats.map((mt) => (
+                                          <option key={mt.material_no} value={mt.material_no}>
+                                            {mt.material_no}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </>
                                 ) : (
                                   <span className="text-slate-400 text-[11px]">Tidak pakai</span>
                                 )}

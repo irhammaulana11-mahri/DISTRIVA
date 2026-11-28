@@ -9,6 +9,7 @@ use App\Services\Proposals\ProposalService;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -134,11 +135,13 @@ class SrReservationController extends Controller
             ->get();
         $lines = DB::table('sr_reservation_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.sr_reservation_id', $reservation)->orderBy('k.code')->get(['l.*', 'k.code']);
         $serials = DB::table('sr_reservation_serials as n')->join('khs_items as k', 'k.id', '=', 'n.khs_item_id')->whereIn('n.sr_reservation_application_id', $agendas->pluck('id'))->orderBy('k.code')->orderBy('n.serial_number')
-            ->get(['n.sr_reservation_application_id', 'k.code', 'n.serial_number'])->groupBy('sr_reservation_application_id');
+            ->get(['n.sr_reservation_application_id', 'k.code', 'n.serial_number', 'n.material_no'])->groupBy('sr_reservation_application_id');
         $khsIds = $lines->pluck('khs_item_id')->merge($agendas->flatMap(fn ($x) => array_keys(json_decode($x->needs, true))))->unique()->values();
         $codes = DB::table('khs_items')->whereIn('id', $khsIds)->pluck('code', 'id');
         $names = DB::table('khs_item_versions')->whereIn('khs_item_id', $khsIds)->where('status', 'APPROVED')->orderBy('valid_from')->get(['khs_item_id', 'name', 'unit_text'])->keyBy('khs_item_id');
-        $skus = DB::table('khs_material_map')->whereIn('khs_item_id', $khsIds)->orderBy('material_no')->get()->groupBy('khs_item_id');
+        $options = $this->reservations->materialOptions($khsIds->all());
+        $stock = $this->reservations->materialStock($r->warehouse_id, $reservation);
+        $chosen = DB::table('sr_reservation_line_materials')->whereIn('sr_reservation_line_id', $lines->pluck('id'))->orderBy('material_no')->get()->groupBy('sr_reservation_line_id');
         $events = DB::table('sr_reservation_events as e')->join('users as u', 'u.id', '=', 'e.actor_id')->where('e.sr_reservation_id', $reservation)->orderBy('e.occurred_at')->get(['e.event_type', 'e.reason', 'e.details', 'e.occurred_at', 'u.name']);
         $check = $r->status === 'REQUESTED' ? $this->reservations->sapCheck($reservation) : null;
         $serialCodes = (array) config('distriva.sr_reservation.serial_codes');
@@ -147,17 +150,37 @@ class SrReservationController extends Controller
             'notes' => $r->notes, 'cancel_reason' => $r->cancel_reason,
             'mims_found_in_mirror' => $r->mims_reservation_no !== null && DB::table('mims_reservations')->where('reservation_no', $r->mims_reservation_no)->exists(),
             'lines' => $lines->map(fn ($l) => ['khs_code' => $l->code, 'khs_name' => $names[$l->khs_item_id]->name ?? null, 'unit_text' => $names[$l->khs_item_id]->unit_text ?? null,
-                'material_numbers' => ($skus[$l->khs_item_id] ?? collect())->pluck('material_no')->all(), 'quantity_bom' => (float) $l->quantity_bom, 'quantity' => (float) $l->quantity, 'correction_reason' => $l->correction_reason,
+                'material_numbers' => $options[$l->khs_item_id] ?? [],
+                'material_options' => array_map(fn (string $no) => ['material_no' => $no, 'name' => $stock[$no]['name'] ?? null, 'unit_text' => $stock[$no]['unit'] ?? null,
+                    'stock_ready' => $stock === [] ? null : ($stock[$no]['ready'] ?? 0.0), 'available' => $stock === [] ? null : ($stock[$no]['available'] ?? 0.0)], $options[$l->khs_item_id] ?? []),
+                'materials' => $this->chosenNumbers($chosen[$l->id] ?? collect(), $options[$l->khs_item_id] ?? [], (float) $l->quantity), 'quantity_bom' => (float) $l->quantity_bom, 'quantity' => (float) $l->quantity, 'correction_reason' => $l->correction_reason,
                 'realised' => isset($check['matches'][$l->khs_item_id]) ? (float) $check['matches'][$l->khs_item_id] : null])->all(),
             'applications' => $agendas->map(fn ($x) => ['application_id' => $x->application_id, 'application_number' => $x->application_number, 'agenda_number' => $x->agenda_number, 'customer_name' => $x->customer_name, 'power_va' => (int) $x->power_va,
                 'needs' => collect(json_decode($x->needs, true))->map(fn ($q, $khs) => ['khs_code' => $codes[$khs], 'quantity' => (float) $q])->values()->all(),
                 'cable_m' => $x->actual_cable_m === null ? null : (float) $x->actual_cable_m, 'seals' => json_decode($x->seal_numbers, true),
-                'serials' => ($serials[$x->id] ?? collect())->map(fn ($n) => ['khs_code' => $n->code, 'serial_number' => $n->serial_number])->values()->all(),
+                'serials' => ($serials[$x->id] ?? collect())->map(fn ($n) => ['khs_code' => $n->code, 'serial_number' => $n->serial_number, 'material_no' => $n->material_no])->values()->all(),
                 'released_at' => $x->released_at, 'release_reason' => $x->release_reason])->all(),
             'serial_codes' => $serialCodes, 'cable_codes' => (array) config('distriva.sr_reservation.cable_codes'), 'seal_codes' => (array) config('distriva.sr_reservation.seal_codes'),
+            'material_blockers' => $r->status === 'DRAFT' ? $this->reservations->materialProblems($reservation) : [],
             'sap_blockers' => $check['blockers'] ?? [],
             'events' => $events->map(fn ($e) => ['type' => $e->event_type, 'actor' => $e->name, 'reason' => $e->reason, 'details' => $e->details === null ? null : json_decode($e->details, true), 'occurred_at' => $e->occurred_at])->all(),
         ]]);
+    }
+
+    /**
+     * The ERP numbers of a line: what was chosen, or the only number there is.
+     *
+     * @param  Collection<int,object>  $chosen
+     * @param  list<string>  $options
+     * @return list<array{material_no:string,quantity:float}>
+     */
+    private function chosenNumbers(Collection $chosen, array $options, float $quantity): array
+    {
+        if ($chosen->isEmpty()) {
+            return count($options) === 1 && $quantity > 0 ? [['material_no' => $options[0], 'quantity' => $quantity]] : [];
+        }
+
+        return $chosen->map(fn (object $m): array => ['material_no' => $m->material_no, 'quantity' => (float) $m->quantity])->values()->all();
     }
 
     /** POST /sr-reservations — one reservation for the chosen agendas. */
@@ -184,7 +207,9 @@ class SrReservationController extends Controller
         $this->authorizeOn($request, $reservation);
         $in = $request->validate(['sr_length_m' => ['sometimes', 'numeric', 'gt:0', 'max:10000'], 'vendor_company_id' => ['sometimes', 'uuid'], 'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'add_application_ids' => ['sometimes', 'array', 'max:100'], 'add_application_ids.*' => ['required', 'uuid', 'distinct'],
-            'corrections' => ['sometimes', 'array', 'max:100'], 'corrections.*.khs_code' => ['required', 'string', 'max:50', 'distinct'], 'corrections.*.quantity' => ['required', 'numeric', 'gte:0', 'max:1000000'], 'corrections.*.reason' => ['nullable', 'string', 'max:500']]);
+            'corrections' => ['sometimes', 'array', 'max:100'], 'corrections.*.khs_code' => ['required', 'string', 'max:50', 'distinct'], 'corrections.*.quantity' => ['required', 'numeric', 'gte:0', 'max:1000000'], 'corrections.*.reason' => ['nullable', 'string', 'max:500'],
+            'materials' => ['sometimes', 'array', 'max:100'], 'materials.*.khs_code' => ['required', 'string', 'max:50', 'distinct'], 'materials.*.items' => ['present', 'array', 'max:30'],
+            'materials.*.items.*.material_no' => ['required', 'string', 'max:30'], 'materials.*.items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:1000000']]);
         $this->reservations->update($reservation, $in, $request->user());
 
         return response()->json(['message' => 'Reservasi disimpan.']);
@@ -213,7 +238,7 @@ class SrReservationController extends Controller
         $this->authorizeOn($request, $reservation);
         $in = $request->validate(['items' => ['required', 'array', 'min:1', 'max:100'], 'items.*.application_id' => ['required', 'uuid', 'distinct'], 'items.*.cable_m' => ['sometimes', 'nullable', 'numeric', 'gte:0', 'max:10000'],
             'items.*.seals' => ['sometimes', 'array', 'max:20'], 'items.*.seals.*' => ['required', 'string', 'max:60'],
-            'items.*.serials' => ['sometimes', 'array', 'max:20'], 'items.*.serials.*.khs_code' => ['required', 'string', 'max:50'], 'items.*.serials.*.serial_number' => ['required', 'string', 'max:60']]);
+            'items.*.serials' => ['sometimes', 'array', 'max:20'], 'items.*.serials.*.khs_code' => ['required', 'string', 'max:50'], 'items.*.serials.*.serial_number' => ['required', 'string', 'max:60'], 'items.*.serials.*.material_no' => ['nullable', 'string', 'max:30']]);
         $this->reservations->realize($reservation, $in['items'], $request->user());
 
         return response()->json(['message' => 'Realisasi disimpan.']);

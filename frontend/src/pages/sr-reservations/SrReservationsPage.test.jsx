@@ -395,8 +395,7 @@ describe('SrReservationsPage (docs/95 #79 kolektif)', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: /Keluarkan/i }))
     expect(await screen.findByText(/Keluarkan Agenda AG-001/i)).toBeInTheDocument()
-    const reasonInputs = screen.getAllByLabelText(/Alasan/i)
-    fireEvent.change(reasonInputs[reasonInputs.length - 1], { target: { value: 'Pelanggan menunda pemasangan' } })
+    await userEvent.type(screen.getByLabelText('Alasan'), 'Pelanggan menunda pemasangan')
     await userEvent.click(screen.getByRole('button', { name: /Keluarkan Agenda/i }))
 
     await waitFor(() => {
@@ -457,6 +456,106 @@ describe('SrReservationsPage (docs/95 #79 kolektif)', () => {
 
     await waitFor(() => {
       expect(srReservationsApi.reportExtension).toHaveBeenCalledWith('app-1', { reason: 'Jarak tiang 95 m', distance_m: 95 })
+    })
+  })
+
+  it('mendukung pemilihan beberapa nomor material SAP, status belum dipetakan, material_blockers, dan material_no pada realisasi (#80)', async () => {
+    srReservationsApi.get.mockResolvedValue({
+      data: {
+        id: 'res-1',
+        status: 'REQUESTED',
+        phase: 1,
+        source_level: 'ULP',
+        applications_count: 1,
+        unit: { id: 'ulp-1', code: '51453', name: 'ULP Jombang' },
+        warehouse: { id: 'wh-1', code: 'GD-51453', name: 'Gudang ULP Jombang', plant: '5118', stor_loc: '2810' },
+        vendor: { id: 'v-1', code: 'V01', name: 'PT Pelaksana 1Ph', contract_number: 'KTR-001' },
+        sr_length_m: 35,
+        mims_reservation_no: 'RSV-2026-889',
+        material_blockers: ['KHS KWH-1PH belum dipilih nomor materialnya'],
+        lines: [
+          {
+            khs_code: 'KWH-1PH',
+            khs_name: 'kWh Meter 1 Phasa',
+            unit_text: 'bh',
+            quantity_bom: 2,
+            quantity: 2,
+            realised: 0,
+            material_options: [
+              { material_no: '3110001', name: 'Meter Itron 1Ph', unit_text: 'bh', available: 10 },
+              { material_no: '3110002', name: 'Meter Hexing 1Ph', unit_text: 'bh', available: 5 },
+            ],
+            materials: [
+              { material_no: '3110001', quantity: 1 },
+              { material_no: '3110002', quantity: 1 },
+            ],
+          },
+          {
+            khs_code: 'SEGEL-01',
+            khs_name: 'Segel Plastik',
+            unit_text: 'bh',
+            quantity_bom: 2,
+            quantity: 2,
+            realised: 0,
+            material_options: [],
+            materials: [],
+          },
+        ],
+        applications: [
+          {
+            application_id: 'app-1',
+            application_number: 'PB-2026-001',
+            agenda_number: 'AG-001',
+            customer_name: 'Budi Santoso',
+            power_va: 2200,
+            needs: [{ khs_code: 'KWH-1PH', quantity: 1 }],
+            cable_m: 35,
+            seals: [],
+            serials: [],
+          },
+        ],
+        serial_codes: { kwh: ['KWH-1PH'], mcb: [] },
+        sap_blockers: [],
+        events: [],
+      },
+    })
+    srReservationsApi.update.mockResolvedValue({ data: { ok: true } })
+    srReservationsApi.saveRealization.mockResolvedValue({ data: { ok: true } })
+
+    wrap(<SrReservationsPage />)
+
+    await userEvent.click(screen.getByRole('tab', { name: /Daftar Reservasi/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Rincian/i }))
+
+    expect(await screen.findByText(/KHS KWH-1PH belum dipilih nomor materialnya/i)).toBeInTheDocument()
+    expect(screen.getByText(/belum dipetakan/i)).toBeInTheDocument()
+    expect(screen.getByText(/Meter Itron 1Ph/i)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Qty 3110001 KWH-1PH'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Qty 3110002 KWH-1PH'), { target: { value: '0' } })
+    await userEvent.click(screen.getByRole('button', { name: /Simpan Perubahan Total/i }))
+
+    await waitFor(() => {
+      expect(srReservationsApi.update).toHaveBeenCalledWith('res-1', expect.objectContaining({
+        materials: [{ khs_code: 'KWH-1PH', items: [{ material_no: '3110001', quantity: 2 }] }],
+      }))
+    })
+
+    fireEvent.change(screen.getByLabelText('SN KWH-1PH AG-001'), { target: { value: 'SN-HEX-01' } })
+    await userEvent.selectOptions(screen.getByLabelText('Material KWH-1PH AG-001'), '3110002')
+    await userEvent.click(screen.getByRole('button', { name: /Simpan Realisasi/i }))
+
+    await waitFor(() => {
+      expect(srReservationsApi.saveRealization).toHaveBeenCalledWith('res-1', {
+        items: [
+          {
+            application_id: 'app-1',
+            cable_m: 35,
+            seals: [],
+            serials: [{ khs_code: 'KWH-1PH', serial_number: 'SN-HEX-01', material_no: '3110002' }],
+          },
+        ],
+      })
     })
   })
 })

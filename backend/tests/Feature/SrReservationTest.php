@@ -421,6 +421,70 @@ class SrReservationTest extends PostgresTestCase
         $this->assertSame(1, DB::table('sr_extension_findings')->where('application_id', $app)->whereNull('cancelled_at')->count());
     }
 
+    /** Maps two ERP numbers to the MCB and one to the cable, with stock per number in the ULP warehouse. */
+    private function erpNumbers(): void
+    {
+        foreach (['3250050' => 'JTMR826', '3250052' => 'JTMR826', '2190224' => 'JTMR938'] as $no => $code) {
+            DB::table('khs_material_map')->insert(['id' => (string) Str::uuid(), 'khs_item_id' => $this->khs($code), 'material_no' => (string) $no, 'created_by' => $this->users['konstruksi']->getKey(), 'created_at' => now(), 'updated_at' => now()]);
+        }
+    }
+
+    private function numberStock(array $quantities): void
+    {
+        $snapshot = DB::table('stock_snapshots')->where('warehouse_id', $this->ulpWarehouse)->value('id');
+        foreach ($quantities as $no => $quantity) {
+            DB::table('stock_snapshot_materials')->insert(['id' => (string) Str::uuid(), 'snapshot_id' => $snapshot, 'material_no' => (string) $no, 'material_name' => "Material {$no}", 'unit' => 'BH', 'stock_ready' => $quantity]);
+        }
+    }
+
+    #[Test]
+    public function the_sap_material_numbers_are_chosen_per_line_and_must_cover_the_total_from_stock(): void
+    {
+        $this->contract();
+        $this->erpNumbers();
+        $id = $this->plan([$this->paid(), $this->paid()])->assertCreated()->json('data.id');
+        $this->stockFor($id, $this->ulpWarehouse);
+        $this->numberStock(['3250050' => 1, '3250052' => 5, '2190224' => 500]);
+        $request = fn () => $this->act($id, 'request', ['reservation_no' => '900123']);
+        $choose = fn (array $items) => $this->as($this->users['niaga'])->putJson("/api/sr-reservations/{$id}", ['materials' => [['khs_code' => 'JTMR826', 'items' => $items]]]);
+
+        $this->assertSame([['material_no' => '2190224', 'quantity' => 70]], $this->lines($id)['JTMR938']['materials']);       // only one number: nothing to choose
+        $this->assertSame(['3250050', '3250052'], array_column($this->lines($id)['JTMR826']['material_options'], 'material_no'));
+        $request()->assertStatus(409)->assertJsonFragment(['message' => 'KHS JTMR826: pilih nomor material SAP; terpilih 0 dari 2.']);
+        $choose([['material_no' => '9999999', 'quantity' => 2]])->assertStatus(409);
+        $choose([['material_no' => '3250050', 'quantity' => 2]])->assertOk();
+        $request()->assertStatus(409)->assertJsonFragment(['message' => 'Stok gudang tidak cukup. Nomor 3250050: butuh 2, tersedia 1.']);
+        $choose([['material_no' => '3250050', 'quantity' => 1], ['material_no' => '3250052', 'quantity' => 1]])->assertOk();
+        $request()->assertOk();
+
+        $this->assertEquals([1, 1], array_column($this->lines($id)['JTMR826']['materials'], 'quantity'));
+    }
+
+    #[Test]
+    public function with_several_numbers_each_serial_names_its_number_and_the_split_follows_the_serials(): void
+    {
+        $this->contract();
+        $this->erpNumbers();
+        [$a, $b] = [$this->paid(), $this->paid()];
+        $id = $this->plan([$a, $b])->assertCreated()->json('data.id');
+        $this->stockFor($id, $this->ulpWarehouse);
+        $this->numberStock(['3250050' => 5, '3250052' => 5, '2190224' => 500]);
+        $this->as($this->users['niaga'])->putJson("/api/sr-reservations/{$id}", ['materials' => [['khs_code' => 'JTMR826', 'items' => [['material_no' => '3250050', 'quantity' => 2]]]]])->assertOk();
+        $this->act($id, 'request', ['reservation_no' => '900123'])->assertOk();
+        $this->as($this->users['niaga'])->putJson("/api/sr-reservations/{$id}", ['materials' => [['khs_code' => 'JTMR826', 'items' => [['material_no' => '3250050', 'quantity' => 1], ['material_no' => '3250052', 'quantity' => 1]]]]])->assertOk();
+        $item = fn (string $app, string $n, ?string $number) => ['application_id' => $app, 'cable_m' => 35, 'seals' => ["S-{$n}"],
+            'serials' => [['khs_code' => 'JTMR949', 'serial_number' => "KWH-{$n}"], ['khs_code' => 'JTMR826', 'serial_number' => "MCB-{$n}", 'material_no' => $number]]];
+
+        $this->realize($id, [$item($a, '1', null), $item($b, '2', '3250052')])->assertOk();
+        $this->act($id, 'sap')->assertStatus(409)->assertJsonFragment(['message' => 'KHS JTMR826: tiap nomor seri harus menyebut nomor materialnya.']);
+        $this->realize($id, [$item($a, '1', '3250052')])->assertOk();
+        $this->act($id, 'sap')->assertStatus(409);                                  // chosen 1 + 1, used 0 + 2
+        $this->act($id, 'match')->assertOk();
+
+        $this->assertSame([['material_no' => '3250052', 'quantity' => 2]], $this->lines($id)['JTMR826']['materials']);
+        $this->act($id, 'sap')->assertOk();
+    }
+
     #[Test]
     public function reports_do_not_expect_a_survey_from_a_one_phase_customer(): void
     {

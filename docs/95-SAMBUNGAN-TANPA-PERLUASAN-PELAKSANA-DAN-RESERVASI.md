@@ -46,6 +46,9 @@ MIMS dan SAP masih diisi manual (`mims_send_method` = `MANUAL`). Pengiriman otom
 | Total material | Jumlah kebutuhan semua agenda. Boleh dikoreksi dan ditambah (mis. segel dari PLN) saat `DRAFT` atau `REQUESTED`; berbeda dari hasil hitung wajib beralasan. Tambah atau keluarkan agenda: total mengikuti, selisih koreksi dipertahankan |
 | Keluarkan agenda | Saat `DRAFT`/`REQUESTED`, alasan wajib; realisasinya dibuang. Agenda terakhir: batalkan reservasi |
 | Stok | Diperiksa saat nomor permohonan dicatat, dan saat total dinaikkan sesudahnya. `REQUESTED`/`SAP_SENT` mengurangi stok tersedia sampai ada tarikan stok yang lebih baru |
+| Nomor material SAP | Dipilih per baris dari nomor yang dipetakan ke KHS itu (`/master-data/mapping`); satu baris boleh dibagi ke beberapa nomor. Satu pilihan saja: terisi sendiri. Wajib sama dengan total saat nomor permohonan dicatat dan sesudahnya. KHS tanpa pemetaan tidak punya pilihan dan tidak menghalangi |
+| Stok per nomor | Diperiksa dari tarikan stok terakhir bila tarikan itu memuat nomor material, dikurangi reservasi lain sesudahnya |
+| Nomor seri per nomor material | Bila satu KHS dibagi ke beberapa nomor, tiap nomor seri menyebut `material_no` dan banyaknya per nomor harus sama dengan pembagian; "Samakan total" mengikuti nomor seri |
 | Nomor seri | Hanya kWh meter dan MCB/MCCB (`serial_codes`); tidak boleh dipakai dua agenda |
 | Segel | Nomor dicatat per agenda (boleh lebih dari satu), tidak boleh dobel. Ikut total hanya bila disediakan PLN |
 | Syarat Kirim SAP | Tiap agenda: nomor seri kWh meter dan MCB (bila agendanya memakai) serta panjang kabel terisi. **Total harus sama**: per material bernomor seri = banyaknya nomor seri; kabel = jumlah panjang per agenda; segel (bila direservasi) = banyaknya nomor segel |
@@ -84,11 +87,11 @@ Galat aturan = 409 `{message}`; tanpa izin = 403; di luar unit = 404; validasi =
 | `GET /api/applications/{id}/sr-reservations` | `power_va, phase, blockers[], default_sr_length_m, survey_sr_length_m, contract, warehouses[], mims_reservation_numbers[], extension_finding, reservations[]` |
 | `POST /api/sr-reservations` | `application_ids[]`, `warehouse_id?` (wajib bila pilihan lebih dari satu), `vendor_company_id` (wajib 3 phasa), `sr_length_m?`, `notes?` → 201 `data.id` |
 | `GET /api/sr-reservations` | Filter `status`, `source_level`, `unit_id`, `search` (nomor permohonan MIMS, agenda, pelanggan), `per_page` |
-| `GET /api/sr-reservations/{id}` | Ringkasan + `notes, cancel_reason, mims_found_in_mirror, lines[]{khs_code,khs_name,unit_text,material_numbers[],quantity_bom,quantity,correction_reason,realised}, applications[]{application_id,application_number,agenda_number,customer_name,power_va,needs[]{khs_code,quantity},cable_m,seals[],serials[]{khs_code,serial_number},released_at,release_reason}, serial_codes{kwh[],mcb[]}, cable_codes[], seal_codes[], sap_blockers[], events[]` |
-| `PUT /api/sr-reservations/{id}` | `corrections[]{khs_code,quantity,reason}`, `notes?`; hanya `DRAFT`: `sr_length_m?`, `vendor_company_id?`, `add_application_ids[]?` |
+| `GET /api/sr-reservations/{id}` | Ringkasan + `notes, cancel_reason, mims_found_in_mirror, lines[]{khs_code,khs_name,unit_text,material_numbers[],quantity_bom,quantity,correction_reason,realised,material_options[]{material_no,name,unit_text,stock_ready,available},materials[]{material_no,quantity}}, applications[]{application_id,application_number,agenda_number,customer_name,power_va,needs[]{khs_code,quantity},cable_m,seals[],serials[]{khs_code,serial_number,material_no},released_at,release_reason}, serial_codes{kwh[],mcb[]}, cable_codes[], seal_codes[], material_blockers[] (saat `DRAFT`), sap_blockers[], events[]` |
+| `PUT /api/sr-reservations/{id}` | `corrections[]{khs_code,quantity,reason}`, `materials[]{khs_code,items[]{material_no,quantity}}` (mengganti pilihan baris itu), `notes?`; hanya `DRAFT`: `sr_length_m?`, `vendor_company_id?`, `add_application_ids[]?` |
 | `POST …/{id}/applications/{applicationId}/remove` | `reason` |
 | `POST …/{id}/request` | `reservation_no` (nomor permohonan MIMS; boleh dikoreksi saat `REQUESTED`) |
-| `PUT …/{id}/realization` | `items[]{application_id, cable_m?, seals[]?, serials[]?{khs_code,serial_number}}`; boleh bertahap, isian yang dikirim menggantikan yang lama |
+| `PUT …/{id}/realization` | `items[]{application_id, cable_m?, seals[]?, serials[]?{khs_code,serial_number,material_no?}}`; boleh bertahap, isian yang dikirim menggantikan yang lama |
 | `POST …/{id}/match` | Samakan total dengan realisasi |
 | `POST …/{id}/sap` | `sap_reference?` |
 | `POST …/{id}/cancel` | `reason` |
@@ -122,7 +125,7 @@ Saat diterapkan di server lain, sesuaikan `sla_since` dengan tanggal penerapan.
 
 ## 5. Penerapan
 
-1. `php artisan migrate` (migrasi `2026_12_31_200000`, `210000`, dan `220000`; yang terakhir tidak dapat di-rollback).
+1. `php artisan migrate` (migrasi `2026_12_31_200000`, `210000`, `220000` (tidak dapat di-rollback), dan `230000`).
 2. `php artisan db:seed --class=PlanningPermissionSeeder`.
 3. Isi kontrak pelaksana 1 phasa tiap ULP.
 4. Tarik data reservasi MIMS secara berkala: pencocokan "sudah direservasi" hanya sebaik tarikan terakhir. Reservasi hanya ikut tarik manual, tidak ikut jadwal otomatis.

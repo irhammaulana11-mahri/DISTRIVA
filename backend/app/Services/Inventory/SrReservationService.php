@@ -372,7 +372,7 @@ class SrReservationService
      * Changes. Draft only: SR length (per customer), 3-phase executor, notes, more agendas. Totals (`corrections`) also after the request, so they can be made equal to what was realised;
      * a material outside the BOM (e.g. a seal supplied by PLN) may be added. A total that differs from the calculated one needs a reason.
      *
-     * @param  array{sr_length_m?:mixed,vendor_company_id?:?string,notes?:?string,add_application_ids?:list<string>,corrections?:list<array{khs_code:string,quantity:mixed,reason?:?string}>}  $in
+     * @param  array{sr_length_m?:mixed,vendor_company_id?:?string,notes?:?string,add_application_ids?:list<string>,corrections?:list<array{khs_code:string,quantity:mixed,reason?:?string}>,materials?:list<array{khs_code:string,items:list<array{material_no:string,quantity:mixed}>}>}  $in
      */
     public function update(string $id, array $in, User $actor): void
     {
@@ -423,8 +423,17 @@ class SrReservationService
                 $this->retotal($id);
             }
             $applied = $this->correct($r, $in['corrections'] ?? []);
+            $this->followSingleNumbers($id);
+            $picked = $this->chooseMaterials($r, $in['materials'] ?? []);
+            if ($r->status === 'REQUESTED') {
+                $problems = $this->materialProblems($id);
+                if ($problems !== []) {
+                    throw new AssignmentRuleViolation(implode(' ', $problems));
+                }
+                $this->assertMaterialStock($r);
+            }
             DB::table('sr_reservations')->where('id', $id)->update(array_intersect_key($changes, array_flip(['vendor_company_id', 'notes', 'sr_length_m'])) + ['updated_at' => now()]);
-            $this->event($id, 'UPDATED', $actor, null, $changes + ($applied === [] ? [] : ['corrections' => $applied]));
+            $this->event($id, 'UPDATED', $actor, null, $changes + ($applied === [] ? [] : ['corrections' => $applied]) + ($picked === [] ? [] : ['materials' => $picked]));
         });
     }
 
@@ -478,6 +487,7 @@ class SrReservationService
             DB::table('sr_reservation_serials')->where('sr_reservation_application_id', $agenda->id)->delete();
             DB::table('sr_reservation_applications')->where('id', $agenda->id)->update(['released_at' => now(), 'released_by' => $actor->getKey(), 'release_reason' => $reason, 'actual_cable_m' => null, 'seal_numbers' => '[]']);
             $this->retotal($id);
+            $this->followSingleNumbers($id);
             $this->event($id, 'AGENDA_REMOVED', $actor, $reason, ['application_id' => $applicationId]);
         });
     }
@@ -508,10 +518,134 @@ class SrReservationService
                     throw new AssignmentRuleViolation('Reservasi tidak memuat material.');
                 }
                 $this->assertStock($r->warehouse_id, $totals);
+                $this->followSingleNumbers($id);
+                $problems = $this->materialProblems($id);
+                if ($problems !== []) {
+                    throw new AssignmentRuleViolation(implode(' ', $problems));
+                }
+                $this->assertMaterialStock($r);
             }
             DB::table('sr_reservations')->where('id', $id)->update(['status' => 'REQUESTED', 'mims_reservation_no' => $number, 'mims_send_method' => 'MANUAL', 'requested_by' => $r->requested_by ?? $actor->getKey(), 'requested_at' => $r->requested_at ?? now(), 'updated_at' => now()]);
             $this->event($id, 'REQUESTED', $actor, null, ['reservation_no' => $number, 'previous' => $r->mims_reservation_no]);
         });
+    }
+
+    /** ERP material numbers a KHS item can be taken as. @param list<string> $khsIds @return array<string,list<string>> */
+    public function materialOptions(array $khsIds): array
+    {
+        return DB::table('khs_material_map')->whereIn('khs_item_id', $khsIds)->orderBy('material_no')->get(['khs_item_id', 'material_no'])
+            ->groupBy('khs_item_id')->map(fn ($rows) => $rows->pluck('material_no')->map(fn ($no) => (string) $no)->all())->all();
+    }
+
+    /**
+     * Name and stock per ERP material number in the warehouse's latest stock pull: `ready` as the ERP has it, `available` after the other reservations made since that pull.
+     * Empty when that pull carries no material rows (a stock file keyed by KHS), so nothing can be checked per number.
+     *
+     * @return array<string,array{name:?string,unit:?string,ready:float,available:float}>
+     */
+    public function materialStock(string $warehouseId, ?string $exceptReservationId = null): array
+    {
+        $snapshot = DB::table('stock_snapshots')->where('warehouse_id', $warehouseId)->where('as_of', '<=', $this->today())->orderByDesc('as_of')->first(['id', 'as_of']);
+        if ($snapshot === null) {
+            return [];
+        }
+        $held = DB::table('sr_reservation_line_materials as m')->join('sr_reservation_lines as l', 'l.id', '=', 'm.sr_reservation_line_id')->join('sr_reservations as r', 'r.id', '=', 'l.sr_reservation_id')
+            ->where('r.warehouse_id', $warehouseId)->whereIn('r.status', ['REQUESTED', 'SAP_SENT'])->when($exceptReservationId, fn ($q) => $q->where('r.id', '<>', $exceptReservationId))
+            ->whereRaw('(coalesce(r.sap_sent_at, r.requested_at) at time zone ?)::date > ?', [config('distriva.business_timezone'), $snapshot->as_of])
+            ->groupBy('m.material_no')->selectRaw('m.material_no, sum(m.quantity) q')->pluck('q', 'material_no');
+        $out = [];
+        foreach (DB::table('stock_snapshot_materials')->where('snapshot_id', $snapshot->id)->get(['material_no', 'material_name', 'unit', 'stock_ready']) as $row) {
+            $no = ltrim((string) $row->material_no, '0');
+            $ready = (float) $row->stock_ready;
+            $out[$no] = ['name' => $row->material_name, 'unit' => $row->unit, 'ready' => $ready, 'available' => $ready - (float) ($held[$no] ?? 0)];
+        }
+
+        return $out;
+    }
+
+    /** @param list<array{khs_code:string,items:list<array{material_no:string,quantity:mixed}>}> $choices @return list<array<string,mixed>> */
+    private function chooseMaterials(object $r, array $choices): array
+    {
+        $applied = [];
+        foreach ($choices as $choice) {
+            $line = DB::table('sr_reservation_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.sr_reservation_id', $r->id)->where('k.code', $choice['khs_code'])->first(['l.id', 'l.khs_item_id', 'l.quantity'])
+                ?? throw new AssignmentRuleViolation("KHS {$choice['khs_code']} tidak ada pada reservasi ini.");
+            $allowed = $this->materialOptions([$line->khs_item_id])[$line->khs_item_id] ?? [];
+            DB::table('sr_reservation_line_materials')->where('sr_reservation_line_id', $line->id)->delete();
+            $total = 0.0;
+            foreach ($choice['items'] as $item) {
+                $no = ltrim(trim($item['material_no']), '0');
+                if (! in_array($no, $allowed, true)) {
+                    throw new AssignmentRuleViolation("Nomor material {$item['material_no']} tidak dipetakan ke KHS {$choice['khs_code']}.");
+                }
+                $total += (float) $item['quantity'];
+                DB::table('sr_reservation_line_materials')->insert(['id' => (string) Str::uuid(), 'sr_reservation_line_id' => $line->id, 'material_no' => $no, 'quantity' => $item['quantity']]);
+            }
+            if ($r->status === 'REQUESTED' && abs($total - (float) $line->quantity) > 1e-9) {
+                throw new AssignmentRuleViolation("KHS {$choice['khs_code']}: jumlah per nomor material {$total} harus sama dengan total ".(float) $line->quantity.'.');
+            }
+            $applied[] = ['khs_code' => $choice['khs_code'], 'items' => $choice['items']];
+        }
+
+        return $applied;
+    }
+
+    /** A material with only one ERP number needs no choosing: its split follows the total. */
+    private function followSingleNumbers(string $reservationId): void
+    {
+        $lines = DB::table('sr_reservation_lines')->where('sr_reservation_id', $reservationId)->get(['id', 'khs_item_id', 'quantity']);
+        $options = $this->materialOptions($lines->pluck('khs_item_id')->all());
+        foreach ($lines as $line) {
+            if (count($options[$line->khs_item_id] ?? []) !== 1) {
+                continue;
+            }
+            DB::table('sr_reservation_line_materials')->where('sr_reservation_line_id', $line->id)->delete();
+            if ((float) $line->quantity > 0) {
+                DB::table('sr_reservation_line_materials')->insert(['id' => (string) Str::uuid(), 'sr_reservation_line_id' => $line->id, 'material_no' => $options[$line->khs_item_id][0], 'quantity' => $line->quantity]);
+            }
+        }
+    }
+
+    /**
+     * What is wrong with the choice of ERP numbers: every total of a mapped material must be split exactly over its numbers (an unmapped material has none to choose).
+     *
+     * @return list<string>
+     */
+    public function materialProblems(string $reservationId): array
+    {
+        $lines = DB::table('sr_reservation_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.sr_reservation_id', $reservationId)->orderBy('k.code')->get(['l.id', 'l.khs_item_id', 'l.quantity', 'k.code']);
+        $options = $this->materialOptions($lines->pluck('khs_item_id')->all());
+        $chosen = DB::table('sr_reservation_line_materials')->whereIn('sr_reservation_line_id', $lines->pluck('id'))->groupBy('sr_reservation_line_id')->selectRaw('sr_reservation_line_id, sum(quantity) q')->pluck('q', 'sr_reservation_line_id');
+        $problems = [];
+        foreach ($lines as $line) {
+            $total = (float) $line->quantity;
+            $split = (float) ($chosen[$line->id] ?? 0);
+            if (isset($options[$line->khs_item_id]) && abs($total - $split) > 1e-9) {
+                $problems[] = "KHS {$line->code}: pilih nomor material SAP; terpilih {$split} dari {$total}.";
+            }
+        }
+
+        return $problems;
+    }
+
+    /** The chosen numbers must be in stock (checked only when the stock pull lists material numbers). */
+    private function assertMaterialStock(object $r): void
+    {
+        $stock = $this->materialStock($r->warehouse_id, $r->id);
+        if ($stock === []) {
+            return;
+        }
+        $short = [];
+        $chosen = DB::table('sr_reservation_line_materials as m')->join('sr_reservation_lines as l', 'l.id', '=', 'm.sr_reservation_line_id')->where('l.sr_reservation_id', $r->id)->get(['m.material_no', 'm.quantity']);
+        foreach ($chosen as $m) {
+            $available = (float) ($stock[$m->material_no]['available'] ?? 0);
+            if ((float) $m->quantity > $available + 1e-9) {
+                $short[] = "Nomor {$m->material_no}: butuh ".(float) $m->quantity.", tersedia {$available}.";
+            }
+        }
+        if ($short !== []) {
+            throw new AssignmentRuleViolation('Stok gudang tidak cukup. '.implode(' ', $short));
+        }
     }
 
     /** @param array<string,float> $need quantity per KHS item id */
@@ -535,7 +669,7 @@ class SrReservationService
     /**
      * Per agenda, after the request: cable used, seal numbers and serial numbers. Saved piece by piece; a field that is sent replaces what was there.
      *
-     * @param  list<array{application_id:string,cable_m?:mixed,seals?:list<string>,serials?:list<array{khs_code:string,serial_number:string}>}>  $items
+     * @param  list<array{application_id:string,cable_m?:mixed,seals?:list<string>,serials?:list<array{khs_code:string,serial_number:string,material_no?:?string}>}>  $items
      */
     public function realize(string $id, array $items, User $actor): void
     {
@@ -572,7 +706,11 @@ class SrReservationService
                         if ($used) {
                             throw new AssignmentRuleViolation("Nomor seri {$number} sudah dipakai.");
                         }
-                        DB::table('sr_reservation_serials')->insert(['id' => (string) Str::uuid(), 'sr_reservation_application_id' => $agenda->id, 'khs_item_id' => $khs, 'serial_number' => $number]);
+                        $material = isset($serial['material_no']) ? ltrim(trim($serial['material_no']), '0') : null;
+                        if ($material !== null && ! in_array($material, $this->materialOptions([$khs])[$khs] ?? [], true)) {
+                            throw new AssignmentRuleViolation("Nomor material {$serial['material_no']} tidak dipetakan ke KHS {$serial['khs_code']}.");
+                        }
+                        DB::table('sr_reservation_serials')->insert(['id' => (string) Str::uuid(), 'sr_reservation_application_id' => $agenda->id, 'khs_item_id' => $khs, 'serial_number' => $number, 'material_no' => $material]);
                     }
                 }
             }
@@ -643,7 +781,73 @@ class SrReservationService
             }
         }
 
+        $blockers = [...$blockers, ...$this->materialProblems($id), ...$this->serialNumberProblems($id)];
+
         return ['blockers' => $blockers, 'matches' => $realised];
+    }
+
+    /** When a material is split over several ERP numbers, every serial names its number and the counts per number equal the split. @return list<string> */
+    private function serialNumberProblems(string $reservationId): array
+    {
+        $serials = DB::table('sr_reservation_serials as n')->join('sr_reservation_applications as x', 'x.id', '=', 'n.sr_reservation_application_id')->join('khs_items as k', 'k.id', '=', 'n.khs_item_id')
+            ->where('x.sr_reservation_id', $reservationId)->whereNull('x.released_at')->get(['n.khs_item_id', 'n.material_no', 'n.serial_number', 'k.code']);
+        $split = DB::table('sr_reservation_line_materials as m')->join('sr_reservation_lines as l', 'l.id', '=', 'm.sr_reservation_line_id')->where('l.sr_reservation_id', $reservationId)
+            ->get(['l.khs_item_id', 'm.material_no', 'm.quantity'])->groupBy('khs_item_id');
+        $problems = [];
+        foreach ($serials->groupBy('khs_item_id') as $khs => $own) {
+            $numbers = $split[$khs] ?? collect();
+            if ($numbers->count() === 0) {
+                continue;
+            }
+            if ($numbers->count() === 1) {
+                foreach ($own->filter(fn ($s) => $s->material_no !== null && $s->material_no !== (string) $numbers->first()->material_no) as $s) {
+                    $problems[] = "Nomor seri {$s->serial_number}: nomor material {$s->material_no} tidak dipilih pada KHS {$s->code}.";
+                }
+
+                continue;
+            }
+            if ($own->contains(fn ($s) => $s->material_no === null)) {
+                $problems[] = "KHS {$own->first()->code}: tiap nomor seri harus menyebut nomor materialnya.";
+
+                continue;
+            }
+            $counted = $own->countBy('material_no');
+            foreach ($numbers->pluck('material_no')->merge($counted->keys())->map(fn ($no) => (string) $no)->unique() as $no) {
+                $chosen = (float) ($numbers->firstWhere('material_no', $no)->quantity ?? 0);
+                if (abs($chosen - (float) ($counted[$no] ?? 0)) > 1e-9) {
+                    $problems[] = "Nomor {$no}: dipilih {$chosen}, nomor seri ".(int) ($counted[$no] ?? 0).'.';
+                }
+            }
+        }
+
+        return $problems;
+    }
+
+    /** The split of serial materials as the serial numbers say it, when every serial names its number. */
+    private function matchSplitToSerials(string $reservationId): bool
+    {
+        $changed = false;
+        foreach (DB::table('sr_reservation_lines')->where('sr_reservation_id', $reservationId)->get(['id', 'khs_item_id']) as $line) {
+            $own = DB::table('sr_reservation_serials as n')->join('sr_reservation_applications as x', 'x.id', '=', 'n.sr_reservation_application_id')
+                ->where('x.sr_reservation_id', $reservationId)->whereNull('x.released_at')->where('n.khs_item_id', $line->khs_item_id)->get(['n.material_no']);
+            if ($own->isEmpty() || $own->contains(fn ($s) => $s->material_no === null)) {
+                continue;
+            }
+            $counted = $own->countBy('material_no')->all();
+            $current = DB::table('sr_reservation_line_materials')->where('sr_reservation_line_id', $line->id)->pluck('quantity', 'material_no')->map(fn ($q) => (int) $q)->all();
+            ksort($counted);
+            ksort($current);
+            if ($counted === $current) {
+                continue;
+            }
+            DB::table('sr_reservation_line_materials')->where('sr_reservation_line_id', $line->id)->delete();
+            foreach ($counted as $no => $q) {
+                DB::table('sr_reservation_line_materials')->insert(['id' => (string) Str::uuid(), 'sr_reservation_line_id' => $line->id, 'material_no' => (string) $no, 'quantity' => $q]);
+            }
+            $changed = true;
+        }
+
+        return $changed;
     }
 
     /** Sets the totals of the materials realised per agenda (cable, serials, seals) to what was realised, before sending to SAP; MIMS must be corrected the same way. */
@@ -661,10 +865,14 @@ class SrReservationService
                     $corrections[] = ['khs_code' => $codes[$khs], 'quantity' => $actual, 'reason' => 'Disamakan dengan realisasi per agenda'];
                 }
             }
-            if ($corrections === []) {
+            $applied = $this->correct($r, $corrections);
+            $this->followSingleNumbers($id);
+            $split = $this->matchSplitToSerials($id);
+            if ($applied === [] && ! $split) {
                 throw new AssignmentRuleViolation('Total sudah sama dengan realisasi.');
             }
-            $this->event($id, 'MATCHED', $actor, null, ['corrections' => $this->correct($r, $corrections)]);
+            $this->assertMaterialStock($r);
+            $this->event($id, 'MATCHED', $actor, null, ['corrections' => $applied, 'material_split' => $split]);
             DB::table('sr_reservations')->where('id', $id)->update(['updated_at' => now()]);
         });
     }
