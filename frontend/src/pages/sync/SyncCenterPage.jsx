@@ -293,7 +293,7 @@ export default function SyncCenterPage() {
         {activeTab === 'gangguan' && <OutageSyncPage embedded selectedUp3Id={selectedUp3Id} onUp3Context={handleUp3Context} />}
         {activeTab === 'dil' && <DilSyncDrawer open asPage embedded selectedUp3Id={selectedUp3Id} onUp3Context={handleUp3Context} onClose={handleBack} onFinished={() => {}} />}
         {activeTab === 'maximo' && <MaximoSyncDrawer open asPage embedded selectedUp3Id={selectedUp3Id} onUp3Context={handleUp3Context} onClose={handleBack} onSynced={() => {}} />}
-        {activeTab === 'mims' && <MimsStockPullPage embedded selectedUp3Id={selectedUp3Id} />}
+        {activeTab === 'mims' && <MimsStockPullPage embedded selectedUp3Id={selectedUp3Id} onUp3Context={handleUp3Context} />}
       </div>
     </div>
   )

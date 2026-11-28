@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { masterExcelApi, adminApi, triggerFileDownload } from '../../services/api.js'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -8,8 +8,25 @@ import Spinner from '../../components/Spinner.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import PriceBookCloneModal from './PriceBookCloneModal.jsx'
-import { IconUpload, IconDownload, IconRefresh, IconTrash, IconCheckCircle, IconAlertCircle, IconInfo } from '../../components/icons.jsx'
+import {
+  IconUpload,
+  IconDownload,
+  IconRefresh,
+  IconTrash,
+  IconCheckCircle,
+  IconAlertCircle,
+  IconInfo,
+  IconFileText,
+  IconSearch,
+  IconX,
+  IconChevronDown,
+  IconChevronRight,
+  IconCheck,
+  IconLock,
+} from '../../components/icons.jsx'
 import UnitPicker from '../../components/UnitPicker.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
+import { useScopedUnits } from '../../utils/unitScope.js'
 
 const fmtSize = (b) => (b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
 const fmtWhen = (iso) => {
@@ -19,6 +36,7 @@ const fmtWhen = (iso) => {
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const KIND = { RAB_KKF: 'Excel RAB & KKF', TARIF: 'Excel Tarif & Jam Nyala', DISTRIVA: 'MASTER DISTRIVA' }
+const DATASET_SHORT = { BOM: 'BOM', PRICE: 'Harga', TARIFF: 'Tarif', KKF: 'KKF' }
 const STATE = {
   UPLOADED: ['Terunggah', 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'],
   PROCESSING: ['Diperiksa…', 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'],
@@ -38,12 +56,219 @@ const chip = (map, key) => {
 const card = 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs'
 const input = 'rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus-ring'
 
-function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploaded, className = '', actions = null }) {
+function WorkflowStepper({ activeStep }) {
+  const steps = [
+    { num: 1, title: 'Unggah & Periksa', desc: 'Cek format dan selisih otomatis' },
+    { num: 2, title: 'Tinjau Perubahan', desc: 'Verifikasi hasil hitung & perbedaan' },
+    { num: 3, title: 'Terapkan DRAFT', desc: 'Menunggu persetujuan akun lain' },
+  ]
+  return (
+    <ol className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Alur impor Excel">
+      {steps.map((s) => {
+        const done = activeStep > s.num
+        const current = activeStep === s.num
+        return (
+          <li
+            key={s.num}
+            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs transition ${
+              current
+                ? 'border-emerald-300 bg-emerald-50/70 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100'
+                : done
+                  ? 'border-emerald-200/70 bg-white/80 text-slate-700 dark:border-emerald-900/60 dark:bg-slate-900/60 dark:text-slate-300'
+                  : 'border-slate-200/80 bg-white/60 text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400'
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                done
+                  ? 'bg-emerald-600 text-white'
+                  : current
+                    ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 dark:ring-emerald-950'
+                    : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+              }`}
+            >
+              {done ? <IconCheck className="h-3.5 w-3.5" /> : s.num}
+            </span>
+            <div className="min-w-0">
+              <div className="font-semibold leading-tight">{s.title}</div>
+              <div className="text-[11px] opacity-80 truncate">{s.desc}</div>
+            </div>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function TariffCoverageBox({ coverage = [] }) {
+  const valid = useMemo(() => coverage.filter((c) => c.code !== ''), [coverage])
+  const unitInfo = useScopedUnits('tariffs.manage')
+  const [covUp3Id, setCovUp3Id] = useState('')
+  const [covUnitId, setCovUnitId] = useState('')
+  const [expanded, setExpanded] = useState(() => valid.length <= 8)
+  const [filterMode, setFilterMode] = useState('all') // 'all' | 'filled' | 'empty'
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (valid.length <= 8) setExpanded(true)
+  }, [valid.length])
+
+  const scopedValid = useMemo(() => {
+    if (!covUp3Id && !covUnitId) return valid
+    const ulps = unitInfo?.ulp_units || []
+    if (covUnitId) {
+      const target = ulps.find((u) => String(u.id) === String(covUnitId))
+      if (!target?.code) return valid
+      return valid.filter((c) => String(c.code) === String(target.code))
+    }
+    const allowedCodes = new Set(
+      ulps.filter((u) => String(u.parent_id) === String(covUp3Id)).map((u) => String(u.code || '')),
+    )
+    if (allowedCodes.size === 0) return valid
+    return valid.filter((c) => allowedCodes.has(String(c.code)))
+  }, [valid, covUp3Id, covUnitId, unitInfo])
+
+  const filledCount = useMemo(() => scopedValid.filter((c) => c.rows > 0).length, [scopedValid])
+
+  if (valid.length === 0) return null
+  const pct = scopedValid.length > 0 ? Math.round((filledCount / scopedValid.length) * 100) : 0
+  const filtered = scopedValid.filter((c) => {
+    if (filterMode === 'filled' && c.rows <= 0) return false
+    if (filterMode === 'empty' && c.rows > 0) return false
+    if (query.trim() && !`${c.name} ${c.code}`.toLowerCase().includes(query.trim().toLowerCase())) return false
+    return true
+  })
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/40 p-3 space-y-2.5" aria-label="Cakupan ULP pada buku tarif berlaku">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Jam nyala dan UJL pada buku tarif berlaku</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <strong className="text-slate-700 dark:text-slate-200">{filledCount}</strong> dari <strong>{scopedValid.length}</strong> ULP sudah terisi ({pct}%)
+          </p>
+        </div>
+        {valid.length > 8 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+          >
+            {expanded ? <IconChevronDown className="h-3.5 w-3.5" /> : <IconChevronRight className="h-3.5 w-3.5" />}
+            {expanded ? 'Sembunyikan rincian ULP' : `Lihat rincian ULP (${scopedValid.length})`}
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <HierarchicalUnitFilter
+          permission="tariffs.manage"
+          up3Id={covUp3Id}
+          onUp3Change={setCovUp3Id}
+          unitId={covUnitId}
+          onUnitChange={setCovUnitId}
+          up3AriaLabel="Filter UP3 cakupan tarif"
+          unitAriaLabel="Filter ULP cakupan tarif"
+          className="w-40"
+          ulpClassName="w-48"
+        />
+      </div>
+
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+
+      {expanded && (
+        <div className="space-y-2 pt-1">
+          {valid.length > 8 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-44">
+                <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Cari ULP…"
+                  aria-label="Cari cakupan ULP"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-8 pr-2.5 py-1 text-xs text-slate-900 dark:text-slate-100 focus-ring"
+                />
+              </div>
+              <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 text-[11px]">
+                {[
+                  ['all', `Semua (${scopedValid.length})`],
+                  ['filled', `Terisi (${filledCount})`],
+                  ['empty', `Belum ada (${scopedValid.length - filledCount})`],
+                ].map(([k, lbl]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setFilterMode(k)}
+                    className={`rounded-md px-2 py-0.5 font-medium cursor-pointer transition ${
+                      filterMode === k
+                        ? 'bg-emerald-600 text-white'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <p className="text-[11px] text-slate-500">Tidak ada ULP yang cocok dengan filter.</p>
+          ) : (
+            <ul className="flex max-h-48 flex-wrap gap-1.5 overflow-y-auto pr-1">
+              {filtered.map((c) => (
+                <li
+                  key={c.code}
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                    c.rows > 0
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                  }`}
+                >
+                  {c.name} · {c.rows > 0 ? `${c.rows} baris` : 'belum ada'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <p className="text-[11px] text-slate-500">
+        Untuk menambah atau memperbarui satu ULP: pilih ULP itu, unggah laporan penjualannya, terapkan. ULP lain tidak berubah.
+      </p>
+    </div>
+  )
+}
+
+function UploadCard({ kind, title, hint, badge, disabled, units, coverage = [], maxMb = 60, onUploaded, className = '', actions = null }) {
   const { notify } = useNotifications()
   const ref = useRef(null)
   const [file, setFile] = useState(null)
+  const [dragOver, setDragOver] = useState(false)
   const [ulp, setUlp] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const pickFile = (nextFile) => {
+    if (!nextFile) {
+      setFile(null)
+      return
+    }
+    if (!nextFile.name.toLowerCase().endsWith('.xlsx')) {
+      notify({ type: 'error', title: 'Format berkas tidak didukung', desc: 'Hanya berkas Excel (.xlsx) yang diterima.', tag: 'Excel' })
+      return
+    }
+    setFile(nextFile)
+  }
+
+  const clearFile = () => {
+    setFile(null)
+    if (ref.current) ref.current.value = ''
+  }
+
   const submit = async () => {
     if (!file) return
     const fd = new FormData()
@@ -54,8 +279,7 @@ function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploa
     try {
       const r = await masterExcelApi.upload(fd)
       notify({ type: 'success', title: 'Berkas diterima', desc: 'Sedang diperiksa terhadap data yang berlaku.', tag: 'Excel' })
-      setFile(null)
-      if (ref.current) ref.current.value = ''
+      clearFile()
       onUploaded(r?.data)
     } catch (err) {
       notify({ type: 'error', title: 'Berkas ditolak', desc: err?.message || 'Gagal mengunggah.', tag: 'Excel' })
@@ -63,14 +287,104 @@ function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploa
       setBusy(false)
     }
   }
+
   return (
     <section className={`${card} ${className}`} aria-label={title}>
-      <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{hint}</p>
-      {disabled ? <p className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-850 p-3 text-xs text-slate-500">Akun Anda tidak berwenang menyiapkan data ini.</p> : (
-        <div className="mt-3 space-y-3">
-          <input ref={ref} type="file" accept=".xlsx" aria-label={`Berkas ${title}`} onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100" />
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+            {badge && (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                {badge}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-3xl">{hint}</p>
+        </div>
+        {actions && !disabled && <div className="shrink-0">{actions}</div>}
+      </div>
+
+      {disabled ? (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 p-3.5 text-xs text-slate-500">
+          <IconLock className="h-4 w-4 shrink-0 text-slate-400" />
+          <p>Akun Anda tidak berwenang menyiapkan data ini.</p>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          {/* Drag-and-Drop Zone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragOver(false)
+              pickFile(e.dataTransfer?.files?.[0] || null)
+            }}
+            className={`relative rounded-xl border-2 border-dashed p-5 transition ${
+              dragOver
+                ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30'
+                : file
+                  ? 'border-emerald-300 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/10'
+                  : 'border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-850/40 hover:border-emerald-400 dark:hover:border-emerald-700'
+            }`}
+          >
+            <input
+              ref={ref}
+              id={`excel-file-${kind}`}
+              type="file"
+              accept=".xlsx"
+              aria-label={`Berkas ${title}`}
+              onChange={(e) => pickFile(e.target.files?.[0] || null)}
+              className="sr-only"
+            />
+
+            {!file ? (
+              <label htmlFor={`excel-file-${kind}`} className="flex cursor-pointer flex-col items-center justify-center text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
+                  <IconUpload className="h-5 w-5" />
+                </span>
+                <span className="mt-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  Pilih berkas Excel atau tarik ke sini
+                </span>
+                <span className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Format .xlsx (tanpa makro) · maksimal {maxMb} MB
+                </span>
+              </label>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
+                    <IconFileText className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{file.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{fmtSize(file.size)} · Siap diperiksa</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor={`excel-file-${kind}`}
+                    className="cursor-pointer rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  >
+                    Ganti
+                  </label>
+                  <button
+                    type="button"
+                    onClick={clearFile}
+                    aria-label="Hapus berkas terpilih"
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                  >
+                    <IconX className="h-3.5 w-3.5" /> Hapus
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {kind === 'TARIF' && (
             <div>
               <span className="block text-[11px] font-medium text-slate-500">Jam nyala dalam berkas ini berasal dari ULP (kosongkan = berlaku umum)</span>
@@ -87,22 +401,13 @@ function UploadCard({ kind, title, hint, disabled, units, coverage = [], onUploa
               />
             </div>
           )}
-          {kind === 'TARIF' && coverage.length > 0 && (
-            <div aria-label="Cakupan ULP pada buku tarif berlaku">
-              <p className="text-[11px] font-medium text-slate-500">Jam nyala dan UJL pada buku tarif berlaku</p>
-              <ul className="mt-1 flex flex-wrap gap-1.5">
-                {coverage.filter((c) => c.code !== '').map((c) => (
-                  <li key={c.code} className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${c.rows > 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}>
-                    {c.name} · {c.rows > 0 ? `${c.rows} baris` : 'belum ada'}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-1 text-[11px] text-slate-500">Untuk menambah atau memperbarui satu ULP: pilih ULP itu, unggah laporan penjualannya, terapkan. ULP lain tidak berubah.</p>
-            </div>
-          )}
+
+          {kind === 'TARIF' && <TariffCoverageBox coverage={coverage} />}
+
           <div className="flex flex-wrap items-center gap-2">
-            <Button icon={IconUpload} onClick={submit} loading={busy} disabled={!file}>Unggah &amp; periksa</Button>
-            {actions}
+            <Button icon={IconUpload} onClick={submit} loading={busy} disabled={!file}>
+              Unggah &amp; periksa
+            </Button>
           </div>
         </div>
       )}
@@ -211,7 +516,7 @@ function PriceSection({ imp, can, onApply, defaultValidFrom }) {
           <div key={l} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3"><dt className="text-slate-500">{l}</dt><dd className="mt-0.5 text-lg font-bold text-slate-900 dark:text-slate-100">{(v ?? 0).toLocaleString('id-ID')}</dd></div>
         ))}
       </dl>
-      {p.new_codes?.count > 0 && <Alert variant="warning">{`${p.new_codes.count} kode di Excel belum punya kode baru, jadi tidak ikut diterapkan: ${p.new_codes.items.join(', ')}${p.new_codes.count > p.new_codes.items.length ? ', …' : ''}.`}</Alert>}
+      {p.new_codes?.count > 0 && <div className="mt-3"><Alert variant="warning">{`${p.new_codes.count} kode di Excel belum punya kode baru, jadi tidak ikut diterapkan: ${p.new_codes.items.join(', ')}${p.new_codes.count > p.new_codes.items.length ? ', …' : ''}.`}</Alert></div>}
       {p.samples?.length > 0 && (
         <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
           <table className="w-full min-w-120 text-left text-xs">
@@ -312,6 +617,80 @@ function KkfSection({ imp, can, onApply, defaultValidFrom }) {
   )
 }
 
+function DistrivaSummaryCards({ imp }) {
+  const r = imp.report || {}
+  const bomGroups = r.bom?.groups || []
+  const bomChanged = bomGroups.filter((g) => g.status === 'CHANGED').length
+  const bomBlocked = bomGroups.filter((g) => g.status === 'BLOCKED').length
+  const bomStatus = bomBlocked > 0 ? 'BLOCKED' : bomChanged > 0 ? 'CHANGED' : 'UNCHANGED'
+
+  const items = [
+    r.bom && {
+      key: 'BOM',
+      anchor: 'mx-bom',
+      label: 'BOM',
+      status: bomStatus,
+      detail: bomChanged > 0 ? `${bomChanged} kelompok berubah` : bomBlocked > 0 ? `${bomBlocked} perlu dibereskan` : `${bomGroups.length} kelompok sama`,
+    },
+    r.price && {
+      key: 'PRICE',
+      anchor: 'mx-price',
+      label: 'Buku Harga',
+      status: r.price.status,
+      detail: `${(r.price.changed_rows ?? 0).toLocaleString('id-ID')} baris berubah`,
+    },
+    r.tariff && {
+      key: 'TARIFF',
+      anchor: 'mx-tariff',
+      label: 'Buku Tarif',
+      status: r.tariff.status,
+      detail: `${((r.tariff.changed_rows ?? 0) + (r.tariff.added_rows ?? 0)).toLocaleString('id-ID')} berubah/baru`,
+    },
+    r.kkf && {
+      key: 'KKF',
+      anchor: 'mx-kkf',
+      label: 'KKF',
+      status: r.kkf.status,
+      detail: `${r.kkf.changes?.length ?? 0} parameter berubah`,
+    },
+  ].filter(Boolean)
+
+  if (items.length === 0) return null
+
+  const jumpTo = (anchor) => {
+    const el = document.getElementById(anchor)
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
+
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4" aria-label="Ringkasan pemeriksaan dataset">
+      {items.map((it) => {
+        const isApplied = imp.applied?.[it.key]?.status === 'OK'
+        return (
+          <button
+            key={it.key}
+            type="button"
+            onClick={() => jumpTo(it.anchor)}
+            className="flex flex-col items-start justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/50 p-3 text-left transition hover:border-emerald-300 dark:hover:border-emerald-700 cursor-pointer"
+          >
+            <div className="flex w-full items-center justify-between gap-1.5">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{it.label}</span>
+              {isApplied ? (
+                <span className="inline-flex items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  <IconCheck className="h-3 w-3" /> DRAFT
+                </span>
+              ) : (
+                chip(CHANGE, it.status)
+              )}
+            </div>
+            <span className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">{it.detail}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function DistrivaSection({ imp, can, onApply }) {
   const r = imp.report || {}
   const m = r.meta || {}
@@ -324,6 +703,7 @@ function DistrivaSection({ imp, can, onApply }) {
             <div key={l} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 p-3"><dt className="text-slate-500">{l}</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100 break-words">{v}</dd></div>
           ))}
         </dl>
+        {!r.blocked && <DistrivaSummaryCards imp={imp} />}
         {r.layout_problem_count > 0 && (
           <div className="mt-3">
             <Alert variant="error">{`${r.layout_problem_count} masalah pada susunan berkas. Perbaiki sel yang disebut di Excel lalu unggah ulang; belum ada yang dibandingkan.`}</Alert>
@@ -362,7 +742,7 @@ function Detail({ imp, can, onChanged, onRemoved }) {
   }
   return (
     <div className="space-y-4" aria-live="polite">
-      <div className={`${card} flex flex-wrap items-center justify-between gap-3`}>
+      <div className={`${card} border-emerald-200/80 dark:border-emerald-900/60 flex flex-wrap items-center justify-between gap-3`}>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 break-all">{imp.file_name}</h2>{chip(STATE, imp.status)}</div>
           <p className="text-xs text-slate-500">{KIND[imp.kind]} · {fmtSize(imp.size_bytes)} · diunggah {fmtWhen(imp.created_at)} oleh {imp.uploaded_by_name || '-'}</p>
@@ -372,7 +752,15 @@ function Detail({ imp, can, onChanged, onRemoved }) {
           <Button variant="secondary" icon={IconTrash} onClick={() => setConfirmRemove(true)}>Hapus berkas</Button>
         </div>
       </div>
-      {imp.status === 'PROCESSING' && <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Spinner /> Membaca Excel dan membandingkan dengan data yang berlaku…</div>}
+      {imp.status === 'PROCESSING' && (
+        <div className={`${card} flex items-center gap-3 border-blue-200 bg-blue-50/50 dark:border-blue-900/60 dark:bg-blue-950/20 text-sm text-blue-900 dark:text-blue-200`}>
+          <Spinner />
+          <div>
+            <p className="font-semibold">Membaca Excel dan membandingkan dengan data yang berlaku…</p>
+            <p className="text-xs text-blue-700/80 dark:text-blue-300/80">Halaman ini akan memperbarui otomatis saat pemeriksaan selesai.</p>
+          </div>
+        </div>
+      )}
       {imp.status === 'FAILED' && <Alert variant="error">{imp.message || 'Berkas gagal diperiksa.'}</Alert>}
       {imp.status === 'READY' && imp.report && (
         <>
@@ -396,6 +784,9 @@ export default function MasterExcelImportPage() {
   const [state, setState] = useState({ loading: true, error: '', rows: [], can: {}, limits: {}, coverage: [] })
   const [selected, setSelected] = useState(null)
   const [units, setUnits] = useState([])
+  const [uploadTab, setUploadTab] = useState('DISTRIVA') // 'DISTRIVA' | 'RAB_KKF' | 'TARIF'
+  const [historyKind, setHistoryKind] = useState('ALL')
+  const detailRef = useRef(null)
 
   const load = useCallback(async () => {
     try {
@@ -411,9 +802,22 @@ export default function MasterExcelImportPage() {
   useEffect(() => { load() }, [load])
   useEffect(() => { adminApi.units().then((r) => setUnits((r?.data || []).filter((u) => u.unit_type === 'ULP'))).catch(() => setUnits([])) }, [])
 
-  const open = useCallback(async (id) => {
-    try { setSelected((await masterExcelApi.get(id))?.data || null) } catch { setSelected(null) }
+  const scrollToDetail = useCallback(() => {
+    setTimeout(() => {
+      detailRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    }, 50)
   }, [])
+
+  const open = useCallback(async (id) => {
+    try {
+      const next = (await masterExcelApi.get(id))?.data || null
+      setSelected(next)
+      if (next) scrollToDetail()
+    } catch {
+      setSelected(null)
+    }
+  }, [scrollToDetail])
+
   useEffect(() => {
     if (selected?.status !== 'PROCESSING') return undefined
     const t = setInterval(async () => {
@@ -424,6 +828,7 @@ export default function MasterExcelImportPage() {
   }, [selected, load])
 
   const nothing = !state.can.rab && !state.can.tariff && !state.can.bom && !state.can.price && !state.can.tariffs && !state.can.kkf
+  const canDistriva = Boolean(state.can.bom || state.can.price || state.can.tariffs || state.can.kkf)
   const [downloading, setDownloading] = useState(false)
   const downloadTemplate = async () => {
     setDownloading(true)
@@ -437,12 +842,35 @@ export default function MasterExcelImportPage() {
     }
   }
 
+  const activeStep = useMemo(() => {
+    if (selected?.applied && Object.values(selected.applied).some((a) => a?.status === 'OK')) return 3
+    if (selected && ['PROCESSING', 'READY', 'FAILED'].includes(selected.status)) return 2
+    return 1
+  }, [selected])
+
+  const filteredHistory = useMemo(() => {
+    if (historyKind === 'ALL') return state.rows
+    return state.rows.filter((r) => r.kind === historyKind)
+  }, [state.rows, historyKind])
+
+  const uploadTabs = [
+    { id: 'DISTRIVA', label: 'MASTER DISTRIVA', badge: 'Direkomendasikan', locked: !canDistriva },
+    { id: 'RAB_KKF', label: 'Excel RAB & KKF', locked: !state.can.rab },
+    { id: 'TARIF', label: 'Excel Tarif & Jam Nyala', locked: !state.can.tariff },
+  ]
+
   return (
     <div className="space-y-5">
       <header className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-emerald-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/20 p-4 sm:p-5 shadow-xs">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Impor Master dari Excel</h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">Unggah Excel master, sistem membacanya dan membandingkannya dengan data yang berlaku. Hanya yang berbeda yang dibuat sebagai versi <strong>DRAFT</strong>; data yang sudah disetujui, nilai MDU, dan zona tidak tertimpa, dan akun lain menyetujuinya di halaman masing-masing.</p>
-        <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400"><IconInfo className="mt-0.5 h-3.5 w-3.5 shrink-0" /> <span>Berkas .xlsx maksimal {state.limits.max_mb || 60} MB, tanpa makro. KHS baru dan jenis konstruksi belum dicakup di sini; impor lewat halamannya.</span></p>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
+          Unggah Excel master, sistem membacanya dan membandingkannya dengan data yang berlaku. Hanya yang berbeda yang dibuat sebagai versi <strong>DRAFT</strong>; data yang sudah disetujui, nilai MDU, dan zona tidak tertimpa, dan akun lain menyetujuinya di halaman masing-masing.
+        </p>
+        <WorkflowStepper activeStep={activeStep} />
+        <p className="mt-3 flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <IconInfo className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>Berkas .xlsx maksimal {state.limits.max_mb || 60} MB, tanpa makro. KHS baru dan jenis konstruksi belum dicakup di sini; impor lewat halamannya.</span>
+        </p>
       </header>
 
       {state.error && <Alert variant="error">{state.error}</Alert>}
@@ -450,24 +878,179 @@ export default function MasterExcelImportPage() {
         <EmptyState title="Tidak ada akses" description="Impor dari Excel memerlukan izin kelola BOM, harga, atau tarif." />
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <UploadCard kind="DISTRIVA" className="lg:col-span-2" title="MASTER DISTRIVA (template untuk unit induk)" hint="Unduh template berisi aturan BOM, harga, tarif, dan parameter KKF yang berlaku, isi di Excel (kirim ke unit induk bila perlu), lalu unggah kembali. Hasil hitung Excel dicocokkan dengan mesin DISTRIVA sebelum menjadi DRAFT." disabled={!state.can.bom && !state.can.price && !state.can.tariffs && !state.can.kkf} units={units} actions={<Button variant="secondary" icon={IconDownload} loading={downloading} onClick={downloadTemplate}>Unduh template</Button>} onUploaded={(imp) => { setSelected(imp); load() }} />
-            <UploadCard kind="RAB_KKF" title="Excel RAB & KKF" hint="Memeriksa BOM dan buku harga (MASTER RAB & KKF.xlsx)." disabled={!state.can.rab} units={units} onUploaded={(imp) => { setSelected(imp); load() }} />
-            <UploadCard kind="TARIF" title="Excel Tarif & Jam Nyala" hint="Memeriksa harga rata-rata, jam nyala, dan UJL (MASTER TARIF & JAM NYALA.xlsx)." disabled={!state.can.tariff} units={units} coverage={state.coverage} onUploaded={(imp) => { setSelected(imp); load() }} />
+          {/* Tab Pemilih Jenis Berkas Unggahan */}
+          <div className="space-y-3">
+            <div role="tablist" aria-label="Pilih jenis berkas Excel" className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+              {uploadTabs.map((t) => {
+                const active = uploadTab === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setUploadTab(t.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold transition cursor-pointer ${
+                      active
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>{t.label}</span>
+                    {t.badge && (
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                          active
+                            ? 'bg-white/20 text-white'
+                            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                        }`}
+                      >
+                        {t.badge}
+                      </span>
+                    )}
+                    {t.locked && <IconLock className={`h-3.5 w-3.5 ${active ? 'text-white/80' : 'text-slate-400'}`} />}
+                  </button>
+                )
+              })}
+            </div>
+
+            {uploadTab === 'DISTRIVA' && (
+              <UploadCard
+                kind="DISTRIVA"
+                title="MASTER DISTRIVA (template untuk unit induk)"
+                badge="Direkomendasikan"
+                hint="Unduh template berisi aturan BOM, harga, tarif, dan parameter KKF yang berlaku, isi di Excel (kirim ke unit induk bila perlu), lalu unggah kembali. Hasil hitung Excel dicocokkan dengan mesin DISTRIVA sebelum menjadi DRAFT."
+                disabled={!canDistriva}
+                units={units}
+                maxMb={state.limits.max_mb || 60}
+                actions={<Button variant="secondary" icon={IconDownload} loading={downloading} onClick={downloadTemplate}>Unduh template</Button>}
+                onUploaded={(imp) => {
+                  setSelected(imp)
+                  load()
+                  scrollToDetail()
+                }}
+              />
+            )}
+
+            {uploadTab === 'RAB_KKF' && (
+              <UploadCard
+                kind="RAB_KKF"
+                title="Excel RAB & KKF"
+                hint="Memeriksa BOM dan buku harga (MASTER RAB & KKF.xlsx)."
+                disabled={!state.can.rab}
+                units={units}
+                maxMb={state.limits.max_mb || 60}
+                onUploaded={(imp) => {
+                  setSelected(imp)
+                  load()
+                  scrollToDetail()
+                }}
+              />
+            )}
+
+            {uploadTab === 'TARIF' && (
+              <UploadCard
+                kind="TARIF"
+                title="Excel Tarif & Jam Nyala"
+                hint="Memeriksa harga rata-rata, jam nyala, dan UJL (MASTER TARIF & JAM NYALA.xlsx)."
+                disabled={!state.can.tariff}
+                units={units}
+                coverage={state.coverage}
+                maxMb={state.limits.max_mb || 60}
+                onUploaded={(imp) => {
+                  setSelected(imp)
+                  load()
+                  scrollToDetail()
+                }}
+              />
+            )}
           </div>
 
-          {selected && <Detail key={selected.id} imp={selected} can={state.can} onChanged={(imp) => { imp && setSelected(imp); load() }} onRemoved={() => { setSelected(null); load() }} />}
+          <div ref={detailRef}>
+            {selected && <Detail key={selected.id} imp={selected} can={state.can} onChanged={(imp) => { imp && setSelected(imp); load() }} onRemoved={() => { setSelected(null); load() }} />}
+          </div>
 
           <section className={card} aria-labelledby="mx-history">
-            <h2 id="mx-history" className="text-base font-semibold text-slate-900 dark:text-slate-100">Riwayat unggahan</h2>
-            {state.rows.length === 0 ? <p className="mt-2 text-sm text-slate-500">Belum ada berkas yang diunggah.</p> : (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h2 id="mx-history" className="text-base font-semibold text-slate-900 dark:text-slate-100">Riwayat unggahan</h2>
+                <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  {filteredHistory.length}
+                </span>
+              </div>
+              {state.rows.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Filter jenis riwayat unggahan">
+                  {[
+                    ['ALL', 'Semua'],
+                    ['DISTRIVA', 'MASTER DISTRIVA'],
+                    ['RAB_KKF', 'RAB & KKF'],
+                    ['TARIF', 'Tarif'],
+                  ].map(([k, lbl]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setHistoryKind(k)}
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer ${
+                        historyKind === k
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {filteredHistory.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">
+                {state.rows.length === 0 ? 'Belum ada berkas yang diunggah.' : 'Tidak ada riwayat untuk jenis berkas ini.'}
+              </p>
+            ) : (
               <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
-                {state.rows.map((r) => (
-                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                    <div className="min-w-0"><p className="break-all text-sm font-medium text-slate-900 dark:text-slate-100">{r.file_name}</p><p className="text-xs text-slate-500">{KIND[r.kind]} · {fmtWhen(r.created_at)} · {r.uploaded_by_name || '-'}</p></div>
-                    <div className="flex items-center gap-2">{chip(STATE, r.status)}<Button size="sm" variant="secondary" onClick={() => open(r.id)}>Buka</Button></div>
-                  </li>
-                ))}
+                {filteredHistory.map((r) => {
+                  const isActive = selected?.id === r.id
+                  const appliedKeys = Object.entries(r.applied || {})
+                    .filter(([, v]) => v?.status === 'OK')
+                    .map(([k]) => DATASET_SHORT[k] || k)
+                  return (
+                    <li
+                      key={r.id}
+                      className={`flex flex-wrap items-center justify-between gap-2 py-2.5 px-2.5 -mx-2.5 rounded-xl transition ${
+                        isActive ? 'bg-emerald-50/70 dark:bg-emerald-950/30 ring-1 ring-emerald-200 dark:ring-emerald-800' : ''
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="break-all text-sm font-medium text-slate-900 dark:text-slate-100">{r.file_name}</p>
+                          {isActive && (
+                            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                              Sedang dibuka
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                          <span>{KIND[r.kind]} · {fmtWhen(r.created_at)} · {r.uploaded_by_name || '-'}</span>
+                          {appliedKeys.map((ds) => (
+                            <span
+                              key={ds}
+                              className="inline-flex items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[10px] font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            >
+                              {ds} ✓
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {chip(STATE, r.status)}
+                        <Button size="sm" variant={isActive ? 'primary' : 'secondary'} onClick={() => open(r.id)}>
+                          Buka
+                        </Button>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </section>

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -34,7 +35,24 @@ vi.mock('../master-data/MaximoSyncDrawer.jsx', () => ({
   default: ({ asPage }) => <div data-testid="mock-maximo-sync">Maximo FullPage={String(Boolean(asPage))}</div>,
 }))
 vi.mock('../master-data/MimsStockPullPage.jsx', () => ({
-  default: () => <div data-testid="mock-mims-sync">Stok MIMS</div>,
+  default: ({ selectedUp3Id, onUp3Context }) => {
+    useEffect(() => {
+      if (!selectedUp3Id) {
+        onUp3Context?.({
+          up3Id: 'up3-1',
+          up3s: [
+            { id: 'up3-1', name: 'UP3 Mojokerto' },
+            { id: 'up3-2', name: 'UP3 Surabaya Selatan' },
+          ],
+        })
+      }
+    }, [selectedUp3Id, onUp3Context])
+    return (
+      <div data-testid="mock-mims-sync">
+        Stok MIMS up3={selectedUp3Id || 'empty'} hasOnUp3Context={String(typeof onUp3Context === 'function')}
+      </div>
+    )
+  },
 }))
 
 function wrap(ui, can = {}, initialEntries = ['/sinkronisasi']) {
@@ -121,5 +139,18 @@ describe('SyncCenterPage', () => {
     expect(screen.getByText('UP3 Mojokerto')).toBeInTheDocument()
     expect(screen.getByText(/Pemicu: Admin Mojokerto/i)).toBeInTheDocument()
     expect(screen.getByText('1/4')).toBeInTheDocument()
+  })
+
+  it('4. membuka ?tab=mims langsung meneruskan onUp3Context dan mengisi pilihan UP3', async () => {
+    wrap(
+      <SyncCenterPage />,
+      { 'stock.import': true, 'master_data.view': true },
+      ['/sinkronisasi?tab=mims'],
+    )
+
+    const mims = await screen.findByTestId('mock-mims-sync')
+    expect(mims).toHaveTextContent('hasOnUp3Context=true')
+    expect(mims).toHaveTextContent('up3=up3-1')
+    expect(screen.getByRole('combobox')).toHaveValue('up3-1')
   })
 })

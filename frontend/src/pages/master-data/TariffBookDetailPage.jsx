@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { tariffBooksApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useAuth } from '../../features/auth/AuthContext.jsx'
+import { useScopedUnits } from '../../utils/unitScope.js'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Alert from '../../components/Alert.jsx'
 import Button from '../../components/Button.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -41,8 +43,26 @@ export default function TariffBookDetailPage() {
   const [rowsMeta, setRowsMeta] = useState({ current_page: 1, last_page: 1, total: 0, per_page: 50 })
   const [rowsLoading, setRowsLoading] = useState(false)
   const [tariffFilter, setTariffFilter] = useState('')
+  const [up3Id, setUp3Id] = useState('')
+  const [unitId, setUnitId] = useState('')
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(50)
+  const unitInfo = useScopedUnits('master_data.view')
+
+  const visibleRows = useMemo(() => {
+    if (!up3Id && !unitId) return rows
+    const ulps = unitInfo?.ulp_units || []
+    if (unitId) {
+      const selectedUlp = ulps.find((u) => String(u.id) === String(unitId))
+      if (!selectedUlp?.code) return rows
+      return rows.filter((r) => String(r.ulp_code || '') === String(selectedUlp.code))
+    }
+    const allowedCodes = new Set(
+      ulps.filter((u) => String(u.parent_id) === String(up3Id)).map((u) => String(u.code || '')),
+    )
+    if (allowedCodes.size === 0) return rows
+    return rows.filter((r) => r.ulp_code && allowedCodes.has(String(r.ulp_code)))
+  }, [rows, up3Id, unitId, unitInfo])
 
   // Dialog state
   const [dialog, setDialog] = useState(null) // { type: 'approve' | 'retire' }
@@ -287,8 +307,17 @@ export default function TariffBookDetailPage() {
             </p>
           </div>
 
-          {/* Search by Tariff */}
-          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+          {/* Search by Tariff + UP3/ULP Filter */}
+          <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-2">
+            <HierarchicalUnitFilter
+              permission="master_data.view"
+              up3Id={up3Id}
+              onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+              unitId={unitId}
+              onUnitChange={(v) => { setUnitId(v); setPage(1) }}
+              className="w-40"
+              ulpClassName="w-48"
+            />
             <div className="relative">
               <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -296,7 +325,7 @@ export default function TariffBookDetailPage() {
                 placeholder="Cari tarif (mis. R1, B2)..."
                 value={tariffFilter}
                 onChange={(e) => setTariffFilter(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 sm:w-60"
+                className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-50 w-48 sm:w-56"
               />
             </div>
             <Button
@@ -307,13 +336,15 @@ export default function TariffBookDetailPage() {
             >
               Cari
             </Button>
-            {tariffFilter && (
+            {(tariffFilter || up3Id || unitId) && (
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
                 onClick={() => {
                   setTariffFilter('')
+                  setUp3Id('')
+                  setUnitId('')
                   setPage(1)
                 }}
               >
@@ -329,7 +360,7 @@ export default function TariffBookDetailPage() {
             <div className="py-12 text-center">
               <Spinner size="sm" label="Memuat baris tarif..." />
             </div>
-          ) : rows.length === 0 ? (
+          ) : visibleRows.length === 0 ? (
             <EmptyState
               icon={IconZap}
               title="Belum ada data tarif"
@@ -349,7 +380,7 @@ export default function TariffBookDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-mono text-[11px]">
-                  {rows.map((r, idx) => (
+                  {visibleRows.map((r, idx) => (
                     <tr
                       key={idx}
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"

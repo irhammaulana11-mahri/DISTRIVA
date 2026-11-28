@@ -1,8 +1,10 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { rkmApi, reportsApi, triggerFileDownload } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
+import { useScopedUnits } from '../../utils/unitScope.js'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
@@ -39,6 +41,24 @@ export default function RkmVersionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('proposals') // 'proposals' | 'requirements' | 'audit'
+  const [up3Filter, setUp3Filter] = useState('')
+  const [unitFilter, setUnitFilter] = useState('')
+  const unitInfo = useScopedUnits('rkm.view')
+
+  const filteredProposals = useMemo(() => {
+    const list = version?.proposals || []
+    if (!up3Filter && !unitFilter) return list
+    if (unitFilter) {
+      return list.filter((p) => String(p.ulp?.id || '') === String(unitFilter))
+    }
+    const allowedIds = new Set(
+      (unitInfo?.ulp_units || [])
+        .filter((u) => String(u.parent_id) === String(up3Filter))
+        .map((u) => String(u.id)),
+    )
+    if (allowedIds.size === 0) return list
+    return list.filter((p) => allowedIds.has(String(p.ulp?.id || '')))
+  }, [version, up3Filter, unitFilter, unitInfo])
 
   // Selected Proposal for Line Editing (COLLECTING)
   const [editingProposal, setEditingProposal] = useState(null)
@@ -491,7 +511,19 @@ export default function RkmVersionDetailPage() {
       {/* TAB 1: Proposals List & Detail */}
       {activeTab === 'proposals' && (
         <div className="space-y-4">
-          {(version.proposals || []).map((prop) => (
+          {(version.proposals || []).length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-xs">
+              <HierarchicalUnitFilter
+                permission="rkm.view"
+                up3Id={up3Filter}
+                onUp3Change={setUp3Filter}
+                unitId={unitFilter}
+                onUnitChange={setUnitFilter}
+                showLabels
+              />
+            </div>
+          )}
+          {filteredProposals.map((prop) => (
             <div
               key={prop.id}
               className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shadow-xs"

@@ -3608,4 +3608,27 @@ describe('BusinessAnalyticsPage', () => {
     wrap(<BusinessAnalyticsPage />, { 'pengusahaan.view': true }, ['/pengusahaan/pendapatan'])
     expect(await screen.findByRole('button', { name: 'Pertumbuhan' })).toBeInTheDocument()
   })
+
+  it('defaults UP3 and ULP to Semua UP3 / Semua ULP for SYS_ADMIN without auto-selecting a unit', async () => {
+    render(
+      <MemoryRouter initialEntries={['/pengusahaan/pelanggan']}>
+        <AuthContext.Provider value={{ user: { id: 'usr-admin', name: 'SysAdmin' }, status: 'authenticated' }}>
+          <AccessContext.Provider value={{ can: { 'pengusahaan.view': true }, isSysAdmin: true, createUnits: [], loading: false }}>
+            <NotificationProvider>
+              <Routes>
+                <Route path="/pengusahaan/:metricCode" element={<BusinessAnalyticsPage />} />
+              </Routes>
+            </NotificationProvider>
+          </AccessContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText(/Pilih salah satu UP3 atau ULP pada filter di atas untuk menampilkan grafik dan analisis pengusahaan/i),
+    ).toBeInTheDocument()
+    expect(pengusahaanApi.metric).not.toHaveBeenCalled()
+    expect(screen.getByDisplayValue('Semua UP3')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Semua ULP')).toBeInTheDocument()
+  })
 })

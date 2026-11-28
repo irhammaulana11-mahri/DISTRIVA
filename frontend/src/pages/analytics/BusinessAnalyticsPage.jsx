@@ -1294,7 +1294,7 @@ function ReconciliationSection({ reconciliations, unitsExpected = 1, metricCode 
 export default function BusinessAnalyticsPage() {
   const { metricCode } = useParams()
   const navigate = useNavigate()
-  const { can } = useAccess()
+  const { can, isSysAdmin } = useAccess()
   const { notify } = useNotifications()
 
   const canInput = Boolean(can?.['pengusahaan.input'])
@@ -1406,8 +1406,8 @@ export default function BusinessAnalyticsPage() {
       const data = res?.data || {}
       setCatalogState({ loading: false, error: '', data })
 
-      // Set default unit bila belum terpilih
-      if (data.units?.length > 0 && !selectedUnitId && !up3Id) {
+      // Set default unit bila belum terpilih (kecuali SYS_ADMIN agar default Semua UP3 & Semua ULP)
+      if (!isSysAdmin && data.units?.length > 0 && !selectedUnitId && !up3Id) {
         // Cari UP3 terlebih dahulu, bila tidak ada pilih unit pertama
         const defaultUnit = data.units.find((u) => u.unit_type === 'UP3') || data.units[0]
         if (defaultUnit.unit_type === 'UP3') {
@@ -1423,7 +1423,7 @@ export default function BusinessAnalyticsPage() {
         data: null,
       })
     }
-  }, [selectedUnitId, up3Id])
+  }, [isSysAdmin, selectedUnitId, up3Id])
 
   useEffect(() => {
     loadCatalog()
@@ -1460,7 +1460,10 @@ export default function BusinessAnalyticsPage() {
   // 2. Muat data metrik yang sedang aktif
   const loadMetricData = useCallback(async () => {
     const targetUnit = effectiveUnitId
-    if (!targetUnit || !activeCode) return
+    if (!targetUnit || !activeCode) {
+      setMetricState({ loading: false, error: '', data: null })
+      return
+    }
     setMetricState((s) => ({ ...s, loading: true, error: '' }))
     try {
       const params = {
@@ -2586,7 +2589,11 @@ export default function BusinessAnalyticsPage() {
           )}
 
           {/* Main Content Area */}
-          {metricState.loading ? (
+          {!effectiveUnitId ? (
+        <Alert kind="info">
+          Pilih salah satu UP3 atau ULP pada filter di atas untuk menampilkan grafik dan analisis pengusahaan.
+        </Alert>
+      ) : metricState.loading ? (
         <div className={`${CARD} py-24 flex justify-center`}>
           <Spinner size="lg" label="Memuat tren dan analisis pengusahaan..." />
         </div>

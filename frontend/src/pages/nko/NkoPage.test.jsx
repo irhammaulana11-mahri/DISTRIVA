@@ -438,4 +438,25 @@ describe('NkoPage', () => {
     expect(screen.getByText(/Otomatis, terkunci/i)).toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/Isi manual/i)).not.toBeInTheDocument()
   })
+
+  it('defaults UP3 and ULP to Semua UP3 / Semua ULP for SYS_ADMIN without auto-selecting a unit', async () => {
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={{ user: { id: 'usr-admin', name: 'SysAdmin' }, status: 'authenticated' }}>
+          <AccessContext.Provider value={{ can: { 'nko.view': true }, isSysAdmin: true, createUnits: [], loading: false }}>
+            <NotificationProvider>
+              <NkoPage />
+            </NotificationProvider>
+          </AccessContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText(/Pilih satu unit \(ULP atau UP3\) pada bilah filter di atas untuk melihat rincian NKO/i),
+    ).toBeInTheDocument()
+    expect(nkoApi.snapshots).not.toHaveBeenCalled()
+    expect(screen.getByDisplayValue('Semua UP3')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Semua ULP')).toBeInTheDocument()
+  })
 })

@@ -26,7 +26,7 @@ import {
  * Halaman Kerja Terpisah untuk Proses Penarikan Stok dari MIMS.
  * Desain proporsional, modern, user-friendly, dan memisahkan proses interaktif dari pengaturan otomatis.
  */
-export default function MimsStockPullPage({ asPage = true, embedded = false, selectedUp3Id = '', onClose, onSuccess, onOpenUnmapped }) {
+export default function MimsStockPullPage({ asPage = true, embedded = false, selectedUp3Id = '', onUp3Context, onClose, onSuccess, onOpenUnmapped }) {
   const navigate = useNavigate()
   const { notify } = useNotifications()
 
@@ -73,6 +73,11 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
   }, [mimsResults])
 
   const loadWarehouses = useCallback(async () => {
+    if (embedded && !selectedUp3Id) {
+      setWarehouses([])
+      setLoadingWarehouses(true)
+      return
+    }
     setLoadingWarehouses(true)
     try {
       const res = await warehousesApi.list(selectedUp3Id ? { up3_id: selectedUp3Id } : {})
@@ -82,7 +87,20 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
     } finally {
       setLoadingWarehouses(false)
     }
-  }, [selectedUp3Id])
+  }, [embedded, selectedUp3Id])
+
+  const loadUp3Context = useCallback(async () => {
+    if (!onUp3Context || typeof warehousesApi.mimsAutoSettings !== 'function') return
+    try {
+      const res = await warehousesApi.mimsAutoSettings(selectedUp3Id ? { up3_id: selectedUp3Id } : {})
+      const data = res?.data || {}
+      if (data.up3_id || (Array.isArray(data.up3s) && data.up3s.length > 0)) {
+        onUp3Context({ up3Id: data.up3_id || '', up3s: data.up3s || [] })
+      }
+    } catch {
+      // Abaikan jika gagal mengambil konteks UP3
+    }
+  }, [onUp3Context, selectedUp3Id])
 
   const loadTokenStatus = useCallback(async () => {
     try {
@@ -115,6 +133,7 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
 
   // Mengikuti penarikan yang sudah berjalan (dibuka belakangan, oleh pengguna lain, atau saat mulai bertabrakan).
   const attachToActiveRun = useCallback(async () => {
+    if (embedded && !selectedUp3Id) return false
     const active = await warehousesApi.mimsRunActive?.(selectedUp3Id ? { up3_id: selectedUp3Id } : {}).catch(() => null)
     const run = active?.data
     if (!run) return false
@@ -130,20 +149,22 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
       setMimsRun(null)
     }
     return true
-  }, [finishWatching, failWatching, selectedUp3Id])
+  }, [embedded, finishWatching, failWatching, selectedUp3Id])
 
   useEffect(() => {
     setMimsWarehouseIds([])
   }, [selectedUp3Id])
 
   useEffect(() => {
+    loadUp3Context()
     loadWarehouses()
     loadTokenStatus()
     attachToActiveRun()
-  }, [loadWarehouses, loadTokenStatus, attachToActiveRun])
+  }, [loadUp3Context, loadWarehouses, loadTokenStatus, attachToActiveRun])
 
   const handleMimsPull = async (e) => {
     e?.preventDefault?.()
+    if (embedded && !selectedUp3Id) return
     if (!mimsDoStock && !mimsDoIssues && !mimsDoReceipts && !mimsDoReservations) {
       setMimsError('Pilih minimal satu jenis data: stok, pengeluaran, penerimaan, atau reservasi.')
       return
@@ -365,7 +386,7 @@ export default function MimsStockPullPage({ asPage = true, embedded = false, sel
       {mimsPulling && (mimsRun ? <MimsPullProgress run={mimsRun} /> : <MimsPullProgress run={{ status: 'QUEUED', warehouses_total: 0, results: [] }} />)}
 
       <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <Button type="submit" variant="primary" size="md" loading={mimsPulling} disabled={mimsPulling || (!mimsUseSaved && !mimsToken.trim())} icon={IconRefresh} className="w-full sm:w-auto">
+        <Button type="submit" variant="primary" size="md" loading={mimsPulling} disabled={mimsPulling || (embedded && !selectedUp3Id) || (!mimsUseSaved && !mimsToken.trim())} icon={IconRefresh} className="w-full sm:w-auto">
           {mimsPulling ? 'Menarik Stok…' : 'Tarik Stok Sekarang'}
         </Button>
         {!mimsUseSaved && !mimsToken.trim() && (

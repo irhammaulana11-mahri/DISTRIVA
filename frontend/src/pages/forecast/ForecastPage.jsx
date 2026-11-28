@@ -11,6 +11,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import TableFooter from '../../components/TableFooter.jsx'
+import HierarchicalUnitFilter from '../../components/HierarchicalUnitFilter.jsx'
 import MaterialStockDetailDrawer from '../master-data/MaterialStockDetailDrawer.jsx'
 import {
   IconChart,
@@ -397,6 +398,7 @@ function MiniBars({ months }) {
 function DemandView({ run, kinds, onSelectMaterial }) {
   const m = run.metrics?.all || {}
   const [kind, setKind] = useState(kinds[0])
+  const [up3Id, setUp3Id] = useState('')
   const [unit, setUnit] = useState('')
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 350)
@@ -407,11 +409,11 @@ function DemandView({ run, kinds, onSelectMaterial }) {
   useEffect(() => {
     let live = true
     setState((s) => ({ ...s, loading: true, error: '' }))
-    forecastApi.series(run.id, { kind, unit_id: unit, search: debounced.trim(), page, per_page: 25 })
+    forecastApi.series(run.id, { kind, ...(up3Id ? { up3_id: up3Id } : {}), unit_id: unit, search: debounced.trim(), page, per_page: 25 })
       .then((r) => { if (live) setState({ loading: false, error: '', rows: r?.data || [], meta: r?.meta || null }) })
       .catch((err) => { if (live) setState({ loading: false, error: err?.message || 'Gagal memuat prakiraan.', rows: [], meta: null }) })
     return () => { live = false }
-  }, [run.id, kind, unit, debounced, page])
+  }, [run.id, kind, up3Id, unit, debounced, page])
 
   const unitSuffix = KIND_UNIT[kind] ? ` ${KIND_UNIT[kind]}` : ''
   return (
@@ -444,6 +446,16 @@ function DemandView({ run, kinds, onSelectMaterial }) {
             </select>
           </div>
         )}
+        <div className="flex flex-wrap items-center gap-2">
+          <HierarchicalUnitFilter
+            permission="forecast.view"
+            up3Id={up3Id}
+            onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+            unitId={unit}
+            onUnitChange={(v) => { setUnit(v); setPage(1) }}
+            showLabels
+          />
+        </div>
         {material && (
           <div className="flex-1 min-w-48">
             <label htmlFor="dm-search" className="block text-[11px] font-medium text-slate-500 mb-1">Cari material</label>
@@ -701,6 +713,7 @@ function SparklineTrajectory({ row }) {
 function RunView({ run, canReview, onReview }) {
   const { notify } = useNotifications()
   const m = run.metrics?.all || {}
+  const [up3Id, setUp3Id] = useState('')
   const [unit, setUnit] = useState('')
   const [risk, setRisk] = useState('')
   const [search, setSearch] = useState('')
@@ -713,19 +726,20 @@ function RunView({ run, canReview, onReview }) {
   useEffect(() => {
     let live = true
     setState((s) => ({ ...s, loading: true, error: '' }))
-    forecastApi.substations(run.id, { unit_id: unit, risk, search: debounced.trim(), stale: stale ? 1 : '', page, per_page: 25 })
+    forecastApi.substations(run.id, { ...(up3Id ? { up3_id: up3Id } : {}), unit_id: unit, risk, search: debounced.trim(), stale: stale ? 1 : '', page, per_page: 25 })
       .then((r) => { if (live) setState({ loading: false, error: '', rows: r?.data || [], meta: r?.meta || null }) })
       .catch((err) => { if (live) setState({ loading: false, error: err?.message || 'Gagal memuat daftar gardu.', rows: [], meta: null }) })
     return () => { live = false }
-  }, [run.id, unit, risk, debounced, stale, page])
+  }, [run.id, up3Id, unit, risk, debounced, stale, page])
 
   const totals = run.summary.reduce(
     (a, s) => ({ total: a.total + s.total, kritis: a.kritis + s.kritis, tinggi: a.tinggi + s.tinggi, waspada: a.waspada + s.waspada }),
     { total: 0, kritis: 0, tinggi: 0, waspada: 0 }
   )
 
-  const isFiltered = Boolean(unit || risk || search || stale)
+  const isFiltered = Boolean(up3Id || unit || risk || search || stale)
   const resetFilters = () => {
+    setUp3Id('')
     setUnit('')
     setRisk('')
     setSearch('')
@@ -1065,25 +1079,19 @@ function RunView({ run, canReview, onReview }) {
               </select>
             </div>
 
-            {/* Select ULP */}
-            {run.summary.length > 1 && (
-              <div className="lg:col-span-4">
-                <label htmlFor="fc-unit" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  ULP
-                </label>
-                <select
-                  id="fc-unit"
-                  value={unit}
-                  onChange={(e) => { setUnit(e.target.value); setPage(1) }}
-                  className={`w-full ${filterSelectCls}`}
-                >
-                  <option value="">Semua Unit Layanan (ULP)</option>
-                  {run.summary.map((s) => (
-                    <option key={s.unit_id} value={s.unit_id}>{s.unit_code} · {s.unit_name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* Filter UP3 & ULP */}
+            <div className="lg:col-span-4 flex flex-wrap items-end gap-2">
+              <HierarchicalUnitFilter
+                permission="forecast.view"
+                up3Id={up3Id}
+                onUp3Change={(v) => { setUp3Id(v); setPage(1) }}
+                unitId={unit}
+                onUnitChange={(v) => { setUnit(v); setPage(1) }}
+                showLabels
+                className="w-40"
+                ulpClassName="w-48"
+              />
+            </div>
           </div>
 
           {/* Baris 2: Quick Filter Chips & Stale Toggle */}

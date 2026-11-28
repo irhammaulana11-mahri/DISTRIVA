@@ -42,9 +42,11 @@ describe('Impor Master dari Excel', () => {
     masterExcelApi.upload.mockResolvedValue({ data: { ...ready, status: 'PROCESSING', report: null } })
     masterExcelApi.apply.mockResolvedValue({ data: { status: 'OK', message: 'Buku harga DRAFT dibuat.' }, import: { ...ready, applied: { PRICE: { status: 'OK', message: 'Buku harga DRAFT dibuat.', link: '/master-data/harga' } } } })
     renderPage()
+    await userEvent.click(await screen.findByRole('tab', { name: /Excel RAB & KKF/i }))
     const card = (await screen.findByRole('region', { name: 'Excel RAB & KKF' }))
     const file = new File(['x'.repeat(2000)], 'MASTER RAB & KKF.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     fireEvent.change(within(card).getByLabelText('Berkas Excel RAB & KKF'), { target: { files: [file] } })
+    expect(within(card).getByText('MASTER RAB & KKF.xlsx')).toBeInTheDocument()
     await userEvent.click(within(card).getByRole('button', { name: /Unggah & periksa/i }))
     await waitFor(() => expect(masterExcelApi.upload).toHaveBeenCalledTimes(1))
     const fd = masterExcelApi.upload.mock.calls[0][0]
@@ -78,6 +80,7 @@ describe('Impor Master dari Excel', () => {
     masterExcelApi.get.mockResolvedValue({ data: { ...ready, kind: 'TARIF', ulp_code: '51452', report: { tariff: { status: 'CHANGED', excel_rows: 200, current_rows: 204, changed_rows: 0, added_rows: 200, unchanged_rows: 0, samples: [], problems: [], warnings: [],
       coverage_after: [{ code: '51453', name: 'ULP Jombang', rows: 204 }, { code: '51452', name: 'ULP Mojokerto', rows: 200 }, { code: '51454', name: 'ULP Ngoro', rows: 0 }] } } } })
     renderPage()
+    await userEvent.click(await screen.findByRole('tab', { name: /Excel Tarif & Jam Nyala/i }))
     const card = await screen.findByRole('region', { name: 'Excel Tarif & Jam Nyala' })
     expect(within(card).getByText('ULP Jombang · 204 baris')).toBeInTheDocument()
     expect(within(card).getByText('ULP Mojokerto · belum ada')).toBeInTheDocument()
@@ -88,10 +91,14 @@ describe('Impor Master dari Excel', () => {
   it('akun tanpa izin tidak bisa menyiapkan data dan tombol terapkan nonaktif', async () => {
     masterExcelApi.list.mockResolvedValue({ data: [{ ...ready, report: null }], can: { rab: true, tariff: false, bom: false, price: false, tariffs: false }, limits: { max_mb: 60 } })
     renderPage()
+    // Tab default MASTER DISTRIVA terkunci bila tanpa izin BOM/harga/tarif/KKF
+    expect(await screen.findByText('Akun Anda tidak berwenang menyiapkan data ini.')).toBeInTheDocument()
+    // Tab Tarif juga terkunci
+    await userEvent.click(screen.getByRole('tab', { name: /Excel Tarif & Jam Nyala/i }))
+    expect(screen.getByText('Akun Anda tidak berwenang menyiapkan data ini.')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'Buka' }))
     expect(await screen.findByRole('button', { name: 'Buat buku harga DRAFT' })).toBeDisabled()
     expect(screen.getByText(/memerlukan izin kelola harga/)).toBeInTheDocument()
-    expect(screen.getAllByText('Akun Anda tidak berwenang menyiapkan data ini.')).toHaveLength(2)      // kartu Tarif dan kartu Template MASTER DISTRIVA (tanpa izin BOM)
   })
   const distriva = {
     ...ready, id: 'i-9', kind: 'DISTRIVA', file_name: 'MASTER-DISTRIVA-20261118.xlsx',
@@ -212,5 +219,33 @@ describe('Impor Master dari Excel', () => {
     expect(await screen.findByText(/2 masalah pada susunan berkas/)).toBeInTheDocument()
     expect(screen.getByText(/SUTM!J10/)).toBeInTheDocument()
     expect(screen.queryByText('BOM (rumus volume)')).not.toBeInTheDocument()
+  })
+
+  it('riwayat unggahan mendukung filter jenis, menandai berkas sedang dibuka, dan menampilkan lencana dataset diterapkan', async () => {
+    masterExcelApi.list.mockResolvedValue({
+      data: [
+        { ...distriva, id: 'i-9', report: null, applied: { BOM: { status: 'OK' } } },
+        { ...ready, id: 'i-1', kind: 'RAB_KKF', report: null, applied: {} },
+      ],
+      can: CAN,
+      limits: { max_mb: 60 },
+    })
+    masterExcelApi.get.mockResolvedValue({ data: distriva })
+    renderPage()
+
+    expect(await screen.findByText('MASTER-DISTRIVA-20261118.xlsx')).toBeInTheDocument()
+    expect(screen.getByText('BOM ✓')).toBeInTheDocument()
+
+    // Filter riwayat ke RAB & KKF saja
+    const filterGroup = screen.getByRole('group', { name: 'Filter jenis riwayat unggahan' })
+    await userEvent.click(within(filterGroup).getByRole('button', { name: 'RAB & KKF' }))
+    expect(screen.queryByText('MASTER-DISTRIVA-20261118.xlsx')).not.toBeInTheDocument()
+    expect(screen.getByText('MASTER RAB & KKF.xlsx')).toBeInTheDocument()
+
+    // Kembalikan ke Semua dan buka berkas pertama
+    await userEvent.click(within(filterGroup).getByRole('button', { name: 'Semua' }))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Buka' })[0])
+    expect(await screen.findByText('Sedang dibuka')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ringkasan pemeriksaan dataset')).toBeInTheDocument()
   })
 })

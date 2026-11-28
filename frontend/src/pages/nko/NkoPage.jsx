@@ -258,7 +258,7 @@ function CalculateModal({ isOpen, onClose, year, month, unitId, up3Id, onCalcula
 }
 
 export default function NkoPage() {
-  const { can } = useAccess()
+  const { can, isSysAdmin } = useAccess()
   const { notify } = useNotifications()
   const canCalculate = Boolean(can?.['nko.calculate'])
   const canInput = Boolean(can?.['nko.input'])
@@ -273,24 +273,25 @@ export default function NkoPage() {
   const unitScope = useUnitScope(unitInfo, up3Id, unitId)
 
   // Default up3Id dan unitId dari unitScope / unitInfo
+  // Untuk SYS_ADMIN, biarkan default kosong ("Semua UP3" dan "Semua ULP")
   useEffect(() => {
     if (!up3Id && unitScope.up3Value) {
       setUp3Id(unitScope.up3Value)
-    } else if (!up3Id && unitInfo.up3_units?.length > 0) {
+    } else if (!isSysAdmin && !up3Id && unitInfo.up3_units?.length > 0) {
       setUp3Id(unitInfo.up3_units[0].id)
     }
-  }, [unitInfo, unitScope.up3Value, up3Id])
+  }, [isSysAdmin, unitInfo, unitScope.up3Value, up3Id])
 
   useEffect(() => {
     if (!unitId && unitScope.ulpValue) {
       setUnitId(unitScope.ulpValue)
-    } else if (!unitId && unitScope.ulpChoices?.length > 0) {
+    } else if (!isSysAdmin && !unitId && unitScope.ulpChoices?.length > 0) {
       setUnitId(unitScope.ulpChoices[0].id)
     }
-  }, [unitScope.ulpValue, unitScope.ulpChoices, unitId])
+  }, [isSysAdmin, unitScope.ulpValue, unitScope.ulpChoices, unitId])
 
-  const targetUp3 = up3Id || unitScope.up3Value || unitInfo.up3_units?.[0]?.id || ''
-  const targetUnit = unitId || unitScope.ulpValue || unitScope.up3Value || unitInfo.up3_units?.[0]?.id || ''
+  const targetUp3 = up3Id || unitScope.up3Value || (!isSysAdmin ? unitInfo.up3_units?.[0]?.id : '') || ''
+  const targetUnit = unitId || unitScope.ulpValue || unitScope.up3Value || (!isSysAdmin ? unitInfo.up3_units?.[0]?.id : '') || ''
 
   // Snapshot detail state
   const [snapshotState, setSnapshotState] = useState({ loading: true, error: '', data: null })

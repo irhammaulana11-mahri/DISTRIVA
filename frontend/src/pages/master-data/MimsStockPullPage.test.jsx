@@ -217,4 +217,46 @@ describe('MimsStockPullPage', () => {
       )
     })
   })
+
+  it('tidak memuat gudang dan menonaktifkan tombol tarik sebelum selectedUp3Id terisi saat embedded, serta mengisi onUp3Context dari mimsAutoSettings', async () => {
+    const up3s = [
+      { id: 'up3-1', code: '51MJK', name: 'UP3 Mojokerto' },
+      { id: 'up3-2', code: '51SBS', name: 'UP3 Surabaya Selatan' },
+    ]
+    warehousesApi.mimsAutoSettings.mockResolvedValue({
+      data: { auto_enabled: false, up3_id: 'up3-1', up3s },
+    })
+    warehousesApi.list.mockResolvedValue({
+      data: [{ id: 'wh-mjk', code: '5118-2080', name: 'Gd UP3 Mojokerto', plant: '5118', stor_loc: '2080' }],
+    })
+    const onUp3Context = vi.fn()
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <NotificationProvider>
+          <MimsStockPullPage asPage={true} embedded selectedUp3Id="" onUp3Context={onUp3Context} />
+        </NotificationProvider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(onUp3Context).toHaveBeenCalledWith({ up3Id: 'up3-1', up3s })
+    })
+    expect(warehousesApi.list).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByPlaceholderText(/Tempel token sesi MIMS Anda di sini/i), { target: { value: 'tok-123' } })
+    expect(screen.getByRole('button', { name: /Tarik Stok Sekarang/i })).toBeDisabled()
+
+    rerender(
+      <MemoryRouter>
+        <NotificationProvider>
+          <MimsStockPullPage asPage={true} embedded selectedUp3Id="up3-1" onUp3Context={onUp3Context} />
+        </NotificationProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Gd UP3 Mojokerto/i)).toBeInTheDocument()
+    expect(warehousesApi.list).toHaveBeenCalledWith({ up3_id: 'up3-1' })
+    expect(screen.getByRole('button', { name: /Tarik Stok Sekarang/i })).toBeEnabled()
+  })
 })
