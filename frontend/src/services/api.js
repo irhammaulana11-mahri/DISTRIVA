@@ -1042,22 +1042,21 @@ export const srVendorContractsApi = {
   update: (id, body) => request(`/sr-vendor-contracts/${id}`, { method: 'PUT', body }),
 }
 
-/** Rencana reservasi material sambungan tanpa perluasan (docs/95). */
+/** Rencana reservasi material sambungan tanpa perluasan kolektif (docs/95). */
 export const srReservationsApi = {
   pending: (params = {}) => request(`/sr-reservations/pending${qs(params)}`),
   list: (params = {}) => request(`/sr-reservations${qs(params)}`),
   forApplication: (applicationId) => request(`/applications/${applicationId}/sr-reservations`),
-  create: (applicationId, body) => request(`/applications/${applicationId}/sr-reservations`, { method: 'POST', body }),
-  createBatch: (body) => request('/sr-reservations/batch', { method: 'POST', body }),
-  batchActions: (body) => request('/sr-reservations/batch-actions', { method: 'POST', body }),
-  reportExtension: (applicationId, body) => request(`/applications/${applicationId}/sr-extension`, { method: 'POST', body }),
-  cancelExtension: (applicationId, body) => request(`/applications/${applicationId}/sr-extension/cancel`, { method: 'POST', body }),
+  create: (body) => request('/sr-reservations', { method: 'POST', body }),
   get: (id) => request(`/sr-reservations/${id}`),
   update: (id, body) => request(`/sr-reservations/${id}`, { method: 'PUT', body }),
-  submit: (id) => request(`/sr-reservations/${id}/submit`, { method: 'POST' }),
-  decide: (id, body) => request(`/sr-reservations/${id}/decision`, { method: 'POST', body }),
-  recordMims: (id, body) => request(`/sr-reservations/${id}/mims`, { method: 'POST', body }),
-  saveSerials: (id, body) => request(`/sr-reservations/${id}/serials`, { method: 'POST', body }),
-  sendSap: (id) => request(`/sr-reservations/${id}/sap`, { method: 'POST' }),
+  removeApplication: (id, applicationId, body) =>
+    request(`/sr-reservations/${id}/applications/${applicationId}/remove`, { method: 'POST', body }),
+  requestMims: (id, body) => request(`/sr-reservations/${id}/request`, { method: 'POST', body }),
+  saveRealization: (id, body) => request(`/sr-reservations/${id}/realization`, { method: 'PUT', body }),
+  match: (id) => request(`/sr-reservations/${id}/match`, { method: 'POST' }),
+  sendSap: (id, body = {}) => request(`/sr-reservations/${id}/sap`, { method: 'POST', body }),
   cancel: (id, body) => request(`/sr-reservations/${id}/cancel`, { method: 'POST', body }),
+  reportExtension: (applicationId, body) => request(`/applications/${applicationId}/sr-extension`, { method: 'POST', body }),
+  cancelExtension: (applicationId, body) => request(`/applications/${applicationId}/sr-extension/cancel`, { method: 'POST', body }),
 }

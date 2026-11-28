@@ -156,9 +156,10 @@ class SrReservationTest extends PostgresTestCase
             'contract_number' => 'KTR-1PH', 'valid_from' => '2026-01-01'])->assertCreated();
     }
 
-    private function plan(string $app, ?string $warehouse = null, array $over = [], string $by = 'niaga')
+    /** @param string|list<string> $apps */
+    private function plan(string|array $apps, ?string $warehouse = null, array $over = [], string $by = 'niaga')
     {
-        return $this->as($this->users[$by])->postJson("/api/applications/{$app}/sr-reservations", ['warehouse_id' => $warehouse ?? $this->ulpWarehouse] + $over);
+        return $this->as($this->users[$by])->postJson('/api/sr-reservations', ['application_ids' => (array) $apps, 'warehouse_id' => $warehouse ?? $this->ulpWarehouse] + $over);
     }
 
     private function stockFor(string $reservation, string $warehouse, float $quantity = 1000): void
@@ -170,10 +171,42 @@ class SrReservationTest extends PostgresTestCase
         }
     }
 
-    /** @return array<string,array<string,mixed>> lines of the plan by KHS code */
+    /** @return array<string,array<string,mixed>> lines of the reservation by KHS code */
     private function lines(string $reservation): array
     {
-        return collect($this->as($this->users['niaga'])->getJson("/api/sr-reservations/{$reservation}")->assertOk()->json('data.lines'))->keyBy('khs_code')->all();
+        return collect($this->detail($reservation)['lines'])->keyBy('khs_code')->all();
+    }
+
+    /** @return array<string,mixed> */
+    private function detail(string $reservation): array
+    {
+        return $this->as($this->users['niaga'])->getJson("/api/sr-reservations/{$reservation}")->assertOk()->json('data');
+    }
+
+    private function act(string $reservation, string $action, array $body = [], string $by = 'niaga')
+    {
+        return $this->as($this->users[$by])->postJson("/api/sr-reservations/{$reservation}/{$action}", $body);
+    }
+
+    /** A requested reservation of the given applications, with stock. */
+    private function requested(array $apps): string
+    {
+        $id = $this->plan($apps)->assertCreated()->json('data.id');
+        $this->stockFor($id, $this->ulpWarehouse);
+        $this->act($id, 'request', ['reservation_no' => '900123'])->assertOk();
+
+        return $id;
+    }
+
+    private function realize(string $reservation, array $items)
+    {
+        return $this->as($this->users['niaga'])->putJson("/api/sr-reservations/{$reservation}/realization", ['items' => $items]);
+    }
+
+    /** What one 1-phase agenda realises: one meter, one MCB, its cable. */
+    private function realised(string $app, string $suffix, float $cable = 35, array $seals = []): array
+    {
+        return ['application_id' => $app, 'cable_m' => $cable, 'seals' => $seals, 'serials' => [['khs_code' => 'JTMR949', 'serial_number' => "KWH-{$suffix}"], ['khs_code' => 'JTMR826', 'serial_number' => "MCB-{$suffix}"]]];
     }
 
     #[Test]
@@ -185,42 +218,43 @@ class SrReservationTest extends PostgresTestCase
     }
 
     #[Test]
-    public function a_one_phase_plan_takes_the_contracted_executor_and_the_bom_material_with_35_metres_of_cable(): void
+    public function one_reservation_holds_many_agendas_with_totals_per_material_and_the_contracted_executor(): void
     {
-        $app = $this->paid();
-        $this->plan($app)->assertStatus(409)->assertJsonFragment(['message' => 'ULP ini belum punya kontrak pelaksana 1 phasa yang berlaku hari ini.']);
+        [$a, $b] = [$this->paid(), $this->paid()];
+        $this->plan([$a, $b])->assertStatus(409)->assertJsonFragment(['message' => 'ULP ini belum punya kontrak pelaksana 1 phasa yang berlaku hari ini.']);
         $this->contract();
-        $this->plan($app, null, ['vendor_company_id' => $this->otherVendor])->assertStatus(409);
+        $this->plan([$a, $b], null, ['vendor_company_id' => $this->otherVendor])->assertStatus(409);
 
-        $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending')->assertOk()->assertJsonPath('data.0.application_id', $app)->assertJsonPath('data.0.default_vendor.id', $this->contractor);
-        $id = $this->plan($app)->assertCreated()->json('data.id');
+        $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending')->assertOk()->assertJsonPath('meta.total', 2)->assertJsonPath('data.0.default_vendor.id', $this->contractor);
+        $id = $this->plan([$a, $b])->assertCreated()->json('data.id');
 
-        $this->as($this->users['niaga'])->getJson("/api/sr-reservations/{$id}")->assertJsonPath('data.vendor.id', $this->contractor)->assertJsonPath('data.phase', 1)
-            ->assertJsonPath('data.source_level', 'ULP')->assertJsonPath('data.sr_length_m', 35);
+        $detail = $this->detail($id);
+        $this->assertSame([$this->contractor, 'DRAFT', 2, 'ULP', 35], [$detail['vendor']['id'], $detail['status'], $detail['applications_count'], $detail['source_level'], (int) $detail['sr_length_m']]);
         $lines = $this->lines($id);
-        $this->assertEquals(35, $lines['JTMR938']['quantity']);                  // SR cable: the planned length, not the factor of the BOM
-        $this->assertEquals(1, $lines['JTMR949']['quantity']);                   // one meter
+        $this->assertEquals(70, $lines['JTMR938']['quantity']);                  // SR cable: 35 m per customer
+        $this->assertEquals(2, $lines['JTMR949']['quantity']);                   // one meter each
         $this->assertArrayNotHasKey('JTMR950', $lines);                          // a service line, no material
         $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending')->assertJsonPath('meta.total', 0);
-        $this->plan($app)->assertStatus(409);                                    // one running plan per application
+        $this->plan($a)->assertStatus(409);                                      // one running reservation per application
     }
 
     #[Test]
-    public function a_one_phase_customer_needs_no_survey_but_must_have_paid_and_takes_only_ulp_stock(): void
+    public function agendas_of_another_phase_or_unfit_ones_stop_the_whole_reservation(): void
     {
         $this->contract();
-        $app = $this->paid();
-        $this->plan($app, $this->up3Warehouse, [], 'konstruksi')->assertStatus(409)->assertJsonFragment(['message' => 'Sambungan 1 phasa hanya mengambil stok ULP: pilih gudang aktif milik ULP permohonan.']);
-        DB::table('applications')->where('id', $app)->update(['current_status' => 'APPROVED']);
-        $this->plan($app)->assertStatus(409);
+        $good = $this->paid();
+        $unpaid = $this->paid();
+        DB::table('applications')->where('id', $unpaid)->update(['current_status' => 'APPROVED']);
 
-        DB::table('applications')->where('id', $app)->update(['current_status' => 'PK_PRINTED']);
-        $this->as($this->users['niaga'])->postJson("/api/applications/{$app}/sr-reservations", [])->assertCreated();       // the only ULP warehouse is the default
-        $this->plan($this->surveyed(extension: true))->assertStatus(409);                                                  // a survey that found an extension wins
+        $this->plan([$good, $this->paid(powerVa: 6600)])->assertStatus(409)->assertJsonFragment(['message' => 'Satu reservasi tidak boleh mencampur sambungan 1 phasa dan 3 phasa.']);
+        $this->plan([$good, $unpaid])->assertStatus(409);
+        $this->plan([$good], $this->up3Warehouse, [], 'konstruksi')->assertStatus(409)->assertJsonFragment(['message' => 'Sambungan 1 phasa hanya mengambil stok ULP: pilih gudang aktif milik ULP permohonan.']);
+
+        $this->assertSame(0, DB::table('sr_reservations')->count());
     }
 
     #[Test]
-    public function an_agenda_already_reserved_in_mims_is_marked_and_not_planned_again(): void
+    public function an_agenda_already_reserved_in_mims_is_marked_and_not_reserved_again(): void
     {
         $this->contract();
         $reserved = $this->paid();
@@ -230,30 +264,102 @@ class SrReservationTest extends PostgresTestCase
 
         $rows = collect($this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending')->assertOk()->json('data'))->keyBy('application_id');
         $this->assertSame([true, ['R-77']], [$rows[$reserved]['already_reserved'], $rows[$reserved]['mims_reservation_numbers']]);
-        $this->assertFalse($rows[$free]['already_reserved']);
         $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending?reserved=0')->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.application_id', $free);
-        $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending?reserved=1')->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.application_id', $reserved);
-        $this->plan($reserved)->assertStatus(409)->assertJsonFragment(['message' => 'Nomor agenda ini sudah punya reservasi di MIMS (R-77): tidak direservasi dua kali.']);
+        $this->plan($reserved)->assertStatus(409);
+        $this->plan($this->surveyed(extension: true))->assertStatus(409);         // a survey that found an extension wins
     }
 
     #[Test]
-    public function many_one_phase_plans_are_made_approved_and_numbered_at_once_and_each_failure_stays_its_own(): void
+    public function a_three_phase_reservation_needs_a_chosen_executor(): void
+    {
+        $this->importBom(['group' => 'PBPD_6_41', 'source' => 'uji', 'inputs' => [], 'lines' => [['sequence' => 10, 'khs_code' => 'JTMR764', 'description' => 'Kabel SR 3 phasa', 'H' => '1*20', 'source' => 'uji']]]);
+        $app = $this->surveyed(powerVa: 6600);
+
+        $this->plan($app)->assertStatus(409)->assertJsonFragment(['message' => 'Sambungan 3 phasa: pelaksana wajib dipilih.']);
+        $this->plan($app, null, ['vendor_company_id' => $this->vendor('TIANG')])->assertStatus(409);
+        $this->plan($app, $this->up3Warehouse, ['vendor_company_id' => $this->otherVendor])->assertForbidden();      // a UP3 warehouse is Konstruksi's
+        $id = $this->plan($app, $this->up3Warehouse, ['vendor_company_id' => $this->otherVendor, 'sr_length_m' => 42], 'konstruksi')->assertCreated()->json('data.id');
+
+        $this->assertEquals(42, $this->lines($id)['JTMR764']['quantity']);
+    }
+
+    #[Test]
+    public function totals_follow_the_agendas_while_a_typed_correction_keeps_its_difference(): void
+    {
+        $this->contract();
+        [$a, $b, $c] = [$this->paid(), $this->paid(), $this->paid()];
+        $id = $this->plan([$a, $b])->assertCreated()->json('data.id');
+        $put = fn (array $body) => $this->as($this->users['niaga'])->putJson("/api/sr-reservations/{$id}", $body);
+        $put(['corrections' => [['khs_code' => 'JTMR949', 'quantity' => 3]]])->assertStatus(409);
+        $put(['corrections' => [['khs_code' => 'JTMR949', 'quantity' => 3, 'reason' => 'meter cadangan']]])->assertOk();
+
+        $put(['add_application_ids' => [$c], 'sr_length_m' => 40])->assertOk();
+        $this->assertEquals([4, 120], [$this->lines($id)['JTMR949']['quantity'], $this->lines($id)['JTMR938']['quantity']]);
+        $this->act($id, "applications/{$a}/remove", [])->assertStatus(422);
+        $this->act($id, "applications/{$a}/remove", ['reason' => 'batal pasang'])->assertOk();
+
+        $this->assertEquals([3, 80], [$this->lines($id)['JTMR949']['quantity'], $this->lines($id)['JTMR938']['quantity']]);
+        $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending')->assertJsonPath('data.0.application_id', $a);
+        $this->act($id, "applications/{$b}/remove", ['reason' => 'x'])->assertOk();
+        $this->act($id, "applications/{$c}/remove", ['reason' => 'x'])->assertStatus(409);        // the last one: cancel instead
+    }
+
+    #[Test]
+    public function the_request_number_holds_the_stock_without_any_approval(): void
     {
         $this->contract();
         [$a, $b] = [$this->paid(), $this->paid()];
-        $unpaid = $this->paid();
-        DB::table('applications')->where('id', $unpaid)->update(['current_status' => 'APPROVED']);
+        $this->plan([$a, $b], null, [], 'konstruksi')->assertForbidden();
+        $this->plan([$a, $b], null, [], 'niagaLain')->assertNotFound();
+        $id = $this->plan([$a, $b])->assertCreated()->json('data.id');
+        $this->act($id, 'request', ['reservation_no' => '900123'])->assertStatus(409);             // no stock recorded for the warehouse
+        $this->stockFor($id, $this->ulpWarehouse, 100);
+        $this->act($id, 'request', ['reservation_no' => '900123'])->assertOk();
 
-        $made = $this->as($this->users['niaga'])->postJson('/api/sr-reservations/batch', ['application_ids' => [$a, $b, $unpaid]])->assertOk()->assertJsonPath('summary', ['succeeded' => 2, 'failed' => 1]);
-        $ids = collect($made->json('data'))->where('ok', true)->pluck('id')->values()->all();
-        $this->stockFor($ids[0], $this->ulpWarehouse);
-        $act = fn (array $body) => $this->as($this->users['niaga'])->postJson('/api/sr-reservations/batch-actions', ['ids' => $ids] + $body)->assertOk()->assertJsonPath('summary.succeeded', 2);
-        $act(['action' => 'submit']);
-        $act(['action' => 'approve']);
-        $act(['action' => 'mims', 'reservation_no' => '900555']);
+        $cable = $this->khs('JTMR938');
+        $available = fn (): float => app(StockService::class)->position([$this->ulpWarehouse], now()->toDateString())[$cable]['available'];
+        $this->assertEquals(30, $available());
+        $this->assertSame('REQUESTED', $this->detail($id)['status']);
+        $this->as($this->users['niaga'])->putJson("/api/sr-reservations/{$id}", ['sr_length_m' => 20])->assertStatus(409);
+        $this->act($id, 'cancel', ['reason' => 'batal'])->assertOk();
+        $this->assertEquals(100, $available());
+    }
 
-        $this->assertSame(2, DB::table('sr_reservations')->where('status', 'RECORDED')->where('mims_reservation_no', '900555')->count());
-        $this->as($this->users['konstruksi'])->postJson('/api/sr-reservations/batch-actions', ['ids' => $ids, 'action' => 'mims', 'reservation_no' => '1'])->assertJsonPath('summary.failed', 2);
+    #[Test]
+    public function sap_takes_the_reservation_only_when_every_agenda_is_complete_and_the_totals_equal_what_was_used(): void
+    {
+        $this->contract();
+        [$a, $b] = [$this->paid(), $this->paid()];
+        $id = $this->requested([$a, $b]);
+        $this->act($id, 'sap')->assertStatus(409);
+        $this->realize($id, [$this->realised($a, '1', 30, ['S-1']), $this->realised($b, '2', 32, ['S-2'])])->assertOk();
+
+        $this->act($id, 'sap')->assertStatus(409);                                                   // cable: 70 reserved, 62 used
+        $blockers = $this->detail($id)['sap_blockers'];
+        $this->assertSame(['KHS JTMR938: total reservasi 70, realisasi 62. Samakan totalnya.'], $blockers);
+        $this->act($id, 'match')->assertOk();
+        $this->assertEquals(62, $this->lines($id)['JTMR938']['quantity']);
+        $this->assertSame('Disamakan dengan realisasi per agenda', $this->lines($id)['JTMR938']['correction_reason']);
+        $this->act($id, 'sap', ['sap_reference' => 'SAP-1'])->assertOk();
+
+        $this->assertSame(['SAP_SENT', 'SAP-1'], [$this->detail($id)['status'], $this->detail($id)['sap_reference']]);
+        $this->assertEquals(30, SrReservationService::reservedFor($a)[$this->khs('JTMR938')]);       // what was really used
+        $this->act($id, 'cancel', ['reason' => 'x'])->assertStatus(409);
+    }
+
+    #[Test]
+    public function serial_and_seal_numbers_are_not_used_twice_and_only_meters_and_mcbs_have_serials(): void
+    {
+        $this->contract();
+        [$a, $b] = [$this->paid(), $this->paid()];
+        $id = $this->requested([$a, $b]);
+        $this->realize($id, [$this->realised($a, '1', 35, ['S-1'])])->assertOk();
+
+        $this->realize($id, [$this->realised($b, '1')])->assertStatus(409)->assertJsonFragment(['message' => 'Nomor seri KWH-1 sudah dipakai.']);
+        $this->realize($id, [['application_id' => $b, 'seals' => ['S-1']]])->assertStatus(409);
+        $this->realize($id, [['application_id' => $b, 'serials' => [['khs_code' => 'JTMR944', 'serial_number' => 'X']]]])->assertStatus(409);
+
+        $this->assertSame([], collect($this->detail($id)['applications'])->firstWhere('application_id', $b)['serials']);
     }
 
     #[Test]
@@ -261,10 +367,7 @@ class SrReservationTest extends PostgresTestCase
     {
         $this->contract();
         $app = $this->paid();
-        $id = $this->plan($app)->assertCreated()->json('data.id');
-        $this->stockFor($id, $this->ulpWarehouse);
-        $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/submit")->assertOk();
-        $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/decision", ['decision' => 'APPROVE'])->assertOk();
+        $id = $this->requested([$app]);
         DB::table('applications')->where('id', $app)->update(['current_status' => 'CONNECTION_IN_PROGRESS']);
         $survey = fn () => $this->as($this->users['manager'])->postJson("/api/applications/{$app}/surveys", ['assigned_to' => $this->users['teknik']->getKey()]);
         $survey()->assertStatus(409);                                              // connection in progress: closed until a finding opens it
@@ -275,9 +378,26 @@ class SrReservationTest extends PostgresTestCase
         $report('teknik')->assertStatus(409);
 
         $survey()->assertCreated();
-        $this->assertSame('APPROVED', DB::table('sr_reservations')->where('id', $id)->value('status'));
+        $this->assertSame('REQUESTED', DB::table('sr_reservations')->where('id', $id)->value('status'));
         $this->assertEquals(1, SrReservationService::reservedFor($app)[$this->khs('JTMR949')]);
-        $this->as($this->users['niaga'])->getJson("/api/applications/{$app}/sr-reservations")->assertJsonPath('data.extension_finding.distance_m', 120);
+        $this->as($this->users['niaga'])->getJson("/api/applications/{$app}/sr-reservations")->assertJsonPath('data.extension_finding.distance_m', 120)->assertJsonPath('data.reservations.0.id', $id);
+    }
+
+    #[Test]
+    public function a_finding_takes_the_agenda_out_of_a_draft_and_is_refused_for_three_phase(): void
+    {
+        $this->contract();
+        [$a, $b] = [$this->paid(), $this->paid()];
+        $id = $this->plan([$a, $b])->assertCreated()->json('data.id');
+        $report = fn (string $application) => $this->as($this->users['teknik'])->postJson("/api/applications/{$application}/sr-extension", ['reason' => 'jaringan jauh']);
+
+        $report($a)->assertCreated();
+        $this->assertSame([1, 'DRAFT'], [$this->detail($id)['applications_count'], $this->detail($id)['status']]);
+        $report($b)->assertCreated();
+        $this->assertSame('CANCELLED', $this->detail($id)['status']);
+        $report($this->paid(powerVa: 6600))->assertStatus(409);
+        $this->plan($a)->assertStatus(409);
+        $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending?phase=1')->assertJsonPath('meta.total', 0);
     }
 
     #[Test]
@@ -302,6 +422,19 @@ class SrReservationTest extends PostgresTestCase
     }
 
     #[Test]
+    public function reports_do_not_expect_a_survey_from_a_one_phase_customer(): void
+    {
+        $direct = $this->paid();
+        $threePhase = $this->paid(powerVa: 6600);
+        DB::table('applications')->whereIn('id', [$direct, $threePhase])->update(['created_at' => now()->subDays(10)]);
+
+        $rows = collect(app(ReportService::class)->sla([$this->ulp->getKey()], null, null)['rows'])->keyBy('id');
+
+        $this->assertSame(['Penyambungan', 'Survei Lapangan'], [$rows[$direct]['current_stage'], $rows[$threePhase]['current_stage']]);
+        $this->assertSame(['LAYANAN', 'UMUM'], [$rows[$direct]['sla_basis'], $rows[$threePhase]['sla_basis']]);
+    }
+
+    #[Test]
     public function a_paid_one_phase_customer_is_ready_to_install_without_survey_until_a_finding_says_otherwise(): void
     {
         $direct = $this->paid();
@@ -317,19 +450,6 @@ class SrReservationTest extends PostgresTestCase
 
         $this->assertSame([], $ready());
         $detail($direct)->assertJsonPath('data.ready_to_install', false)->assertJsonPath('data.survey_required', true)->assertJsonPath('data.extension_finding', true);
-    }
-
-    #[Test]
-    public function reports_do_not_expect_a_survey_from_a_one_phase_customer(): void
-    {
-        $direct = $this->paid();
-        $threePhase = $this->paid(powerVa: 6600);
-        DB::table('applications')->whereIn('id', [$direct, $threePhase])->update(['created_at' => now()->subDays(10)]);
-
-        $rows = collect(app(ReportService::class)->sla([$this->ulp->getKey()], null, null)['rows'])->keyBy('id');
-
-        $this->assertSame(['Penyambungan', 'Survei Lapangan'], [$rows[$direct]['current_stage'], $rows[$threePhase]['current_stage']]);
-        $this->assertSame(['LAYANAN', 'UMUM'], [$rows[$direct]['sla_basis'], $rows[$threePhase]['sla_basis']]);
     }
 
     #[Test]
@@ -349,95 +469,6 @@ class SrReservationTest extends PostgresTestCase
         $this->assertSame(['OVERDUE', true], [$rows[$late]['status'], $rows[$late]['announce']]);
         $this->assertSame(['OVERDUE', false], [$rows[$backlog]['status'], $rows[$backlog]['announce']]);
         $this->assertArrayNotHasKey($oldDone, $rows);                              // connected before the rule: not judged by it
-    }
-
-    #[Test]
-    public function a_finding_cancels_a_plan_that_has_not_been_approved_and_is_refused_for_three_phase(): void
-    {
-        $this->contract();
-        $app = $this->paid();
-        $id = $this->plan($app)->assertCreated()->json('data.id');
-        $report = fn (string $application) => $this->as($this->users['teknik'])->postJson("/api/applications/{$application}/sr-extension", ['reason' => 'jaringan jauh']);
-
-        $report($app)->assertCreated();
-        $report($this->paid(powerVa: 6600))->assertStatus(409);
-
-        $this->assertSame('CANCELLED', DB::table('sr_reservations')->where('id', $id)->value('status'));
-        $this->plan($app)->assertStatus(409);
-        $this->as($this->users['niaga'])->getJson('/api/sr-reservations/pending?phase=1')->assertJsonPath('meta.total', 0);
-    }
-
-    #[Test]
-    public function a_three_phase_plan_needs_a_chosen_executor(): void
-    {
-        $this->importBom(['group' => 'PBPD_6_41', 'source' => 'uji', 'inputs' => [], 'lines' => [['sequence' => 10, 'khs_code' => 'JTMR764', 'description' => 'Kabel SR 3 phasa', 'H' => '1*20', 'source' => 'uji']]]);
-        $app = $this->surveyed(powerVa: 6600);
-
-        $this->plan($app)->assertStatus(409)->assertJsonFragment(['message' => 'Sambungan 3 phasa: pelaksana wajib dipilih.']);
-        $this->plan($app, null, ['vendor_company_id' => $this->vendor('TIANG')])->assertStatus(409);
-        $id = $this->plan($app, null, ['vendor_company_id' => $this->otherVendor, 'sr_length_m' => 42])->assertCreated()->json('data.id');
-
-        $this->assertEquals(42, $this->lines($id)['JTMR764']['quantity']);
-    }
-
-    #[Test]
-    public function corrections_need_a_reason_and_a_new_cable_length_replaces_the_cable_quantity(): void
-    {
-        $this->contract();
-        $id = $this->plan($this->paid())->assertCreated()->json('data.id');
-        $put = fn (array $body) => $this->as($this->users['niaga'])->putJson("/api/sr-reservations/{$id}", $body);
-
-        $put(['corrections' => [['khs_code' => 'JTMR949', 'quantity' => 2]]])->assertStatus(409);
-        $put(['corrections' => [['khs_code' => 'JTMR949', 'quantity' => 2, 'reason' => 'meter cadangan']], 'sr_length_m' => 50])->assertOk();
-
-        $lines = $this->lines($id);
-        $this->assertSame([2, 'meter cadangan'], [(int) $lines['JTMR949']['quantity'], $lines['JTMR949']['correction_reason']]);
-        $this->assertEquals([50, 50], [$lines['JTMR938']['quantity_bom'], $lines['JTMR938']['quantity']]);
-    }
-
-    #[Test]
-    public function niaga_of_the_ulp_alone_prepares_approves_and_records_a_ulp_warehouse_plan_and_the_stock_is_held(): void
-    {
-        $this->contract();
-        $app = $this->paid();
-        $this->plan($app, null, [], 'konstruksi')->assertForbidden();
-        $this->plan($app, null, [], 'niagaLain')->assertNotFound();
-        $id = $this->plan($app)->assertCreated()->json('data.id');
-        $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/mims", ['reservation_no' => '900123'])->assertStatus(409);   // not approved yet
-        $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/submit")->assertOk();
-        $approve = fn () => $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/decision", ['decision' => 'APPROVE']);
-        $approve()->assertStatus(409);                                           // no stock recorded for the warehouse
-        $this->stockFor($id, $this->ulpWarehouse, 100);
-        $approve()->assertOk();
-
-        $cable = $this->khs('JTMR938');
-        $this->assertEquals(65, app(StockService::class)->position([$this->ulpWarehouse], now()->toDateString())[$cable]['available']);
-        $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/mims", ['reservation_no' => '900123'])->assertOk();
-        $this->as($this->users['niaga'])->getJson("/api/sr-reservations/{$id}")->assertJsonPath('data.status', 'RECORDED')->assertJsonPath('data.mims_reservation_no', '900123');
-
-        $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/cancel", ['reason' => 'batal pasang'])->assertOk();
-        $this->assertEquals(100, app(StockService::class)->position([$this->ulpWarehouse], now()->toDateString())[$cable]['available']);
-    }
-
-    #[Test]
-    public function a_up3_warehouse_plan_is_prepared_by_konstruksi_and_approved_by_the_asman(): void
-    {
-        $this->importBom(['group' => 'PBPD_6_41', 'source' => 'uji', 'inputs' => [], 'lines' => [['sequence' => 10, 'khs_code' => 'JTMR764', 'description' => 'Kabel SR 3 phasa', 'H' => '1*20', 'source' => 'uji']]]);
-        $app = $this->surveyed(powerVa: 6600);
-        $vendor = ['vendor_company_id' => $this->otherVendor];
-        $this->plan($app, $this->up3Warehouse, $vendor)->assertForbidden();
-        $id = $this->plan($app, $this->up3Warehouse, $vendor, 'konstruksi')->assertCreated()->json('data.id');
-        $this->stockFor($id, $this->up3Warehouse);
-        $this->as($this->users['konstruksi'])->postJson("/api/sr-reservations/{$id}/submit")->assertOk();
-        $this->as($this->users['konstruksi'])->postJson("/api/sr-reservations/{$id}/decision", ['decision' => 'APPROVE'])->assertForbidden();
-        $this->as($this->users['niaga'])->postJson("/api/sr-reservations/{$id}/decision", ['decision' => 'APPROVE'])->assertForbidden();
-
-        $this->as($this->users['asman'])->postJson("/api/sr-reservations/{$id}/decision", ['decision' => 'RETURN'])->assertStatus(409);
-        $this->as($this->users['asman'])->postJson("/api/sr-reservations/{$id}/decision", ['decision' => 'RETURN', 'reason' => 'periksa kabel'])->assertOk();
-        $this->as($this->users['konstruksi'])->postJson("/api/sr-reservations/{$id}/submit")->assertOk();
-        $this->as($this->users['asman'])->postJson("/api/sr-reservations/{$id}/decision", ['decision' => 'APPROVE'])->assertOk();
-
-        $this->as($this->users['asman'])->getJson("/api/sr-reservations/{$id}")->assertJsonPath('data.status', 'APPROVED');
     }
 
     #[Test]

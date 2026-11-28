@@ -299,10 +299,9 @@ class StockService
             $after = DB::table('allocation_lines as l')->join('allocations as a', 'a.id', '=', 'l.allocation_id')->whereNotNull('a.materials_confirmed_at')->where('a.status', '<>', 'CANCELLED')->where('l.warehouse_id', $wid)
                 ->when($snap !== null, fn ($q) => $q->whereRaw('(a.materials_confirmed_at at time zone ?)::date > ?', [config('distriva.business_timezone'), $snap->as_of]))
                 ->groupBy('l.khs_item_id')->selectRaw('l.khs_item_id, sum(l.quantity) q')->pluck('q', 'khs_item_id');
-            // reservations of connections without extension (docs/95): approved ones not yet in MIMS always count; recorded ones until a newer ERP snapshot carries them
-            $srAfter = DB::table('sr_reservation_lines as l')->join('sr_reservations as r', 'r.id', '=', 'l.sr_reservation_id')->where('r.warehouse_id', $wid)
-                ->where(fn ($q) => $q->where('r.status', 'APPROVED')->orWhere(fn ($w) => $w->where('r.status', 'RECORDED')
-                    ->when($snap !== null, fn ($x) => $x->whereRaw('(r.mims_recorded_at at time zone ?)::date > ?', [config('distriva.business_timezone'), $snap->as_of]))))
+            // collective reservations of connections without extension (docs/95): requested and sent ones draw the stock down until a newer ERP snapshot carries them
+            $srAfter = DB::table('sr_reservation_lines as l')->join('sr_reservations as r', 'r.id', '=', 'l.sr_reservation_id')->where('r.warehouse_id', $wid)->whereIn('r.status', ['REQUESTED', 'SAP_SENT'])
+                ->when($snap !== null, fn ($q) => $q->whereRaw('(coalesce(r.sap_sent_at, r.requested_at) at time zone ?)::date > ?', [config('distriva.business_timezone'), $snap->as_of]))
                 ->groupBy('l.khs_item_id')->selectRaw('l.khs_item_id, sum(l.quantity) q')->pluck('q', 'khs_item_id');
             foreach ($srAfter as $k => $q) {
                 $after[$k] = (float) ($after[$k] ?? 0) + (float) $q;

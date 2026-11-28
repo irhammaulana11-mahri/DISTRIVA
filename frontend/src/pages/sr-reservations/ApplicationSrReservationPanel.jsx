@@ -91,12 +91,13 @@ export default function ApplicationSrReservationPanel({ applicationId, onChanged
     setCreating(true)
     try {
       const body = {
+        application_ids: [applicationId],
         ...(warehouseId ? { warehouse_id: warehouseId } : {}),
         ...(info?.phase === 3 ? { vendor_company_id: vendorId } : {}),
         ...(srLength !== '' ? { sr_length_m: Number(srLength) } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       }
-      const res = await srReservationsApi.create(applicationId, body)
+      const res = await srReservationsApi.create(body)
       const createdId = res?.data?.id
       notify({ type: 'success', title: 'Rencana reservasi dibuat', desc: 'Rencana dibuat dalam status Draf. Silakan tinjau material dan ajukan.', tag: 'Reservasi SR' })
       setNotes('')

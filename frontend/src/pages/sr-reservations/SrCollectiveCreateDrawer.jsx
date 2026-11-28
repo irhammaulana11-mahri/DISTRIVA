@@ -37,6 +37,7 @@ export default function SrCollectiveCreateDrawer({
   const [srLength, setSrLength] = useState('35')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const agendaIdsKey = agendas.map((a) => a.application_id).join(',')
   const firstAppId = agendas[0]?.application_id || ''
@@ -49,17 +50,26 @@ export default function SrCollectiveCreateDrawer({
     () => Array.from(new Set(agendas.map((a) => a.phase).filter((p) => p != null))),
     [agendas],
   )
-  const mixedWarning = useMemo(() => {
+
+  const ruleViolations = useMemo(() => {
     const msgs = []
-    if (distinctUnits.length > 1) msgs.push('Agenda terpilih berasal dari beberapa ULP berbeda; disarankan 1 batch per ULP atau pilih gudang UP3.')
-    if (distinctPhases.length > 1) msgs.push('Agenda terpilih mencampur sambungan 1 Phasa dan 3 Phasa; disarankan dipisah per fasa.')
+    if (agendas.length > 100) {
+      msgs.push(`Maksimal 100 agenda per reservasi (terpilih ${agendas.length}).`)
+    }
+    if (distinctUnits.length > 1) {
+      msgs.push('Satu reservasi hanya boleh untuk satu ULP yang sama.')
+    }
+    if (distinctPhases.length > 1) {
+      msgs.push('Satu reservasi hanya boleh untuk satu jumlah phasa (1 Phasa atau 3 Phasa saja).')
+    }
     return msgs
-  }, [distinctUnits.length, distinctPhases.length])
+  }, [agendas.length, distinctUnits.length, distinctPhases.length])
 
   useEffect(() => {
     if (!open || agendas.length === 0) return
     let live = true
     setLoading(true)
+    setSubmitError('')
     Promise.all(
       agendas.map((a) =>
         srReservationsApi
@@ -121,6 +131,8 @@ export default function SrCollectiveCreateDrawer({
     [agendas],
   )
   const estCableM = Number(srLength || 35) * agendas.length
+  const warehouses = info?.warehouses || []
+  const warehouseRequired = warehouses.length > 1
 
   const handleRemoveBlocked = () => {
     if (!onRemoveAgenda) return
@@ -129,8 +141,8 @@ export default function SrCollectiveCreateDrawer({
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.()
-    if (agendas.length === 0 || blockedAgendas.length > 0) return
-    if (!warehouseId) {
+    if (agendas.length === 0 || blockedAgendas.length > 0 || ruleViolations.length > 0) return
+    if (warehouseRequired && !warehouseId) {
       notify({ type: 'error', title: 'Gudang belum dipilih', desc: 'Pilih gudang sumber material terlebih dahulu.', tag: 'Reservasi SR' })
       return
     }
@@ -140,54 +152,27 @@ export default function SrCollectiveCreateDrawer({
     }
 
     setSubmitting(true)
+    setSubmitError('')
     try {
-      const res = await srReservationsApi.createBatch({
+      const res = await srReservationsApi.create({
         application_ids: agendas.map((a) => a.application_id),
-        warehouse_id: warehouseId,
+        ...(warehouseId ? { warehouse_id: warehouseId } : {}),
         ...(batchPhase === 3 ? { vendor_company_id: vendorId } : {}),
         ...(srLength !== '' ? { sr_length_m: Number(srLength) } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       })
-      const results = Array.isArray(res?.data) ? res.data : null
-      const summary = res?.summary
-      if (results && summary) {
-        const failedRows = results.filter((r) => !r.ok)
-        if (failedRows.length > 0) {
-          notify({
-            type: summary.succeeded > 0 ? 'warning' : 'error',
-            title: `Reservasi kolektif: ${summary.succeeded} berhasil, ${summary.failed} gagal`,
-            desc: failedRows.slice(0, 3).map((r) => r.message || r.application_id).join('; '),
-            tag: 'Reservasi SR',
-          })
-          if (summary.succeeded > 0) {
-            onCreated?.(results.find((r) => r.ok)?.id)
-            onClose?.()
-          }
-        } else {
-          notify({
-            type: 'success',
-            title: 'Reservasi kolektif dibuat',
-            desc: `Rencana kolektif untuk ${summary.succeeded} agenda berhasil dibuat sebagai Draf.`,
-            tag: 'Reservasi SR',
-          })
-          onCreated?.(results[0]?.id)
-          onClose?.()
-        }
-      } else {
-        notify({
-          type: 'success',
-          title: 'Reservasi kolektif dibuat',
-          desc: `Rencana kolektif untuk ${agendas.length} agenda berhasil dibuat sebagai Draf.`,
-          tag: 'Reservasi SR',
-        })
-        onCreated?.(res?.data?.id)
-        onClose?.()
-      }
+      notify({
+        type: 'success',
+        title: 'Reservasi kolektif dibuat',
+        desc: `Draf reservasi untuk ${agendas.length} agenda berhasil dibuat.`,
+        tag: 'Reservasi SR',
+      })
+      onCreated?.(res?.data?.id)
+      onClose?.()
     } catch (err) {
-      const msg = err?.status === 404 || err?.status === 405
-        ? 'Endpoint kolektif backend (/sr-reservations/batch) belum tersedia. Pastikan agen backend sudah menerapkannya.'
-        : err?.message || 'Gagal membuat rencana reservasi kolektif.'
-      notify({ type: 'error', title: 'Gagal membuat reservasi kolektif', desc: msg, tag: 'Reservasi SR' })
+      const msg = err?.message || 'Gagal membuat reservasi kolektif.'
+      setSubmitError(msg)
+      notify({ type: 'error', title: 'Gagal membuat reservasi', desc: msg, tag: 'Reservasi SR' })
     } finally {
       setSubmitting(false)
     }
@@ -198,7 +183,7 @@ export default function SrCollectiveCreateDrawer({
       open={open}
       onClose={onClose}
       title={`Buat Reservasi Kolektif (${agendas.length} Agenda)`}
-      subtitle="Periksa kelayakan tiap agenda, pilih gudang sumber dan pelaksana untuk menggabungkan pemakaian material sebelum diajukan ke MIMS."
+      subtitle="Satu reservasi untuk banyak agenda (satu ULP, satu phasa) tanpa persetujuan. Total material dihitung otomatis dari BOM."
       size="max-w-4xl"
       footer={
         <>
@@ -211,9 +196,16 @@ export default function SrCollectiveCreateDrawer({
             variant="primary"
             icon={IconPlus}
             loading={submitting}
-            disabled={loading || agendas.length === 0 || blockedAgendas.length > 0 || !warehouseId || (batchPhase === 3 && !vendorId)}
+            disabled={
+              loading ||
+              agendas.length === 0 ||
+              blockedAgendas.length > 0 ||
+              ruleViolations.length > 0 ||
+              (warehouseRequired && !warehouseId) ||
+              (batchPhase === 3 && !vendorId)
+            }
           >
-            Buat Reservasi Kolektif ({agendas.length} Agenda)
+            Buat Reservasi ({agendas.length} Agenda)
           </Button>
         </>
       }
@@ -238,26 +230,30 @@ export default function SrCollectiveCreateDrawer({
             </div>
             <div
               className={`rounded-xl border p-3 ${
-                blockedAgendas.length > 0
+                blockedAgendas.length > 0 || ruleViolations.length > 0
                   ? 'border-amber-200 bg-amber-50/50 dark:border-amber-900/60 dark:bg-amber-950/20'
                   : 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/20'
               }`}
             >
-              <dt className={`text-[11px] font-medium ${blockedAgendas.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+              <dt className={`text-[11px] font-medium ${blockedAgendas.length > 0 || ruleViolations.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
                 Kesiapan Batch
               </dt>
-              <dd className={`mt-1 text-lg font-bold ${blockedAgendas.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+              <dd className={`mt-1 text-lg font-bold ${blockedAgendas.length > 0 || ruleViolations.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
                 {blockedAgendas.length > 0 ? `${readyCount} Siap · ${blockedAgendas.length} Terhalang` : `${readyCount} Siap Semua`}
               </dd>
             </div>
           </dl>
 
-          {mixedWarning.length > 0 && (
-            <Alert variant="warning">
+          {ruleViolations.length > 0 && (
+            <Alert variant="error">
               <ul className="list-disc pl-4 space-y-0.5">
-                {mixedWarning.map((m, i) => <li key={i}>{m}</li>)}
+                {ruleViolations.map((m, i) => <li key={i}>{m}</li>)}
               </ul>
             </Alert>
+          )}
+
+          {submitError && (
+            <Alert variant="error">{submitError}</Alert>
           )}
 
           {/* Layout 2 Kolom Seimbang */}
@@ -269,7 +265,7 @@ export default function SrCollectiveCreateDrawer({
                   <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                     Daftar No. Agenda Terpilih ({agendas.length})
                   </h3>
-                  <p className="text-[11px] text-slate-500">Pastikan seluruh agenda berstatus Siap sebelum membuat batch.</p>
+                  <p className="text-[11px] text-slate-500">Pastikan seluruh agenda berstatus Siap sebelum membuat reservasi.</p>
                 </div>
                 {blockedAgendas.length > 0 && agendas.length > blockedAgendas.length && onRemoveAgenda && (
                   <Button type="button" size="sm" variant="secondary" icon={IconTrash} onClick={handleRemoveBlocked}>
@@ -340,11 +336,11 @@ export default function SrCollectiveCreateDrawer({
               </div>
             </div>
 
-            {/* Kolom Kanan (5/12): Konfigurasi Batch */}
+            {/* Kolom Kanan (5/12): Konfigurasi Reservasi */}
             <div className="lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-xs">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Konfigurasi Batch Reservasi</h3>
-                <p className="text-[11px] text-slate-500">Gudang sumber tidak dapat diganti setelah rencana dibuat.</p>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Konfigurasi Reservasi</h3>
+                <p className="text-[11px] text-slate-500">Gudang sumber tidak dapat diganti setelah reservasi dibuat.</p>
               </div>
 
               <div>
@@ -358,7 +354,7 @@ export default function SrCollectiveCreateDrawer({
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
                 >
                   <option value="">Pilih gudang…</option>
-                  {(info?.warehouses || []).map((w) => {
+                  {warehouses.map((w) => {
                     const allowed = (w.level === 'ULP' && canPrepareUlp) || (w.level === 'UP3' && canPrepareUp3)
                     return (
                       <option key={w.id} value={w.id} disabled={!allowed}>
@@ -407,13 +403,13 @@ export default function SrCollectiveCreateDrawer({
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus-ring"
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Panjang aktual per agenda dapat disesuaikan setelah nomor MIMS terbit.
+                  Panjang aktual per agenda dapat disesuaikan setelah nomor permohonan MIMS dicatat.
                 </p>
               </div>
 
               <div>
                 <label htmlFor="col-notes" className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Catatan Batch (Opsional)
+                  Catatan (Opsional)
                 </label>
                 <textarea
                   id="col-notes"

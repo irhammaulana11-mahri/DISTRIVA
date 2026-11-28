@@ -17,6 +17,7 @@ Status: `BARU` (belum disentuh), `SEBAGIAN` (sebagian dikerjakan), `BLOKIR` (men
 
 | # | Tanggal | Perubahan | Dokumen | Kebutuhan frontend | Status |
 |---|---|---|---|---|---|
+| 79 | 2026-11-28 | **MEMUTUS KONTRAK #75–#76: reservasi menjadi kolektif** (belum di-commit): satu reservasi banyak agenda, tanpa persetujuan, status `DRAFT` → `REQUESTED` → `SAP_SENT`. API lama `POST /applications/{id}/sr-reservations`, `/batch`, `/batch-actions`, `/submit`, `/decision`, `/mims` **dihapus**; baru `POST /sr-reservations`, `/{id}/request`, `/realization`, `/match`, `/sap`, `/applications/{app}/remove`; bentuk daftar dan rincian berubah; izin `approve_ulp`/`approve_up3` dihapus | docs/95 | Rombak halaman reservasi: (1) pilih banyak agenda (satu ULP, satu phasa) lalu buat satu reservasi; (2) tabel total per material dengan koreksi beralasan; (3) catat nomor permohonan MIMS; (4) isian per agenda: nomor seri kWh meter dan MCB (`serial_codes`), panjang kabel, nomor segel, simpan bertahap; (5) tampilkan `sap_blockers`, tombol "Samakan total", lalu "Kirim SAP"; (6) keluarkan agenda, batal. Hapus layar setujui/kembalikan | BARU |
 | — | — | Tidak ada butir terbuka saat ini. | — | — | — |
 
 ## Selesai

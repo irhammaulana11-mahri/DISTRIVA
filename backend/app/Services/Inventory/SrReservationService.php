@@ -9,14 +9,17 @@ use App\Services\Bom\BomCalculator;
 use App\Services\Proposals\ProposalService;
 use App\Services\Surveys\SurveyService;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
  * Connection WITHOUT network extension (docs/95). 1 phase is installed directly once paid, without survey, from ULP stock only; when the connection finds that the network must be extended,
  * TEKNIK records a finding and the application follows the extension path (the reserved APP material stays and is not allocated again). 3 phase needs a survey accepted as "no extension".
- * The executor is set (1 phase: the contract of the ULP; 3 phase: chosen by the preparer) and the material is planned from the approved APP BOM, without drawing, MTO, RAB, KKF or SPK. DRAFT -> SUBMITTED -> APPROVED -> RECORDED (the MIMS reservation number is typed in).
- * Who prepares/approves follows the source warehouse (ULP or UP3); callers authorize the actor for that level first.
+ *
+ * Reservations are COLLECTIVE and follow MIMS (owner): pick the agendas, total per material, record the MIMS request number (DRAFT -> REQUESTED, stock held), enter per agenda the serial
+ * numbers, cable length and seals, then send to SAP (SAP_SENT) — only when every total equals what the agendas realised. No approval step. MIMS and SAP are typed in by hand for now.
+ * Callers authorize the actor for the level of the source warehouse first.
  */
 class SrReservationService
 {
@@ -29,6 +32,8 @@ class SrReservationService
     /** The status in which a field finding keeps the extension path open although EIS already moved on to the connection. */
     private const CONNECTING = 'CONNECTION_IN_PROGRESS';
 
+    public function __construct(private readonly BomCalculator $calculator, private readonly StockService $stock) {}
+
     /**
      * May survey, drawing, MTO and proposal work proceed for the application? Their usual statuses, or "connection in progress" with a field finding.
      *
@@ -39,8 +44,6 @@ class SrReservationService
         return in_array($application->current_status, $open, true)
             || ($application->current_status === self::CONNECTING && self::activeFinding($application->id)->exists());
     }
-
-    public function __construct(private readonly BomCalculator $calculator, private readonly StockService $stock) {}
 
     /** The field finding in force ("the network must be extended"); a withdrawn one stays as history only. */
     public static function activeFinding(string $applicationId): Builder
@@ -94,7 +97,7 @@ class SrReservationService
             ->first(['k.id', 'k.vendor_company_id', 'k.contract_number', 'k.valid_from', 'k.valid_until', 'c.code as vendor_code', 'c.name as vendor_name']);
     }
 
-    /** Warehouses that may supply the application: 1 phase only its ULP's own; 3 phase also its UP3's. @return list<object> */
+    /** Warehouses that may supply: 1 phase only the ULP's own; 3 phase also its UP3's. @return list<object> */
     public function warehousesFor(string $unitId, ?int $phase): array
     {
         $parent = $phase === 1 ? null : DB::table('organizational_units')->where('id', $unitId)->value('parent_id');
@@ -104,8 +107,19 @@ class SrReservationService
             ->get(['w.id', 'w.code', 'w.name', 'w.plant', 'w.stor_loc', 'u.unit_type as level'])->all();
     }
 
+    /** The chosen warehouse, or the only one there is when none is named. */
+    public function pickWarehouse(string $unitId, int $phase, ?string $chosen): object
+    {
+        $warehouses = collect($this->warehousesFor($unitId, $phase));
+        $warehouse = $chosen === null ? ($warehouses->count() === 1 ? $warehouses->first() : null) : $warehouses->firstWhere('id', $chosen);
+
+        return $warehouse ?? throw new AssignmentRuleViolation($phase === 1
+            ? 'Sambungan 1 phasa hanya mengambil stok ULP: pilih gudang aktif milik ULP permohonan.'
+            : 'Gudang sumber harus gudang aktif milik ULP permohonan atau UP3 induknya.');
+    }
+
     /**
-     * Why a plan cannot be opened (or, with `$existingPlan`, carried on) now; empty = it can.
+     * Why an application cannot be put in a reservation (or, with `$existingPlan`, stay in a draft being requested); empty = it can.
      *
      * @return list<string>
      */
@@ -158,58 +172,9 @@ class SrReservationService
         $numbers = DB::table('mims_reservation_customers')->where('application_id', $applicationId)->pluck('reservation_no')
             ->merge($agendas === [] ? [] : DB::table('mims_reservation_customers')->whereIn('agenda_no', $agendas)->pluck('reservation_no'))
             ->merge($agendas === [] ? [] : DB::table('mims_issue_customers')->whereIn('agenda_no', $agendas)->pluck('reservation_no'))->unique();
-        $own = DB::table('sr_reservations')->where('application_id', $applicationId)->whereNotNull('mims_reservation_no')->pluck('mims_reservation_no');
+        $own = DB::table('sr_reservations as r')->join('sr_reservation_applications as x', 'x.sr_reservation_id', '=', 'r.id')->where('x.application_id', $applicationId)->whereNotNull('r.mims_reservation_no')->pluck('r.mims_reservation_no');
 
         return $numbers->diff($own)->values()->all();
-    }
-
-    /** The connection of a 1-phase customer found that the network must be extended: unreserved plans are cancelled, approved or recorded ones stay (owner: the APP material is still used). */
-    public function reportExtension(string $applicationId, string $reason, ?float $distance, User $actor): void
-    {
-        DB::transaction(function () use ($applicationId, $reason, $distance, $actor): void {
-            $app = DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
-            $power = self::powerVa($app);
-            if ($power === null || self::phaseOf($power) !== 1) {
-                throw new AssignmentRuleViolation('Temuan lapangan ini hanya untuk sambungan 1 phasa; 3 phasa ditentukan oleh survei.');
-            }
-            if (! in_array($app->current_status, [...self::ONE_PHASE_STATUSES, self::CONNECTING], true)) {
-                throw new AssignmentRuleViolation("Status permohonan {$app->current_status}: tidak sedang dalam penyambungan.");
-            }
-            if (self::activeFinding($applicationId)->exists()) {
-                throw new AssignmentRuleViolation('Permohonan sudah dilaporkan perlu perluasan.');
-            }
-            DB::table('sr_extension_findings')->insert(['id' => (string) Str::uuid(), 'application_id' => $applicationId, 'reason' => $reason, 'distance_m' => $distance, 'reported_by' => $actor->getKey(), 'reported_at' => now()]);
-            foreach (DB::table('sr_reservations')->where('application_id', $applicationId)->whereIn('status', ['DRAFT', 'SUBMITTED'])->pluck('id') as $id) {
-                $this->cancel($id, 'Saat penyambungan ditemukan perlu perluasan.', $actor);
-            }
-        });
-    }
-
-    /** A finding recorded by mistake is withdrawn, as long as no extension work followed it. Plans cancelled by the finding stay cancelled; a new one can be made. */
-    public function withdrawExtension(string $applicationId, string $reason, User $actor): void
-    {
-        DB::transaction(function () use ($applicationId, $reason, $actor): void {
-            DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
-            $finding = self::activeFinding($applicationId)->first() ?? throw new AssignmentRuleViolation('Permohonan ini tidak sedang ditandai perlu perluasan.');
-            $followed = match (true) {
-                DB::table('application_surveys')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->where('created_at', '>=', $finding->reported_at)->exists() => 'survei (batalkan surveinya dulu)',
-                ProposalService::liveFor($applicationId) !== null => 'usulan perluasan',
-                DB::table('application_drawings')->where('application_id', $applicationId)->exists() => 'gambar',
-                DB::table('allocations')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->exists() => 'alokasi',
-                default => null,
-            };
-            if ($followed !== null) {
-                throw new AssignmentRuleViolation("Tanda perlu perluasan tidak dapat dibatalkan karena sudah ada {$followed}.");
-            }
-            DB::table('sr_extension_findings')->where('id', $finding->id)->update(['cancelled_by' => $actor->getKey(), 'cancelled_at' => now(), 'cancel_reason' => $reason]);
-        });
-    }
-
-    /** Material already reserved for the application by its approved or recorded plan, per KHS item: an extension allocation does not repeat it. @return array<string,float> */
-    public static function reservedFor(string $applicationId): array
-    {
-        return DB::table('sr_reservation_lines as l')->join('sr_reservations as r', 'r.id', '=', 'l.sr_reservation_id')->where('r.application_id', $applicationId)->whereIn('r.status', ['APPROVED', 'RECORDED'])
-            ->groupBy('l.khs_item_id')->selectRaw('l.khs_item_id, sum(l.quantity) q')->pluck('q', 'khs_item_id')->map(fn ($q) => (float) $q)->all();
     }
 
     /**
@@ -279,47 +244,101 @@ class SrReservationService
         return DB::table('price_book_items')->where('price_book_id', $book)->whereIn('khs_item_id', $khsIds)->where('material_status', 'PRICED')->pluck('khs_item_id')->mapWithKeys(fn ($id) => [$id => true])->all();
     }
 
-    /** @param array{warehouse_id?:?string,vendor_company_id?:?string,sr_length_m?:mixed,notes?:?string} $in */
-    public function create(string $applicationId, array $in, User $actor): string
+    /**
+     * One reservation for several agendas of one ULP and one phase, from one warehouse, by one executor. All or nothing: every agenda that cannot join is named.
+     *
+     * @param  array{application_ids:list<string>,warehouse_id?:?string,vendor_company_id?:?string,sr_length_m?:mixed,notes?:?string}  $in
+     */
+    public function create(array $in, User $actor): string
     {
-        return DB::transaction(function () use ($applicationId, $in, $actor): string {
-            $app = DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
-            $blockers = $this->blockers($app);
-            if ($blockers !== []) {
-                throw new AssignmentRuleViolation(implode(' ', $blockers));
+        return DB::transaction(function () use ($in, $actor): string {
+            $apps = $this->lockApplications($in['application_ids']);
+            if ($apps->pluck('organizational_unit_id')->unique()->count() > 1) {
+                throw new AssignmentRuleViolation('Satu reservasi hanya untuk satu ULP.');
             }
-            if (DB::table('sr_reservations')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->exists()) {
-                throw new AssignmentRuleViolation('Permohonan sudah punya rencana reservasi yang berjalan; batalkan dulu untuk membuat yang baru.');
+            $unitId = (string) $apps->first()->organizational_unit_id;
+            $phases = $apps->map(fn (object $a): int => self::powerVa($a) === null ? 0 : self::phaseOf(self::powerVa($a)))->unique();
+            if ($phases->count() > 1) {
+                throw new AssignmentRuleViolation('Satu reservasi tidak boleh mencampur sambungan 1 phasa dan 3 phasa.');
             }
-            $power = (int) self::powerVa($app);
-            $phase = self::phaseOf($power);
-            $warehouse = $this->pickWarehouse($app->organizational_unit_id, $phase, $in['warehouse_id'] ?? null);
-            [$vendorId, $contractId] = $this->executor($app->organizational_unit_id, $phase, $in['vendor_company_id'] ?? null);
+            $this->assertCanJoin($apps);
+            $phase = (int) $phases->first();
+            $warehouse = $this->pickWarehouse($unitId, $phase, $in['warehouse_id'] ?? null);
+            [$vendorId, $contractId] = $this->executor($unitId, $phase, $in['vendor_company_id'] ?? null);
             $length = (float) ($in['sr_length_m'] ?? config('distriva.sr_reservation.default_sr_length_m'));
-            $need = $this->bomNeed($app, $power, $length);
 
             $id = (string) Str::uuid();
-            DB::table('sr_reservations')->insert(['id' => $id, 'application_id' => $applicationId, 'version_number' => ((int) DB::table('sr_reservations')->where('application_id', $applicationId)->max('version_number')) + 1,
-                'status' => 'DRAFT', 'phase' => $phase, 'power_va' => $power, 'source_level' => $warehouse->level, 'warehouse_id' => $warehouse->id, 'vendor_company_id' => $vendorId, 'vendor_contract_id' => $contractId,
-                'sr_length_m' => $length, 'bom_group' => $need['group'], 'bom_header_id' => $need['header_id'], 'notes' => $in['notes'] ?? null, 'created_by' => $actor->getKey(), 'created_at' => now(), 'updated_at' => now()]);
-            foreach ($need['lines'] as $khs => $q) {
-                DB::table('sr_reservation_lines')->insert(['id' => (string) Str::uuid(), 'sr_reservation_id' => $id, 'khs_item_id' => $khs, 'quantity_bom' => $q, 'quantity' => $q]);
+            DB::table('sr_reservations')->insert(['id' => $id, 'organizational_unit_id' => $unitId, 'status' => 'DRAFT', 'phase' => $phase, 'source_level' => $warehouse->level, 'warehouse_id' => $warehouse->id,
+                'vendor_company_id' => $vendorId, 'vendor_contract_id' => $contractId, 'sr_length_m' => $length, 'notes' => $in['notes'] ?? null, 'created_by' => $actor->getKey(), 'created_at' => now(), 'updated_at' => now()]);
+            foreach ($apps as $app) {
+                $this->join($id, $app, $length);
             }
-            $this->event($id, 'CREATED', $actor, null, ['warehouse' => $warehouse->code, 'phase' => $phase, 'sr_length_m' => $length]);
+            $this->retotal($id);
+            $this->event($id, 'CREATED', $actor, null, ['warehouse' => $warehouse->code, 'phase' => $phase, 'agendas' => $apps->count(), 'sr_length_m' => $length]);
 
             return $id;
         });
     }
 
-    /** The chosen warehouse, or the only one there is when none is named. */
-    public function pickWarehouse(string $unitId, int $phase, ?string $chosen): object
+    /** @param list<string> $ids */
+    private function lockApplications(array $ids): Collection
     {
-        $warehouses = collect($this->warehousesFor($unitId, $phase));
-        $warehouse = $chosen === null ? ($warehouses->count() === 1 ? $warehouses->first() : null) : $warehouses->firstWhere('id', $chosen);
+        $apps = DB::table('applications')->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
+        if ($apps->count() !== count(array_unique($ids))) {
+            throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        }
 
-        return $warehouse ?? throw new AssignmentRuleViolation($phase === 1
-            ? 'Sambungan 1 phasa hanya mengambil stok ULP: pilih gudang aktif milik ULP permohonan.'
-            : 'Gudang sumber harus gudang aktif milik ULP permohonan atau UP3 induknya.');
+        return $apps;
+    }
+
+    private function assertCanJoin(Collection $apps): void
+    {
+        $running = DB::table('sr_reservation_applications')->whereIn('application_id', $apps->pluck('id'))->whereNull('released_at')->pluck('application_id')->all();
+        $errors = [];
+        foreach ($apps as $app) {
+            $why = $this->blockers($app);
+            if (in_array($app->id, $running, true)) {
+                $why[] = 'Sudah ada pada reservasi lain yang berjalan.';
+            }
+            if ($why !== []) {
+                $errors[] = $app->application_number.': '.implode(' ', $why);
+            }
+        }
+        if ($errors !== []) {
+            throw new AssignmentRuleViolation(implode(' | ', $errors));
+        }
+    }
+
+    private function join(string $reservationId, object $app, float $length): void
+    {
+        $power = (int) self::powerVa($app);
+        $need = $this->bomNeed($app, $power, $length);
+        DB::table('sr_reservation_applications')->insert(['id' => (string) Str::uuid(), 'sr_reservation_id' => $reservationId, 'application_id' => $app->id, 'power_va' => $power,
+            'bom_group' => $need['group'], 'bom_header_id' => $need['header_id'], 'needs' => json_encode((object) $need['lines'])]);
+    }
+
+    /** The calculated total per material = the sum of the agendas still in; a typed correction keeps its difference from the calculated total. */
+    private function retotal(string $reservationId): void
+    {
+        $sum = [];
+        foreach (DB::table('sr_reservation_applications')->where('sr_reservation_id', $reservationId)->whereNull('released_at')->pluck('needs') as $needs) {
+            foreach (json_decode($needs, true) as $khs => $q) {
+                $sum[$khs] = ($sum[$khs] ?? 0) + (float) $q;
+            }
+        }
+        $lines = DB::table('sr_reservation_lines')->where('sr_reservation_id', $reservationId)->get()->keyBy('khs_item_id');
+        foreach ($lines->keys()->merge(array_keys($sum))->unique() as $khs) {
+            $line = $lines[$khs] ?? null;
+            $calculated = (float) ($sum[$khs] ?? 0);
+            $quantity = $line === null || $line->correction_reason === null ? $calculated : max(0.0, (float) $line->quantity + $calculated - (float) $line->quantity_bom);
+            if ($line === null) {
+                DB::table('sr_reservation_lines')->insert(['id' => (string) Str::uuid(), 'sr_reservation_id' => $reservationId, 'khs_item_id' => $khs, 'quantity_bom' => $calculated, 'quantity' => $quantity]);
+            } elseif ($calculated <= 0 && $quantity <= 0) {
+                DB::table('sr_reservation_lines')->where('id', $line->id)->delete();
+            } else {
+                DB::table('sr_reservation_lines')->where('id', $line->id)->update(['quantity_bom' => $calculated, 'quantity' => $quantity]);
+            }
+        }
     }
 
     /** 1 phase: the contracted company, never chosen by hand. 3 phase: the preparer's choice among active network companies. @return array{0:string,1:?string} */
@@ -350,22 +369,19 @@ class SrReservationService
     }
 
     /**
-     * Draft changes. `corrections` sets the quantity of one material (a material outside the BOM may be added); a quantity that differs from the calculated one needs a reason.
-     * Changing the SR length resets the cable line to the new length.
+     * Changes. Draft only: SR length (per customer), 3-phase executor, notes, more agendas. Totals (`corrections`) also after the request, so they can be made equal to what was realised;
+     * a material outside the BOM (e.g. a seal supplied by PLN) may be added. A total that differs from the calculated one needs a reason.
      *
-     * @param  array{sr_length_m?:mixed,vendor_company_id?:?string,notes?:?string,corrections?:list<array{khs_code:string,quantity:mixed,reason?:?string}>}  $in
+     * @param  array{sr_length_m?:mixed,vendor_company_id?:?string,notes?:?string,add_application_ids?:list<string>,corrections?:list<array{khs_code:string,quantity:mixed,reason?:?string}>}  $in
      */
     public function update(string $id, array $in, User $actor): void
     {
         DB::transaction(function () use ($id, $in, $actor): void {
-            $r = $this->lock($id, ['DRAFT'], 'diubah');
-            $changes = [];
-            if (isset($in['sr_length_m'])) {
-                $length = (float) $in['sr_length_m'];
-                $cables = DB::table('khs_items')->whereIn('code', (array) config('distriva.sr_reservation.cable_codes'))->pluck('id');
-                DB::table('sr_reservation_lines')->where('sr_reservation_id', $id)->whereIn('khs_item_id', $cables)->update(['quantity_bom' => $length, 'quantity' => $length, 'correction_reason' => null]);
-                $changes['sr_length_m'] = $length;
+            $r = $this->lock($id, ['DRAFT', 'REQUESTED'], 'diubah');
+            if ($r->status !== 'DRAFT' && array_intersect_key($in, array_flip(['sr_length_m', 'vendor_company_id', 'add_application_ids'])) !== []) {
+                throw new AssignmentRuleViolation('Sesudah dimohonkan hanya jumlah total dan catatan yang dapat diubah.');
             }
+            $changes = [];
             if (isset($in['vendor_company_id']) && $in['vendor_company_id'] !== $r->vendor_company_id) {
                 if ((int) $r->phase === 1) {
                     throw new AssignmentRuleViolation('Pelaksana 1 phasa mengikuti kontrak; tidak dapat diganti.');
@@ -376,105 +392,376 @@ class SrReservationService
             if (array_key_exists('notes', $in)) {
                 $changes['notes'] = $in['notes'];
             }
-            $applied = [];
-            foreach ($in['corrections'] ?? [] as $c) {
-                $khs = DB::table('khs_items')->where('code', $c['khs_code'])->value('id') ?? throw new AssignmentRuleViolation("KHS {$c['khs_code']} tidak dikenal.");
-                $line = DB::table('sr_reservation_lines')->where('sr_reservation_id', $id)->where('khs_item_id', $khs)->first();
-                $quantity = (float) $c['quantity'];
-                $baseline = (float) ($line->quantity_bom ?? 0);
-                $reason = trim((string) ($c['reason'] ?? ''));
-                $differs = abs($quantity - $baseline) > 1e-9;
-                if ($differs && $reason === '') {
-                    throw new AssignmentRuleViolation("KHS {$c['khs_code']}: koreksi jumlah wajib disertai alasan.");
+            $length = (float) ($in['sr_length_m'] ?? $r->sr_length_m);
+            if (isset($in['sr_length_m'])) {
+                $changes['sr_length_m'] = $length;
+                $cables = array_flip($this->itemIds('cable_codes'));
+                foreach (DB::table('sr_reservation_applications')->where('sr_reservation_id', $id)->whereNull('released_at')->get(['id', 'needs']) as $agenda) {
+                    $needs = json_decode($agenda->needs, true);
+                    foreach (array_intersect_key($needs, $cables) as $khs => $ignored) {
+                        $needs[$khs] = $length;
+                    }
+                    DB::table('sr_reservation_applications')->where('id', $agenda->id)->update(['needs' => json_encode((object) $needs)]);
                 }
-                $values = ['quantity' => $quantity, 'correction_reason' => $differs ? $reason : null];
-                if ($line === null) {
-                    DB::table('sr_reservation_lines')->insert(['id' => (string) Str::uuid(), 'sr_reservation_id' => $id, 'khs_item_id' => $khs, 'quantity_bom' => 0] + $values);
-                } else {
-                    DB::table('sr_reservation_lines')->where('id', $line->id)->update($values);
-                }
-                $applied[] = ['khs_code' => $c['khs_code'], 'quantity' => $quantity, 'reason' => $values['correction_reason']];
+                DB::table('sr_reservation_lines')->where('sr_reservation_id', $id)->whereIn('khs_item_id', array_keys($cables))->update(['correction_reason' => null]);
             }
-            DB::table('sr_reservations')->where('id', $id)->update($changes + ['updated_at' => now()]);
+            if (! empty($in['add_application_ids'])) {
+                $apps = $this->lockApplications($in['add_application_ids']);
+                foreach ($apps as $app) {
+                    $power = self::powerVa($app);
+                    if ($app->organizational_unit_id !== $r->organizational_unit_id || $power === null || self::phaseOf($power) !== (int) $r->phase) {
+                        throw new AssignmentRuleViolation("{$app->application_number}: harus dari ULP dan jumlah phasa yang sama dengan reservasi.");
+                    }
+                }
+                $this->assertCanJoin($apps);
+                foreach ($apps as $app) {
+                    $this->join($id, $app, $length);
+                }
+                $changes['added'] = $apps->pluck('application_number')->all();
+            }
+            if (isset($in['sr_length_m']) || ! empty($in['add_application_ids'])) {
+                $this->retotal($id);
+            }
+            $applied = $this->correct($r, $in['corrections'] ?? []);
+            DB::table('sr_reservations')->where('id', $id)->update(array_intersect_key($changes, array_flip(['vendor_company_id', 'notes', 'sr_length_m'])) + ['updated_at' => now()]);
             $this->event($id, 'UPDATED', $actor, null, $changes + ($applied === [] ? [] : ['corrections' => $applied]));
         });
     }
 
-    public function submit(string $id, User $actor): void
+    /**
+     * @param  list<array{khs_code:string,quantity:mixed,reason?:?string}>  $corrections
+     * @return list<array<string,mixed>>
+     */
+    private function correct(object $r, array $corrections): array
     {
-        DB::transaction(function () use ($id, $actor): void {
-            $r = $this->lock($id, ['DRAFT'], 'diajukan');
-            $this->assertStillValid($r);
-            if (! DB::table('sr_reservation_lines')->where('sr_reservation_id', $id)->where('quantity', '>', 0)->exists()) {
-                throw new AssignmentRuleViolation('Rencana reservasi tidak memuat material.');
+        $applied = [];
+        $increase = [];
+        foreach ($corrections as $c) {
+            $khs = DB::table('khs_items')->where('code', $c['khs_code'])->value('id') ?? throw new AssignmentRuleViolation("KHS {$c['khs_code']} tidak dikenal.");
+            $line = DB::table('sr_reservation_lines')->where('sr_reservation_id', $r->id)->where('khs_item_id', $khs)->first();
+            $quantity = (float) $c['quantity'];
+            $calculated = (float) ($line->quantity_bom ?? 0);
+            $reason = trim((string) ($c['reason'] ?? ''));
+            $differs = abs($quantity - $calculated) > 1e-9;
+            if ($differs && $reason === '') {
+                throw new AssignmentRuleViolation("KHS {$c['khs_code']}: koreksi jumlah wajib disertai alasan.");
             }
-            DB::table('sr_reservations')->where('id', $id)->update(['status' => 'SUBMITTED', 'submitted_by' => $actor->getKey(), 'submitted_at' => now(), 'updated_at' => now()]);
-            $this->event($id, 'SUBMITTED', $actor);
+            $more = $quantity - (float) ($line->quantity ?? 0);
+            if ($more > 1e-9) {
+                $increase[$khs] = $more;
+            }
+            $values = ['quantity' => $quantity, 'correction_reason' => $differs ? $reason : null];
+            if ($line === null) {
+                DB::table('sr_reservation_lines')->insert(['id' => (string) Str::uuid(), 'sr_reservation_id' => $r->id, 'khs_item_id' => $khs, 'quantity_bom' => 0] + $values);
+            } else {
+                DB::table('sr_reservation_lines')->where('id', $line->id)->update($values);
+            }
+            $applied[] = ['khs_code' => $c['khs_code'], 'quantity' => $quantity, 'reason' => $values['correction_reason']];
+        }
+        if ($r->status === 'REQUESTED' && $increase !== []) {
+            $this->assertStock($r->warehouse_id, $increase);
+        }
+
+        return $applied;
+    }
+
+    /** Takes one agenda out (with a reason): the totals drop by its share and its realisation is discarded. The last one is removed by cancelling. */
+    public function removeApplication(string $id, string $applicationId, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($id, $applicationId, $reason, $actor): void {
+            $this->lock($id, ['DRAFT', 'REQUESTED'], 'diubah');
+            $agenda = DB::table('sr_reservation_applications')->where('sr_reservation_id', $id)->where('application_id', $applicationId)->whereNull('released_at')->first()
+                ?? throw new AssignmentRuleViolation('Agenda itu tidak ada pada reservasi ini.');
+            if (DB::table('sr_reservation_applications')->where('sr_reservation_id', $id)->whereNull('released_at')->count() === 1) {
+                throw new AssignmentRuleViolation('Ini agenda terakhir: batalkan reservasinya.');
+            }
+            DB::table('sr_reservation_serials')->where('sr_reservation_application_id', $agenda->id)->delete();
+            DB::table('sr_reservation_applications')->where('id', $agenda->id)->update(['released_at' => now(), 'released_by' => $actor->getKey(), 'release_reason' => $reason, 'actual_cable_m' => null, 'seal_numbers' => '[]']);
+            $this->retotal($id);
+            $this->event($id, 'AGENDA_REMOVED', $actor, $reason, ['application_id' => $applicationId]);
         });
     }
 
-    /** APPROVE re-checks the stock under lock; RETURN sends the plan back to DRAFT with a reason. */
-    public function decide(string $id, string $decision, ?string $reason, User $actor): void
-    {
-        DB::transaction(function () use ($id, $decision, $reason, $actor): void {
-            $r = $this->lock($id, ['SUBMITTED'], 'diputus');
-            if ($decision === 'RETURN') {
-                if (trim((string) $reason) === '') {
-                    throw new AssignmentRuleViolation('Alasan pengembalian wajib diisi.');
-                }
-                DB::table('sr_reservations')->where('id', $id)->update(['status' => 'DRAFT', 'submitted_by' => null, 'submitted_at' => null, 'updated_at' => now()]);
-                $this->event($id, 'RETURNED', $actor, trim((string) $reason));
-
-                return;
-            }
-            $this->assertStillValid($r);
-            DB::table('warehouses')->where('id', $r->warehouse_id)->lockForUpdate()->first();
-            $position = $this->stock->position([$r->warehouse_id], $this->today());
-            $short = [];
-            foreach (DB::table('sr_reservation_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.sr_reservation_id', $id)->where('l.quantity', '>', 0)->get(['l.khs_item_id', 'l.quantity', 'k.code']) as $l) {
-                $available = (float) ($position[$l->khs_item_id]['available'] ?? 0);
-                if ((float) $l->quantity > $available + 1e-9) {
-                    $short[] = "KHS {$l->code}: butuh ".(float) $l->quantity.", tersedia {$available}.";
-                }
-            }
-            if ($short !== []) {
-                throw new AssignmentRuleViolation('Stok gudang tidak cukup. '.implode(' ', $short));
-            }
-            DB::table('sr_reservations')->where('id', $id)->update(['status' => 'APPROVED', 'approved_by' => $actor->getKey(), 'approved_at' => now(), 'updated_at' => now()]);
-            $this->event($id, 'APPROVED', $actor, $reason);
-        });
-    }
-
-    /** The reservation number typed after the plan was entered in MIMS; may be corrected while RECORDED. */
-    public function recordMims(string $id, string $number, User $actor): void
+    /** The request number from MIMS: DRAFT -> REQUESTED after the agendas and the stock are re-checked. While REQUESTED it may be corrected. */
+    public function request(string $id, string $number, User $actor): void
     {
         DB::transaction(function () use ($id, $number, $actor): void {
-            $r = $this->lock($id, ['APPROVED', 'RECORDED'], 'dicatat ke MIMS');
-            $number = trim($number);                                 // one MIMS reservation may hold several agendas: not unique
-            DB::table('sr_reservations')->where('id', $id)->update(['status' => 'RECORDED', 'mims_reservation_no' => $number, 'mims_send_method' => 'MANUAL', 'mims_recorded_by' => $actor->getKey(), 'mims_recorded_at' => now(), 'updated_at' => now()]);
-            $this->event($id, 'MIMS_RECORDED', $actor, null, ['reservation_no' => $number, 'previous' => $r->mims_reservation_no]);
+            $r = $this->lock($id, ['DRAFT', 'REQUESTED'], 'dimohonkan');
+            $number = trim($number);                                     // one MIMS reservation may hold several agendas
+            if ($r->status === 'DRAFT') {
+                $errors = [];
+                foreach (DB::table('sr_reservation_applications')->where('sr_reservation_id', $id)->whereNull('released_at')->get() as $agenda) {
+                    $app = DB::table('applications')->where('id', $agenda->application_id)->first();
+                    $why = $this->blockers($app, existingPlan: true);
+                    if (self::powerVa($app) !== (int) $agenda->power_va) {
+                        $why[] = 'Daya sudah berubah; keluarkan lalu tambahkan lagi.';
+                    }
+                    if ($why !== []) {
+                        $errors[] = $app->application_number.': '.implode(' ', $why);
+                    }
+                }
+                if ($errors !== []) {
+                    throw new AssignmentRuleViolation(implode(' | ', $errors));
+                }
+                $totals = DB::table('sr_reservation_lines')->where('sr_reservation_id', $id)->where('quantity', '>', 0)->pluck('quantity', 'khs_item_id')->map(fn ($q) => (float) $q)->all();
+                if ($totals === []) {
+                    throw new AssignmentRuleViolation('Reservasi tidak memuat material.');
+                }
+                $this->assertStock($r->warehouse_id, $totals);
+            }
+            DB::table('sr_reservations')->where('id', $id)->update(['status' => 'REQUESTED', 'mims_reservation_no' => $number, 'mims_send_method' => 'MANUAL', 'requested_by' => $r->requested_by ?? $actor->getKey(), 'requested_at' => $r->requested_at ?? now(), 'updated_at' => now()]);
+            $this->event($id, 'REQUESTED', $actor, null, ['reservation_no' => $number, 'previous' => $r->mims_reservation_no]);
+        });
+    }
+
+    /** @param array<string,float> $need quantity per KHS item id */
+    private function assertStock(string $warehouseId, array $need): void
+    {
+        DB::table('warehouses')->where('id', $warehouseId)->lockForUpdate()->first();
+        $position = $this->stock->position([$warehouseId], $this->today());
+        $codes = DB::table('khs_items')->whereIn('id', array_keys($need))->pluck('code', 'id');
+        $short = [];
+        foreach ($need as $khs => $quantity) {
+            $available = (float) ($position[$khs]['available'] ?? 0);
+            if ($quantity > $available + 1e-9) {
+                $short[] = "KHS {$codes[$khs]}: butuh {$quantity}, tersedia {$available}.";
+            }
+        }
+        if ($short !== []) {
+            throw new AssignmentRuleViolation('Stok gudang tidak cukup. '.implode(' ', $short));
+        }
+    }
+
+    /**
+     * Per agenda, after the request: cable used, seal numbers and serial numbers. Saved piece by piece; a field that is sent replaces what was there.
+     *
+     * @param  list<array{application_id:string,cable_m?:mixed,seals?:list<string>,serials?:list<array{khs_code:string,serial_number:string}>}>  $items
+     */
+    public function realize(string $id, array $items, User $actor): void
+    {
+        DB::transaction(function () use ($id, $items, $actor): void {
+            $this->lock($id, ['REQUESTED'], 'diisi realisasinya');
+            $serialCodes = array_merge(...array_values((array) config('distriva.sr_reservation.serial_codes')));
+            foreach ($items as $item) {
+                $agenda = DB::table('sr_reservation_applications')->where('sr_reservation_id', $id)->where('application_id', $item['application_id'])->whereNull('released_at')->first()
+                    ?? throw new AssignmentRuleViolation('Ada agenda yang tidak termasuk reservasi ini.');
+                $values = [];
+                if (array_key_exists('cable_m', $item)) {
+                    $values['actual_cable_m'] = $item['cable_m'];
+                }
+                if (array_key_exists('seals', $item)) {
+                    $seals = array_values(array_filter(array_map('trim', $item['seals'] ?? []), fn (string $s): bool => $s !== ''));
+                    $taken = $seals === [] ? false : $this->otherOpenAgendas($agenda->id)->whereRaw('exists (select 1 from jsonb_array_elements_text(x.seal_numbers) s where s = any(?))', ['{'.implode(',', array_map(fn ($s) => '"'.addcslashes($s, '"\\').'"', $seals)).'}'])->exists();
+                    if ($taken || count($seals) !== count(array_unique($seals))) {
+                        throw new AssignmentRuleViolation('Nomor segel dobel atau sudah dipakai agenda lain.');
+                    }
+                    $values['seal_numbers'] = json_encode($seals);
+                }
+                if ($values !== []) {
+                    DB::table('sr_reservation_applications')->where('id', $agenda->id)->update($values);
+                }
+                if (array_key_exists('serials', $item)) {
+                    DB::table('sr_reservation_serials')->where('sr_reservation_application_id', $agenda->id)->delete();
+                    foreach ($item['serials'] ?? [] as $serial) {
+                        if (! in_array($serial['khs_code'], $serialCodes, true)) {
+                            throw new AssignmentRuleViolation("KHS {$serial['khs_code']} tidak memakai nomor seri (hanya kWh meter dan MCB).");
+                        }
+                        $khs = DB::table('khs_items')->where('code', $serial['khs_code'])->value('id') ?? throw new AssignmentRuleViolation("KHS {$serial['khs_code']} tidak dikenal.");
+                        $number = trim($serial['serial_number']);
+                        $used = $this->otherOpenAgendas(null)->join('sr_reservation_serials as n', 'n.sr_reservation_application_id', '=', 'x.id')->where('n.khs_item_id', $khs)->where('n.serial_number', $number)->exists();
+                        if ($used) {
+                            throw new AssignmentRuleViolation("Nomor seri {$number} sudah dipakai.");
+                        }
+                        DB::table('sr_reservation_serials')->insert(['id' => (string) Str::uuid(), 'sr_reservation_application_id' => $agenda->id, 'khs_item_id' => $khs, 'serial_number' => $number]);
+                    }
+                }
+            }
+            DB::table('sr_reservations')->where('id', $id)->update(['updated_at' => now()]);
+            $this->event($id, 'REALIZED', $actor, null, ['agendas' => count($items)]);
+        });
+    }
+
+    /** Agendas still in a running reservation, other than the named one. */
+    private function otherOpenAgendas(?string $exceptAgendaId): Builder
+    {
+        return DB::table('sr_reservation_applications as x')->whereNull('x.released_at')->when($exceptAgendaId, fn (Builder $q) => $q->where('x.id', '<>', $exceptAgendaId));
+    }
+
+    /**
+     * What still stops "Kirim SAP": an agenda without its serials or cable, or a total that differs from what the agendas realised (the two must be equal).
+     *
+     * @return array{blockers:list<string>,matches:array<string,float>} `matches` = the totals as realised, per KHS item id, for materials realised per agenda
+     */
+    public function sapCheck(string $id): array
+    {
+        $agendas = DB::table('sr_reservation_applications as x')->join('applications as a', 'a.id', '=', 'x.application_id')->where('x.sr_reservation_id', $id)->whereNull('x.released_at')->get(['x.*', 'a.application_number']);
+        $totals = DB::table('sr_reservation_lines')->where('sr_reservation_id', $id)->pluck('quantity', 'khs_item_id')->map(fn ($q) => (float) $q)->all();
+        $serials = DB::table('sr_reservation_serials')->whereIn('sr_reservation_application_id', $agendas->pluck('id'))->get()->groupBy('sr_reservation_application_id');
+        $cables = array_flip($this->itemIds('cable_codes'));
+        $categories = [];
+        foreach (['kwh' => 'kWh meter', 'mcb' => 'MCB'] as $key => $label) {
+            $categories[$label] = array_flip(DB::table('khs_items')->whereIn('code', (array) config("distriva.sr_reservation.serial_codes.{$key}"))->pluck('id')->all());
+        }
+        $serialIds = array_replace(...array_values($categories));
+
+        $blockers = [];
+        $realised = [];
+        foreach (array_keys(array_intersect_key($totals, $cables + $serialIds)) as $khs) {
+            $realised[$khs] = 0.0;
+        }
+        foreach ($agendas as $agenda) {
+            $needs = json_decode($agenda->needs, true);
+            $own = $serials[$agenda->id] ?? collect();
+            foreach ($categories as $label => $ids) {
+                $wanted = array_intersect_key($needs, $ids) !== [] && array_sum(array_intersect_key($totals, $ids)) > 0;
+                if ($wanted && $own->whereIn('khs_item_id', array_keys($ids))->isEmpty()) {
+                    $blockers[] = "{$agenda->application_number}: nomor seri {$label} belum diisi.";
+                }
+            }
+            foreach ($own as $s) {
+                $realised[$s->khs_item_id] = ($realised[$s->khs_item_id] ?? 0) + 1;
+            }
+            foreach (array_keys(array_intersect_key($needs, $cables)) as $khs) {
+                if ($agenda->actual_cable_m === null) {
+                    $blockers[] = "{$agenda->application_number}: panjang kabel belum diisi.";
+                } else {
+                    $realised[$khs] = ($realised[$khs] ?? 0) + (float) $agenda->actual_cable_m;
+                }
+            }
+        }
+        $sealCount = $agendas->sum(fn (object $a): int => count(json_decode($a->seal_numbers, true)));
+        foreach ($this->itemIds('seal_codes') as $khs) {
+            if (isset($totals[$khs])) {
+                $realised[$khs] = (float) $sealCount;
+            }
+        }
+        $codes = DB::table('khs_items')->whereIn('id', array_keys($realised))->pluck('code', 'id');
+        foreach ($realised as $khs => $actual) {
+            $total = (float) ($totals[$khs] ?? 0);
+            if (abs($total - $actual) > 1e-9) {
+                $blockers[] = "KHS {$codes[$khs]}: total reservasi {$total}, realisasi {$actual}. Samakan totalnya.";
+            }
+        }
+
+        return ['blockers' => $blockers, 'matches' => $realised];
+    }
+
+    /** Sets the totals of the materials realised per agenda (cable, serials, seals) to what was realised, before sending to SAP; MIMS must be corrected the same way. */
+    public function matchRealisation(string $id, User $actor): void
+    {
+        $codes = [];
+        DB::transaction(function () use ($id, $actor, &$codes): void {
+            $r = $this->lock($id, ['REQUESTED'], 'disamakan');
+            $matches = $this->sapCheck($id)['matches'];
+            $codes = DB::table('khs_items')->whereIn('id', array_keys($matches))->pluck('code', 'id');
+            $lines = DB::table('sr_reservation_lines')->where('sr_reservation_id', $id)->get()->keyBy('khs_item_id');
+            $corrections = [];
+            foreach ($matches as $khs => $actual) {
+                if (abs((float) ($lines[$khs]->quantity ?? 0) - $actual) > 1e-9) {
+                    $corrections[] = ['khs_code' => $codes[$khs], 'quantity' => $actual, 'reason' => 'Disamakan dengan realisasi per agenda'];
+                }
+            }
+            if ($corrections === []) {
+                throw new AssignmentRuleViolation('Total sudah sama dengan realisasi.');
+            }
+            $this->event($id, 'MATCHED', $actor, null, ['corrections' => $this->correct($r, $corrections)]);
+            DB::table('sr_reservations')->where('id', $id)->update(['updated_at' => now()]);
+        });
+    }
+
+    public function sendSap(string $id, ?string $reference, User $actor): void
+    {
+        DB::transaction(function () use ($id, $reference, $actor): void {
+            $this->lock($id, ['REQUESTED'], 'dikirim ke SAP');
+            $blockers = $this->sapCheck($id)['blockers'];
+            if ($blockers !== []) {
+                throw new AssignmentRuleViolation(implode(' ', $blockers));
+            }
+            DB::table('sr_reservations')->where('id', $id)->update(['status' => 'SAP_SENT', 'sap_sent_by' => $actor->getKey(), 'sap_sent_at' => now(), 'sap_reference' => $reference, 'updated_at' => now()]);
+            $this->event($id, 'SAP_SENT', $actor, null, ['reference' => $reference]);
         });
     }
 
     public function cancel(string $id, string $reason, User $actor): void
     {
         DB::transaction(function () use ($id, $reason, $actor): void {
-            $this->lock($id, ['DRAFT', 'SUBMITTED', 'APPROVED', 'RECORDED'], 'dibatalkan');
+            $this->lock($id, ['DRAFT', 'REQUESTED'], 'dibatalkan');
+            DB::table('sr_reservation_applications')->where('sr_reservation_id', $id)->whereNull('released_at')->update(['released_at' => now(), 'released_by' => $actor->getKey(), 'release_reason' => $reason]);
             DB::table('sr_reservations')->where('id', $id)->update(['status' => 'CANCELLED', 'cancelled_by' => $actor->getKey(), 'cancelled_at' => now(), 'cancel_reason' => $reason, 'updated_at' => now()]);
             $this->event($id, 'CANCELLED', $actor, $reason);
         });
     }
 
-    private function assertStillValid(object $reservation): void
+    /** The connection of a 1-phase customer found that the network must be extended: it leaves a draft reservation; a requested or sent one keeps it (owner: the APP material is still used). */
+    public function reportExtension(string $applicationId, string $reason, ?float $distance, User $actor): void
     {
-        $app = DB::table('applications')->where('id', $reservation->application_id)->first();
-        $blockers = $this->blockers($app, existingPlan: true);
-        if (self::powerVa($app) !== (int) $reservation->power_va) {
-            $blockers[] = 'Daya permohonan sudah berubah sejak rencana dibuat; batalkan dan buat ulang.';
+        DB::transaction(function () use ($applicationId, $reason, $distance, $actor): void {
+            $app = DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $power = self::powerVa($app);
+            if ($power === null || self::phaseOf($power) !== 1) {
+                throw new AssignmentRuleViolation('Temuan lapangan ini hanya untuk sambungan 1 phasa; 3 phasa ditentukan oleh survei.');
+            }
+            if (! in_array($app->current_status, [...self::ONE_PHASE_STATUSES, self::CONNECTING], true)) {
+                throw new AssignmentRuleViolation("Status permohonan {$app->current_status}: tidak sedang dalam penyambungan.");
+            }
+            if (self::activeFinding($applicationId)->exists()) {
+                throw new AssignmentRuleViolation('Permohonan sudah dilaporkan perlu perluasan.');
+            }
+            DB::table('sr_extension_findings')->insert(['id' => (string) Str::uuid(), 'application_id' => $applicationId, 'reason' => $reason, 'distance_m' => $distance, 'reported_by' => $actor->getKey(), 'reported_at' => now()]);
+            $draft = DB::table('sr_reservation_applications as x')->join('sr_reservations as r', 'r.id', '=', 'x.sr_reservation_id')->where('x.application_id', $applicationId)->whereNull('x.released_at')->where('r.status', 'DRAFT')->value('r.id');
+            if ($draft !== null) {
+                $why = 'Saat penyambungan ditemukan perlu perluasan.';
+                DB::table('sr_reservation_applications')->where('sr_reservation_id', $draft)->whereNull('released_at')->count() === 1
+                    ? $this->cancel($draft, $why, $actor)
+                    : $this->removeApplication($draft, $applicationId, $why, $actor);
+            }
+        });
+    }
+
+    /** A finding recorded by mistake is withdrawn, as long as no extension work followed it. What the finding took out of a draft stays out. */
+    public function withdrawExtension(string $applicationId, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($applicationId, $reason, $actor): void {
+            DB::table('applications')->where('id', $applicationId)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+            $finding = self::activeFinding($applicationId)->first() ?? throw new AssignmentRuleViolation('Permohonan ini tidak sedang ditandai perlu perluasan.');
+            $followed = match (true) {
+                DB::table('application_surveys')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->where('created_at', '>=', $finding->reported_at)->exists() => 'survei (batalkan surveinya dulu)',
+                ProposalService::liveFor($applicationId) !== null => 'usulan perluasan',
+                DB::table('application_drawings')->where('application_id', $applicationId)->exists() => 'gambar',
+                DB::table('allocations')->where('application_id', $applicationId)->where('status', '<>', 'CANCELLED')->exists() => 'alokasi',
+                default => null,
+            };
+            if ($followed !== null) {
+                throw new AssignmentRuleViolation("Tanda perlu perluasan tidak dapat dibatalkan karena sudah ada {$followed}.");
+            }
+            DB::table('sr_extension_findings')->where('id', $finding->id)->update(['cancelled_by' => $actor->getKey(), 'cancelled_at' => now(), 'cancel_reason' => $reason]);
+        });
+    }
+
+    /** Material already reserved for the application by its requested or sent reservation, per KHS item (cable as used once known): an extension allocation does not repeat it. @return array<string,float> */
+    public static function reservedFor(string $applicationId): array
+    {
+        $agenda = DB::table('sr_reservation_applications as x')->join('sr_reservations as r', 'r.id', '=', 'x.sr_reservation_id')->where('x.application_id', $applicationId)->whereNull('x.released_at')
+            ->whereIn('r.status', ['REQUESTED', 'SAP_SENT'])->first(['x.needs', 'x.actual_cable_m']);
+        if ($agenda === null) {
+            return [];
         }
-        if ($blockers !== []) {
-            throw new AssignmentRuleViolation(implode(' ', $blockers));
+        $needs = array_map('floatval', json_decode($agenda->needs, true));
+        if ($agenda->actual_cable_m !== null) {
+            foreach (DB::table('khs_items')->whereIn('code', (array) config('distriva.sr_reservation.cable_codes'))->pluck('id') as $cable) {
+                if (isset($needs[$cable])) {
+                    $needs[$cable] = (float) $agenda->actual_cable_m;
+                }
+            }
         }
+
+        return $needs;
+    }
+
+    /** @return list<string> KHS item ids of a configured code list */
+    private function itemIds(string $key): array
+    {
+        return DB::table('khs_items')->whereIn('code', (array) config("distriva.sr_reservation.{$key}"))->pluck('id')->all();
     }
 
     /** @param list<string> $allowed */
@@ -482,7 +769,7 @@ class SrReservationService
     {
         $r = DB::table('sr_reservations')->where('id', $id)->lockForUpdate()->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
         if (! in_array($r->status, $allowed, true)) {
-            throw new AssignmentRuleViolation("Rencana berstatus {$r->status} tidak dapat {$verb}.");
+            throw new AssignmentRuleViolation("Reservasi berstatus {$r->status} tidak dapat {$verb}.");
         }
 
         return $r;

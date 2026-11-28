@@ -254,6 +254,11 @@ return [
         'one_phase_va' => [7700, 11000],                                   // besides every power below 6600 VA
         'drawing_row' => ['SR1PH' => 1, 'PBPD_6_41' => 3, 'PBPD_53_197' => 4],
         'cable_codes' => ['JTMR938', 'JTMR764', 'JTMR830'],
+        'serial_codes' => [                                                 // owner: serial numbers only for kWh meters and MCB / MCCB
+            'kwh' => ['JTMR949', 'JTMR810', 'JTMR811'],
+            'mcb' => ['JTMR826', 'A513', 'JTMR582', 'JTMR583', 'JTMR584', 'JTMR585', 'JTMR586', 'JTMR587', 'JTMR588', 'JTMR589', 'JTMR590'],
+        ],
+        'seal_codes' => ['JTMR947'],                                        // reserved only when PLN supplies them; the numbers are recorded either way
     ],
 
     /** PDF of output documents and reports: headless Chrome/Chromium prints an HTML page built by `PdfRenderer`. Empty binary = look for google-chrome / chromium on the PATH. */

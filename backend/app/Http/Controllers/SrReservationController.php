@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\AdministrationDenied;
-use App\Exceptions\AssignmentRuleViolation;
 use App\Services\Authorization\ApplicationAuthorizer;
 use App\Services\Inventory\SrReservationService;
 use App\Services\Proposals\ProposalService;
@@ -13,8 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Reservation plans of connections without network extension (docs/95). The preparing and approving keys depend on the source warehouse: `*_ulp` (Niaga of the ULP) or `*_up3`
- * (Konstruksi prepares, Asman Konstruksi approves; the approver is not the submitter unless SYS_ADMIN). Violations -> 409, authorization -> 403/404.
+ * Collective reservations of connections without network extension (docs/95). There is no approval step; the key depends on the source warehouse: `sr_reservations.prepare_ulp` (Niaga of the
+ * ULP) or `sr_reservations.prepare_up3` (Konstruksi). Violations -> 409, authorization -> 403/404.
  */
 class SrReservationController extends Controller
 {
@@ -42,7 +41,7 @@ class SrReservationController extends Controller
                     ->whereNotExists(fn ($q) => $q->from('proposal_applications as pa')->join('proposals as p', 'p.id', '=', 'pa.proposal_id')->whereColumn('pa.application_id', 'a.id')->whereNull('pa.released_at')->where('p.status', 'OPEN')))
                 ->orWhere(fn (Builder $three) => $three->whereRaw("not {$onePhase}")->whereIn('a.current_status', SrReservationService::WAITING_STATUSES)
                     ->whereRaw("{$surveyStatus} = 'ACCEPTED'")->whereRaw("{$extends} is false")))
-            ->whereNotExists(fn ($q) => $q->from('sr_reservations as r')->whereColumn('r.application_id', 'a.id')->where('r.status', '<>', 'CANCELLED'))
+            ->whereNotExists(fn ($q) => $q->from('sr_reservation_applications as x')->whereColumn('x.application_id', 'a.id')->whereNull('x.released_at'))
             ->whereNotExists(fn ($q) => $q->from('allocations as al')->whereColumn('al.application_id', 'a.id')->where('al.status', '<>', 'CANCELLED'))
             ->when($filters['unit_id'] ?? null, fn ($q, $unit) => $q->where('a.organizational_unit_id', $unit))
             ->when($filters['search'] ?? null, fn ($q, $search) => $q->where(fn ($w) => $w->where('a.application_number', 'ilike', "%{$search}%")->orWhere('c.name', 'ilike', "%{$search}%")))
@@ -72,77 +71,12 @@ class SrReservationController extends Controller
     /** The SQL form of SrReservationService::mimsReservationNumbers() being non-empty, for filtering the work list. */
     private function reservedInMimsSql(): string
     {
-        $notOwn = 'not in (select s.mims_reservation_no from sr_reservations s where s.application_id = a.id and s.mims_reservation_no is not null)';
+        $notOwn = 'not in (select r.mims_reservation_no from sr_reservations r join sr_reservation_applications x on x.sr_reservation_id = r.id where x.application_id = a.id and r.mims_reservation_no is not null)';
         $agenda = "from application_external_references e join %s m on m.agenda_no = e.reference_number where e.application_id = a.id and e.reference_type = 'AGENDA' and e.is_active and m.reservation_no {$notOwn}";
 
         return "(exists (select 1 from mims_reservation_customers m where m.application_id = a.id and m.reservation_no {$notOwn})"
             .' or exists (select 1 '.sprintf($agenda, 'mims_reservation_customers').')'
             .' or exists (select 1 '.sprintf($agenda, 'mims_issue_customers').'))';
-    }
-
-    /** POST /sr-reservations/batch — one 1-phase plan per application; each succeeds or fails on its own. */
-    public function storeBatch(Request $request): JsonResponse
-    {
-        $in = $request->validate(['application_ids' => ['required', 'array', 'min:1', 'max:100'], 'application_ids.*' => ['required', 'uuid', 'distinct'], 'warehouse_id' => ['nullable', 'uuid'], 'sr_length_m' => ['nullable', 'numeric', 'gt:0', 'max:10000']]);
-
-        return $this->each($in['application_ids'], 'application_id', function (string $applicationId) use ($request, $in): array {
-            $app = $this->application($applicationId);
-            $this->viewable($request, $app->organizational_unit_id);
-            $power = SrReservationService::powerVa($app);
-            if ($power === null || SrReservationService::phaseOf($power) !== 1) {
-                throw new AssignmentRuleViolation('Pembuatan sekaligus hanya untuk 1 phasa; 3 phasa dibuat satu per satu karena pelaksananya dipilih.');
-            }
-            $warehouse = $this->reservations->pickWarehouse($app->organizational_unit_id, 1, $in['warehouse_id'] ?? null);
-            $this->authorizeLevel($request, 'prepare', $warehouse->level, $app->organizational_unit_id);
-
-            return ['id' => $this->reservations->create($applicationId, ['warehouse_id' => $warehouse->id] + array_intersect_key($in, ['sr_length_m' => 1]), $request->user())];
-        });
-    }
-
-    /** POST /sr-reservations/batch-actions — submit, approve or record the same MIMS number on many plans; each succeeds or fails on its own. */
-    public function batchAction(Request $request): JsonResponse
-    {
-        $in = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:100'], 'ids.*' => ['required', 'uuid', 'distinct'], 'action' => ['required', 'in:submit,approve,mims'], 'reservation_no' => ['required_if:action,mims', 'string', 'max:30']]);
-
-        return $this->each($in['ids'], 'id', function (string $id) use ($request, $in): array {
-            match ($in['action']) {
-                'submit' => $this->submitOne($request, $id),
-                'approve' => $this->decideOne($request, $id, 'APPROVE', null),
-                'mims' => $this->recordOne($request, $id, $in['reservation_no']),
-            };
-
-            return [];
-        });
-    }
-
-    /**
-     * @param  list<string>  $ids
-     * @param  callable(string): array<string,mixed>  $action
-     */
-    private function each(array $ids, string $key, callable $action): JsonResponse
-    {
-        $results = [];
-        foreach ($ids as $id) {
-            try {
-                $results[] = [$key => $id, 'ok' => true] + $action($id);
-            } catch (AssignmentRuleViolation|AdministrationDenied $e) {
-                $results[] = [$key => $id, 'ok' => false, 'message' => $e->getMessage()];
-            }
-        }
-        $done = count(array_filter($results, fn (array $r): bool => $r['ok']));
-
-        return response()->json(['data' => $results, 'summary' => ['succeeded' => $done, 'failed' => count($results) - $done]]);
-    }
-
-    /** POST /applications/{id}/sr-extension — TEKNIK: the 1-phase connection found that the network must be extended. */
-    public function reportExtension(Request $request, string $application): JsonResponse
-    {
-        $app = $this->application($application);
-        $this->authorizer->authorizeOnUnit($request->user(), 'sr_reservations.report_extension', $app->organizational_unit_id);
-        $in = $request->validate(['reason' => ['required', 'string', 'max:1000'], 'distance_m' => ['nullable', 'numeric', 'gt:0', 'max:100000']]);
-        $this->reservations->reportExtension($application, $in['reason'], isset($in['distance_m']) ? (float) $in['distance_m'] : null, $request->user());
-
-        return response()->json(['message' => 'Dicatat perlu perluasan: lanjutkan dengan survei, lalu usulan.'], 201);
     }
 
     /** GET /applications/{id}/sr-reservations — what the form needs (phase, executor, warehouses, blockers) and the plans so far. */
@@ -168,17 +102,21 @@ class SrReservationController extends Controller
             'warehouses' => array_map(fn ($w) => ['id' => $w->id, 'code' => $w->code, 'name' => $w->name, 'level' => $w->level], $this->reservations->warehousesFor($app->organizational_unit_id, $phase)),
             'mims_reservation_numbers' => $this->reservations->mimsReservationNumbers($application),
             'extension_finding' => $finding === null ? null : ['reason' => $finding->reason, 'distance_m' => $finding->distance_m === null ? null : (float) $finding->distance_m, 'reported_by' => $finding->name, 'reported_at' => $finding->reported_at],
-            'reservations' => $this->listQuery()->where('r.application_id', $application)->orderByDesc('r.version_number')->get()->map(fn ($r) => $this->summary($r))->all(),
+            'reservations' => $this->listQuery()->whereExists(fn ($q) => $q->from('sr_reservation_applications as x')->whereColumn('x.sr_reservation_id', 'r.id')->where('x.application_id', $application))
+                ->orderByDesc('r.created_at')->get()->map(fn ($r) => $this->summary($r))->all(),
         ]]);
     }
 
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->validate(['status' => ['nullable', 'in:DRAFT,SUBMITTED,APPROVED,RECORDED,CANCELLED'], 'source_level' => ['nullable', 'in:ULP,UP3'], 'unit_id' => ['nullable', 'uuid'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
-        $page = $this->scoped($request, $this->listQuery())
+        $filters = $request->validate(['status' => ['nullable', 'in:DRAFT,REQUESTED,SAP_SENT,CANCELLED'], 'source_level' => ['nullable', 'in:ULP,UP3'], 'unit_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $page = $this->scoped($request, $this->listQuery(), 'r.organizational_unit_id')
             ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('r.status', $v))
             ->when($filters['source_level'] ?? null, fn ($q, $v) => $q->where('r.source_level', $v))
-            ->when($filters['unit_id'] ?? null, fn ($q, $v) => $q->where('a.organizational_unit_id', $v))
+            ->when($filters['unit_id'] ?? null, fn ($q, $v) => $q->where('r.organizational_unit_id', $v))
+            ->when($filters['search'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w->where('r.mims_reservation_no', 'ilike', "%{$v}%")
+                ->orWhereExists(fn ($x) => $x->from('sr_reservation_applications as x')->join('applications as a', 'a.id', '=', 'x.application_id')->join('customers as c', 'c.id', '=', 'a.customer_id')->whereColumn('x.sr_reservation_id', 'r.id')
+                    ->where(fn ($m) => $m->where('a.application_number', 'ilike', "%{$v}%")->orWhere('c.name', 'ilike', "%{$v}%")))))
             ->orderByDesc('r.created_at')->orderBy('r.id')->paginate($filters['per_page'] ?? 25);
 
         return response()->json(['data' => collect($page->items())->map(fn ($r) => $this->summary($r))->all(),
@@ -189,96 +127,133 @@ class SrReservationController extends Controller
     {
         $r = $this->listQuery()->where('r.id', $reservation)->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
         $this->viewable($request, $r->organizational_unit_id);
+        $agendas = DB::table('sr_reservation_applications as x')->join('applications as a', 'a.id', '=', 'x.application_id')->join('customers as c', 'c.id', '=', 'a.customer_id')->where('x.sr_reservation_id', $reservation)
+            ->when($r->status !== 'CANCELLED', fn ($q) => $q->orderByRaw('x.released_at is not null'))->orderBy('a.application_number')
+            ->select(['x.*', 'a.application_number', 'c.name as customer_name'])
+            ->selectRaw("(select e.reference_number from application_external_references e where e.application_id = a.id and e.reference_type = 'AGENDA' and e.is_active order by e.created_at desc limit 1) as agenda_number")
+            ->get();
         $lines = DB::table('sr_reservation_lines as l')->join('khs_items as k', 'k.id', '=', 'l.khs_item_id')->where('l.sr_reservation_id', $reservation)->orderBy('k.code')->get(['l.*', 'k.code']);
-        $names = DB::table('khs_item_versions')->whereIn('khs_item_id', $lines->pluck('khs_item_id'))->where('status', 'APPROVED')->orderBy('valid_from')->get(['khs_item_id', 'name', 'unit_text'])->keyBy('khs_item_id');
-        $skus = DB::table('khs_material_map')->whereIn('khs_item_id', $lines->pluck('khs_item_id'))->orderBy('material_no')->get()->groupBy('khs_item_id');
+        $serials = DB::table('sr_reservation_serials as n')->join('khs_items as k', 'k.id', '=', 'n.khs_item_id')->whereIn('n.sr_reservation_application_id', $agendas->pluck('id'))->orderBy('k.code')->orderBy('n.serial_number')
+            ->get(['n.sr_reservation_application_id', 'k.code', 'n.serial_number'])->groupBy('sr_reservation_application_id');
+        $khsIds = $lines->pluck('khs_item_id')->merge($agendas->flatMap(fn ($x) => array_keys(json_decode($x->needs, true))))->unique()->values();
+        $codes = DB::table('khs_items')->whereIn('id', $khsIds)->pluck('code', 'id');
+        $names = DB::table('khs_item_versions')->whereIn('khs_item_id', $khsIds)->where('status', 'APPROVED')->orderBy('valid_from')->get(['khs_item_id', 'name', 'unit_text'])->keyBy('khs_item_id');
+        $skus = DB::table('khs_material_map')->whereIn('khs_item_id', $khsIds)->orderBy('material_no')->get()->groupBy('khs_item_id');
         $events = DB::table('sr_reservation_events as e')->join('users as u', 'u.id', '=', 'e.actor_id')->where('e.sr_reservation_id', $reservation)->orderBy('e.occurred_at')->get(['e.event_type', 'e.reason', 'e.details', 'e.occurred_at', 'u.name']);
+        $check = $r->status === 'REQUESTED' ? $this->reservations->sapCheck($reservation) : null;
+        $serialCodes = (array) config('distriva.sr_reservation.serial_codes');
 
         return response()->json(['data' => $this->summary($r) + [
-            'notes' => $r->notes, 'bom_group' => $r->bom_group, 'cancel_reason' => $r->cancel_reason,
+            'notes' => $r->notes, 'cancel_reason' => $r->cancel_reason,
             'mims_found_in_mirror' => $r->mims_reservation_no !== null && DB::table('mims_reservations')->where('reservation_no', $r->mims_reservation_no)->exists(),
             'lines' => $lines->map(fn ($l) => ['khs_code' => $l->code, 'khs_name' => $names[$l->khs_item_id]->name ?? null, 'unit_text' => $names[$l->khs_item_id]->unit_text ?? null,
-                'material_numbers' => ($skus[$l->khs_item_id] ?? collect())->pluck('material_no')->all(), 'quantity_bom' => (float) $l->quantity_bom, 'quantity' => (float) $l->quantity, 'correction_reason' => $l->correction_reason])->all(),
+                'material_numbers' => ($skus[$l->khs_item_id] ?? collect())->pluck('material_no')->all(), 'quantity_bom' => (float) $l->quantity_bom, 'quantity' => (float) $l->quantity, 'correction_reason' => $l->correction_reason,
+                'realised' => isset($check['matches'][$l->khs_item_id]) ? (float) $check['matches'][$l->khs_item_id] : null])->all(),
+            'applications' => $agendas->map(fn ($x) => ['application_id' => $x->application_id, 'application_number' => $x->application_number, 'agenda_number' => $x->agenda_number, 'customer_name' => $x->customer_name, 'power_va' => (int) $x->power_va,
+                'needs' => collect(json_decode($x->needs, true))->map(fn ($q, $khs) => ['khs_code' => $codes[$khs], 'quantity' => (float) $q])->values()->all(),
+                'cable_m' => $x->actual_cable_m === null ? null : (float) $x->actual_cable_m, 'seals' => json_decode($x->seal_numbers, true),
+                'serials' => ($serials[$x->id] ?? collect())->map(fn ($n) => ['khs_code' => $n->code, 'serial_number' => $n->serial_number])->values()->all(),
+                'released_at' => $x->released_at, 'release_reason' => $x->release_reason])->all(),
+            'serial_codes' => $serialCodes, 'cable_codes' => (array) config('distriva.sr_reservation.cable_codes'), 'seal_codes' => (array) config('distriva.sr_reservation.seal_codes'),
+            'sap_blockers' => $check['blockers'] ?? [],
             'events' => $events->map(fn ($e) => ['type' => $e->event_type, 'actor' => $e->name, 'reason' => $e->reason, 'details' => $e->details === null ? null : json_decode($e->details, true), 'occurred_at' => $e->occurred_at])->all(),
         ]]);
     }
 
-    public function store(Request $request, string $application): JsonResponse
+    /** POST /sr-reservations — one reservation for the chosen agendas. */
+    public function store(Request $request): JsonResponse
     {
-        $app = $this->application($application);
-        $in = $request->validate(['warehouse_id' => ['nullable', 'uuid'], 'vendor_company_id' => ['nullable', 'uuid'], 'sr_length_m' => ['nullable', 'numeric', 'gt:0', 'max:10000'], 'notes' => ['nullable', 'string', 'max:2000']]);
-        $this->viewable($request, $app->organizational_unit_id);
-        $power = SrReservationService::powerVa($app);
+        $in = $request->validate(['application_ids' => ['required', 'array', 'min:1', 'max:100'], 'application_ids.*' => ['required', 'uuid', 'distinct'], 'warehouse_id' => ['nullable', 'uuid'], 'vendor_company_id' => ['nullable', 'uuid'],
+            'sr_length_m' => ['nullable', 'numeric', 'gt:0', 'max:10000'], 'notes' => ['nullable', 'string', 'max:2000']]);
+        foreach (DB::table('applications')->whereIn('id', $in['application_ids'])->distinct()->pluck('organizational_unit_id') as $unit) {
+            $this->viewable($request, $unit);
+        }
+        $first = $this->application($in['application_ids'][0]);
+        $power = SrReservationService::powerVa($first);
         if ($power !== null) {
-            $warehouse = $this->reservations->pickWarehouse($app->organizational_unit_id, SrReservationService::phaseOf($power), $in['warehouse_id'] ?? null);
-            $this->authorizeLevel($request, 'prepare', $warehouse->level, $app->organizational_unit_id);
+            $warehouse = $this->reservations->pickWarehouse($first->organizational_unit_id, SrReservationService::phaseOf($power), $in['warehouse_id'] ?? null);
+            $this->authorizeLevel($request, $warehouse->level, $first->organizational_unit_id);
+            $in['warehouse_id'] = $warehouse->id;
         }
 
-        return response()->json(['data' => ['id' => $this->reservations->create($application, $in, $request->user())]], 201);
+        return response()->json(['data' => ['id' => $this->reservations->create($in, $request->user())]], 201);
     }
 
     public function update(Request $request, string $reservation): JsonResponse
     {
-        $this->authorizeOn($request, $reservation, 'prepare');
+        $this->authorizeOn($request, $reservation);
         $in = $request->validate(['sr_length_m' => ['sometimes', 'numeric', 'gt:0', 'max:10000'], 'vendor_company_id' => ['sometimes', 'uuid'], 'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'add_application_ids' => ['sometimes', 'array', 'max:100'], 'add_application_ids.*' => ['required', 'uuid', 'distinct'],
             'corrections' => ['sometimes', 'array', 'max:100'], 'corrections.*.khs_code' => ['required', 'string', 'max:50', 'distinct'], 'corrections.*.quantity' => ['required', 'numeric', 'gte:0', 'max:1000000'], 'corrections.*.reason' => ['nullable', 'string', 'max:500']]);
         $this->reservations->update($reservation, $in, $request->user());
 
-        return response()->json(['message' => 'Rencana reservasi disimpan.']);
+        return response()->json(['message' => 'Reservasi disimpan.']);
     }
 
-    public function submit(Request $request, string $reservation): JsonResponse
+    public function removeApplication(Request $request, string $reservation, string $application): JsonResponse
     {
-        $this->submitOne($request, $reservation);
+        $this->authorizeOn($request, $reservation);
+        $in = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        $this->reservations->removeApplication($reservation, $application, $in['reason'], $request->user());
 
-        return response()->json(['message' => 'Rencana reservasi diajukan.']);
+        return response()->json(['message' => 'Agenda dikeluarkan dari reservasi.']);
     }
 
-    public function decide(Request $request, string $reservation): JsonResponse
+    public function recordRequest(Request $request, string $reservation): JsonResponse
     {
-        $in = $request->validate(['decision' => ['required', 'in:APPROVE,RETURN'], 'reason' => ['nullable', 'string', 'max:1000']]);
-        $this->decideOne($request, $reservation, $in['decision'], $in['reason'] ?? null);
-
-        return response()->json(['message' => $in['decision'] === 'APPROVE' ? 'Rencana reservasi disetujui.' : 'Rencana reservasi dikembalikan.']);
-    }
-
-    public function recordMims(Request $request, string $reservation): JsonResponse
-    {
+        $this->authorizeOn($request, $reservation);
         $in = $request->validate(['reservation_no' => ['required', 'string', 'max:30']]);
-        $this->recordOne($request, $reservation, $in['reservation_no']);
+        $this->reservations->request($reservation, $in['reservation_no'], $request->user());
 
-        return response()->json(['message' => 'Nomor reservasi MIMS dicatat.']);
+        return response()->json(['message' => 'Nomor permohonan MIMS dicatat.']);
     }
 
-    private function submitOne(Request $request, string $reservation): void
+    public function realize(Request $request, string $reservation): JsonResponse
     {
-        $this->authorizeOn($request, $reservation, 'prepare');
-        $this->reservations->submit($reservation, $request->user());
+        $this->authorizeOn($request, $reservation);
+        $in = $request->validate(['items' => ['required', 'array', 'min:1', 'max:100'], 'items.*.application_id' => ['required', 'uuid', 'distinct'], 'items.*.cable_m' => ['sometimes', 'nullable', 'numeric', 'gte:0', 'max:10000'],
+            'items.*.seals' => ['sometimes', 'array', 'max:20'], 'items.*.seals.*' => ['required', 'string', 'max:60'],
+            'items.*.serials' => ['sometimes', 'array', 'max:20'], 'items.*.serials.*.khs_code' => ['required', 'string', 'max:50'], 'items.*.serials.*.serial_number' => ['required', 'string', 'max:60']]);
+        $this->reservations->realize($reservation, $in['items'], $request->user());
+
+        return response()->json(['message' => 'Realisasi disimpan.']);
     }
 
-    private function decideOne(Request $request, string $reservation, string $decision, ?string $reason): void
+    public function match(Request $request, string $reservation): JsonResponse
     {
-        $r = $this->authorizeOn($request, $reservation, 'approve');
-        $actor = $request->user();
-        if ($r->source_level === 'UP3' && $r->submitted_by === $actor->getKey() && $this->authorizer->roleFor($actor, 'sr_reservations.approve_up3') !== 'SYS_ADMIN') {
-            throw new AdministrationDenied('Pengaju tidak dapat memutus rencananya sendiri.', 403);
-        }
-        $this->reservations->decide($reservation, $decision, $reason, $actor);
+        $this->authorizeOn($request, $reservation);
+        $this->reservations->matchRealisation($reservation, $request->user());
+
+        return response()->json(['message' => 'Total disamakan dengan realisasi. Samakan juga di MIMS.']);
     }
 
-    private function recordOne(Request $request, string $reservation, string $number): void
+    public function sendSap(Request $request, string $reservation): JsonResponse
     {
-        $this->authorizeEither($request, $reservation);
-        $this->reservations->recordMims($reservation, $number, $request->user());
+        $this->authorizeOn($request, $reservation);
+        $in = $request->validate(['sap_reference' => ['nullable', 'string', 'max:60']]);
+        $this->reservations->sendSap($reservation, $in['sap_reference'] ?? null, $request->user());
+
+        return response()->json(['message' => 'Reservasi ditandai terkirim ke SAP.']);
     }
 
     public function cancel(Request $request, string $reservation): JsonResponse
     {
-        $this->authorizeEither($request, $reservation);
+        $this->authorizeOn($request, $reservation);
         $in = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $this->reservations->cancel($reservation, $in['reason'], $request->user());
 
-        return response()->json(['message' => 'Rencana reservasi dibatalkan.']);
+        return response()->json(['message' => 'Reservasi dibatalkan.']);
+    }
+
+    /** POST /applications/{id}/sr-extension — TEKNIK: the 1-phase connection found that the network must be extended. */
+    public function reportExtension(Request $request, string $application): JsonResponse
+    {
+        $app = $this->application($application);
+        $this->authorizer->authorizeOnUnit($request->user(), 'sr_reservations.report_extension', $app->organizational_unit_id);
+        $in = $request->validate(['reason' => ['required', 'string', 'max:1000'], 'distance_m' => ['nullable', 'numeric', 'gt:0', 'max:100000']]);
+        $this->reservations->reportExtension($application, $in['reason'], isset($in['distance_m']) ? (float) $in['distance_m'] : null, $request->user());
+
+        return response()->json(['message' => 'Dicatat perlu perluasan: lanjutkan dengan survei, lalu usulan.'], 201);
     }
 
     /** POST /applications/{id}/sr-extension/cancel — the same key withdraws a finding recorded by mistake. */
@@ -292,31 +267,15 @@ class SrReservationController extends Controller
         return response()->json(['message' => 'Tanda perlu perluasan dibatalkan.']);
     }
 
-    private function authorizeOn(Request $request, string $reservation, string $action): object
+    private function authorizeOn(Request $request, string $reservation): void
     {
-        $r = $this->find($reservation);
-        $this->authorizeLevel($request, $action, $r->source_level, $r->organizational_unit_id);
-
-        return $r;
+        $r = DB::table('sr_reservations')->where('id', $reservation)->first() ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        $this->authorizeLevel($request, $r->source_level, $r->organizational_unit_id);
     }
 
-    /** Recording the MIMS number and cancelling: whoever prepares or approves at the plan's level. */
-    private function authorizeEither(Request $request, string $reservation): void
+    private function authorizeLevel(Request $request, string $level, string $unitId): void
     {
-        $r = $this->find($reservation);
-        $action = $this->authorizer->roleFor($request->user(), 'sr_reservations.prepare_'.strtolower($r->source_level)) !== null ? 'prepare' : 'approve';
-        $this->authorizeLevel($request, $action, $r->source_level, $r->organizational_unit_id);
-    }
-
-    private function authorizeLevel(Request $request, string $action, string $level, string $unitId): void
-    {
-        $this->authorizer->authorizeOnUnit($request->user(), "sr_reservations.{$action}_".strtolower($level), $unitId);
-    }
-
-    private function find(string $id): object
-    {
-        return DB::table('sr_reservations as r')->join('applications as a', 'a.id', '=', 'r.application_id')->where('r.id', $id)->first(['r.*', 'a.organizational_unit_id'])
-            ?? throw new AdministrationDenied('Data tidak ditemukan.', 404);
+        $this->authorizer->authorizeOnUnit($request->user(), 'sr_reservations.prepare_'.strtolower($level), $unitId);
     }
 
     private function application(string $id): object
@@ -332,32 +291,29 @@ class SrReservationController extends Controller
         }
     }
 
-    private function scoped(Request $request, Builder $query): Builder
+    private function scoped(Request $request, Builder $query, string $unitColumn = 'a.organizational_unit_id'): Builder
     {
         $scope = $this->authorizer->authorizeScope($request->user(), 'sr_reservations.view');
 
-        return $scope['unrestricted'] ? $query : $query->whereIn('a.organizational_unit_id', $scope['units']);
+        return $scope['unrestricted'] ? $query : $query->whereIn($unitColumn, $scope['units']);
     }
 
     private function listQuery(): Builder
     {
-        return DB::table('sr_reservations as r')->join('applications as a', 'a.id', '=', 'r.application_id')->join('customers as c', 'c.id', '=', 'a.customer_id')
-            ->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->join('vendor_companies as v', 'v.id', '=', 'r.vendor_company_id')
+        return DB::table('sr_reservations as r')->join('organizational_units as u', 'u.id', '=', 'r.organizational_unit_id')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->join('vendor_companies as v', 'v.id', '=', 'r.vendor_company_id')
             ->leftJoin('sr_vendor_contracts as k', 'k.id', '=', 'r.vendor_contract_id')
-            ->select(['r.*', 'a.application_number', 'a.organizational_unit_id', 'c.name as customer_name', 'u.code as unit_code', 'u.name as unit_name', 'w.code as warehouse_code', 'w.name as warehouse_name', 'w.plant', 'w.stor_loc',
-                'v.code as vendor_code', 'v.name as vendor_name', 'k.contract_number'])
-            ->selectRaw("(select e.reference_number from application_external_references e where e.application_id = a.id and e.reference_type = 'AGENDA' and e.is_active order by e.created_at desc limit 1) as agenda_number");
+            ->select(['r.*', 'u.code as unit_code', 'u.name as unit_name', 'w.code as warehouse_code', 'w.name as warehouse_name', 'w.plant', 'w.stor_loc', 'v.code as vendor_code', 'v.name as vendor_name', 'k.contract_number'])
+            ->selectRaw('(select count(*) from sr_reservation_applications x where x.sr_reservation_id = r.id and (x.released_at is null or r.status = \'CANCELLED\')) as applications_count');
     }
 
     /** @return array<string,mixed> */
     private function summary(object $r): array
     {
-        return ['id' => $r->id, 'version_number' => (int) $r->version_number, 'status' => $r->status, 'phase' => (int) $r->phase, 'power_va' => (int) $r->power_va, 'source_level' => $r->source_level,
-            'application' => ['id' => $r->application_id, 'number' => $r->application_number, 'agenda_number' => $r->agenda_number, 'customer_name' => $r->customer_name],
+        return ['id' => $r->id, 'status' => $r->status, 'phase' => (int) $r->phase, 'source_level' => $r->source_level, 'applications_count' => (int) $r->applications_count,
             'unit' => ['id' => $r->organizational_unit_id, 'code' => $r->unit_code, 'name' => $r->unit_name],
             'warehouse' => ['id' => $r->warehouse_id, 'code' => $r->warehouse_code, 'name' => $r->warehouse_name, 'plant' => $r->plant, 'stor_loc' => $r->stor_loc],
             'vendor' => ['id' => $r->vendor_company_id, 'code' => $r->vendor_code, 'name' => $r->vendor_name, 'contract_number' => $r->contract_number],
-            'sr_length_m' => (float) $r->sr_length_m, 'mims_reservation_no' => $r->mims_reservation_no, 'created_at' => $r->created_at, 'submitted_at' => $r->submitted_at, 'approved_at' => $r->approved_at,
-            'mims_recorded_at' => $r->mims_recorded_at, 'cancelled_at' => $r->cancelled_at];
+            'sr_length_m' => (float) $r->sr_length_m, 'mims_reservation_no' => $r->mims_reservation_no, 'sap_reference' => $r->sap_reference, 'created_at' => $r->created_at, 'requested_at' => $r->requested_at,
+            'sap_sent_at' => $r->sap_sent_at, 'cancelled_at' => $r->cancelled_at];
     }
 }

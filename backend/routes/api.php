@@ -186,18 +186,18 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
         Route::post('/sr-vendor-contracts', [SrVendorContractController::class, 'store']);
         Route::put('/sr-vendor-contracts/{contract}', [SrVendorContractController::class, 'update'])->whereUuid('contract');
         Route::get('/applications/{application}/sr-reservations', [SrReservationController::class, 'forApplication'])->whereUuid('application');
-        Route::post('/applications/{application}/sr-reservations', [SrReservationController::class, 'store'])->whereUuid('application');
         Route::get('/sr-reservations', [SrReservationController::class, 'index']);
+        Route::post('/sr-reservations', [SrReservationController::class, 'store']);
         Route::get('/sr-reservations/pending', [SrReservationController::class, 'pending']);
-        Route::post('/sr-reservations/batch', [SrReservationController::class, 'storeBatch']);
-        Route::post('/sr-reservations/batch-actions', [SrReservationController::class, 'batchAction']);
         Route::post('/applications/{application}/sr-extension', [SrReservationController::class, 'reportExtension'])->whereUuid('application');
         Route::post('/applications/{application}/sr-extension/cancel', [SrReservationController::class, 'withdrawExtension'])->whereUuid('application');
         Route::get('/sr-reservations/{reservation}', [SrReservationController::class, 'show'])->whereUuid('reservation');
         Route::put('/sr-reservations/{reservation}', [SrReservationController::class, 'update'])->whereUuid('reservation');
-        Route::post('/sr-reservations/{reservation}/submit', [SrReservationController::class, 'submit'])->whereUuid('reservation');
-        Route::post('/sr-reservations/{reservation}/decision', [SrReservationController::class, 'decide'])->whereUuid('reservation');
-        Route::post('/sr-reservations/{reservation}/mims', [SrReservationController::class, 'recordMims'])->whereUuid('reservation');
+        Route::post('/sr-reservations/{reservation}/applications/{application}/remove', [SrReservationController::class, 'removeApplication'])->whereUuid(['reservation', 'application']);
+        Route::post('/sr-reservations/{reservation}/request', [SrReservationController::class, 'recordRequest'])->whereUuid('reservation');
+        Route::put('/sr-reservations/{reservation}/realization', [SrReservationController::class, 'realize'])->whereUuid('reservation');
+        Route::post('/sr-reservations/{reservation}/match', [SrReservationController::class, 'match'])->whereUuid('reservation');
+        Route::post('/sr-reservations/{reservation}/sap', [SrReservationController::class, 'sendSap'])->whereUuid('reservation');
         Route::post('/sr-reservations/{reservation}/cancel', [SrReservationController::class, 'cancel'])->whereUuid('reservation');
     });
     // EIS sync started and scheduled from DISTRIVA (account, Range Daya, automatic run, history)
