@@ -22,7 +22,7 @@ use Illuminate\Validation\Rule;
 class ApplicationController extends Controller
 {
     /** The application whose survey speaks for `a` (docs/82 §11): the proposal's representative for members of a live or "no extension" proposal, else itself. Twin of ProposalService::surveyOwnerId(). */
-    private const SURVEY_OWNER_SQL = "coalesce((select p2.representative_application_id from proposal_applications pa2 join proposals p2 on p2.id = pa2.proposal_id where pa2.application_id = a.id and ((pa2.released_at is null and p2.status = 'OPEN') or p2.status = 'COMPLETED_NO_EXTENSION') order by pa2.added_at desc limit 1), a.id)";
+    public const SURVEY_OWNER_SQL = "coalesce((select p2.representative_application_id from proposal_applications pa2 join proposals p2 on p2.id = pa2.proposal_id where pa2.application_id = a.id and ((pa2.released_at is null and p2.status = 'OPEN') or p2.status = 'COMPLETED_NO_EXTENSION') order by pa2.added_at desc limit 1), a.id)";
 
     private const STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS', 'CONNECTION_DONE', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
 

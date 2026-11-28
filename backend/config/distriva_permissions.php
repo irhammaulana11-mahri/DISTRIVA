@@ -104,7 +104,7 @@ return [
     'applications_descendant_keys' => [
         'eis_sync.manage', 'outages.view', 'eis_reports.view', 'eis_reports.import', 'nko.view', 'nko.calculate', 'nko.input', 'pengusahaan.view', 'pengusahaan.input', 'applications.import', 'applications.view', 'surveys.view', 'surveys.review_perencanaan', 'surveys.review_konstruksi', 'surveys.approve_asman_perencanaan', 'surveys.approve_asman_konstruksi', 'surveys.approve_up3_manager',
         'drawings.view', 'drawings.review_perencanaan', 'drawings.review_konstruksi', 'drawings.approve_asman_perencanaan', 'drawings.approve_asman_niaga', 'drawings.approve_asman_konstruksi',
-        'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'reports.view', 'reports.settings', 'tasks.view', 'forecast.view',
+        'drawings.approve_up3_manager', 'drawings.escalate', 'mto.view', 'rab.view', 'rab.run', 'kkf.view', 'kkf.run', 'kko.view', 'kko.record', 'substations.view', 'substations.import', 'substations.manage', 'substations.reading', 'substations.sync', 'feeders.view', 'feeders.manage', 'customers.view', 'customers.import', 'customers.manage', 'allocations.view', 'allocations.manage', 'allocations.poles', 'pole_wo.view', 'pole_wo.manage', 'pole_wo.close', 'proposals.view', 'rkm.view', 'wo.view', 'wo.create', 'wo.issue', 'wo.progress_submit', 'wo.progress_verify', 'wo.complete', 'bastp.view', 'bastp.sign_konstruksi', 'bastp.close', 'material_requests.view', 'material_requests.manage', 'sr_reservations.view', 'sr_reservations.prepare_up3', 'sr_reservations.approve_up3', 'sr_vendor_contracts.manage', 'reports.view', 'reports.settings', 'tasks.view', 'forecast.view',
     ],
 
     /*
@@ -169,6 +169,13 @@ return [
         'allocations.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'allocations.manage' => ['KONSTRUKSI', 'SYS_ADMIN'],        // the materials part (everything except concrete poles)
         'allocations.poles' => ['PERENCANAAN', 'SYS_ADMIN'],            // the poles part (TM/TR with the Kontrak Rinci number)
+        // Connection without network extension (docs/95): who prepares/approves follows the source warehouse. ULP = Niaga (one account may do both); UP3 = Konstruksi prepares, Asman Konstruksi approves.
+        'sr_reservations.view' => ['NIAGA_RETAIL', 'MANAGER_ULP', 'TEKNIK', 'KONSTRUKSI', 'ASMAN_KONSTRUKSI', 'MANAGER_UP3', 'PERENCANAAN', 'ASMAN_PERENCANAAN', 'ASMAN_NIAGA', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
+        'sr_reservations.prepare_ulp' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
+        'sr_reservations.approve_ulp' => ['NIAGA_RETAIL', 'SYS_ADMIN'],
+        'sr_reservations.prepare_up3' => ['KONSTRUKSI', 'SYS_ADMIN'],
+        'sr_reservations.approve_up3' => ['ASMAN_KONSTRUKSI', 'SYS_ADMIN'],
+        'sr_vendor_contracts.manage' => ['KONSTRUKSI', 'SYS_ADMIN'],
         'rkm.view' => ['MANAGER_ULP', 'ASMAN_NIAGA', 'TEKNIK', 'MANAGER_UP3', 'ASMAN_PERENCANAAN', 'ASMAN_KONSTRUKSI', 'KONSTRUKSI', 'PERENCANAAN', 'ASMAN_JARINGAN', 'SYS_ADMIN'],
         'rkm.plan' => ['PERENCANAAN', 'SYS_ADMIN'],
         'rkm.prepare' => ['TEKNIK', 'SYS_ADMIN'],

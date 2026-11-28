@@ -11,6 +11,8 @@ Permintaan pemilik 2026-11-14 dan keputusan atas tiga pertanyaan (pilihan yang d
       └─ PERLU PERLUASAN → usulan + gambar → MTO → persetujuan (rantai penuh) → RAB → KKF → … (sama seperti sebelumnya)
 ```
 
+**Diubah 28 November 2026:** jalur tanpa perluasan kini dilanjutkan penetapan pelaksana dan reservasi material ([docs/95](95-SAMBUNGAN-TANPA-PERLUASAN-PELAKSANA-DAN-RESERVASI.md)).
+
 ## 2. Butir permintaan → kondisi sebelumnya → perubahan
 | Butir | Sebelumnya | Sekarang |
 |---|---|---|

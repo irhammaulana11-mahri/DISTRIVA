@@ -246,6 +246,14 @@ return [
         'kva_steps' => [25, 50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000],
     ],
 
+    /** Connection without network extension (docs/95): reservation planned from the APP BOM. `drawing_row` = the GAMBAR row whose quantity each BOM reads; `cable_codes` = SR cable, set to the planned length. */
+    'sr_reservation' => [
+        'default_sr_length_m' => 35,
+        'one_phase_va' => [7700, 11000],                                   // besides every power below 6600 VA
+        'drawing_row' => ['SR1PH' => 1, 'PBPD_6_41' => 3, 'PBPD_53_197' => 4],
+        'cable_codes' => ['JTMR938', 'JTMR764', 'JTMR830'],
+    ],
+
     /** PDF of output documents and reports: headless Chrome/Chromium prints an HTML page built by `PdfRenderer`. Empty binary = look for google-chrome / chromium on the PATH. */
     'pdf' => [
         'binary' => env('DISTRIVA_PDF_BINARY'),

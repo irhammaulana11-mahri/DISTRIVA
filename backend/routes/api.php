@@ -50,6 +50,8 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RkmController;
 use App\Http\Controllers\ScopedUnitController;
 use App\Http\Controllers\ServiceSlaController;
+use App\Http\Controllers\SrReservationController;
+use App\Http\Controllers\SrVendorContractController;
 use App\Http\Controllers\SubstationController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\SyncAccountController;
@@ -178,6 +180,22 @@ Route::middleware(['auth:sanctum', EnsureActiveAccount::class])->group(function 
     Route::put('/applications/{application}/kko', [KkoController::class, 'record'])->whereUuid('application')->middleware('throttle:admin');
     Route::post('/applications/{application}/kko/decision', [KkoController::class, 'decide'])->whereUuid('application')->middleware('throttle:admin');
     Route::get('/planning/access', [PlanningAccessController::class, 'access']);
+    // Reservation of connections without network extension, and the contracted 1-phase executor per ULP (docs/95)
+    Route::middleware('throttle:admin')->group(function () {
+        Route::get('/sr-vendor-contracts', [SrVendorContractController::class, 'index']);
+        Route::post('/sr-vendor-contracts', [SrVendorContractController::class, 'store']);
+        Route::put('/sr-vendor-contracts/{contract}', [SrVendorContractController::class, 'update'])->whereUuid('contract');
+        Route::get('/applications/{application}/sr-reservations', [SrReservationController::class, 'forApplication'])->whereUuid('application');
+        Route::post('/applications/{application}/sr-reservations', [SrReservationController::class, 'store'])->whereUuid('application');
+        Route::get('/sr-reservations', [SrReservationController::class, 'index']);
+        Route::get('/sr-reservations/pending', [SrReservationController::class, 'pending']);
+        Route::get('/sr-reservations/{reservation}', [SrReservationController::class, 'show'])->whereUuid('reservation');
+        Route::put('/sr-reservations/{reservation}', [SrReservationController::class, 'update'])->whereUuid('reservation');
+        Route::post('/sr-reservations/{reservation}/submit', [SrReservationController::class, 'submit'])->whereUuid('reservation');
+        Route::post('/sr-reservations/{reservation}/decision', [SrReservationController::class, 'decide'])->whereUuid('reservation');
+        Route::post('/sr-reservations/{reservation}/mims', [SrReservationController::class, 'recordMims'])->whereUuid('reservation');
+        Route::post('/sr-reservations/{reservation}/cancel', [SrReservationController::class, 'cancel'])->whereUuid('reservation');
+    });
     // EIS sync started and scheduled from DISTRIVA (account, Range Daya, automatic run, history)
     Route::get('/sync/active', [SyncStatusController::class, 'active']);
     Route::get('/sync/accounts', [SyncAccountController::class, 'index']);
