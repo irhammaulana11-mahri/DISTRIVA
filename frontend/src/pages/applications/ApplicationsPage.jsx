@@ -19,6 +19,7 @@ import ApplicationKkfPanel from './ApplicationKkfPanel.jsx'
 import ApplicationKkoPanel from './ApplicationKkoPanel.jsx'
 import ApplicationAllocationPanel from './ApplicationAllocationPanel.jsx'
 import ApplicationWorkOrdersPanel from './ApplicationWorkOrdersPanel.jsx'
+import ApplicationSrReservationPanel from '../sr-reservations/ApplicationSrReservationPanel.jsx'
 import ProposalSelectableModal from '../proposals/ProposalSelectableModal.jsx'
 import SearchSelect from '../../components/SearchSelect.jsx'
 import { filterSelectCls as sharedSelectCls, filterSearchCls } from '../../components/filterStyles.js'
@@ -1595,6 +1596,7 @@ export function ApplicationDetailDrawer({
   onCompleteData,
 }) {
   const { notify } = useNotifications()
+  const { can: accessCan, isSysAdmin } = useAccess()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [app, setApp] = useState(null)
@@ -2027,6 +2029,19 @@ export function ApplicationDetailDrawer({
                 }`}
               >
                 <span>SPK / Work Order</span>
+              </button>
+            )}
+            {(accessCan?.['sr_reservations.view'] || isSysAdmin) && Boolean(app?.ready_to_install || app?.survey?.ready_to_install) && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('sr-reservations')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'sr-reservations'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
+                }`}
+              >
+                <span>Reservasi SR</span>
               </button>
             )}
           </div>
@@ -2822,6 +2837,10 @@ export function ApplicationDetailDrawer({
               canVerifyProgress={canWoVerifyProgress}
               canComplete={canWoComplete}
             />
+          )}
+
+          {activeTab === 'sr-reservations' && (
+            <ApplicationSrReservationPanel applicationId={applicationId} onChanged={onReload} />
           )}
         </div>
       )}

@@ -83,6 +83,7 @@ import NkoPage from './pages/nko/NkoPage.jsx'
 import NkoRulesPage from './pages/nko/NkoRulesPage.jsx'
 import BusinessAnalyticsPage from './pages/analytics/BusinessAnalyticsPage.jsx'
 import SyncCenterPage from './pages/sync/SyncCenterPage.jsx'
+import SrReservationsPage from './pages/sr-reservations/SrReservationsPage.jsx'
 
 // UX gate only: the server enforces authentication on every request.
 function RequireAuth({ children }) {
@@ -198,6 +199,7 @@ export default function App() {
         <Route path="bastp/:bastpId" element={<RequireCapability anyOf={['bastp.view', 'wo.view', 'vendor.portal']}><BastpDetailPage /></RequireCapability>} />
         <Route path="permohonan" element={<RequireCapability capability="applications.view"><ApplicationsPage /></RequireCapability>} />
         <Route path="permohonan/baru" element={<RequireCapability capability="applications.create"><ApplicationCreatePage /></RequireCapability>} />
+        <Route path="reservasi-sr" element={<RequireCapability anyOf={['sr_reservations.view', 'sr_vendor_contracts.manage']}><SrReservationsPage /></RequireCapability>} />
         <Route path="permohonan/impor" element={<RequireCapability capability="applications.import"><ApplicationImportPage /></RequireCapability>} />
         <Route path="permohonan/sinkronisasi-eis" element={<RequireCapability capability="eis_sync.manage"><EisSyncPage /></RequireCapability>} />
         <Route path="permohonan/:applicationId" element={<RequireCapability capability="applications.view"><ApplicationDetailPage /></RequireCapability>} />

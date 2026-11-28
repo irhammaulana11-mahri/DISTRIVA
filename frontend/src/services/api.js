@@ -1034,3 +1034,24 @@ export const pengusahaanApi = {
   template: (params = {}) => downloadBlob(`/pengusahaan/inputs/template${qs(params)}`),
   importInputs: (formData) => request('/pengusahaan/inputs/import', { method: 'POST', body: formData }),
 }
+
+/** Kontrak pelaksana sambungan 1 phasa per ULP (docs/95). */
+export const srVendorContractsApi = {
+  list: (params = {}) => request(`/sr-vendor-contracts${qs(params)}`),
+  create: (body) => request('/sr-vendor-contracts', { method: 'POST', body }),
+  update: (id, body) => request(`/sr-vendor-contracts/${id}`, { method: 'PUT', body }),
+}
+
+/** Rencana reservasi material sambungan tanpa perluasan (docs/95). */
+export const srReservationsApi = {
+  pending: (params = {}) => request(`/sr-reservations/pending${qs(params)}`),
+  list: (params = {}) => request(`/sr-reservations${qs(params)}`),
+  forApplication: (applicationId) => request(`/applications/${applicationId}/sr-reservations`),
+  create: (applicationId, body) => request(`/applications/${applicationId}/sr-reservations`, { method: 'POST', body }),
+  get: (id) => request(`/sr-reservations/${id}`),
+  update: (id, body) => request(`/sr-reservations/${id}`, { method: 'PUT', body }),
+  submit: (id) => request(`/sr-reservations/${id}/submit`, { method: 'POST' }),
+  decide: (id, body) => request(`/sr-reservations/${id}/decision`, { method: 'POST', body }),
+  recordMims: (id, body) => request(`/sr-reservations/${id}/mims`, { method: 'POST', body }),
+  cancel: (id, body) => request(`/sr-reservations/${id}/cancel`, { method: 'POST', body }),
+}
