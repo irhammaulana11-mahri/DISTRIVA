@@ -308,13 +308,26 @@ export default function NkoPage() {
 
   // Modal calculate
   const [isCalculateOpen, setIsCalculateOpen] = useState(false)
+  const [allSnapshotsState, setAllSnapshotsState] = useState({ loading: false, error: '', rows: [] })
 
-  // 1. Load Snapshot (for active unit & period)
+  // 1. Load Snapshot (for active unit & period, or combined summary for SYS_ADMIN "Semua UP3")
   const loadSnapshot = useCallback(async () => {
     if (!targetUnit) {
       setSnapshotState({ loading: false, error: '', data: null })
+      if (!isSysAdmin) {
+        setAllSnapshotsState({ loading: false, error: '', rows: [] })
+        return
+      }
+      setAllSnapshotsState((s) => ({ ...s, loading: true, error: '' }))
+      try {
+        const resList = await nkoApi.snapshots({ year, month })
+        setAllSnapshotsState({ loading: false, error: '', rows: resList?.data || [] })
+      } catch (err) {
+        setAllSnapshotsState({ loading: false, error: err?.message || 'Gagal memuat ringkasan NKO gabungan.', rows: [] })
+      }
       return
     }
+    setAllSnapshotsState({ loading: false, error: '', rows: [] })
     setSnapshotState((s) => ({ ...s, loading: true, error: '' }))
     try {
       // Cari snapshot id dari summary list
@@ -347,17 +360,17 @@ export default function NkoPage() {
         data: null,
       })
     }
-  }, [targetUnit, year, month])
+  }, [targetUnit, isSysAdmin, year, month])
 
-  // 2. Load Ranking (for UP3 & period)
+  // 2. Load Ranking (for UP3 & period, or all UP3/ULP for SYS_ADMIN)
   const loadRanking = useCallback(async () => {
-    if (!targetUp3) return
+    if (!targetUp3 && !isSysAdmin) return
     setRankingState((s) => ({ ...s, loading: true, error: '' }))
     try {
       const res = await nkoApi.ranking({
         year,
         month,
-        up3_id: targetUp3,
+        ...(targetUp3 ? { up3_id: targetUp3 } : {}),
       })
       setRankingState({
         loading: false,
@@ -371,7 +384,7 @@ export default function NkoPage() {
         data: null,
       })
     }
-  }, [targetUp3, year, month])
+  }, [targetUp3, isSysAdmin, year, month])
 
   // 3. Load Inputs (for manual entry)
   const loadInputs = useCallback(async () => {
@@ -705,7 +718,82 @@ export default function NkoPage() {
       {/* Tab 1: Rincian Indikator & Nilai */}
       {tab === 'details' && (
         <div className={`${CARD} overflow-hidden`}>
-          {!unitId ? (
+          {!unitId && !up3Id && isSysAdmin ? (
+            allSnapshotsState.loading ? (
+              <div className="py-20 flex justify-center">
+                <Spinner size="lg" label="Memuat ringkasan NKO gabungan semua UP3..." />
+              </div>
+            ) : allSnapshotsState.error ? (
+              <div className="p-5">
+                <Alert kind="error">{allSnapshotsState.error}</Alert>
+              </div>
+            ) : allSnapshotsState.rows.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  title="Belum Ada Data NKO Gabungan"
+                  desc={`Belum ada snapshot NKO yang dihitung untuk periode ${MONTH_NAMES[month - 1]} ${year}.`}
+                />
+              </div>
+            ) : (
+              <div className="p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      Ringkasan NKO Gabungan — Semua UP3 &amp; ULP ({MONTH_NAMES[month - 1]} {year})
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Menampilkan {allSnapshotsState.rows.length} unit yang telah dihitung. Klik Lihat Rincian untuk membuka indikator per unit.
+                    </p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-850 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
+                      <tr>
+                        <th className="px-4 py-2.5">Unit</th>
+                        <th className="px-4 py-2.5">Tipe</th>
+                        <th className="px-4 py-2.5 text-right">Total Nilai</th>
+                        <th className="px-4 py-2.5 text-right">NKO</th>
+                        <th className="px-4 py-2.5 text-right">Peringkat</th>
+                        <th className="px-4 py-2.5 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {allSnapshotsState.rows.map((row) => (
+                        <tr key={row.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                          <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-slate-100">{row.unit_name}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${row.unit_type === 'UP3' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+                              {row.unit_type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-mono">{row.total_nilai != null ? Number(row.total_nilai).toFixed(2) : '-'}</td>
+                          <td className="px-4 py-2.5 text-right font-mono font-bold text-indigo-700 dark:text-indigo-300">{row.nko != null ? Number(row.nko).toFixed(2) : '-'}</td>
+                          <td className="px-4 py-2.5 text-right font-mono">{row.rank ? `#${row.rank}${row.rank_of ? ` / ${row.rank_of}` : ''}` : '-'}</td>
+                          <td className="px-4 py-2.5 text-right">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                if (row.unit_type === 'UP3') {
+                                  setUp3Id(row.unit_id)
+                                  setUnitId('')
+                                } else {
+                                  setUnitId(row.unit_id)
+                                }
+                              }}
+                            >
+                              Lihat Rincian
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          ) : !unitId ? (
             <div className="p-8">
               <Alert kind="info">Pilih satu unit (ULP atau UP3) pada bilah filter di atas untuk melihat rincian NKO.</Alert>
             </div>
@@ -824,7 +912,7 @@ export default function NkoPage() {
       {/* Tab 2: Peringkat ULP */}
       {tab === 'ranking' && (
         <div className={`${CARD} p-5 space-y-4`}>
-          {!targetUp3 ? (
+          {!targetUp3 && !isSysAdmin ? (
             <Alert kind="info">Pilih satu UP3 pada bilah filter di atas untuk melihat peringkat ULP.</Alert>
           ) : rankingState.loading ? (
             <div className="py-20 flex justify-center">

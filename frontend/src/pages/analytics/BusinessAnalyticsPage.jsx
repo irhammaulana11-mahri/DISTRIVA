@@ -1440,10 +1440,10 @@ export default function BusinessAnalyticsPage() {
 
   // Unduh Excel metrik dari /api/pengusahaan/metrics/{code}/export
   const handleExportExcel = async () => {
-    if (!effectiveUnitId || !activeCode) return
+    if ((!effectiveUnitId && !isSysAdmin) || !activeCode) return
     setExportingExcel(true)
     try {
-      const params = { unit_id: effectiveUnitId }
+      const params = effectiveUnitId ? { unit_id: effectiveUnitId } : {}
       if (fromMonth) params.from = fromMonth
       if (toMonth) params.to = toMonth
       const blob = await pengusahaanApi.export(activeCode, params)
@@ -1460,15 +1460,13 @@ export default function BusinessAnalyticsPage() {
   // 2. Muat data metrik yang sedang aktif
   const loadMetricData = useCallback(async () => {
     const targetUnit = effectiveUnitId
-    if (!targetUnit || !activeCode) {
+    if ((!targetUnit && !isSysAdmin) || !activeCode) {
       setMetricState({ loading: false, error: '', data: null })
       return
     }
     setMetricState((s) => ({ ...s, loading: true, error: '' }))
     try {
-      const params = {
-        unit_id: targetUnit,
-      }
+      const params = targetUnit ? { unit_id: targetUnit } : {}
       if (fromMonth) params.from = fromMonth
       if (toMonth) params.to = toMonth
 
@@ -1490,13 +1488,13 @@ export default function BusinessAnalyticsPage() {
         data: null,
       })
     }
-  }, [effectiveUnitId, activeCode, fromMonth, toMonth])
+  }, [effectiveUnitId, isSysAdmin, activeCode, fromMonth, toMonth])
 
   useEffect(() => {
-    if (effectiveUnitId && activeCode) {
+    if ((effectiveUnitId || isSysAdmin) && activeCode) {
       loadMetricData()
     }
-  }, [effectiveUnitId, activeCode, loadMetricData])
+  }, [effectiveUnitId, isSysAdmin, activeCode, loadMetricData])
 
   // Helper tombol cepat rentang waktu (docs/91 §4)
   const handleRangePreset = (preset) => {
@@ -2589,7 +2587,7 @@ export default function BusinessAnalyticsPage() {
           )}
 
           {/* Main Content Area */}
-          {!effectiveUnitId ? (
+          {!effectiveUnitId && !isSysAdmin ? (
         <Alert kind="info">
           Pilih salah satu UP3 atau ULP pada filter di atas untuk menampilkan grafik dan analisis pengusahaan.
         </Alert>

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Inventory\AllocationService;
 use App\Services\Inventory\SrReservationService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -33,9 +34,42 @@ class ServiceSlaService
     public function compute(array $applicationIds, ?CarbonImmutable $now = null): array
     {
         $now ??= CarbonImmutable::now();
-        if ($applicationIds === []) {
-            return [];
+        $out = [];
+        // in parts: one IN list holds at most 65535 bind parameters
+        foreach (array_chunk($applicationIds, 5000) as $part) {
+            $out += $this->computePart($part, $now);
         }
+
+        return $out;
+    }
+
+    /**
+     * Narrows a query on applications to the ones that can have a service SLA: an MTO of their own or of their proposal's representative, or a 1-phase direct install. A list over a whole
+     * scope starts from these instead of loading the connected history.
+     */
+    public static function candidates(Builder $query, string $alias = 'a'): Builder
+    {
+        return $query->where(fn (Builder $any) => $any
+            ->whereExists(fn (Builder $mto) => $mto->from('mto_packages as m')->whereColumn('m.application_id', "{$alias}.id"))
+            ->orWhereExists(fn (Builder $mto) => $mto->from('proposal_applications as pa')->join('proposals as p', 'p.id', '=', 'pa.proposal_id')->join('mto_packages as m', 'm.application_id', '=', 'p.representative_application_id')
+                ->whereColumn('pa.application_id', "{$alias}.id")->whereNull('pa.released_at')->where('p.status', 'OPEN'))
+            ->orWhere(fn (Builder $direct) => self::whereDirectInstall($direct, $alias)));
+    }
+
+    /** 1 phasa installed without survey (docs/95): running ones, and finished ones paid from `sla_since`. */
+    private static function whereDirectInstall(Builder $query, string $alias): Builder
+    {
+        return $query->whereIn("{$alias}.current_status", self::PAID_STATUSES)->whereRaw(SrReservationService::directInstallSql($alias))
+            ->where(fn (Builder $q) => $q->whereNotIn("{$alias}.current_status", self::FINISHED)
+                ->orWhereRaw("coalesce({$alias}.paid_at, {$alias}.source_created_at, {$alias}.created_at) >= ?", [(string) config('distriva.sr_reservation.sla_since')]));
+    }
+
+    /**
+     * @param  list<string>  $applicationIds
+     * @return array<string,array<string,mixed>>
+     */
+    private function computePart(array $applicationIds, CarbonImmutable $now): array
+    {
         $apps = DB::table('applications')->whereIn('id', $applicationIds)->whereNotIn('current_status', ['DRAFT', 'SUBMITTED', 'CANCELLED', 'REFUNDED'])
             ->get(['id', 'organizational_unit_id', 'current_status', 'paid_at', 'source_created_at', 'created_at', 'completed_at'])->keyBy('id');
         if ($apps->isEmpty()) {
@@ -85,26 +119,14 @@ class ServiceSlaService
     }
 
     /**
-     * 1-phase applications installed without survey and without MTO (docs/95): only APP / SR, so the service SLA without extension. Finished ones count only when paid from `sla_since`,
-     * so the history connected before this rule is not judged by it.
+     * 1-phase applications installed without survey (docs/95): only APP / SR, so the service SLA without extension unless an MTO says otherwise.
      *
      * @param  list<string>  $ids
      * @return array<string,true>
      */
     private function directInstalls(array $ids): array
     {
-        $since = (string) config('distriva.sr_reservation.sla_since');
-        $out = [];
-        foreach (array_chunk($ids, 5000) as $part) {
-            $found = DB::table('applications as a')->whereIn('a.id', $part)->whereIn('a.current_status', self::PAID_STATUSES)->whereRaw(SrReservationService::directInstallSql())
-                ->where(fn ($q) => $q->whereNotIn('a.current_status', self::FINISHED)->orWhereRaw('coalesce(a.paid_at, a.source_created_at, a.created_at) >= ?', [$since]))
-                ->pluck('a.id');
-            foreach ($found as $id) {
-                $out[$id] = true;
-            }
-        }
-
-        return $out;
+        return self::whereDirectInstall(DB::table('applications as a')->whereIn('a.id', $ids), 'a')->pluck('a.id')->mapWithKeys(fn (string $id): array => [$id => true])->all();
     }
 
     /** Detail of one application: the computed row plus the material shortfall (while it runs) and the explanations. @return array<string,mixed>|null */

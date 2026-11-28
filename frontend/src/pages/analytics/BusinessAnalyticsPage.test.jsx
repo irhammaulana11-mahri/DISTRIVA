@@ -3609,7 +3609,7 @@ describe('BusinessAnalyticsPage', () => {
     expect(await screen.findByRole('button', { name: 'Pertumbuhan' })).toBeInTheDocument()
   })
 
-  it('defaults UP3 and ULP to Semua UP3 / Semua ULP for SYS_ADMIN without auto-selecting a unit', async () => {
+  it('defaults UP3 and ULP to Semua UP3 / Semua ULP for SYS_ADMIN and loads aggregated metric data without unit_id', async () => {
     render(
       <MemoryRouter initialEntries={['/pengusahaan/pelanggan']}>
         <AuthContext.Provider value={{ user: { id: 'usr-admin', name: 'SysAdmin' }, status: 'authenticated' }}>
@@ -3624,10 +3624,9 @@ describe('BusinessAnalyticsPage', () => {
       </MemoryRouter>,
     )
 
-    expect(
-      await screen.findByText(/Pilih salah satu UP3 atau ULP pada filter di atas untuk menampilkan grafik dan analisis pengusahaan/i),
-    ).toBeInTheDocument()
-    expect(pengusahaanApi.metric).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(pengusahaanApi.metric).toHaveBeenCalledWith('pelanggan', expect.not.objectContaining({ unit_id: expect.anything() }))
+    })
     expect(screen.getByDisplayValue('Semua UP3')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Semua ULP')).toBeInTheDocument()
   })

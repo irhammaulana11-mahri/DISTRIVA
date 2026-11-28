@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\OrganizationalUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Tasks\ServiceSlaService;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ApplicationPermissionSeeder;
 use Database\Seeders\PlanningPermissionSeeder;
@@ -128,6 +129,17 @@ class ServiceSlaTest extends PostgresTestCase
         $this->assertSame(['LAYANAN_TANPA_PERLUASAN', 4], [$this->sla($this->application(['PBPD_6_41', 'SR1PH']))->json('data.category'), $this->sla($this->application(['PBPD_6_41', 'SR1PH']))->json('data.working_days')]);   // MTO without extension: the 4-day SLA
         $this->assertNull($this->sla($this->threePhaseWithoutMto())->json('data'));                   // no MTO yet (1 phasa has the 4-day SLA instead, docs/95)
         $this->assertSame(24, $this->sla($this->application(['SUTM'], mto: 'DRAFT'))->json('data.working_days'));   // a draft MTO already shows the expected category
+    }
+
+    #[Test]
+    public function a_list_longer_than_one_database_statement_can_bind_is_computed_in_parts(): void
+    {
+        $app = $this->application(['SUTR']);
+        $ids = array_map(fn (): string => (string) Str::uuid(), range(1, 70000));
+
+        $rows = app(ServiceSlaService::class)->compute([...$ids, $app]);
+
+        $this->assertSame([$app], array_keys($rows));
     }
 
     #[Test]

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { srReservationsApi, vendorsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useNotifications } from '../../features/notifications/NotificationContext.jsx'
@@ -7,6 +7,7 @@ import Button from '../../components/Button.jsx'
 import Alert from '../../components/Alert.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import ReasonDialog from '../../components/ReasonDialog.jsx'
+import ConfirmationModal from '../../components/ConfirmationModal.jsx'
 import {
   IconCheck,
   IconX,
@@ -15,6 +16,7 @@ import {
   IconCheckCircle,
   IconClock,
   IconBuilding,
+  IconSend,
 } from '../../components/icons.jsx'
 
 const STATUS_META = {
@@ -22,6 +24,7 @@ const STATUS_META = {
   SUBMITTED: { label: 'Diajukan', cls: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800' },
   APPROVED: { label: 'Disetujui (Stok Ditahan)', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' },
   RECORDED: { label: 'Tercatat di MIMS', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800' },
+  SAP_SENT: { label: 'Terkirim ke SAP', cls: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800' },
   CANCELLED: { label: 'Dibatalkan', cls: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800' },
 }
 
@@ -68,10 +71,44 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
   const [mimsNo, setMimsNo] = useState('')
   const [recordingMims, setRecordingMims] = useState(false)
 
+  // Serial Numbers, Cable Length & Seal per Agenda (Step 3 MIMS -> SAP)
+  const [agendaInputs, setAgendaInputs] = useState({}) // { [appId]: { sr_length_m, seal_no, serials: { [materialNo]: sn } } }
+  const [savingSerials, setSavingSerials] = useState(false)
+  const [sapConfirmOpen, setSapConfirmOpen] = useState(false)
+  const [sendingSap, setSendingSap] = useState(false)
+
   // Dialogs
   const [returnOpen, setReturnOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [dialogBusy, setDialogBusy] = useState(false)
+
+  const agendasList = useMemo(() => {
+    if (!detail) return []
+    if (Array.isArray(detail.agendas) && detail.agendas.length > 0) return detail.agendas
+    if (detail.application) {
+      return [{
+        application_id: detail.application.id,
+        number: detail.application.number,
+        agenda_number: detail.application.agenda_number,
+        customer_name: detail.application.customer_name,
+        sr_length_m: detail.sr_length_m,
+        seal_no: detail.seal_no || '',
+        serials: detail.serials || {},
+      }]
+    }
+    return []
+  }, [detail])
+
+  const serializableMaterials = useMemo(() => {
+    const out = []
+    ;(detail?.lines || []).forEach((ln) => {
+      const nums = Array.isArray(ln.material_numbers) ? ln.material_numbers : []
+      nums.forEach((matNo) => {
+        out.push({ material_no: matNo, label: ln.khs_name || ln.khs_code })
+      })
+    })
+    return out
+  }, [detail])
 
   const load = useCallback(async () => {
     if (!open || !reservationId) return
@@ -94,6 +131,22 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
           }
         })
         setEdits(nextEdits)
+
+        const rawAgendas = Array.isArray(d.agendas) && d.agendas.length > 0
+          ? d.agendas
+          : d.application
+            ? [{ application_id: d.application.id, sr_length_m: d.sr_length_m, seal_no: d.seal_no || '', serials: d.serials || {} }]
+            : []
+        const nextInputs = {}
+        rawAgendas.forEach((ag) => {
+          const key = ag.application_id || ag.id
+          nextInputs[key] = {
+            sr_length_m: ag.sr_length_m != null ? String(ag.sr_length_m) : (d.sr_length_m != null ? String(d.sr_length_m) : '35'),
+            seal_no: ag.seal_no || '',
+            serials: { ...(ag.serials || {}) },
+          }
+        })
+        setAgendaInputs(nextInputs)
       }
     } catch (err) {
       setError(err?.message || 'Gagal memuat rincian reservasi material SR.')
@@ -250,6 +303,54 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
     }
   }
 
+  const handleSaveSerials = async (e) => {
+    e?.preventDefault?.()
+    if (!detail) return
+    const items = agendasList.map((ag) => {
+      const key = ag.application_id || ag.id
+      const entry = agendaInputs[key] || { sr_length_m: '35', seal_no: '', serials: {} }
+      return {
+        application_id: key,
+        sr_length_m: entry.sr_length_m !== '' ? Number(entry.sr_length_m) : null,
+        seal_no: (entry.seal_no || '').trim(),
+        serials: entry.serials || {},
+      }
+    })
+    setSavingSerials(true)
+    try {
+      await srReservationsApi.saveSerials(detail.id, { items })
+      notify({ type: 'success', title: 'SN, Kabel & Segel Tersimpan', desc: 'Rincian realisasi per No. Agenda berhasil disimpan.', tag: 'Reservasi SR' })
+      await load()
+      onUpdated?.()
+    } catch (err) {
+      const msg = err?.status === 404 || err?.status === 405
+        ? 'Endpoint /sr-reservations/{id}/serials belum tersedia di backend.'
+        : err?.message || 'Gagal menyimpan serial number & segel.'
+      notify({ type: 'error', title: 'Gagal menyimpan SN & Segel', desc: msg, tag: 'Reservasi SR' })
+    } finally {
+      setSavingSerials(false)
+    }
+  }
+
+  const handleSendSap = async () => {
+    if (!detail) return
+    setSendingSap(true)
+    try {
+      await srReservationsApi.sendSap(detail.id)
+      notify({ type: 'success', title: 'Terkirim ke SAP', desc: 'Reservasi SR telah dikirim ke SAP.', tag: 'Reservasi SR' })
+      setSapConfirmOpen(false)
+      await load()
+      onUpdated?.()
+    } catch (err) {
+      const msg = err?.status === 404 || err?.status === 405
+        ? 'Endpoint /sr-reservations/{id}/sap belum tersedia di backend.'
+        : err?.message || 'Gagal mengirim ke SAP.'
+      notify({ type: 'error', title: 'Gagal Kirim SAP', desc: msg, tag: 'Reservasi SR' })
+    } finally {
+      setSendingSap(false)
+    }
+  }
+
   const handleCancel = async (reason) => {
     if (!detail) return
     setDialogBusy(true)
@@ -271,8 +372,14 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
       open={open}
       onClose={onClose}
       title={detail ? `Reservasi SR #${detail.version_number || 1}` : 'Rincian Reservasi SR'}
-      subtitle={detail?.application ? `${detail.application.number || ''} · ${detail.application.customer_name || ''}` : ''}
-      size="xl"
+      subtitle={
+        agendasList.length > 1
+          ? `Batch Kolektif · ${agendasList.length} No. Agenda`
+          : detail?.application
+            ? `${detail.application.number || ''} · ${detail.application.customer_name || ''}`
+            : ''
+      }
+      size="max-w-4xl"
     >
       {loading ? (
         <div className="py-16 flex justify-center">
@@ -295,6 +402,11 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                 <span className="rounded-full border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
                   Gudang {detail.source_level}
                 </span>
+                {agendasList.length > 1 && (
+                  <span className="rounded-full border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+                    Kolektif {agendasList.length} Agenda
+                  </span>
+                )}
                 {detail.bom_group && (
                   <span className="font-mono text-[11px] text-slate-500">BOM: {detail.bom_group}</span>
                 )}
@@ -313,11 +425,19 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
             {/* Info untuk Input ke MIMS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1 text-xs">
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Permohonan & Agenda</span>
-                <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">{detail.application?.customer_name || '-'}</p>
-                <p className="font-mono text-[11px] text-slate-500">No: {detail.application?.number || '-'}</p>
-                {detail.application?.agenda_number && (
-                  <p className="font-mono text-[11px] text-slate-500">Agenda: {detail.application.agenda_number}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Permohonan &amp; Agenda</span>
+                {agendasList.length > 1 ? (
+                  <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
+                    {agendasList.length} No. Agenda tergabung dalam batch ini
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">{detail.application?.customer_name || '-'}</p>
+                    <p className="font-mono text-[11px] text-slate-500">No: {detail.application?.number || '-'}</p>
+                    {detail.application?.agenda_number && (
+                      <p className="font-mono text-[11px] text-slate-500">Agenda: {detail.application.agenda_number}</p>
+                    )}
+                  </>
                 )}
                 <p className="text-[11px] text-slate-500 mt-0.5">{detail.unit?.code} - {detail.unit?.name}</p>
               </div>
@@ -338,7 +458,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
               </div>
 
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pelaksana & Nomor MIMS</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pelaksana &amp; Nomor MIMS</span>
                 <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">{detail.vendor?.name || '-'}</p>
                 {detail.vendor?.contract_number && (
                   <p className="font-mono text-[11px] text-slate-500">Kontrak: {detail.vendor.contract_number}</p>
@@ -358,7 +478,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
             </div>
           </div>
 
-          {/* Form Draft / Material Lines */}
+          {/* Form Draft / Material Lines (Total Pemakaian Material) */}
           <form onSubmit={handleSaveDraft} className="space-y-4">
             {detail.status === 'DRAFT' && canPrepare && (
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -417,8 +537,8 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Daftar Material PLN (BOM APP)</h4>
-                  <p className="text-[11px] text-slate-500">Nomor material ERP, plant, dan storage location dipakai untuk input manual ke MIMS.</p>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Total Pemakaian Material PLN (BOM APP)</h4>
+                  <p className="text-[11px] text-slate-500">Nomor material ERP, plant, dan storage location dipakai untuk input ke MIMS.</p>
                 </div>
                 <span className="text-xs font-semibold text-slate-500">{(detail.lines || []).length} item</span>
               </div>
@@ -532,7 +652,7 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                 )}
               </div>
 
-              {detail.status !== 'CANCELLED' && canRecordOrCancel && (
+              {!['CANCELLED', 'SAP_SENT'].includes(detail.status) && canRecordOrCancel && (
                 <Button type="button" variant="danger" icon={IconX} onClick={() => setCancelOpen(true)}>
                   Batalkan Rencana
                 </Button>
@@ -540,14 +660,14 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
             </div>
           </form>
 
-          {/* Catat / Koreksi Nomor Reservasi MIMS */}
-          {['APPROVED', 'RECORDED'].includes(detail.status) && canRecordOrCancel && (
+          {/* Langkah 2: Catat / Koreksi Nomor Permohonan / Reservasi MIMS */}
+          {['APPROVED', 'RECORDED', 'SAP_SENT'].includes(detail.status) && canRecordOrCancel && (
             <form onSubmit={handleRecordMims} className="rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-2.5">
               <div className="text-xs font-bold text-indigo-900 dark:text-indigo-200">
-                Catat / Koreksi Nomor Reservasi MIMS (Input Manual)
+                Catat / Koreksi Nomor Permohonan &amp; Reservasi MIMS
               </div>
               <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300/80">
-                Setelah membuat reservasi di aplikasi MIMS menggunakan nomor material ERP, Plant, dan SLoc di atas, catat nomor reservasinya di sini. Satu nomor boleh dipakai beberapa agenda.
+                Setelah mengirim total pemakaian material di MIMS, catat nomor reservasi MIMS di sini sebelum mengisi Serial Number per No. Agenda.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -555,13 +675,136 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
                   aria-label="Nomor reservasi MIMS"
                   value={mimsNo}
                   onChange={(e) => setMimsNo(e.target.value)}
+                  disabled={detail.status === 'SAP_SENT'}
                   placeholder="Masukkan nomor reservasi MIMS…"
                   className="flex-1 min-w-56 rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono text-slate-900 dark:text-slate-100 focus-ring"
                 />
-                <Button type="submit" variant="primary" loading={recordingMims} disabled={!mimsNo.trim()}>
-                  Simpan Nomor MIMS
-                </Button>
+                {detail.status !== 'SAP_SENT' && (
+                  <Button type="submit" variant="primary" loading={recordingMims} disabled={!mimsNo.trim()}>
+                    Simpan Nomor MIMS
+                  </Button>
+                )}
               </div>
+            </form>
+          )}
+
+          {/* Langkah 3: Input Serial Number per Material, Panjang Kabel SR & Segel per No. Agenda */}
+          {['RECORDED', 'SAP_SENT'].includes(detail.status) && agendasList.length > 0 && (
+            <form onSubmit={handleSaveSerials} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/60 dark:bg-slate-850/40">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Serial Number, Panjang Kabel SR &amp; Segel per No. Agenda
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Lengkapi nomor seri masing-masing material, panjang kabel SR aktual (m), dan nomor segel per agenda sebelum kirim SAP.
+                  </p>
+                </div>
+                {detail.status !== 'SAP_SENT' && canRecordOrCancel && (
+                  <Button type="submit" size="sm" variant="secondary" loading={savingSerials}>
+                    Simpan SN, Kabel &amp; Segel
+                  </Button>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-850 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="px-3 py-2.5">No. Agenda &amp; Pelanggan</th>
+                      {serializableMaterials.map((m) => (
+                        <th key={m.material_no} className="px-3 py-2.5">
+                          <div>SN {m.material_no}</div>
+                          <div className="text-[10px] font-normal normal-case text-slate-400 truncate max-w-36">{m.label}</div>
+                        </th>
+                      ))}
+                      <th className="px-3 py-2.5">Panjang Kabel SR (m)</th>
+                      <th className="px-3 py-2.5">Nomor Segel</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {agendasList.map((ag) => {
+                      const key = ag.application_id || ag.id
+                      const entry = agendaInputs[key] || { sr_length_m: '35', seal_no: '', serials: {} }
+                      const readOnly = detail.status === 'SAP_SENT' || !canRecordOrCancel
+                      return (
+                        <tr key={key} className="align-top">
+                          <td className="px-3 py-2.5">
+                            <div className="font-semibold text-slate-900 dark:text-slate-100">{ag.customer_name || '-'}</div>
+                            <div className="font-mono text-[11px] text-slate-500">{ag.agenda_number || ag.number || '-'}</div>
+                          </td>
+                          {serializableMaterials.map((m) => (
+                            <td key={m.material_no} className="px-3 py-2.5">
+                              <input
+                                type="text"
+                                aria-label={`SN ${m.material_no} ${ag.number || key}`}
+                                disabled={readOnly}
+                                value={entry.serials?.[m.material_no] || ''}
+                                onChange={(e) =>
+                                  setAgendaInputs((prev) => ({
+                                    ...prev,
+                                    [key]: {
+                                      ...entry,
+                                      serials: { ...(entry.serials || {}), [m.material_no]: e.target.value },
+                                    },
+                                  }))
+                                }
+                                placeholder="Serial number…"
+                                className="w-36 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-mono text-slate-900 dark:text-slate-100 focus-ring"
+                              />
+                            </td>
+                          ))}
+                          <td className="px-3 py-2.5">
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              aria-label={`Panjang kabel ${ag.number || key}`}
+                              disabled={readOnly}
+                              value={entry.sr_length_m}
+                              onChange={(e) =>
+                                setAgendaInputs((prev) => ({
+                                  ...prev,
+                                  [key]: { ...entry, sr_length_m: e.target.value },
+                                }))
+                              }
+                              className="w-24 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-right text-xs font-mono text-slate-900 dark:text-slate-100 focus-ring"
+                            />
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <input
+                              type="text"
+                              aria-label={`Nomor segel ${ag.number || key}`}
+                              disabled={readOnly}
+                              value={entry.seal_no}
+                              onChange={(e) =>
+                                setAgendaInputs((prev) => ({
+                                  ...prev,
+                                  [key]: { ...entry, seal_no: e.target.value },
+                                }))
+                              }
+                              placeholder="No. segel…"
+                              className="w-32 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-mono text-slate-900 dark:text-slate-100 focus-ring"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Langkah 4: Kirim SAP */}
+              {detail.status === 'RECORDED' && canRecordOrCancel && (
+                <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-teal-50/40 dark:bg-teal-950/20 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-[11px] text-teal-900 dark:text-teal-200">
+                    Pastikan seluruh Serial Number, panjang kabel SR, dan nomor segel per agenda sudah disimpan sebelum mengirim ke SAP.
+                  </p>
+                  <Button type="button" variant="primary" size="sm" icon={IconSend} onClick={() => setSapConfirmOpen(true)}>
+                    Kirim SAP
+                  </Button>
+                </div>
+              )}
             </form>
           )}
 
@@ -587,6 +830,17 @@ export default function SrReservationDetailDrawer({ open, reservationId, onClose
           )}
         </div>
       )}
+
+      <ConfirmationModal
+        open={sapConfirmOpen}
+        variant="info"
+        title="Kirim Reservasi ke SAP?"
+        description="Pastikan nomor reservasi MIMS, Serial Number material, panjang kabel SR, dan nomor segel pada seluruh agenda sudah lengkap dan tersimpan."
+        confirmLabel="Kirim SAP"
+        loading={sendingSap}
+        onClose={() => setSapConfirmOpen(false)}
+        onConfirm={handleSendSap}
+      />
 
       <ReasonDialog
         open={returnOpen}

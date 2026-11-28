@@ -1048,10 +1048,13 @@ export const srReservationsApi = {
   list: (params = {}) => request(`/sr-reservations${qs(params)}`),
   forApplication: (applicationId) => request(`/applications/${applicationId}/sr-reservations`),
   create: (applicationId, body) => request(`/applications/${applicationId}/sr-reservations`, { method: 'POST', body }),
+  createBatch: (body) => request('/sr-reservations/batch', { method: 'POST', body }),
   get: (id) => request(`/sr-reservations/${id}`),
   update: (id, body) => request(`/sr-reservations/${id}`, { method: 'PUT', body }),
   submit: (id) => request(`/sr-reservations/${id}/submit`, { method: 'POST' }),
   decide: (id, body) => request(`/sr-reservations/${id}/decision`, { method: 'POST', body }),
   recordMims: (id, body) => request(`/sr-reservations/${id}/mims`, { method: 'POST', body }),
+  saveSerials: (id, body) => request(`/sr-reservations/${id}/serials`, { method: 'POST', body }),
+  sendSap: (id) => request(`/sr-reservations/${id}/sap`, { method: 'POST' }),
   cancel: (id, body) => request(`/sr-reservations/${id}/cancel`, { method: 'POST', body }),
 }

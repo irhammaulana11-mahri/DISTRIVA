@@ -14,11 +14,14 @@ vi.mock('../../services/api.js', () => ({
     list: vi.fn(),
     forApplication: vi.fn(),
     create: vi.fn(),
+    createBatch: vi.fn(),
     get: vi.fn(),
     update: vi.fn(),
     submit: vi.fn(),
     decide: vi.fn(),
     recordMims: vi.fn(),
+    saveSerials: vi.fn(),
+    sendSap: vi.fn(),
     cancel: vi.fn(),
   },
   srVendorContractsApi: {
@@ -204,5 +207,137 @@ describe('SrReservationsPage (docs/95)', () => {
     expect(await screen.findByText('KTR-001')).toBeInTheDocument()
     expect(screen.getByText(/51453 - ULP Jombang/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Tambah Kontrak 1 Phasa/i })).toBeInTheDocument()
+  })
+
+  it('mendukung pemilihan kolektif beberapa agenda dan membuat reservasi kolektif', async () => {
+    srReservationsApi.pending.mockResolvedValue({
+      data: [
+        {
+          application_id: 'app-1',
+          application_number: 'PB-2026-001',
+          application_type: 'PB',
+          status: 'PAID',
+          customer_name: 'Budi Santoso',
+          unit: { id: 'ulp-1', code: '51453', name: 'ULP Jombang' },
+          power_va: 2200,
+          phase: 1,
+          default_vendor: { id: 'v-1', name: 'PT Pelaksana 1Ph' },
+        },
+        {
+          application_id: 'app-2',
+          application_number: 'PB-2026-002',
+          application_type: 'PB',
+          status: 'PAID',
+          customer_name: 'Siti Aminah',
+          unit: { id: 'ulp-1', code: '51453', name: 'ULP Jombang' },
+          power_va: 1300,
+          phase: 1,
+          default_vendor: { id: 'v-1', name: 'PT Pelaksana 1Ph' },
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 2, per_page: 25 },
+    })
+    srReservationsApi.createBatch.mockResolvedValue({ data: { id: 'res-batch-1' } })
+
+    wrap(<SrReservationsPage />)
+
+    expect(await screen.findByText('Budi Santoso')).toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText('Pilih PB-2026-001'))
+    await userEvent.click(screen.getByLabelText('Pilih PB-2026-002'))
+
+    await userEvent.click(screen.getByRole('button', { name: /Buat Reservasi Kolektif \(2\)/i }))
+    expect(await screen.findByText(/Daftar No\. Agenda Terpilih \(2\)/i)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Buat Reservasi Kolektif \(2 Agenda\)/i }))
+
+    await waitFor(() => {
+      expect(srReservationsApi.createBatch).toHaveBeenCalledWith(expect.objectContaining({
+        application_ids: ['app-1', 'app-2'],
+        warehouse_id: 'wh-1',
+        sr_length_m: 35,
+      }))
+    })
+  })
+
+  it('dapat mengisi Serial Number, panjang kabel, dan segel per agenda lalu Kirim SAP pada status RECORDED', async () => {
+    srReservationsApi.list.mockResolvedValue({
+      data: [
+        {
+          id: 'res-1',
+          version_number: 1,
+          status: 'RECORDED',
+          phase: 1,
+          power_va: 2200,
+          source_level: 'ULP',
+          applications_count: 1,
+          application: { id: 'app-1', number: 'PB-2026-001', agenda_number: 'AG-001', customer_name: 'Budi Santoso' },
+          unit: { id: 'ulp-1', code: '51453', name: 'ULP Jombang' },
+          warehouse: { id: 'wh-1', code: 'GD-51453', name: 'Gudang ULP Jombang', plant: '5118', stor_loc: '2810' },
+          vendor: { id: 'v-1', code: 'V01', name: 'PT Pelaksana 1Ph', contract_number: 'KTR-001' },
+          sr_length_m: 35,
+          mims_reservation_no: 'RSV-2026-889',
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1, per_page: 25 },
+    })
+    srReservationsApi.get.mockResolvedValue({
+      data: {
+        id: 'res-1',
+        version_number: 1,
+        status: 'RECORDED',
+        phase: 1,
+        power_va: 2200,
+        source_level: 'ULP',
+        bom_group: 'SR1PH',
+        application: { id: 'app-1', number: 'PB-2026-001', agenda_number: 'AG-001', customer_name: 'Budi Santoso' },
+        agendas: [
+          { application_id: 'app-1', number: 'PB-2026-001', agenda_number: 'AG-001', customer_name: 'Budi Santoso', sr_length_m: 35, seal_no: '', serials: {} },
+        ],
+        unit: { id: 'ulp-1', code: '51453', name: 'ULP Jombang' },
+        warehouse: { id: 'wh-1', code: 'GD-51453', name: 'Gudang ULP Jombang', plant: '5118', stor_loc: '2810' },
+        vendor: { id: 'v-1', code: 'V01', name: 'PT Pelaksana 1Ph', contract_number: 'KTR-001' },
+        sr_length_m: 35,
+        mims_reservation_no: 'RSV-2026-889',
+        lines: [
+          { khs_code: 'SR-01', khs_name: 'Kabel SR 2x10 mm2', unit_text: 'm', material_numbers: ['3110025'], quantity_bom: 35, quantity: 35, correction_reason: null },
+        ],
+        events: [],
+      },
+    })
+    srReservationsApi.saveSerials.mockResolvedValue({ data: { ok: true } })
+    srReservationsApi.sendSap.mockResolvedValue({ data: { ok: true } })
+
+    wrap(<SrReservationsPage />)
+
+    await userEvent.click(screen.getByRole('tab', { name: /Daftar Rencana Reservasi/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Rincian/i }))
+
+    expect(await screen.findByText(/Serial Number, Panjang Kabel SR & Segel per No\. Agenda/i)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('SN 3110025 PB-2026-001'), { target: { value: 'SN-MTR-9988' } })
+    fireEvent.change(screen.getByLabelText('Panjang kabel PB-2026-001'), { target: { value: '42' } })
+    fireEvent.change(screen.getByLabelText('Nomor segel PB-2026-001'), { target: { value: 'SGL-12345' } })
+
+    await userEvent.click(screen.getByRole('button', { name: /Simpan SN, Kabel & Segel/i }))
+    await waitFor(() => {
+      expect(srReservationsApi.saveSerials).toHaveBeenCalledWith('res-1', {
+        items: [
+          {
+            application_id: 'app-1',
+            sr_length_m: 42,
+            seal_no: 'SGL-12345',
+            serials: { 3110025: 'SN-MTR-9988' },
+          },
+        ],
+      })
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: /^Kirim SAP$/i }))
+    await screen.findByText('Kirim Reservasi ke SAP?')
+    const confirmBtns = screen.getAllByRole('button', { name: /^Kirim SAP$/i })
+    await userEvent.click(confirmBtns[confirmBtns.length - 1])
+
+    await waitFor(() => {
+      expect(srReservationsApi.sendSap).toHaveBeenCalledWith('res-1')
+    })
   })
 })

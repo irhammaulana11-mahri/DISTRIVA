@@ -439,7 +439,8 @@ describe('NkoPage', () => {
     expect(screen.queryByPlaceholderText(/Isi manual/i)).not.toBeInTheDocument()
   })
 
-  it('defaults UP3 and ULP to Semua UP3 / Semua ULP for SYS_ADMIN without auto-selecting a unit', async () => {
+  it('defaults UP3 and ULP to Semua UP3 / Semua ULP for SYS_ADMIN and loads combined NKO summary across all units', async () => {
+    nkoApi.snapshots.mockResolvedValue(MOCK_SNAPSHOT_SUMMARY)
     render(
       <MemoryRouter>
         <AuthContext.Provider value={{ user: { id: 'usr-admin', name: 'SysAdmin' }, status: 'authenticated' }}>
@@ -452,10 +453,8 @@ describe('NkoPage', () => {
       </MemoryRouter>,
     )
 
-    expect(
-      await screen.findByText(/Pilih satu unit \(ULP atau UP3\) pada bilah filter di atas untuk melihat rincian NKO/i),
-    ).toBeInTheDocument()
-    expect(nkoApi.snapshots).not.toHaveBeenCalled()
+    expect(await screen.findByText(/Ringkasan NKO Gabungan — Semua UP3 & ULP/i)).toBeInTheDocument()
+    expect(nkoApi.snapshots).toHaveBeenCalledWith(expect.not.objectContaining({ unit_id: expect.anything() }))
     expect(screen.getByDisplayValue('Semua UP3')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Semua ULP')).toBeInTheDocument()
   })

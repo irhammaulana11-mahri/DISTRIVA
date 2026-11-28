@@ -69,13 +69,15 @@ class ServiceSlaController extends Controller
     private function rows(User $user, ?string $search): array
     {
         $scope = $this->authorizer->authorizeScope($user, 'tasks.view');
-        $apps = DB::table('applications as a')->join('customers as c', 'c.id', '=', 'a.customer_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
+        $apps = ServiceSlaService::candidates(DB::table('applications as a'))->join('customers as c', 'c.id', '=', 'a.customer_id')->join('organizational_units as u', 'u.id', '=', 'a.organizational_unit_id')
             ->whereIn('a.current_status', ['APPROVED', 'PAID', 'PK_PRINTED', 'CONNECTION_IN_PROGRESS', 'CONNECTION_DONE', 'COMPLETED'])
             ->when(! $scope['unrestricted'], fn ($q) => $q->whereIn('a.organizational_unit_id', $scope['units']))
             ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('a.application_number', 'ilike', '%'.str_replace(['%', '_'], ['\%', '\_'], $s).'%')->orWhere('c.name', 'ilike', '%'.str_replace(['%', '_'], ['\%', '\_'], $s).'%')))
             ->get(['a.id', 'a.application_number', 'c.name as customer_name', 'u.code as unit_code', 'u.name as unit_name'])->keyBy('id');
         $computed = $this->sla->compute($apps->keys()->all());
-        $notes = $computed === [] ? [] : DB::table('application_sla_notes')->whereIn('application_id', array_keys($computed))->selectRaw('distinct on (application_id) application_id, note, created_at')->orderBy('application_id')->orderByDesc('created_at')->get()->keyBy('application_id');
+        $notes = collect(array_chunk(array_keys($computed), 5000))
+            ->flatMap(fn (array $part) => DB::table('application_sla_notes')->whereIn('application_id', $part)->selectRaw('distinct on (application_id) application_id, note, created_at')->orderBy('application_id')->orderByDesc('created_at')->get())
+            ->keyBy('application_id');
         $out = [];
         foreach ($computed as $id => $row) {
             $a = $apps[$id];

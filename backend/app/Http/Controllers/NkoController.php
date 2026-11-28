@@ -117,19 +117,31 @@ class NkoController extends Controller
                     'pencapaian' => $v->pencapaian !== null ? (float) $v->pencapaian : null, 'nilai' => $v->nilai !== null ? (float) $v->nilai : null])->all()]]);
     }
 
-    /** GET /nko/ranking?year=&month=&up3_id=: peringkat ULP satu UP3 (snapshot berlaku) beserta NKO UP3. */
+    /** GET /nko/ranking?year=&month=&up3_id=: peringkat ULP satu UP3 (atau seluruh UP3 untuk SYS_ADMIN) beserta NKO UP3. */
     public function ranking(Request $request): JsonResponse
     {
         $visible = $this->visibleUnits($request);
-        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100'], 'month' => ['required', 'integer', 'between:1,12'], 'up3_id' => ['required', 'uuid']]);
-        $this->assertUnit($visible, $d['up3_id']);
+        $d = $request->validate(['year' => ['required', 'integer', 'between:2000,2100'], 'month' => ['required', 'integer', 'between:1,12'], 'up3_id' => ['nullable', 'uuid']]);
+        if (empty($d['up3_id']) && $visible !== null) {
+            throw new AdministrationDenied('UP3 wajib dipilih.', 422);
+        }
+        if (! empty($d['up3_id'])) {
+            $this->assertUnit($visible, $d['up3_id']);
+        }
         $rows = DB::table('kpi_snapshots as s')->join('organizational_units as u', 'u.id', '=', 's.organizational_unit_id')->where('s.is_current', true)->where('s.period', sprintf('%04d-%02d-01', $d['year'], $d['month']))
-            ->where(fn ($x) => $x->where('u.parent_id', $d['up3_id'])->orWhere('u.id', $d['up3_id']))
+            ->when(! empty($d['up3_id']), fn ($q) => $q->where(fn ($x) => $x->where('u.parent_id', $d['up3_id'])->orWhere('u.id', $d['up3_id'])))
             ->when($visible !== null, fn ($q) => $q->whereIn('s.organizational_unit_id', $visible))
             ->get(['s.id', 's.period', 's.organizational_unit_id', 'u.name as unit_name', 'u.unit_type', 's.total_nilai', 's.nko', 's.rank', 's.rank_of', 's.missing_count', 's.calculated_at']);
-        $ulp = $rows->where('unit_type', 'ULP')->sortBy('rank')->values();
+        $ulp = ! empty($d['up3_id'])
+            ? $rows->where('unit_type', 'ULP')->sortBy('rank')->values()
+            : $rows->where('unit_type', 'ULP')->sortByDesc('nko')->values();
+        $up3List = $rows->where('unit_type', 'UP3')->sortByDesc('nko')->values();
 
-        return response()->json(['data' => ['ulp' => $ulp->map(fn ($r) => $this->summary($r))->all(), 'up3' => ($up3 = $rows->firstWhere('unit_type', 'UP3')) ? $this->summary($up3) : null]]);
+        return response()->json(['data' => [
+            'ulp' => $ulp->map(fn ($r) => $this->summary($r))->all(),
+            'up3' => ! empty($d['up3_id']) && ($up3 = $up3List->first()) ? $this->summary($up3) : null,
+            'up3_list' => $up3List->map(fn ($r) => $this->summary($r))->all(),
+        ]]);
     }
 
     /** GET /nko/inputs?unit_id=&year=&month=: daftar indikator yang butuh realisasi bulan itu beserta sumbernya. */

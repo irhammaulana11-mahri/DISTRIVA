@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { srReservationsApi } from '../../services/api.js'
 import { useAccess } from '../../features/admin/AccessContext.jsx'
 import { useDebounce } from '../../utils/useDebounce.js'
@@ -11,9 +11,19 @@ import TableFooter from '../../components/TableFooter.jsx'
 import PanelShell from '../../components/PanelShell.jsx'
 import SrReservationDetailDrawer, { SrStatusBadge } from './SrReservationDetailDrawer.jsx'
 import ApplicationSrReservationPanel from './ApplicationSrReservationPanel.jsx'
+import SrCollectiveCreateDrawer from './SrCollectiveCreateDrawer.jsx'
 import SrVendorContractsTab from './SrVendorContractsTab.jsx'
 import { filterSelectCls, filterSearchCls } from '../../components/filterStyles.js'
-import { IconSearch, IconRefresh, IconPlus, IconEye, IconTruck } from '../../components/icons.jsx'
+import {
+  IconSearch,
+  IconRefresh,
+  IconPlus,
+  IconEye,
+  IconTruck,
+  IconClock,
+  IconCheckCircle,
+  IconClipboard,
+} from '../../components/icons.jsx'
 
 export default function SrReservationsPage() {
   const { can, isSysAdmin } = useAccess()
@@ -31,6 +41,10 @@ export default function SrReservationsPage() {
   const [pPerPage, setPPerPage] = useState(25)
   const [pendingState, setPendingState] = useState({ loading: false, error: '', rows: [], meta: null })
   const [planAppTarget, setPlanAppTarget] = useState(null)
+
+  // Multi-select collective state
+  const [selectedMap, setSelectedMap] = useState({}) // { [application_id]: row }
+  const [collectiveOpen, setCollectiveOpen] = useState(false)
 
   // Plans tab state
   const [rUp3Id, setRUp3Id] = useState('')
@@ -76,30 +90,152 @@ export default function SrReservationsPage() {
   }, [canView, rStatus, rSourceLevel, rUnitId, rPage, rPerPage])
 
   useEffect(() => {
-    if (tab === 'pending') loadPending()
-  }, [tab, loadPending])
+    if (canView) loadPending()
+  }, [canView, loadPending])
 
   useEffect(() => {
-    if (tab === 'plans') loadPlans()
-  }, [tab, loadPlans])
+    if (canView) loadPlans()
+  }, [canView, loadPlans])
+
+  const stats = useMemo(() => {
+    const pendingTotal = pendingState.meta?.total ?? pendingState.rows.length
+    const plansTotal = plansState.meta?.total ?? plansState.rows.length
+    const inProcess = plansState.rows.filter((r) => ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(r.status)).length
+    const recorded = plansState.rows.filter((r) => ['RECORDED', 'SAP_SENT'].includes(r.status)).length
+    return { pendingTotal, plansTotal, inProcess, recorded }
+  }, [pendingState, plansState])
+
+  const selectedAgendas = useMemo(() => Object.values(selectedMap), [selectedMap])
+  const allCurrentPageSelected =
+    pendingState.rows.length > 0 && pendingState.rows.every((r) => Boolean(selectedMap[r.application_id]))
+
+  const toggleSelectRow = (row) => {
+    setSelectedMap((prev) => {
+      if (prev[row.application_id]) {
+        const next = { ...prev }
+        delete next[row.application_id]
+        return next
+      }
+      return { ...prev, [row.application_id]: row }
+    })
+  }
+
+  const toggleSelectAllPage = () => {
+    setSelectedMap((prev) => {
+      const next = { ...prev }
+      if (allCurrentPageSelected) {
+        pendingState.rows.forEach((r) => { delete next[r.application_id] })
+      } else {
+        pendingState.rows.forEach((r) => { next[r.application_id] = r })
+      }
+      return next
+    })
+  }
+
+  const handleRefresh = () => {
+    if (tab === 'pending') loadPending()
+    else if (tab === 'plans') loadPlans()
+    else {
+      loadPending()
+      loadPlans()
+    }
+  }
 
   return (
-    <div className="space-y-5">
-      <header className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-indigo-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/20 p-5 shadow-xs">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Reservasi Material Sambungan (Tanpa Perluasan)
-            </h1>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-3xl">
-              Penetapan pelaksana dan rencana reservasi material SR dari BOM APP untuk permohonan siap pasang tanpa perluasan jaringan, penahanan stok, hingga pencatatan nomor reservasi MIMS.
-            </p>
+    <div className="space-y-6">
+      {/* Hero Header Modul */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-r from-white via-slate-50 to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-xs shrink-0">
+              <IconTruck className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Reservasi Material Sambungan (Tanpa Perluasan)
+                </h1>
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  Pelayanan &amp; Operasional
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+                Pilih satu atau banyak No. Agenda secara kolektif untuk rekap total pemakaian material, catat nomor MIMS, lengkapi Serial Number, panjang kabel, dan segel per agenda hingga kirim SAP.
+              </p>
+            </div>
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            icon={IconRefresh}
+            onClick={handleRefresh}
+            aria-label="Segarkan"
+          >
+            Segarkan
+          </Button>
         </div>
-      </header>
+      </div>
 
-      {/* Tabs */}
-      <div role="tablist" aria-label="Menu Reservasi SR" className="flex flex-wrap items-center gap-1 border-b border-slate-200 dark:border-slate-800">
+      {/* KPI Ringkasan Metrik Reservasi SR */}
+      {canView && (
+        <dl className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 shadow-xs">
+            <div className="flex items-center justify-between">
+              <dt className="text-xs font-medium text-amber-700 dark:text-amber-400">Menunggu Reservasi</dt>
+              <div className="rounded-lg p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+                <IconClock className="h-4 w-4" />
+              </div>
+            </div>
+            <dd className="mt-2 text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+              {stats.pendingTotal}
+            </dd>
+            <p className="mt-1 text-xs text-amber-600/70 dark:text-amber-500/70">Siap pasang tanpa rencana</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+            <div className="flex items-center justify-between">
+              <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Rencana</dt>
+              <div className="rounded-lg p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                <IconClipboard className="h-4 w-4" />
+              </div>
+            </div>
+            <dd className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              {stats.plansTotal}
+            </dd>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Rencana reservasi terdaftar</p>
+          </div>
+
+          <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10 p-4 shadow-xs">
+            <div className="flex items-center justify-between">
+              <dt className="text-xs font-medium text-blue-700 dark:text-blue-400">Dalam Proses</dt>
+              <div className="rounded-lg p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+                <IconTruck className="h-4 w-4" />
+              </div>
+            </div>
+            <dd className="mt-2 text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+              {stats.inProcess}
+            </dd>
+            <p className="mt-1 text-xs text-blue-600/70 dark:text-blue-500/70">Draf, diajukan, atau disetujui</p>
+          </div>
+
+          <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 shadow-xs">
+            <div className="flex items-center justify-between">
+              <dt className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Tercatat MIMS / SAP</dt>
+              <div className="rounded-lg p-1.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+                <IconCheckCircle className="h-4 w-4" />
+              </div>
+            </div>
+            <dd className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+              {stats.recorded}
+            </dd>
+            <p className="mt-1 text-xs text-emerald-600/70 dark:text-emerald-500/70">Nomor MIMS / SAP tercatat</p>
+          </div>
+        </dl>
+      )}
+
+      {/* Underline Tabs */}
+      <div role="tablist" aria-label="Menu Reservasi SR" className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
         {canView && (
           <>
             <button
@@ -107,16 +243,22 @@ export default function SrReservationsPage() {
               role="tab"
               aria-selected={tab === 'pending'}
               onClick={() => setTab('pending')}
-              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
+              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
                 tab === 'pending'
-                  ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300'
+                  ? 'border-blue-600 text-blue-700 dark:text-blue-300'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              Menunggu Reservasi
-              {pendingState.meta?.total != null && (
-                <span className="ml-1.5 rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px]">
-                  {pendingState.meta.total}
+              <span>Menunggu Reservasi</span>
+              {stats.pendingTotal > 0 && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    tab === 'pending'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  {stats.pendingTotal}
                 </span>
               )}
             </button>
@@ -125,13 +267,24 @@ export default function SrReservationsPage() {
               role="tab"
               aria-selected={tab === 'plans'}
               onClick={() => setTab('plans')}
-              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
+              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
                 tab === 'plans'
-                  ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300'
+                  ? 'border-blue-600 text-blue-700 dark:text-blue-300'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              Daftar Rencana Reservasi
+              <span>Daftar Rencana Reservasi</span>
+              {stats.plansTotal > 0 && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    tab === 'plans'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  {stats.plansTotal}
+                </span>
+              )}
             </button>
           </>
         )}
@@ -141,21 +294,21 @@ export default function SrReservationsPage() {
             role="tab"
             aria-selected={tab === 'contracts'}
             onClick={() => setTab('contracts')}
-            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
               tab === 'contracts'
-                ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-300'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            Kontrak Pelaksana 1 Phasa
+            <span>Kontrak Pelaksana 1 Phasa</span>
           </button>
         )}
       </div>
 
       {/* TAB 1: Menunggu Reservasi */}
       {tab === 'pending' && canView && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-52">
               <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <IconSearch size={15} />
@@ -168,62 +321,107 @@ export default function SrReservationsPage() {
                 className={`w-full ${filterSearchCls}`}
               />
             </div>
-            <HierarchicalUnitFilter
-              permission="sr_reservations.view"
-              up3Id={pUp3Id}
-              onUp3Change={(v) => { setPUp3Id(v); setPPage(1) }}
-              unitId={pUnitId}
-              onUnitChange={(v) => { setPUnitId(v); setPPage(1) }}
-              showLabels
-            />
-            <Button size="sm" variant="secondary" icon={IconRefresh} onClick={loadPending}>
-              Segarkan
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <HierarchicalUnitFilter
+                permission="sr_reservations.view"
+                up3Id={pUp3Id}
+                onUp3Change={(v) => { setPUp3Id(v); setPPage(1) }}
+                unitId={pUnitId}
+                onUnitChange={(v) => { setPUnitId(v); setPPage(1) }}
+              />
+            </div>
           </div>
 
-          {pendingState.error && <Alert variant="error">{pendingState.error}</Alert>}
+          {/* Bilah Aksi Kolektif */}
+          {selectedAgendas.length > 0 && (
+            <div className="px-4 py-2.5 bg-blue-50/80 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-900/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <span className="font-semibold text-blue-900 dark:text-blue-200">
+                {selectedAgendas.length} No. Agenda dipilih untuk reservasi kolektif
+              </span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setSelectedMap({})}>
+                  Kosongkan Pilihan
+                </Button>
+                <Button size="sm" variant="primary" icon={IconPlus} onClick={() => setCollectiveOpen(true)}>
+                  Buat Reservasi Kolektif ({selectedAgendas.length})
+                </Button>
+              </div>
+            </div>
+          )}
 
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
-            {pendingState.loading ? (
-              <div className="py-12 flex justify-center"><Spinner label="Memuat permohonan siap pasang..." /></div>
-            ) : pendingState.rows.length === 0 ? (
+          {pendingState.error && (
+            <div className="p-4">
+              <Alert variant="error">{pendingState.error}</Alert>
+            </div>
+          )}
+
+          {pendingState.loading ? (
+            <div className="py-16 flex justify-center"><Spinner label="Memuat permohonan siap pasang..." /></div>
+          ) : pendingState.rows.length === 0 ? (
+            <div className="p-6">
               <EmptyState
                 icon={IconTruck}
                 title="Tidak ada permohonan menunggu reservasi"
                 description="Semua permohonan siap pasang (tanpa perluasan) sudah memiliki rencana reservasi berjalan."
               />
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-850 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="px-4 py-3">Permohonan &amp; Pelanggan</th>
-                        <th className="px-4 py-3">ULP</th>
-                        <th className="px-4 py-3">Daya &amp; Fasa</th>
-                        <th className="px-4 py-3">Pelaksana Bawaan</th>
-                        <th className="px-4 py-3 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {pendingState.rows.map((row) => (
-                        <tr key={row.application_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                          <td className="px-4 py-3">
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/70 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="py-3 pl-4 pr-2 w-8">
+                        <input
+                          type="checkbox"
+                          aria-label="Pilih semua agenda di halaman ini"
+                          checked={allCurrentPageSelected}
+                          onChange={toggleSelectAllPage}
+                          className="rounded border-slate-300"
+                        />
+                      </th>
+                      <th className="py-3 px-4">Permohonan &amp; Pelanggan</th>
+                      <th className="py-3 px-4">ULP</th>
+                      <th className="py-3 px-4">Daya &amp; Fasa</th>
+                      <th className="py-3 px-4">Pelaksana Bawaan</th>
+                      <th className="py-3 px-4 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {pendingState.rows.map((row) => {
+                      const checked = Boolean(selectedMap[row.application_id])
+                      return (
+                        <tr
+                          key={row.application_id}
+                          className={`transition-colors ${
+                            checked ? 'bg-blue-50/40 dark:bg-blue-950/20' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
+                          }`}
+                        >
+                          <td className="py-3 pl-4 pr-2">
+                            <input
+                              type="checkbox"
+                              aria-label={`Pilih ${row.application_number}`}
+                              checked={checked}
+                              onChange={() => toggleSelectRow(row)}
+                              className="rounded border-slate-300"
+                            />
+                          </td>
+                          <td className="py-3 px-4">
                             <div className="font-semibold text-slate-900 dark:text-slate-100">{row.customer_name}</div>
                             <div className="font-mono text-[11px] text-slate-500">
                               {row.application_number} · {row.application_type} · {row.status}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
                             {row.unit?.code ? `${row.unit.code} - ` : ''}{row.unit?.name || '-'}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="py-3 px-4">
                             <div className="font-semibold text-slate-900 dark:text-slate-100">
                               {row.power_va != null ? `${Number(row.power_va).toLocaleString('id-ID')} VA` : '-'}
                             </div>
                             <span className="text-[11px] text-slate-500">{row.phase ? `${row.phase} Phasa` : '-'}</span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="py-3 px-4">
                             {row.default_vendor ? (
                               <span className="font-medium text-emerald-700 dark:text-emerald-300">{row.default_vendor.name}</span>
                             ) : row.phase === 3 ? (
@@ -232,149 +430,170 @@ export default function SrReservationsPage() {
                               <span className="text-rose-600 dark:text-rose-400 font-medium">Belum ada kontrak 1 phasa</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="py-3 px-4 text-right">
                             <Button size="sm" variant="primary" icon={IconPlus} onClick={() => setPlanAppTarget(row)}>
                               Buat Rencana
                             </Button>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {pendingState.meta && (
-                  <TableFooter
-                    meta={pendingState.meta}
-                    page={pPage}
-                    perPage={pPerPage}
-                    onPageChange={setPPage}
-                    onPerPageChange={(v) => { setPPerPage(v); setPPage(1) }}
-                  />
-                )}
-              </>
-            )}
-          </div>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {pendingState.meta && (
+                <TableFooter
+                  itemCount={pendingState.rows.length}
+                  meta={pendingState.meta}
+                  page={pPage}
+                  perPage={pPerPage}
+                  onPage={setPPage}
+                  onPerPage={(v) => { setPPerPage(v); setPPage(1) }}
+                  perPageOptions={[10, 25, 50, 100]}
+                />
+              )}
+            </>
+          )}
         </div>
       )}
 
       {/* TAB 2: Daftar Rencana Reservasi */}
       {tab === 'plans' && canView && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
-            <HierarchicalUnitFilter
-              permission="sr_reservations.view"
-              up3Id={rUp3Id}
-              onUp3Change={(v) => { setRUp3Id(v); setRPage(1) }}
-              unitId={rUnitId}
-              onUnitChange={(v) => { setRUnitId(v); setRPage(1) }}
-              showLabels
-            />
-            <select
-              aria-label="Filter status reservasi"
-              value={rStatus}
-              onChange={(e) => { setRStatus(e.target.value); setRPage(1) }}
-              className={filterSelectCls}
-            >
-              <option value="">Semua Status</option>
-              <option value="DRAFT">Draf</option>
-              <option value="SUBMITTED">Diajukan</option>
-              <option value="APPROVED">Disetujui</option>
-              <option value="RECORDED">Tercatat di MIMS</option>
-              <option value="CANCELLED">Dibatalkan</option>
-            </select>
-            <select
-              aria-label="Filter tingkat gudang"
-              value={rSourceLevel}
-              onChange={(e) => { setRSourceLevel(e.target.value); setRPage(1) }}
-              className={filterSelectCls}
-            >
-              <option value="">Semua Gudang</option>
-              <option value="ULP">Gudang ULP</option>
-              <option value="UP3">Gudang UP3</option>
-            </select>
-            <Button size="sm" variant="secondary" icon={IconRefresh} onClick={loadPlans}>
-              Segarkan
-            </Button>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <HierarchicalUnitFilter
+                permission="sr_reservations.view"
+                up3Id={rUp3Id}
+                onUp3Change={(v) => { setRUp3Id(v); setRPage(1) }}
+                unitId={rUnitId}
+                onUnitChange={(v) => { setRUnitId(v); setRPage(1) }}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                aria-label="Filter status reservasi"
+                value={rStatus}
+                onChange={(e) => { setRStatus(e.target.value); setRPage(1) }}
+                className={filterSelectCls}
+              >
+                <option value="">Semua Status</option>
+                <option value="DRAFT">Draf</option>
+                <option value="SUBMITTED">Diajukan</option>
+                <option value="APPROVED">Disetujui</option>
+                <option value="RECORDED">Tercatat di MIMS</option>
+                <option value="SAP_SENT">Terkirim ke SAP</option>
+                <option value="CANCELLED">Dibatalkan</option>
+              </select>
+              <select
+                aria-label="Filter tingkat gudang"
+                value={rSourceLevel}
+                onChange={(e) => { setRSourceLevel(e.target.value); setRPage(1) }}
+                className={filterSelectCls}
+              >
+                <option value="">Semua Gudang</option>
+                <option value="ULP">Gudang ULP</option>
+                <option value="UP3">Gudang UP3</option>
+              </select>
+            </div>
           </div>
 
-          {plansState.error && <Alert variant="error">{plansState.error}</Alert>}
+          {plansState.error && (
+            <div className="p-4">
+              <Alert variant="error">{plansState.error}</Alert>
+            </div>
+          )}
 
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
-            {plansState.loading ? (
-              <div className="py-12 flex justify-center"><Spinner label="Memuat daftar rencana reservasi..." /></div>
-            ) : plansState.rows.length === 0 ? (
+          {plansState.loading ? (
+            <div className="py-16 flex justify-center"><Spinner label="Memuat daftar rencana reservasi..." /></div>
+          ) : plansState.rows.length === 0 ? (
+            <div className="p-6">
               <EmptyState
                 icon={IconTruck}
                 title="Belum ada rencana reservasi"
                 description="Buat rencana reservasi dari tab Menunggu Reservasi atau dari detail permohonan siap pasang."
               />
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-850 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="px-4 py-3">Permohonan &amp; Pelanggan</th>
-                        <th className="px-4 py-3">Gudang &amp; Pelaksana</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">No. MIMS</th>
-                        <th className="px-4 py-3 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {plansState.rows.map((r) => (
-                        <tr key={r.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                          <td className="px-4 py-3">
-                            <div className="font-semibold text-slate-900 dark:text-slate-100">{r.application?.customer_name || '-'}</div>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/70 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4">Permohonan &amp; Pelanggan</th>
+                      <th className="py-3 px-4">Gudang &amp; Pelaksana</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">No. MIMS</th>
+                      <th className="py-3 px-4 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {plansState.rows.map((r) => {
+                      const agendaCount = r.applications_count ?? r.agendas?.length ?? 1
+                      return (
+                        <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                                {r.application?.customer_name || (agendaCount > 1 ? `Batch Kolektif (${agendaCount} Agenda)` : '-')}
+                              </span>
+                              {agendaCount > 1 && (
+                                <span className="rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-1.5 py-0 text-[10px] font-semibold">
+                                  Kolektif · {agendaCount} Agenda
+                                </span>
+                              )}
+                            </div>
                             <div className="font-mono text-[11px] text-slate-500">
-                              {r.application?.number || '-'} · {r.phase}Ph · {r.power_va != null ? `${Number(r.power_va).toLocaleString('id-ID')} VA` : '-'}
+                              {r.application?.number || r.batch_number || '-'} · {r.phase}Ph · {r.power_va != null ? `${Number(r.power_va).toLocaleString('id-ID')} VA` : '-'}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="py-3 px-4">
                             <div className="font-medium text-slate-800 dark:text-slate-200">
                               [{r.source_level}] {r.warehouse?.name || '-'}
                             </div>
                             <div className="text-[11px] text-slate-500">{r.vendor?.name || '-'}</div>
                           </td>
-                          <td className="px-4 py-3"><SrStatusBadge status={r.status} /></td>
-                          <td className="px-4 py-3 font-mono font-semibold text-slate-700 dark:text-slate-200">
+                          <td className="py-3 px-4"><SrStatusBadge status={r.status} /></td>
+                          <td className="py-3 px-4 font-mono font-semibold text-slate-700 dark:text-slate-200">
                             {r.mims_reservation_no || '-'}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="py-3 px-4 text-right">
                             <Button size="sm" variant="secondary" icon={IconEye} onClick={() => setDetailId(r.id)}>
                               Rincian
                             </Button>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {plansState.meta && (
-                  <TableFooter
-                    meta={plansState.meta}
-                    page={rPage}
-                    perPage={rPerPage}
-                    onPageChange={setRPage}
-                    onPerPageChange={(v) => { setRPerPage(v); setRPage(1) }}
-                  />
-                )}
-              </>
-            )}
-          </div>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {plansState.meta && (
+                <TableFooter
+                  itemCount={plansState.rows.length}
+                  meta={plansState.meta}
+                  page={rPage}
+                  perPage={rPerPage}
+                  onPage={setRPage}
+                  onPerPage={(v) => { setRPerPage(v); setRPage(1) }}
+                  perPageOptions={[10, 25, 50, 100]}
+                />
+              )}
+            </>
+          )}
         </div>
       )}
 
       {/* TAB 3: Kontrak Pelaksana 1 Phasa */}
       {tab === 'contracts' && canContracts && <SrVendorContractsTab />}
 
-      {/* Drawer Buat Rencana dari Tab Pending */}
+      {/* Drawer Buat Rencana Satuan */}
       <PanelShell
         open={Boolean(planAppTarget)}
         onClose={() => setPlanAppTarget(null)}
         title="Rencana Reservasi Material SR"
         subtitle={planAppTarget ? `${planAppTarget.application_number} · ${planAppTarget.customer_name}` : ''}
-        size="lg"
+        size="max-w-2xl"
       >
         {planAppTarget && (
           <ApplicationSrReservationPanel
@@ -386,6 +605,26 @@ export default function SrReservationsPage() {
           />
         )}
       </PanelShell>
+
+      {/* Drawer Buat Rencana Kolektif */}
+      <SrCollectiveCreateDrawer
+        open={collectiveOpen}
+        agendas={selectedAgendas}
+        onRemoveAgenda={(appId) => {
+          setSelectedMap((prev) => {
+            const next = { ...prev }
+            delete next[appId]
+            return next
+          })
+        }}
+        onClose={() => setCollectiveOpen(false)}
+        onCreated={(createdId) => {
+          setSelectedMap({})
+          loadPending()
+          loadPlans()
+          if (createdId) setDetailId(createdId)
+        }}
+      />
 
       {/* Drawer Rincian Rencana */}
       <SrReservationDetailDrawer

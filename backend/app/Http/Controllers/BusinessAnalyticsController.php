@@ -103,7 +103,22 @@ class BusinessAnalyticsController extends Controller
         if (! isset(BusinessMetricService::CATALOG[$code])) {
             throw new AdministrationDenied('Metrik tidak dikenal.', 404);
         }
-        $d = $request->validate(['unit_id' => ['required', 'uuid']]);
+        $d = $request->validate(['unit_id' => ['nullable', 'uuid']]);
+        if (empty($d['unit_id'])) {
+            $scope = $this->authorizer->authorizeScope($request->user(), self::PERMISSION);
+            if (! $scope['unrestricted']) {
+                throw new AdministrationDenied('Unit wajib dipilih.', 422);
+            }
+            $ulps = DB::table('organizational_units')
+                ->where('unit_type', 'ULP')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name', 'id')
+                ->all();
+            $unit = (object) ['id' => null, 'name' => 'Semua UP3', 'unit_type' => 'ALL'];
+
+            return [$unit, $ulps, array_keys($ulps)];
+        }
         $unit = $this->visibleUnits($request)->firstWhere('id', $d['unit_id']);
         if ($unit === null) {
             throw new AdministrationDenied('Data tidak ditemukan.', 404);
@@ -144,7 +159,7 @@ class BusinessAnalyticsController extends Controller
             'piutang-prabayar' => $this->prepaid->detail($ids, $to),
             default => null,
         }]
-            + $this->builder->build($code, $ids, $unit->unit_type === 'UP3' ? $ulps : [], $from, $to, fn (array $ytd) => $this->targets->targets($code, $unit, $to, $ytd));
+            + $this->builder->build($code, $ids, in_array($unit->unit_type, ['UP3', 'ALL'], true) ? $ulps : [], $from, $to, fn (array $ytd) => $unit->id ? $this->targets->targets($code, $unit, $to, $ytd) : []);
     }
 
     /**
